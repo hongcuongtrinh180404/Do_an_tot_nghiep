@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
-import { LoginForm } from '@/features/auth/components/login-form';
+import Link from 'next/link';
 import { useCurrentUserQuery, useLogoutMutation } from '@/features/auth/api/auth.api';
-import { Button } from '@/components/ui/button';
+import { LoginForm } from '@/features/auth/components/login-form';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -12,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { LogOut, UserCircle2, ShieldCheck, Database, Layers, Radio } from 'lucide-react';
+import { Icon } from '@/components/ui/icon';
 
 export default function Home(): React.JSX.Element {
   const { data: user, isLoading } = useCurrentUserQuery();
@@ -32,9 +33,28 @@ export default function Home(): React.JSX.Element {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/60 px-3 py-1.5 rounded-full border border-border/40">
-          <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>API: 8000 | FE: 3000</span>
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-muted/60 px-3 py-1.5 rounded-full border border-border/40">
+            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>API: 8000 | FE: 3000</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            >
+              <Icon icon="lucide:log-in" className="size-3.5 mr-1.5" />
+              Đăng Nhập
+            </Link>
+            <Link
+              href="/register"
+              className={buttonVariants({ size: 'sm' })}
+            >
+              <Icon icon="lucide:user-plus" className="size-3.5 mr-1.5" />
+              Đăng Ký
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -43,7 +63,7 @@ export default function Home(): React.JSX.Element {
         {/* Left Side: Information & Architecture Badges */}
         <div className="lg:col-span-7 space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold tracking-wide uppercase">
-            <Radio className="size-3 animate-spin" />
+            <Icon icon="lucide:radio" className="size-3 animate-spin" />
             TanStack Query + Next.js App Router
           </div>
 
@@ -57,9 +77,25 @@ export default function Home(): React.JSX.Element {
             và Backend NestJS MongoDB có bảo vệ phiên đa tab 30s Grace Period.
           </p>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Link
+              href="/login"
+              className={buttonVariants({ size: 'lg', className: 'shadow-md' })}
+            >
+              Đến trang Đăng Nhập
+              <Icon icon="lucide:arrow-right" className="size-4 ml-2" />
+            </Link>
+            <Link
+              href="/register"
+              className={buttonVariants({ variant: 'outline', size: 'lg' })}
+            >
+              Tạo tài khoản sinh viên / giảng viên
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-4">
             <div className="flex items-center gap-2.5 p-3 rounded-lg border border-border/50 bg-card/50">
-              <Layers className="size-5 text-sky-500" />
+              <Icon icon="lucide:layers" className="size-5 text-sky-500" />
               <div>
                 <p className="text-xs font-medium text-foreground">App Router</p>
                 <p className="text-[11px] text-muted-foreground">Next.js 16</p>
@@ -67,7 +103,7 @@ export default function Home(): React.JSX.Element {
             </div>
 
             <div className="flex items-center gap-2.5 p-3 rounded-lg border border-border/50 bg-card/50">
-              <Radio className="size-5 text-amber-500" />
+              <Icon icon="lucide:radio" className="size-5 text-amber-500" />
               <div>
                 <p className="text-xs font-medium text-foreground">TanStack Query</p>
                 <p className="text-[11px] text-muted-foreground">Server State v5</p>
@@ -75,7 +111,7 @@ export default function Home(): React.JSX.Element {
             </div>
 
             <div className="flex items-center gap-2.5 p-3 rounded-lg border border-border/50 bg-card/50">
-              <Database className="size-5 text-emerald-500" />
+              <Icon icon="lucide:database" className="size-5 text-emerald-500" />
               <div>
                 <p className="text-xs font-medium text-foreground">NestJS + Mongo</p>
                 <p className="text-[11px] text-muted-foreground">Clean Repository</p>
@@ -95,7 +131,7 @@ export default function Home(): React.JSX.Element {
             <Card className="w-full max-w-md shadow-xl border-border/40 bg-card">
               <CardHeader className="text-center pb-2">
                 <div className="mx-auto size-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2">
-                  <UserCircle2 className="size-10" />
+                  <Icon icon="lucide:user-circle-2" className="size-10" />
                 </div>
                 <CardTitle className="text-xl font-bold">
                   {user.firstName && user.lastName
@@ -108,7 +144,7 @@ export default function Home(): React.JSX.Element {
                 <div className="flex items-center justify-between p-2.5 rounded-md bg-muted/50">
                   <span className="text-muted-foreground text-xs">Vai trò (Role)</span>
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
-                    <ShieldCheck className="size-3.5" />
+                    <Icon icon="lucide:shield-check" className="size-3.5" />
                     {user.role}
                   </span>
                 </div>
@@ -130,7 +166,7 @@ export default function Home(): React.JSX.Element {
                   onClick={() => logoutMutation.mutate()}
                   disabled={logoutMutation.isPending}
                 >
-                  <LogOut className="size-4 mr-2" />
+                  <Icon icon="lucide:log-out" className="size-4 mr-2" />
                   {logoutMutation.isPending ? 'Đang đăng xuất...' : 'Đăng Xuất'}
                 </Button>
               </CardFooter>

@@ -1,36 +1,20 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { AuthCardWrapper } from './auth-card-wrapper';
+import { PasswordInput } from './password-input';
+import { loginSchema, type LoginFormData } from '../schemas/login.schema';
 import { useLoginMutation } from '../api/auth.api';
 
-const loginSchema = z.object({
-  email: z
-    .string()
-    .transform((v) => v.trim())
-    .pipe(z.string().min(1, 'Email không được để trống').email('Email không đúng định dạng')),
-  password: z
-    .string()
-    .transform((v) => v.trim())
-    .pipe(z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự')),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
-
 export function LoginForm(): React.JSX.Element {
+  const router = useRouter();
+
   const {
     register,
     handleSubmit,
@@ -46,59 +30,61 @@ export function LoginForm(): React.JSX.Element {
   const loginMutation = useLoginMutation();
 
   const onSubmit = (data: LoginFormData) => {
-    loginMutation.mutate(data);
+    loginMutation.mutate(data, {
+      onSuccess: () => {
+        router.push('/');
+      },
+    });
   };
 
   return (
-    <Card className="w-full max-w-md shadow-xl border-border/40 bg-card/80 backdrop-blur-sm">
-      <CardHeader className="space-y-1 text-center">
-        <CardTitle className="text-2xl font-bold tracking-tight">Đăng Nhập Hệ Thống</CardTitle>
-        <CardDescription className="text-sm text-muted-foreground">
-          Đăng nhập với email và mật khẩu của bạn
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="space-y-4 pt-2">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="example@domain.com"
-              autoComplete="email"
-              {...register('email')}
-            />
-            {errors.email && (
-              <p className="text-xs text-destructive font-medium">{errors.email.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Mật khẩu</Label>
-            </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              autoComplete="current-password"
-              {...register('password')}
-            />
-            {errors.password && (
-              <p className="text-xs text-destructive font-medium">{errors.password.message}</p>
-            )}
-          </div>
-        </CardContent>
-        <CardFooter className="pt-2">
-          <Button
-            type="submit"
-            className="w-full font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
+    <AuthCardWrapper
+      headerTitle="Đăng Nhập"
+      headerDescription="Cổng thông tin quản lý Đồ án tốt nghiệp"
+      backButtonLabel="Chưa có tài khoản?"
+      backButtonText="Đăng ký ngay"
+      backButtonHref="/register"
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="email">Địa chỉ Email</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="nguyenvana@university.edu.vn"
+            autoComplete="email"
             disabled={loginMutation.isPending}
-          >
-            {loginMutation.isPending ? 'Đang xác thực...' : 'Đăng Nhập'}
-          </Button>
-        </CardFooter>
+            {...register('email')}
+          />
+          {errors.email && (
+            <p className="text-xs font-medium text-destructive">{errors.email.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Mật khẩu</Label>
+          </div>
+          <PasswordInput
+            id="password"
+            placeholder="••••••••"
+            autoComplete="current-password"
+            disabled={loginMutation.isPending}
+            {...register('password')}
+          />
+          {errors.password && (
+            <p className="text-xs font-medium text-destructive">{errors.password.message}</p>
+          )}
+        </div>
+
+        <Button
+          type="submit"
+          className="w-full font-semibold transition-all shadow-md hover:shadow-lg mt-2"
+          disabled={loginMutation.isPending}
+        >
+          {loginMutation.isPending ? 'Đang xác thực...' : 'Đăng Nhập'}
+        </Button>
       </form>
-    </Card>
+    </AuthCardWrapper>
   );
 }
