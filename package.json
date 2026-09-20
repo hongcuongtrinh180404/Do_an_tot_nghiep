@@ -4,15 +4,24 @@
   "private": true,
   "description": "Monorepo for DATN Graduation Project (Backend, Frontend, Share-lib)",
   "scripts": {
-    "build": "pnpm --filter share-lib run build && pnpm --filter backend run build",
+    "build": "pnpm --filter share-lib run build && pnpm --filter backend run build && pnpm --filter frontend run build",
     "build:all": "pnpm --recursive run build",
     "dev": "pnpm --parallel run dev",
     "dev:backend": "pnpm --filter backend run dev",
+    "dev:frontend": "pnpm --filter frontend run dev",
     "dev:share": "pnpm --filter share-lib run dev",
     "test": "pnpm --recursive run test",
     "lint": "pnpm --recursive run lint"
   },
   "devDependencies": {
     "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "bcrypt",
+      "unrs-resolver",
+      "esbuild",
+      "@nestjs/core"
+    ]
   }
 }

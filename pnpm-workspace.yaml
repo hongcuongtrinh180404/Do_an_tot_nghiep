@@ -4,3 +4,4 @@ packages:
   - 'share-lib'
 allowBuilds:
   bcrypt: true
+  unrs-resolver: true
