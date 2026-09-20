@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Model, HydratedDocument, Types } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { BaseAbstractDocument } from '../documents/base.abstract.document.js';
 import { BaseMongoRepository } from '../repositories/base.mongo.repository.js';
 

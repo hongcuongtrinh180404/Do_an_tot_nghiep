@@ -1,0 +1,6 @@
+packages:
+  - 'backend'
+  - 'frontend'
+  - 'share-lib'
+allowBuilds:
+  bcrypt: true

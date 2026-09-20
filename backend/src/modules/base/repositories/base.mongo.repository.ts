@@ -20,8 +20,8 @@ export abstract class BaseMongoRepository<
     const plain = typeof (doc as { toObject?: () => Record<string, unknown> }).toObject === 'function'
       ? (doc as { toObject: () => Record<string, unknown> }).toObject()
       : (doc as Record<string, unknown>);
-
-    const id = plain._id ? String(plain._id) : undefined;
+    const rawId = plain._id;
+    const id = typeof rawId === 'string' ? rawId : (rawId as { toString?: () => string })?.toString?.();
     return {
       ...plain,
       id,
@@ -67,7 +67,7 @@ export abstract class BaseMongoRepository<
     session?: ClientSession,
   ): Promise<PaginationResult<DomainModel>> {
     const query: Record<string, unknown> = {
-      ...(options.filters ?? {}),
+      ...options.filters,
       deletedAt: null,
     };
 

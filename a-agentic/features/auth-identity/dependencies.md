@@ -1,39 +1,56 @@
 # Authentication & Identity — Dependencies & Components
 
-> **Description:** Source files, components, and module dependencies for Auth & Identity in NestJS + Next.js App Router.
+> **Description:** Source files, components, and module dependencies for Auth & Identity across `share-lib`, `backend` (NestJS), and `frontend` (Next.js App Router).
 
 ---
 
-## 1. Backend Source Files (NestJS)
+## 1. Shared Library (`share-lib`)
 
-- **Controllers**:
-  - `backend/src/modules/auth/auth.controller.ts`
-  - `backend/src/modules/user/user.controller.ts`
-- **Services**:
-  - `backend/src/modules/auth/auth.service.ts`
-  - `backend/src/modules/user/user.service.ts`
-  - `backend/src/modules/session/session.service.ts`
-- **Guards & Decorators**:
-  - `backend/src/common/guards/jwt-auth.guard.ts`
-  - `backend/src/common/guards/roles.guard.ts`
-  - `backend/src/common/decorators/roles.decorator.ts`
-  - `backend/src/common/decorators/current-user.decorator.ts`
-- **Schemas & Repositories**:
-  - `backend/src/modules/user/schemas/user.schema.ts`
-  - `backend/src/modules/user/repositories/user.repository.ts`
-  - `backend/src/modules/session/schemas/session.schema.ts`
-  - `backend/src/modules/session/repositories/session.repository.ts`
-- **Tests**:
-  - `backend/src/modules/auth/tests/auth.service.spec.ts`
-  - `backend/src/modules/user/tests/user.service.spec.ts`
+- **Enums**:
+  - `share-lib/src/enums/role.enum.ts`: `RoleEnum` (`ADMIN`, `USER`)
+  - `share-lib/src/enums/auth-provider.enum.ts`: `AuthProviderEnum` (`LOCAL`, `GOOGLE`, `GITHUB`)
+  - `share-lib/src/enums/user-status.enum.ts`: `UserStatusEnum` (`ACTIVE`, `INACTIVE`, `SUSPENDED`)
+- **Interfaces & Constants**:
+  - `share-lib/src/interfaces/auth.interface.ts`: `ILoginPayload`, `IRegisterPayload`, `IAuthTokens`, `IAuthResponse`, `IJwtPayload`
+  - `share-lib/src/interfaces/user.interface.ts`: `IUser`, `IUserProfile`
+  - `share-lib/src/interfaces/session.interface.ts`: `ISession`
+  - `share-lib/src/interfaces/api-response.interface.ts`: `IApiResponse<T>`
+  - `share-lib/src/constants/auth.constants.ts`: `AUTH_CONSTANTS` (Grace period 30s, token lifetimes)
 
 ---
 
-## 2. Frontend Source Files (Next.js App Router)
+## 2. Backend Source Files (NestJS)
+
+- **Auth Module (`backend/src/modules/auth/`)**:
+  - `auth.controller.ts`: Endpoints (`POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`)
+  - `services/auth.service.ts`: Orchestrates registration, login, token refresh, logout, profile fetching, and OAuth expansion hook
+  - `services/local-auth.service.ts`: Password hashing (bcrypt) and credential validation
+  - `services/auth-token.service.ts`: JWT access & refresh token signing, SHA-256 token hashing, verification
+  - `guards/jwt-auth.guard.ts`: JWT Bearer authentication guard with `@Public()` decorator bypass
+  - `guards/roles.guard.ts`: Role-based access control with `ADMIN` role bypass
+  - `decorators/public.decorator.ts`, `decorators/roles.decorator.ts`, `decorators/current-user.decorator.ts`
+  - `dto/register.dto.ts`, `dto/login.dto.ts`, `dto/refresh-token.dto.ts`: Trimmed validation DTOs
+  - `tests/auth.service.spec.ts`, `tests/roles.guard.spec.ts`
+
+- **User Module (`backend/src/modules/user/`)**:
+  - `schemas/user.schema.ts`: `UserEntity` extending `BaseAbstractDocument`
+  - `repositories/user.repository.ts`: Abstract domain repository implementation
+  - `services/user.service.ts`: User query & conflict verification methods
+  - `tests/user.service.spec.ts`
+
+- **Session Module (`backend/src/modules/session/`)**:
+  - `schemas/session.schema.ts`: `SessionEntity` with TTL indexing on `expiresAt`
+  - `repositories/session.repository.ts`: Session domain persistence layer
+  - `services/session.service.ts`: Session lifecycle, 30s Grace Period token reuse, replay-attack detection
+  - `tests/session.service.spec.ts`
+
+---
+
+## 3. Frontend Source Files (Next.js App Router - Planned)
 
 - **App Routes**:
   - `frontend/src/app/(auth)/login/page.tsx`: Authentication login page
-  - `frontend/src/app/(dashboard)/users/page.tsx`: User management page
+  - `frontend/src/app/(auth)/register/page.tsx`: User registration page
 - **Features**:
   - `frontend/src/features/auth/`: Auth forms, login hooks, session handlers
   - `frontend/src/features/users/`: User tables, user forms, user mutations

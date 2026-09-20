@@ -1,4 +1,4 @@
-import { IsOptional, IsInt, Min, Max, IsBoolean, IsString } from 'class-validator';
+import { IsOptional, IsInt, Min, Max, IsBoolean } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { PaginationOptions, SortOption } from './pagination-result.dto.js';
 
