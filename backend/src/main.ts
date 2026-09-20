@@ -1,7 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ClsService } from 'nestjs-cls';
 import { AppModule } from './app.module.js';
+import { AuditContextInterceptor, TransformInterceptor } from './modules/base/index.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -19,6 +21,13 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
       transform: true,
     }),
+  );
+
+  // Global Interceptors
+  const clsService = app.get(ClsService);
+  app.useGlobalInterceptors(
+    new AuditContextInterceptor(clsService),
+    new TransformInterceptor(),
   );
 
   // CORS Configuration

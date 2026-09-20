@@ -5,6 +5,7 @@ import { ClsModule } from 'nestjs-cls';
 import { envValidationSchema } from './config/env.validation.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { BaseModule } from './modules/base/base.module.js';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AppService } from './app.service.js';
       global: true,
       middleware: { mount: true },
     }),
+    BaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],
