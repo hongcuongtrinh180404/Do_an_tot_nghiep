@@ -5,3 +5,8 @@ packages:
 allowBuilds:
   bcrypt: true
   unrs-resolver: true
+onlyBuiltDependencies:
+  - bcrypt
+  - unrs-resolver
+  - esbuild
+  - '@nestjs/core'
