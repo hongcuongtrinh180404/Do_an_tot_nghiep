@@ -109,8 +109,8 @@ cp frontend/.env.example frontend/.env
 
 Nội dung của `frontend/.env`:
 ```env
-# Trỏ đến địa chỉ Backend API
-NEXT_PUBLIC_API_URL=http://localhost:8000
+# Trỏ đến địa chỉ Backend API (bao gồm prefix api/v1)
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 ```
 
 ---

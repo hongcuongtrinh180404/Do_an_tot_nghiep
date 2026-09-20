@@ -9,8 +9,13 @@ interface CustomRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
-export const API_BASE_URL: string =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const rawBaseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+  .trim()
+  .replace(/\/+$/, '');
+
+export const API_BASE_URL: string = rawBaseUrl.endsWith('/api/v1')
+  ? rawBaseUrl
+  : `${rawBaseUrl}/api/v1`;
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
