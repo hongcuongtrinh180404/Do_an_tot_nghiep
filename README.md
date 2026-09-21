@@ -1,6 +1,11 @@
-# 🎓 DATN PORTAL — HỆ THỐNG QUẢN LÝ ĐỒ ÁN TỐT NGHIỆP
+# 🎓 HỆ THỐNG HỌC TRỰC TUYẾN VỚI VIDEO ĐA TƯƠNG TÁC
+### Interactive Video E-Learning Platform with AI & Automated Payment
 
-> **Monorepo Kiến Trúc Doanh Nghiệp** kết hợp giữa **NestJS (Backend)**, **Next.js App Router (Frontend)** và **Share-Lib (Shared Contracts)**, vận hành mượt mà với **Turborepo** và **pnpm workspaces**.
+> **Đồ án tốt nghiệp Đại học (DATN)**  
+> **Sinh viên thực hiện:** Trịnh Hồng Cường – **MSSV:** 28211151710  
+> **Giảng viên hướng dẫn:** ThS. Nguyễn Hữu Phúc  
+> **Thời gian:** 28/9/2026 – 22/12/2026 (3 tháng)  
+> **Kiến trúc:** Monorepo chuẩn doanh nghiệp kết hợp **NestJS 11**, **Next.js 16 (App Router)**, **RabbitMQ**, **AssemblyAI**, **Gemini API**, **Markmap**, và **SePay**.
 
 ---
 
@@ -8,9 +13,12 @@
 
 | Tài liệu | Mô tả |
 | :--- | :--- |
-| 🚀 **[Hướng dẫn triển khai Local (Getting Started)](./docs/GETTING_STARTED.md)** | Hướng dẫn chi tiết cài đặt môi trường, biến môi trường `.env`, chạy MongoDB và khởi động toàn bộ dự án từ A-Z |
-| 🏗️ **[Cấu trúc & Kiến trúc dự án (Project Structure)](./docs/PROJECT_STRUCTURE.md)** | Phân tích chi tiết kiến trúc Monorepo, Base Module (Backend), Feature-Driven Design (Frontend), Share-Lib |
-| 📐 **[Quy chuẩn kiến trúc hệ thống (Rule Guide)](./.agent/rules/project-architecture.md)** | Các nguyên tắc bắt buộc: Clean Code, Repository Pattern, No `any`, Strict Typing, Iconify, Roboto Font |
+| 🎯 **[Định hướng Đề tài & Master Brief](./a-agentic/project-brief.md)** | Bản định hướng cốt lõi cho AI Agent & thành viên dự án: 5 trụ cột chức năng, kiến trúc RabbitMQ, AI Pipeline |
+| 🗺️ **[Sơ đồ Kiến trúc & Code Boundaries](./a-agentic/project-shape.md)** | Sơ đồ tương tác luồng dữ liệu kiến trúc (Mermaid), ranh giới chỉnh sửa code an toàn |
+| 🚀 **[Hướng dẫn triển khai Local (Getting Started)](./docs/GETTING_STARTED.md)** | Hướng dẫn cài đặt môi trường, biến môi trường `.env`, MongoDB, RabbitMQ và khởi động dự án |
+| 🏗️ **[Cấu trúc & Kiến trúc dự án (Project Structure)](./docs/PROJECT_STRUCTURE.md)** | Phân tích chi tiết kiến trúc Monorepo, Base Module, Feature-Driven Design, RabbitMQ & AI Pipeline |
+| 📅 **[Kế hoạch Triển khai 3 Tháng (Master Roadmap)](./docs/PLAN-interactive-video-elearning.md)** | Lộ trình phân rã công việc từ 28/9 đến 22/12/2026 |
+| 📐 **[Quy chuẩn kiến trúc hệ thống (Rule Guide)](./.agent/rules/project-architecture.md)** | Các nguyên tắc bắt buộc: Clean Code, Repository Pattern, RabbitMQ ACK/DLQ, Idempotency SePay, No `any` |
 
 ---
 
@@ -69,16 +77,24 @@ pnpm dev
 
 ## 🛠️ Công nghệ chủ đạo (Tech Stack)
 
-### ⚙️ Backend (REST API)
+### ⚙️ Backend (REST API & Async Workers)
 * **Framework**: NestJS 11 + TypeScript (Strict mode).
 * **Database & ODM**: MongoDB 7+ & Mongoose 8.
 * **Architecture**: Repository Pattern + Base Abstract Pattern (`BaseRepository`, `BaseService`, `BaseAbstractDocument`).
+* **Message Broker**: **RabbitMQ (AMQP)** điều phối tác vụ upload video, gọi Speech-to-Text và gọi LLM bất đồng bộ với cơ chế Manual ACK & Dead Letter Queue (DLQ).
+* **AI Integrations**:
+  * **AssemblyAI**: Chuyển đổi giọng nói video sang văn bản có timestamp chi tiết.
+  * **Google Gemini API**: Phân tích transcript, sinh sơ đồ tư duy Markdown và ngân hàng câu hỏi in-video quiz.
+* **Cổng thanh toán**: **SePay API** (Quét mã VietQR động, kích hoạt khóa học tức thì qua Webhook an toàn Idempotent).
 * **Authentication**: JWT (Access Token 15m + Refresh Token 7d) + Session Security với **30s Multi-tab Grace Period**.
 * **Audit & Context**: Async Local Storage (`nestjs-cls`) tự động ghi nhận `createdById`, `updatedById`, `deletedAt` (Soft Delete).
 * **Testing**: Vitest + Unit Tests theo chuẩn AAA (Arrange-Act-Assert).
 
 ### 💻 Frontend (Web Client)
 * **Framework**: Next.js 16 (App Router) + React 19 + TypeScript.
+* **Interactive Player & Mindmap**:
+  * **HTML5 Video Player**: Tích hợp sự kiện tự động tạm dừng để học viên trả lời câu hỏi **In-video Quiz**.
+  * **Markmap**: Thư viện `@markmap/react` / `markmap-view` hiển thị trực quan sơ đồ tư duy phân cấp từ Markdown.
 * **Styling**: Tailwind CSS v4 + Tailwind Animate CSS.
 * **Typography**: Font **Roboto** (Google Fonts hỗ trợ chuẩn Tiếng Việt, quản lý qua CSS variables).
 * **Icons**: Thuần **Iconify** (`@iconify/react`) thông qua component dùng chung `Icon`.
@@ -87,8 +103,9 @@ pnpm dev
 * **Forms & Validation**: `react-hook-form` + `zod` + `zxcvbn-ts` (Đo lường độ mạnh mật khẩu).
 
 ### 📦 Share-Lib (Thư viện dùng chung)
-* Xuất bản các kiểu dữ liệu dùng chung (`UserRole`, `AuthStatus`, `AuthProvider`, `IUser`, `ApiResponse`, ...).
+* Xuất bản các kiểu dữ liệu dùng chung (`UserRole`, `AuthStatus`, `AuthProvider`, `IUser`, `ApiResponse`, `VideoStatus`, `OrderStatus`, ...).
 * Biên dịch tự động sang `dist/` thông qua `tsc --watch`, chia sẻ tức thì giữa Backend và Frontend mà không bị lệch kiểu (Single Source of Truth).
+
 
 ---
 

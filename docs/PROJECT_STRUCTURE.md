@@ -1,6 +1,7 @@
 # 🏗️ TÀI LIỆU CẤU TRÚC VÀ KIẾN TRÚC DỰ ÁN (PROJECT STRUCTURE & ARCHITECTURE)
 
-> **Dự án**: Hệ Thống Quản Lý Đồ Án Tốt Nghiệp (DATN Portal)  
+> **Dự án**: Hệ Thống Học Trực Tuyến Với Video Đa Tương Tác (Interactive Video E-Learning Platform)  
+> **Sinh viên thực hiện**: Trịnh Hồng Cường (MSSV: 28211151710) | **GVHD**: ThS. Nguyễn Hữu Phúc  
 > **Mô hình**: Monorepo chuẩn doanh nghiệp (Enterprise Architecture)  
 > **Quản lý Monorepo**: Turborepo + pnpm workspaces
 
@@ -13,7 +14,11 @@ Do_an_tot_nghiep/
 ├── 📁 .agent/                         # Bộ quy chuẩn, nhân bản AI Agent & Rules
 │   └── 📁 rules/                      # Quy tắc dự án (project-architecture.md, GEMINI.md)
 ├── 📁 a-agentic/                      # Living Docs theo dõi tiến độ & context kỹ thuật
-├── 📁 docs/                           # Thư mục tài liệu kỹ thuật & quy hoạch dự án
+│   ├── 📄 project-brief.md            # [CỐT LÕI] Master brief định hướng AI Agent về đề tài
+│   ├── 📄 project-shape.md            # Sơ đồ kiến trúc luồng dữ liệu & boundaries
+│   ├── 📁 skills/                     # Coding guidelines, data patterns, context maintenance
+│   └── 📁 features/                   # Chi tiết kỹ thuật từng feature (course, ai, player, payment, auth)
+├── 📁 docs/                           # Thư mục tài liệu kỹ thuật & kế hoạch phát triển
 │   ├── 📄 GETTING_STARTED.md          # Hướng dẫn cài đặt và chạy trên máy cá nhân
 │   ├── 📄 PROJECT_STRUCTURE.md        # Tài liệu cấu trúc & kiến trúc này
 │   └── 📄 PLAN-*.md                   # Các bản kế hoạch kiến trúc chi tiết
@@ -21,26 +26,23 @@ Do_an_tot_nghiep/
 ├── 📦 share-lib/                      # [Package] Thư viện kiểu dữ liệu dùng chung (FE & BE)
 │   ├── 📁 src/
 │   │   ├── 📁 constants/              # Hằng số toàn hệ thống
-│   │   ├── 📁 enums/                  # UserRole, AuthProvider, AuthStatus,...
-│   │   ├── 📁 interfaces/             # IUser, ApiResponse, AuthTokens,...
+│   │   ├── 📁 enums/                  # UserRole, VideoStatus, OrderStatus, AuthProvider,...
+│   │   ├── 📁 interfaces/             # IUser, ICourse, ILesson, ApiResponse, AuthTokens,...
 │   │   └── 📄 index.ts                # Entrypoint xuất bản kiểu
 │   ├── 📄 package.json
 │   └── 📄 tsconfig.json
 │
-├── ⚙️ backend/                        # [App] REST API Service (NestJS + MongoDB)
+├── ⚙️ backend/                        # [App] REST API Service (NestJS + MongoDB + RabbitMQ)
 │   ├── 📁 src/
 │   │   ├── 📁 common/                 # Decorators, Filters, Guards, Interceptors toàn cục
-│   │   ├── 📁 config/                 # Cấu hình môi trường (@nestjs/config)
+│   │   ├── 📁 config/                 # Cấu hình môi trường (@nestjs/config, RabbitMQ, AI APIs)
 │   │   ├── 📁 modules/
 │   │   │   ├── 📁 base/               # [CORE] Base Abstract Document, Repository & Service
 │   │   │   ├── 📁 auth/               # Module xác thực JWT & Session Security
-│   │   │   │   ├── 📁 controllers/    # Route handlers (/api/v1/auth)
-│   │   │   │   ├── 📁 dto/            # Request DTOs (Validation + Trim)
-│   │   │   │   ├── 📁 services/       # Nghiệp vụ xác thực
-│   │   │   │   ├── 📁 strategies/     # Passport JWT Strategy
-│   │   │   │   ├── 📁 schemas/        # Session Mongoose Schema
-│   │   │   │   └── 📁 tests/          # Unit tests (AAA Pattern)
-│   │   │   └── 📁 user/               # Module quản lý người dùng
+│   │   │   ├── 📁 user/               # Module quản lý người dùng
+│   │   │   ├── 📁 course/             # Module quản lý khóa học, chương học, bài giảng
+│   │   │   ├── 📁 video-pipeline/     # Module RabbitMQ Producers, Consumers, AssemblyAI & Gemini
+│   │   │   └── 📁 payment/            # Module SePay Webhook, VietQR & Transaction Idempotency
 │   │   ├── 📄 app.module.ts           # Root Module
 │   │   └── 📄 main.ts                 # Bootstrap server (Port 8000)
 │   ├── 📄 package.json
@@ -50,18 +52,24 @@ Do_an_tot_nghiep/
 │   ├── 📁 src/
 │   │   ├── 📁 app/                    # Next.js App Router (Layouts & Pages)
 │   │   │   ├── 📁 (auth)/             # Route group: Giao diện Đăng nhập / Đăng ký
-│   │   │   ├── 📁 (sites)/            # Route group: Cổng thông tin công khai
-│   │   │   ├── 📁 (admin)/            # Route group: Trang quản trị Hội đồng / Admin
+│   │   │   ├── 📁 (sites)/            # Route group: Cổng thông tin công khai & Catalog khóa học
+│   │   │   ├── 📁 (learn)/            # Route group: Trình phát video bài học & Markmap viewer
+│   │   │   ├── 📁 (admin)/            # Route group: Trang quản trị Hội đồng / Admin / Giảng viên
 │   │   │   ├── 📄 globals.css         # CSS gốc, thiết lập biến theme và Font Roboto
 │   │   │   ├── 📄 layout.tsx          # Root Layout (Google Font Roboto, AppProviders)
 │   │   │   └── 📄 page.tsx            # Trang chủ hệ thống
 │   │   ├── 📁 components/             # Reusable UI Components
 │   │   │   └── 📁 ui/                 # Shadcn UI (button, card, dialog, input, icon,...)
 │   │   ├── 📁 features/               # [FEATURE-DRIVEN] Đóng gói theo từng tính năng
-│   │   │   └── 📁 auth/               # Feature Auth (api, components, hooks, schemas, types)
+│   │   │   ├── 📁 auth/               # Feature Auth (api, components, hooks, schemas, types)
+│   │   │   ├── 📁 course/             # Feature Course catalog & Lesson list
+│   │   │   ├── 📁 player/             # Feature Interactive Player & In-video Quiz Dialog
+│   │   │   ├── 📁 mindmap/            # Feature Markmap Viewer
+│   │   │   └── 📁 payment/            # Feature SePay VietQR Modal & Order Status Check
 │   │   ├── 📁 lib/                    # Axios client, utils cấu hình
 │   │   └── 📁 providers/              # TanStack Query Provider, Toaster, Nuqs
 │   ├── 📄 components.json             # Shadcn config (iconLibrary: "iconify")
+│   ├── 📄 package.json
 │   ├── 📄 package.json
 │   └── 📄 tsconfig.json
 │

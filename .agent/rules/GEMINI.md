@@ -205,12 +205,19 @@ When user's prompt is NOT in English:
 
 ## 🗺️ TWO-TIER CONTEXT ROUTER (TẦNG 2: `a-agentic/`)
 
-> **MANDATORY:** Luôn đọc file context tương ứng trong `a-agentic/` trước khi sửa code:
+> **MANDATORY:** Luôn đọc file context tương ứng trong `a-agentic/` trước khi suy luận hoặc sửa code:
 
-- **Kiến trúc & Ranh giới**: [`a-agentic/project-shape.md`](file:///d:/TrinhHongCuong/thc-datn/Do_an_tot_nghiep/a-agentic/project-shape.md)
-- **Skills**: [coding-guidelines](file:///d:/TrinhHongCuong/thc-datn/Do_an_tot_nghiep/a-agentic/skills/coding-guidelines.md), [data-patterns](file:///d:/TrinhHongCuong/thc-datn/Do_an_tot_nghiep/a-agentic/skills/data-patterns.md), [context-maintenance](file:///d:/TrinhHongCuong/thc-datn/Do_an_tot_nghiep/a-agentic/skills/context-maintenance.md)
-- **Features**: [auth-identity](file:///d:/TrinhHongCuong/thc-datn/Do_an_tot_nghiep/a-agentic/features/auth-identity/), [base-abstract-audit](file:///d:/TrinhHongCuong/thc-datn/Do_an_tot_nghiep/a-agentic/features/base-abstract-audit/)
-- **Project Architectural Rules**: [`project-architecture.md`](file:///d:/TrinhHongCuong/thc-datn/Do_an_tot_nghiep/.agent/rules/project-architecture.md)
+- **Định hướng Đề tài cốt lõi (Master Brief)**: [`a-agentic/project-brief.md`](file:///d:/Download/hk1_2027/project_do_an/a-agentic/project-brief.md)
+- **Kiến trúc & Ranh giới**: [`a-agentic/project-shape.md`](file:///d:/Download/hk1_2027/project_do_an/a-agentic/project-shape.md)
+- **Skills**: [coding-guidelines](file:///d:/Download/hk1_2027/project_do_an/a-agentic/skills/coding-guidelines.md), [data-patterns](file:///d:/Download/hk1_2027/project_do_an/a-agentic/skills/data-patterns.md), [context-maintenance](file:///d:/Download/hk1_2027/project_do_an/a-agentic/skills/context-maintenance.md)
+- **Core Features**:
+  - [auth-identity](file:///d:/Download/hk1_2027/project_do_an/a-agentic/features/auth-identity/)
+  - [base-abstract-audit](file:///d:/Download/hk1_2027/project_do_an/a-agentic/features/base-abstract-audit/)
+  - [course-management](file:///d:/Download/hk1_2027/project_do_an/a-agentic/features/course-management/)
+  - [ai-video-pipeline](file:///d:/Download/hk1_2027/project_do_an/a-agentic/features/ai-video-pipeline/)
+  - [interactive-video-player](file:///d:/Download/hk1_2027/project_do_an/a-agentic/features/interactive-video-player/)
+  - [payment-sepay](file:///d:/Download/hk1_2027/project_do_an/a-agentic/features/payment-sepay/)
+- **Project Architectural Rules**: [`project-architecture.md`](file:///d:/Download/hk1_2027/project_do_an/.agent/rules/project-architecture.md)
 
 ### 📚 Living Docs Synchronization Protocol
 
