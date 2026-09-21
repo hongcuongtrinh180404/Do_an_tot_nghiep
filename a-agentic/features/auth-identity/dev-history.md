@@ -15,10 +15,29 @@
   - In Mongoose 9 options for `updateOne` and `findOneAndUpdate`, `session?: ClientSession | undefined` is required; passing `session ?? null` causes a strict TypeScript error. Pass `session ?? undefined`.
 - **Gotcha 4 (ESM NodeNext & Decorated Signatures)**:
   - When `isolatedModules` and `emitDecoratorMetadata` are enabled in TypeScript 5+, types referenced in decorated parameters (`@CurrentUser() user: IUserProfile`) must use `import type` to avoid runtime undefined symbol references.
+- **Gotcha 5 (Next.js SSR Hydration & Client-Only Storage Guard)**:
+  - Accessing `localStorage` during initial component render or SSR causes React hydration mismatch errors, because the server render cannot read client storage.
+  - Furthermore, browser extensions injecting custom attributes into `<body>` trigger Next.js hydration warnings.
+  - Files exporting React hooks (`useQuery`, `useMutation`, `useState`, `useEffect`) must have `'use client';` directive when re-exported through feature barrels.
+  - **Resolution**:
+    - Added `suppressHydrationWarning` on `<html>` and `<body>` in `frontend/src/app/layout.tsx`.
+    - Added `isMounted` guard in `useCurrentUserQuery` and `frontend/src/app/page.tsx` so the initial render state matches server HTML identically before evaluating `localStorage`.
+    - Added `'use client';` to `frontend/src/features/auth/api/auth.api.ts`.
 
 ---
 
 ## 2. Change Log & Bug Fixes
+
+### [2026-09-21] - Fix Hydration Mismatch on RootLayout & Home Auth State
+
+- **Frontend Layout & Root (`frontend/src/app/layout.tsx`)**:
+  - Added `suppressHydrationWarning` to `<html>` and `<body>` to ignore injected browser extension attributes (`__processed_...__`).
+- **Auth Query & State (`frontend/src/features/auth/api/auth.api.ts`)**:
+  - Added `'use client';` directive.
+  - Guarded `useCurrentUserQuery` `hasToken` with `isMounted` flag to prevent reading `localStorage` during SSR / initial hydration.
+- **Home Page (`frontend/src/app/page.tsx`)**:
+  - Guarded auth session profile / login card rendering with `!isMounted || isLoading` to eliminate layout DOM differences between SSR and client.
+  - Verified `pnpm --filter frontend build` passes with 0 errors.
 
 ### [2026-09-20] - Auth Module, Share-Lib & Workspace Monorepo Implementation
 

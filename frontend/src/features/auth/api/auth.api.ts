@@ -1,3 +1,5 @@
+'use client';
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type {
@@ -8,6 +10,7 @@ import type {
   IUserProfile,
 } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
+import { useIsMounted } from '@/hooks/use-is-mounted';
 
 export const authKeys = {
   all: ['auth'] as const,
@@ -111,13 +114,17 @@ export function useLogoutMutation() {
 }
 
 export function useCurrentUserQuery() {
-  const isBrowser = typeof window !== 'undefined';
-  const hasToken = isBrowser ? !!localStorage.getItem('accessToken') : false;
+  const isMounted = useIsMounted();
+
+  const hasToken =
+    isMounted && typeof window !== 'undefined'
+      ? !!localStorage.getItem('accessToken')
+      : false;
 
   return useQuery({
     queryKey: authKeys.me(),
     queryFn: () => authApi.getMe(),
-    enabled: hasToken,
+    enabled: isMounted && hasToken,
     staleTime: 5 * 60 * 1000,
   });
 }

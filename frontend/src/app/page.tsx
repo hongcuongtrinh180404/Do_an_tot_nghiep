@@ -14,8 +14,10 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
+import { useIsMounted } from '@/hooks/use-is-mounted';
 
 export default function Home(): React.JSX.Element {
+  const isMounted = useIsMounted();
   const { data: user, isLoading } = useCurrentUserQuery();
   const logoutMutation = useLogoutMutation();
 
@@ -122,7 +124,7 @@ export default function Home(): React.JSX.Element {
 
         {/* Right Side: Auth Form or User Session Profile */}
         <div className="lg:col-span-5 flex justify-center">
-          {isLoading ? (
+          {!isMounted || isLoading ? (
             <Card className="w-full max-w-md p-8 flex flex-col items-center justify-center space-y-4 shadow-lg border-border/40">
               <div className="size-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
               <p className="text-sm text-muted-foreground">Đang kiểm tra phiên đăng nhập...</p>
