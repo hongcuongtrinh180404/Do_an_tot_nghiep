@@ -24,9 +24,41 @@
     - Added `isMounted` guard in `useCurrentUserQuery` and `frontend/src/app/page.tsx` so the initial render state matches server HTML identically before evaluating `localStorage`.
     - Added `'use client';` to `frontend/src/features/auth/api/auth.api.ts`.
 
+- **Gotcha 6 (TypeScript Express.Multer Typing with ESM)**:
+  - When `"types"` is explicitly specified in `tsconfig.json`, TypeScript omits automatic discovery of `@types/multer`.
+  - **Resolution**: Added `"multer"` to `"types": ["vitest/globals", "node", "multer"]` in `backend/tsconfig.json` to allow `Express.Multer.File` in controller and service parameter annotations.
+- **Gotcha 7 (React 19 Hooks ESLint & Instant Image Fallback)**:
+  - Setting error states synchronously inside `useEffect` triggers React 19 `react-hooks/set-state-in-effect`.
+  - **Resolution**: Replaced boolean error state and effect with `failedUrl` string comparison state (`failedUrl !== displayImage`), avoiding cascading re-renders while ensuring clean fallback to initial letters.
+
 ---
 
 ## 2. Change Log & Bug Fixes
+
+### [2026-09-21] - User Profile Management & Cloudinary Avatar Upload Implementation
+
+- **Backend (NestJS + Cloudinary + MongoDB)**:
+  - Installed `cloudinary` and `@types/multer` dependencies.
+  - Created `CloudinaryService` (`src/modules/user/services/cloudinary.service.ts`) using stream upload via `Readable.from(file.buffer)` with automatic facial recognition cropping (`gravity: 'face'`).
+  - Added `UpdateProfileDto` with `class-validator` and whitespace normalization (`@Transform`).
+  - Extended `UserService` with `getProfile`, `updateProfile`, and `updateAvatar`.
+  - Implemented `UserController` (`/api/v1/users`) with `GET /profile`, `PATCH /profile`, and `POST /avatar` (with 5MB limit and image mimetype validation).
+  - Updated Joi schema in `env.validation.ts` and declared `CLOUDINARY_*` variables in `backend/.env.example` and `backend/.env`.
+  - Added unit test suite `user.service.avatar.spec.ts`. All 46 backend tests across 8 suites passing 100%.
+- **Frontend (Next.js App Router + React + Tailwind CSS)**:
+  - Configured `images.remotePatterns` for `res.cloudinary.com` in `next.config.ts`.
+  - Declared frontend domain (`NEXT_PUBLIC_APP_URL`) and Cloudinary client configs in `frontend/.env.example` and `frontend/.env`.
+  - Created feature module `frontend/src/features/profile/`:
+    - `types/profile.types.ts`: Domain models for update payload and upload response.
+    - `schemas/profile.schema.ts`: Zod schema validating input with whitespace trimming.
+    - `api/profile.api.ts`: TanStack Query hooks (`useUpdateProfileMutation`, `useUploadAvatarMutation`, `useUserProfileQuery`) with automatic multi-query cache invalidation and `sonner` notifications.
+    - `components/avatar-uploader.tsx`: Interactive avatar uploader supporting drag-and-drop, click-to-upload, instant local preview, Cloudinary storage indicator, and initial letter fallback.
+    - `components/profile-form.tsx`: Edit form for firstName/lastName with reset and loading states.
+    - `components/profile-info-card.tsx`: Account metadata overview (Email, Role, Auth Provider, Status, UID).
+    - `components/profile-page-content.tsx`: Rich aesthetic layout adhering to Purple Ban and No Inline Fonts.
+  - Created `/profile` route (`frontend/src/app/profile/page.tsx`).
+  - Updated home page (`frontend/src/app/page.tsx`) to display user avatar and link directly to `/profile`.
+  - Verified `pnpm --filter frontend lint` and `pnpm --filter frontend build` pass with 0 errors.
 
 ### [2026-09-21] - Fix Hydration Mismatch on RootLayout & Home Auth State
 

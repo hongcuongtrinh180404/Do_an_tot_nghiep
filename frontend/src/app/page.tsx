@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useCurrentUserQuery, useLogoutMutation } from '@/features/auth/api/auth.api';
 import { LoginForm } from '@/features/auth/components/login-form';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -42,20 +43,44 @@ export default function Home(): React.JSX.Element {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
-              href="/login"
-              className={buttonVariants({ variant: 'outline', size: 'sm' })}
-            >
-              <Icon icon="lucide:log-in" className="size-3.5 mr-1.5" />
-              Đăng Nhập
-            </Link>
-            <Link
-              href="/register"
-              className={buttonVariants({ size: 'sm' })}
-            >
-              <Icon icon="lucide:user-plus" className="size-3.5 mr-1.5" />
-              Đăng Ký
-            </Link>
+            {isMounted && user ? (
+              <>
+                <Link
+                  href="/profile"
+                  className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                >
+                  <Icon icon="lucide:user" className="size-3.5 mr-1.5" />
+                  Hồ Sơ Cá Nhân
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => logoutMutation.mutate()}
+                  disabled={logoutMutation.isPending}
+                  className="text-xs text-muted-foreground hover:text-destructive"
+                >
+                  <Icon icon="lucide:log-out" className="size-3.5 mr-1" />
+                  Thoát
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                >
+                  <Icon icon="lucide:log-in" className="size-3.5 mr-1.5" />
+                  Đăng Nhập
+                </Link>
+                <Link
+                  href="/register"
+                  className={buttonVariants({ size: 'sm' })}
+                >
+                  <Icon icon="lucide:user-plus" className="size-3.5 mr-1.5" />
+                  Đăng Ký
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -132,8 +157,18 @@ export default function Home(): React.JSX.Element {
           ) : user ? (
             <Card className="w-full max-w-md shadow-xl border-border/40 bg-card">
               <CardHeader className="text-center pb-2">
-                <div className="mx-auto size-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2">
-                  <Icon icon="lucide:user-circle-2" className="size-10" />
+                <div className="mx-auto size-20 rounded-full border-2 border-primary/20 p-0.5 mb-2 overflow-hidden relative flex items-center justify-center bg-primary/10">
+                  {user.avatar ? (
+                    <Image
+                      src={user.avatar}
+                      alt={user.email}
+                      fill
+                      sizes="80px"
+                      className="rounded-full object-cover"
+                    />
+                  ) : (
+                    <Icon icon="lucide:user-circle-2" className="size-12 text-primary" />
+                  )}
                 </div>
                 <CardTitle className="text-xl font-bold">
                   {user.firstName && user.lastName
@@ -161,7 +196,14 @@ export default function Home(): React.JSX.Element {
                   <span className="text-xs font-medium text-emerald-600">{user.status}</span>
                 </div>
               </CardContent>
-              <CardFooter className="pt-2">
+              <CardFooter className="pt-2 flex flex-col gap-2">
+                <Link
+                  href="/profile"
+                  className={buttonVariants({ className: 'w-full shadow-xs' })}
+                >
+                  <Icon icon="lucide:user-cog" className="size-4 mr-2" />
+                  Quản Lý Hồ Sơ & Avatar
+                </Link>
                 <Button
                   variant="outline"
                   className="w-full text-destructive hover:bg-destructive/10"
