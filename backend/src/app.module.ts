@@ -9,6 +9,7 @@ import { BaseModule } from './modules/base/base.module.js';
 import { UserModule } from './modules/user/user.module.js';
 import { SessionModule } from './modules/session/session.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { CourseModule } from './modules/course/course.module.js';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
     UserModule,
     SessionModule,
     AuthModule,
+    CourseModule,
   ],
   controllers: [AppController],
   providers: [AppService],
