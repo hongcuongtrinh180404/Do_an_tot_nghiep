@@ -23,11 +23,12 @@ export class LocalAuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    if (!user.password) {
+    const userHash = user.passwordHash || user.password;
+    if (!userHash) {
       throw new UnauthorizedException('This account was registered using an external authentication provider');
     }
 
-    const isMatch = await this.comparePassword(plainPassword, user.password);
+    const isMatch = await this.comparePassword(plainPassword, userHash);
     if (!isMatch) {
       throw new UnauthorizedException('Invalid email or password');
     }

@@ -19,7 +19,9 @@ describe('UserService', () => {
   const mockUser: IUser = {
     id: 'user_1',
     email: 'test@example.com',
-    role: RoleEnum.USER,
+    passwordHash: 'hashed_password_123',
+    fullName: 'Test User',
+    role: RoleEnum.STUDENT,
     status: UserStatusEnum.ACTIVE,
     provider: AuthProviderEnum.LOCAL,
     createdAt: new Date(),

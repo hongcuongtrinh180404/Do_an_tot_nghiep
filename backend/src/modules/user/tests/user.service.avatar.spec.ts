@@ -20,10 +20,12 @@ describe('UserService - Profile and Avatar Management', () => {
   const mockUser: IUser = {
     id: 'user_123',
     email: 'profile_test@example.com',
-    firstName: 'Nguyễn',
-    lastName: 'Văn A',
-    avatar: 'https://example.com/old_avatar.jpg',
-    role: RoleEnum.USER,
+    passwordHash: 'hashed_password_123',
+    fullName: 'Nguyễn Văn A',
+    username: 'nguyenvana',
+    avatarUrl: 'https://example.com/old_avatar.jpg',
+    bio: 'Lập trình viên',
+    role: RoleEnum.STUDENT,
     status: UserStatusEnum.ACTIVE,
     provider: AuthProviderEnum.LOCAL,
     createdAt: new Date(),
@@ -62,11 +64,15 @@ describe('UserService - Profile and Avatar Management', () => {
       expect(result).toEqual({
         id: 'user_123',
         email: 'profile_test@example.com',
-        firstName: 'Nguyễn',
-        lastName: 'Văn A',
-        avatar: 'https://example.com/old_avatar.jpg',
-        role: RoleEnum.USER,
+        fullName: 'Nguyễn Văn A',
+        username: 'nguyenvana',
+        avatarUrl: 'https://example.com/old_avatar.jpg',
+        bio: 'Lập trình viên',
+        role: RoleEnum.STUDENT,
         status: UserStatusEnum.ACTIVE,
+        firstName: undefined,
+        lastName: undefined,
+        avatar: 'https://example.com/old_avatar.jpg',
         provider: AuthProviderEnum.LOCAL,
       });
     });
@@ -77,21 +83,18 @@ describe('UserService - Profile and Avatar Management', () => {
       // Arrange
       const updatedUser: IUser = {
         ...mockUser,
-        firstName: 'Trần',
-        lastName: 'Thị B',
+        fullName: 'Trần Thị B',
       };
       mockUserRepository.update.mockResolvedValue(updatedUser);
 
       // Act
       const result = await service.updateProfile('user_123', {
-        firstName: 'Trần',
-        lastName: 'Thị B',
+        fullName: 'Trần Thị B',
       });
 
       // Assert
       expect(mockUserRepository.update).toHaveBeenCalled();
-      expect(result.firstName).toBe('Trần');
-      expect(result.lastName).toBe('Thị B');
+      expect(result.fullName).toBe('Trần Thị B');
     });
   });
 
@@ -110,6 +113,7 @@ describe('UserService - Profile and Avatar Management', () => {
 
       const updatedUser: IUser = {
         ...mockUser,
+        avatarUrl: newAvatarUrl,
         avatar: newAvatarUrl,
       };
       mockUserRepository.update.mockResolvedValue(updatedUser);
@@ -120,8 +124,8 @@ describe('UserService - Profile and Avatar Management', () => {
       // Assert
       expect(mockCloudinaryService.uploadImage).toHaveBeenCalledWith(fakeFile);
       expect(mockUserRepository.update).toHaveBeenCalled();
-      expect(result.avatar).toBe(newAvatarUrl);
-      expect(result.user.avatar).toBe(newAvatarUrl);
+      expect(result.avatarUrl).toBe(newAvatarUrl);
+      expect(result.user.avatarUrl).toBe(newAvatarUrl);
     });
 
     it('should throw ConflictException if CloudinaryService is not available', async () => {

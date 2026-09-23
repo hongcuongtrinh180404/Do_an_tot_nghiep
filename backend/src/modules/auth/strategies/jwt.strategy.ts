@@ -24,15 +24,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('User account is invalid or deactivated');
     }
 
-    return {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      avatar: user.avatar,
-      role: user.role,
-      status: user.status,
-      provider: user.provider,
-    };
+    return this.userService.toUserProfile(user);
   }
 }

@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import { RoleEnum, UserStatusEnum, AuthProviderEnum } from 'share-lib';
+import { RoleEnum, UserStatusEnum } from 'share-lib';
 import { BaseAbstractDocument } from '../../base/index.js';
 
 export type UserDocument = HydratedDocument<UserEntity>;
@@ -10,22 +10,25 @@ export class UserEntity extends BaseAbstractDocument {
   @Prop({ type: String, required: true, lowercase: true, trim: true })
   email: string;
 
-  @Prop({ type: String, required: false, select: false, default: null })
-  password?: string | null;
+  @Prop({ type: String, required: true, select: false })
+  passwordHash: string;
 
-  @Prop({ type: String, required: false, trim: true, default: null })
-  firstName?: string | null;
+  @Prop({ type: String, required: true, trim: true })
+  fullName: string;
 
-  @Prop({ type: String, required: false, trim: true, default: null })
-  lastName?: string | null;
+  @Prop({ type: String, required: false, default: null, lowercase: true, trim: true })
+  username?: string | null;
 
   @Prop({ type: String, required: false, default: null })
-  avatar?: string | null;
+  avatarUrl?: string | null;
+
+  @Prop({ type: String, required: false, default: null, trim: true })
+  bio?: string | null;
 
   @Prop({
     type: String,
     enum: Object.values(RoleEnum),
-    default: RoleEnum.USER,
+    default: RoleEnum.STUDENT,
     index: true,
   })
   role: RoleEnum;
@@ -37,21 +40,33 @@ export class UserEntity extends BaseAbstractDocument {
     index: true,
   })
   status: UserStatusEnum;
-
-  @Prop({
-    type: String,
-    enum: Object.values(AuthProviderEnum),
-    default: AuthProviderEnum.LOCAL,
-  })
-  provider: AuthProviderEnum;
-
-  @Prop({ type: String, required: false, default: null })
-  providerId?: string | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(UserEntity);
 
-// Compound indexes
-UserSchema.index({ email: 1, deletedAt: 1 }, { unique: true });
-UserSchema.index({ provider: 1, providerId: 1 });
+// Partial Unique Indexes: chỉ áp dụng khi deletedAt === null
+// 1. Unique email cho các user đang hoạt động (chưa soft-delete)
+UserSchema.index(
+  { email: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { deletedAt: null },
+  },
+);
+
+// 2. Unique username cho các user đang hoạt động và có username dạng string
+UserSchema.index(
+  { username: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      deletedAt: null,
+      username: { $type: 'string' },
+    },
+  },
+);
+
+// Compound & sorting indexes
+UserSchema.index({ role: 1, status: 1 });
 UserSchema.index({ deletedAt: 1, createdAt: -1 });
+

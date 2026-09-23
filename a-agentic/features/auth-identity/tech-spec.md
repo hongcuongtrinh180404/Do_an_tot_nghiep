@@ -9,16 +9,15 @@
 ### Collection: `users`
 
 - `_id`: `ObjectId` (PK)
-- `email`: `string` (Unique compound index with `deletedAt`, lowercase, trimmed)
-- `password`: `string` (bcrypt hashed password, `select: false` by default)
-- `firstName`: `string` (Optional, trimmed)
-- `lastName`: `string` (Optional, trimmed)
-- `avatar`: `string` (Optional)
-- `role`: `enum` (`ADMIN`, `USER` - default: `USER`)
-- `status`: `enum` (`ACTIVE`, `INACTIVE`, `SUSPENDED` - default: `ACTIVE`)
-- `provider`: `enum` (`LOCAL`, `GOOGLE`, `GITHUB` - default: `LOCAL`)
-- `providerId`: `string` (Optional, indexed with `provider` for third-party OAuth accounts)
-- Audit fields: `createdAt`, `updatedAt`, `deletedAt` (Date, indexed), `createdById`, `updatedById`
+- `email`: `string` (Required, unique lowercase, partialFilterExpression: `{ deletedAt: null }`)
+- `passwordHash`: `string` (Required, bcrypt hashed password, `select: false` by default)
+- `fullName`: `string` (Required, trimmed)
+- `username`: `string` (Optional, unique lowercase, sparse partialFilterExpression: `{ deletedAt: null, username: { $type: "string" } }`)
+- `avatarUrl`: `string` (Optional, Cloudinary URL)
+- `bio`: `string` (Optional, short biography)
+- `role`: `enum` (`student`, `instructor`, `admin` - default: `student`, indexed)
+- `status`: `enum` (`active`, `inactive`, `banned` - default: `active`, indexed)
+- Audit & Timestamp fields: `createdAt`, `updatedAt` (Mongoose timestamps), `deletedAt` (Date, indexed), `createdById`, `updatedById`
 
 ### Collection: `sessions`
 

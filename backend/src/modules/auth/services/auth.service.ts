@@ -38,31 +38,52 @@ export class AuthService {
   ) {}
 
   private mapToProfile(user: IUser): IUserProfile {
+    const fallbackFullName =
+      user.fullName ||
+      (user.firstName || user.lastName
+        ? `${user.lastName || ''} ${user.firstName || ''}`.trim()
+        : user.email.split('@')[0]);
+
     return {
       id: user.id,
       email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      avatar: user.avatar,
+      fullName: fallbackFullName,
+      username: user.username ?? null,
+      avatarUrl: user.avatarUrl || user.avatar || null,
+      bio: user.bio ?? null,
       role: user.role,
       status: user.status,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      avatar: user.avatarUrl || user.avatar || null,
       provider: user.provider,
     };
   }
 
   async register(dto: RegisterDto): Promise<IAuthResponse> {
     await this.userService.ensureEmailNotTaken(dto.email);
+    if (dto.username) {
+      await this.userService.ensureUsernameNotTaken(dto.username);
+    }
 
     const hashedPassword = await this.localAuthService.hashPassword(dto.password);
+    const fullName =
+      dto.fullName ||
+      (dto.firstName || dto.lastName
+        ? `${dto.lastName || ''} ${dto.firstName || ''}`.trim()
+        : dto.email.split('@')[0]);
 
     const newUser = await this.userService.create({
       email: dto.email.toLowerCase().trim(),
+      passwordHash: hashedPassword,
       password: hashedPassword,
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      role: RoleEnum.USER,
+      fullName,
+      username: dto.username || null,
+      role: RoleEnum.STUDENT,
       provider: AuthProviderEnum.LOCAL,
       status: UserStatusEnum.ACTIVE,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
     });
 
     const userProfile = this.mapToProfile(newUser);
@@ -152,15 +173,26 @@ export class AuthService {
           avatar: oauthProfile.avatar ?? existingEmailUser.avatar,
         })) as IUser;
       } else {
+        const dummyHash = await this.localAuthService.hashPassword(
+          Math.random().toString(36).substring(2) + Date.now().toString(36),
+        );
+        const fullName =
+          `${oauthProfile.lastName || ''} ${oauthProfile.firstName || ''}`.trim() ||
+          oauthProfile.email.split('@')[0];
+
         user = await this.userService.create({
           email: oauthProfile.email.toLowerCase().trim(),
-          firstName: oauthProfile.firstName,
-          lastName: oauthProfile.lastName,
+          passwordHash: dummyHash,
+          password: dummyHash,
+          fullName,
+          avatarUrl: oauthProfile.avatar,
           avatar: oauthProfile.avatar,
-          role: RoleEnum.USER,
+          role: RoleEnum.STUDENT,
           provider: oauthProfile.provider,
           providerId: oauthProfile.providerId,
           status: UserStatusEnum.ACTIVE,
+          firstName: oauthProfile.firstName,
+          lastName: oauthProfile.lastName,
         });
       }
     }

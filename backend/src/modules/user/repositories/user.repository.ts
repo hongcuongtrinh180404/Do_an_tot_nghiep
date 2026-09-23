@@ -25,10 +25,25 @@ export class UserRepository extends BaseMongoRepository<IUser, UserEntity> {
     });
 
     if (includePassword) {
-      query.select('+password');
+      query.select('+passwordHash');
     }
 
     const doc = await query.session(session ?? null).exec();
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  async findByUsername(
+    username: string,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    const doc = await this.model
+      .findOne({
+        username: username.toLowerCase().trim(),
+        deletedAt: null,
+      })
+      .session(session ?? null)
+      .exec();
+
     return doc ? this.toDomain(doc) : null;
   }
 

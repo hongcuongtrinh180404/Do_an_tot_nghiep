@@ -1,5 +1,8 @@
 export enum UserStatusEnum {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  SUSPENDED = 'SUSPENDED',
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  BANNED = 'banned',
+  /** @deprecated Use UserStatusEnum.BANNED instead */
+  SUSPENDED = 'banned',
 }
+

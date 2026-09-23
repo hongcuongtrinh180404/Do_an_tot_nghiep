@@ -5,13 +5,24 @@ import { AuthProviderEnum } from '../enums/auth-provider.enum.js';
 export interface IUser {
   id: string;
   email: string;
-  password?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-  avatar?: string | null;
+  passwordHash: string;
+  fullName: string;
+  username?: string | null;
+  avatarUrl?: string | null;
+  bio?: string | null;
   role: RoleEnum;
   status: UserStatusEnum;
-  provider: AuthProviderEnum;
+  /** @deprecated Kept for backward compatibility during migration */
+  password?: string | null;
+  /** @deprecated Kept for backward compatibility during migration */
+  firstName?: string | null;
+  /** @deprecated Kept for backward compatibility during migration */
+  lastName?: string | null;
+  /** @deprecated Kept for backward compatibility during migration */
+  avatar?: string | null;
+  /** @deprecated Kept for backward compatibility during migration */
+  provider?: AuthProviderEnum;
+  /** @deprecated Kept for backward compatibility during migration */
   providerId?: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -23,10 +34,19 @@ export interface IUser {
 export interface IUserProfile {
   id: string;
   email: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  avatar?: string | null;
+  fullName: string;
+  username?: string | null;
+  avatarUrl?: string | null;
+  bio?: string | null;
   role: RoleEnum;
   status: UserStatusEnum;
-  provider: AuthProviderEnum;
+  /** @deprecated Kept for backward compatibility during migration */
+  firstName?: string | null;
+  /** @deprecated Kept for backward compatibility during migration */
+  lastName?: string | null;
+  /** @deprecated Kept for backward compatibility during migration */
+  avatar?: string | null;
+  /** @deprecated Kept for backward compatibility during migration */
+  provider?: AuthProviderEnum;
 }
+

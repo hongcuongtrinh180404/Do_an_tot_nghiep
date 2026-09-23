@@ -31,9 +31,38 @@
   - Setting error states synchronously inside `useEffect` triggers React 19 `react-hooks/set-state-in-effect`.
   - **Resolution**: Replaced boolean error state and effect with `failedUrl` string comparison state (`failedUrl !== displayImage`), avoiding cascading re-renders while ensuring clean fallback to initial letters.
 
+- **Gotcha 8 (MongoDB Partial Unique Index with Soft Delete & Sparse Nulls)**:
+  - In MongoDB, setting `{ unique: true, sparse: true }` on a field like `username` still enforces uniqueness against `null` if documents explicitly store `{ username: null }` (BSON type 10).
+  - Furthermore, soft deleted documents (`deletedAt != null`) would block new users from reusing a soft-deleted email or username if simple unique indexes were used.
+  - **Resolution**: Configured `partialFilterExpression: { deletedAt: null }` for `email`, and `partialFilterExpression: { deletedAt: null, username: { $type: "string" } }` for `username`. This guarantees:
+    1. Multiple active users with `username: null` or `undefined` never conflict.
+    2. Active users have strictly unique emails and usernames.
+    3. Soft-deleted accounts release their email and username for future registration.
+    4. Verified with 10 real MongoDB integration test cases in `user.schema.integration.spec.ts`.
+
 ---
 
 ## 2. Change Log & Bug Fixes
+
+### [2026-09-22] - Mongoose User Schema v1 & Partial Unique Indexes Implementation
+
+- **Specification & Domain Isolation**:
+  - Implemented initial `User` schema focused exclusively on authentication, profile, and basic RBAC without bleeding into Course, Video, Quiz, Payment, or Enrollment collections.
+  - Enforced required fields: `email` (lowercase, unique), `passwordHash` (`select: false`), `fullName`.
+  - Enforced optional profile fields: `username` (lowercase, sparse unique), `avatarUrl` (Cloudinary URL), `bio`.
+  - Enforced lowercase role (`student`, `instructor`, `admin`, default `student`) and status (`active`, `inactive`, `banned`, default `active`).
+  - Inherited Mongoose timestamps and audit metadata via `BaseAbstractDocument`.
+- **Contracts (`share-lib`)**:
+  - Updated `RoleEnum` with lowercase string values (`student`, `instructor`, `admin`) and backward-compatible alias.
+  - Updated `UserStatusEnum` with lowercase string values (`active`, `inactive`, `banned`).
+  - Updated `IUser` and `IUserProfile` interfaces to support new fields.
+- **Backend Persistence & Architecture**:
+  - Preserved strict `BaseMongoRepository` & `UserRepository` patterns without raw model injection in services.
+  - Updated `UserRepository` to select `+passwordHash` when requested, and added `findByUsername()`.
+  - Updated `UserService` and `AuthService` registration & profile flows.
+- **Verification & Tests**:
+  - Created dedicated MongoDB integration test suite (`user.schema.integration.spec.ts`) passing 10 test cases against active MongoDB instance.
+  - All 9 backend test files (56 unit & integration tests) pass 100%. Type check `npx tsc --noEmit` clean across workspace.
 
 ### [2026-09-21] - User Profile Management & Cloudinary Avatar Upload Implementation
 

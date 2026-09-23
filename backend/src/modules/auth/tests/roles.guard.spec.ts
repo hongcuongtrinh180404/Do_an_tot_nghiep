@@ -11,6 +11,7 @@ describe('RolesGuard', () => {
   const mockUser: IUserProfile = {
     id: 'user_1',
     email: 'user@example.com',
+    fullName: 'Normal User',
     role: RoleEnum.USER,
     status: UserStatusEnum.ACTIVE,
     provider: AuthProviderEnum.LOCAL,
@@ -19,6 +20,7 @@ describe('RolesGuard', () => {
   const mockAdmin: IUserProfile = {
     id: 'admin_1',
     email: 'admin@example.com',
+    fullName: 'Admin User',
     role: RoleEnum.ADMIN,
     status: UserStatusEnum.ACTIVE,
     provider: AuthProviderEnum.LOCAL,

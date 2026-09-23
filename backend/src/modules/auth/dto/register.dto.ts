@@ -23,6 +23,20 @@ export class RegisterDto implements IRegisterPayload {
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
+  fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.toLowerCase().trim() : value,
+  )
+  username?: string;
+
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   firstName?: string;
 
   @IsOptional()
