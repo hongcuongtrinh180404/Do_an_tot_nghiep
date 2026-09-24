@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Model, Types } from 'mongoose';
-import { CourseStatusEnum, CourseLevelEnum, ICourse } from 'share-lib';
+import { CourseStatusEnum, CourseLevelEnum } from 'share-lib';
 import { CourseRepository } from '../repositories/course.repository.js';
 import { CourseEntity } from '../schemas/course.schema.js';
 
