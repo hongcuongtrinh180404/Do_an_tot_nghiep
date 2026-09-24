@@ -5,3 +5,5 @@ export * from './components/create-course-header';
 export * from './components/create-course-form';
 export * from './schemas/create-course.schema';
 export * from './utils/slugify';
+export * from './types/course.types';
+export * from './api/course.api';

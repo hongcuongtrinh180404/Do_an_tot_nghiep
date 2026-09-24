@@ -18,3 +18,13 @@ export interface ICourse {
   createdById?: string | null;
   updatedById?: string | null;
 }
+
+export interface ICreateCoursePayload {
+  title: string;
+  slug: string;
+  shortDescription?: string;
+  description?: string;
+  thumbnailUrl?: string;
+  price?: number;
+  level?: CourseLevelEnum;
+}

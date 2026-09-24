@@ -28,6 +28,15 @@
   - Xây dựng tiện ích `slugify.ts` hỗ trợ tự động tạo slug tiếng Việt không dấu chuẩn SEO real-time khi gõ tiêu đề (ví dụ: *"Khóa học Next.js 16"* -> `khoa-hoc-nextjs-16`), ngưng ghi đè khi giảng viên đã chỉnh sửa slug thủ công và cho phép tạo lại từ tiêu đề bất kỳ lúc nào.
   - Component `CreateCourseForm`: sử dụng `react-hook-form` + `@hookform/resolvers/zod`, hiển thị dropdown `<select>` chọn 4 cấp độ, thông báo lỗi validation trực quan (`aria-invalid`), nút Hủy quay lại `/instructor/courses`, nút Tạo khóa học ở chế độ preview (hiển thị toast từ `sonner`, in `console.log`, không redirect, chưa gọi API).
   - Nối nút "Tạo khóa học" tại `CourseHeader` và `CourseEmptyState` trên trang `/instructor/courses` điều hướng sang `/instructor/courses/new`.
-  - Vượt qua toàn bộ kiểm tra: TypeScript (`tsc --noEmit`), ESLint (0 errors, 0 warnings), Next.js Build (prerendered static), và Monorepo Tests (90 vitest tests passed).
+- **Frontend Milestone 3 (Connect Create Course Form with Backend API)**:
+  - Khảo sát và mở rộng hợp đồng dữ liệu: Bổ sung interface `ICreateCoursePayload` vào `share-lib/src/interfaces/course.interface.ts` làm Single Source of Truth cho cả Backend DTO và Frontend API Client.
+  - Xây dựng API Client `courseApi.createCourse` và React Query Mutation Hook `useCreateCourseMutation` (`frontend/src/features/course/api/course.api.ts`).
+  - Xử lý xác thực và cơ chế Auto-refresh 401: `apiClient` Axios Response Interceptor tự động bắt 401 để refresh token via `/auth/refresh` và retry request trong suốt. Khi refresh thất bại hoặc không có token, xóa credentials, hiển thị Toast hết phiên và chuyển hướng về `/login`.
+  - Xử lý lỗi 409 Conflict: Gắn lỗi trực tiếp vào input `slug` (`setError('slug')`) kết hợp Toast thông báo trùng slug.
+  - Xử lý lỗi 403 Forbidden (yêu cầu quyền Giảng viên/Admin) và 400 Bad Request.
+  - Tích hợp trạng thái Loading: Nút submit hiển thị spinner và label `"Đang tạo khóa học..."`, disable đồng thời nút Hủy và các trường input trong suốt quá trình mutation xử lý.
+  - Kết nối thành công Happy Path: Tạo khóa học thành công -> Toast thông báo -> Invalidate query cache -> Tự động chuyển hướng về `/instructor/courses`.
+  - Vượt qua toàn bộ kiểm tra: TypeScript (`tsc --noEmit`), ESLint (0 errors, 0 warnings), Next.js Build (prerendered static), và Monorepo Tests (90/90 vitest tests passed).
+
 
 
