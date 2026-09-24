@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 
@@ -21,10 +22,13 @@ export function CourseEmptyState(): React.JSX.Element {
         </p>
 
         {/* Call to Action Button */}
-        <Button>
+        <Link
+          href="/instructor/courses/new"
+          className={buttonVariants()}
+        >
           <Icon icon="lucide:plus" className="size-4 mr-1.5" />
           Tạo khóa học
-        </Button>
+        </Link>
       </CardContent>
     </Card>
   );

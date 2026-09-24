@@ -3,12 +3,12 @@ import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 
-export function CourseHeader(): React.JSX.Element {
+export function CreateCourseHeader(): React.JSX.Element {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border/40">
       <div>
         {/* Navigation Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5 flex-wrap">
           <Link
             href="/"
             className="hover:text-foreground transition-colors flex items-center gap-1"
@@ -17,35 +17,40 @@ export function CourseHeader(): React.JSX.Element {
             Trang Chủ
           </Link>
           <span>/</span>
-          <span>Giảng Viên</span>
+          <Link
+            href="/instructor/courses"
+            className="hover:text-foreground transition-colors"
+          >
+            Giảng Viên
+          </Link>
           <span>/</span>
-          <span className="text-foreground font-medium">Khóa Học Của Tôi</span>
+          <Link
+            href="/instructor/courses"
+            className="hover:text-foreground transition-colors"
+          >
+            Khóa Học Của Tôi
+          </Link>
+          <span>/</span>
+          <span className="text-foreground font-medium">Tạo Mới</span>
         </div>
 
         {/* Title & Description */}
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-          Khóa học của tôi
+          Tạo khóa học mới
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-          Quản lý danh sách các khóa học bạn đang giảng dạy và xây dựng nội dung bài giảng
+          Điền các thông tin cơ bản để bắt đầu khởi tạo khóa học và xây dựng lộ trình học tập
         </p>
       </div>
 
       {/* Action Buttons */}
       <div className="flex items-center gap-2.5 shrink-0">
         <Link
-          href="/"
+          href="/instructor/courses"
           className={buttonVariants({ variant: 'outline', size: 'sm' })}
         >
           <Icon icon="lucide:arrow-left" className="size-3.5 mr-1.5" />
-          Về Trang Chủ
-        </Link>
-        <Link
-          href="/instructor/courses/new"
-          className={buttonVariants({ size: 'sm' })}
-        >
-          <Icon icon="lucide:plus" className="size-3.5 mr-1" />
-          Tạo khóa học
+          Quay lại danh sách
         </Link>
       </div>
     </div>

@@ -21,6 +21,13 @@
   - Khởi tạo route `/instructor/courses` (`frontend/src/app/instructor/courses/page.tsx`) theo vai trò `RoleEnum.INSTRUCTOR`, tách biệt với public catalog `/courses`.
   - Triển khai module `frontend/src/features/course/` với `CourseHeader`, `CourseEmptyState`, `CourseManagementContent`.
   - Tái sử dụng trọn vẹn Design Tokens và Primitives (`Button`, `Card`, `Icon`), tuân thủ triệt để Purple Ban (không màu tím) và cấm inline font classes.
-  - Chưa kết nối API, chưa làm form tạo khóa học; nút "Tạo khóa học" thuần UI chuẩn bị cho Milestone tiếp theo.
+- **Frontend Milestone 2 (Create Course Form UI)**:
+  - Khởi tạo route `/instructor/courses/new` (`frontend/src/app/instructor/courses/new/page.tsx`) kèm SEO metadata chuẩn RSC.
+  - Bổ sung UI Primitive `Textarea` (`frontend/src/components/ui/textarea.tsx`) đồng bộ với Design System và `Input`.
+  - Xây dựng schema validation `create-course.schema.ts` dùng `zod` đồng bộ quy chuẩn với `CreateCourseDto` phía backend (whitespace trimming, lowercase slug, regex kebab-case, price >= 0, `CourseLevelEnum`).
+  - Xây dựng tiện ích `slugify.ts` hỗ trợ tự động tạo slug tiếng Việt không dấu chuẩn SEO real-time khi gõ tiêu đề (ví dụ: *"Khóa học Next.js 16"* -> `khoa-hoc-nextjs-16`), ngưng ghi đè khi giảng viên đã chỉnh sửa slug thủ công và cho phép tạo lại từ tiêu đề bất kỳ lúc nào.
+  - Component `CreateCourseForm`: sử dụng `react-hook-form` + `@hookform/resolvers/zod`, hiển thị dropdown `<select>` chọn 4 cấp độ, thông báo lỗi validation trực quan (`aria-invalid`), nút Hủy quay lại `/instructor/courses`, nút Tạo khóa học ở chế độ preview (hiển thị toast từ `sonner`, in `console.log`, không redirect, chưa gọi API).
+  - Nối nút "Tạo khóa học" tại `CourseHeader` và `CourseEmptyState` trên trang `/instructor/courses` điều hướng sang `/instructor/courses/new`.
+  - Vượt qua toàn bộ kiểm tra: TypeScript (`tsc --noEmit`), ESLint (0 errors, 0 warnings), Next.js Build (prerendered static), và Monorepo Tests (90 vitest tests passed).
 
 
