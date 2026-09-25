@@ -37,6 +37,17 @@
   - Tích hợp trạng thái Loading: Nút submit hiển thị spinner và label `"Đang tạo khóa học..."`, disable đồng thời nút Hủy và các trường input trong suốt quá trình mutation xử lý.
   - Kết nối thành công Happy Path: Tạo khóa học thành công -> Toast thông báo -> Invalidate query cache -> Tự động chuyển hướng về `/instructor/courses`.
   - Vượt qua toàn bộ kiểm tra: TypeScript (`tsc --noEmit`), ESLint (0 errors, 0 warnings), Next.js Build (prerendered static), và Monorepo Tests (90/90 vitest tests passed).
+- **Milestone 4 (Instructor Courses List Real Data Integration)**:
+  - Backend: Bổ sung endpoint `GET /api/v1/courses/my-courses` bảo vệ bằng `RolesGuard` với quyền `INSTRUCTOR` và `ADMIN`. Trích xuất an toàn `currentUserId` từ `@CurrentUser('id')`, tận dụng `CourseService.findByInstructorId` và `CourseRepository.findByInstructorId` hiện có để lọc `{ instructorId, deletedAt: null }` sắp xếp `{ createdAt: -1 }`.
+  - Backend Tests: Bổ sung unit tests cho `getMyCourses` trong `course.controller.spec.ts` (14/14 tests pass, 94/94 toàn bộ backend test suite pass).
+  - Frontend API: Mở rộng `courseKeys.myCourses()`, bổ sung `courseApi.getMyCourses(): Promise<ICourse[]>`, và custom hook `useMyCoursesQuery()` tại `course.api.ts`.
+  - Invalidation liên kết: Khi `useCreateCourseMutation` tạo khóa học thành công, `queryClient.invalidateQueries({ queryKey: courseKeys.all })` tự động làm mới danh sách `courseKeys.myCourses()` khi điều hướng về `/instructor/courses`.
+  - UI Components:
+    - `CourseCard`: Component hiển thị thông tin khóa học (`title`, `slug`, `price`, `level`, `status`, `createdAt`), `cursor-default` (không clickable ở milestone này), `price === 0` hiển thị "Miễn phí" thay vì "0 ₫", ngày tạo định dạng `vi-VN`.
+    - `CourseCardSkeleton` & `CourseListSkeleton`: Hiệu ứng pulse loading mô phỏng lưới thẻ.
+    - `CourseManagementContent`: Xử lý phân nhánh 4 trạng thái (Loading -> Skeleton; Error -> Card cảnh báo kèm nút "Thử lại"; Empty -> Giữ nguyên `CourseEmptyState`; Data -> Responsive Grid các thẻ `CourseCard`).
+  - Kiểm định toàn diện: Monorepo Backend Tests (94/94 passed), Frontend Lint (0 errors, 0 warnings), Frontend Typecheck (`tsc --noEmit` passed), Frontend Build (Turbopack static build passed).
+
 
 
 

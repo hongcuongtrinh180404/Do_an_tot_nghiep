@@ -1,8 +1,11 @@
+export {
+  CourseStatusEnum,
+  CourseLevelEnum,
+} from 'share-lib';
+
 export type {
   ICourse,
   ICreateCoursePayload,
-  CourseStatusEnum,
-  CourseLevelEnum,
 } from 'share-lib';
 
 export interface ICourseApiError {

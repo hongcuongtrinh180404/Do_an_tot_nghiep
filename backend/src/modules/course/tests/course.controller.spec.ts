@@ -26,6 +26,7 @@ describe('CourseController', () => {
   let controller: CourseController;
   let mockCourseService: {
     createCourse: ReturnType<typeof vi.fn>;
+    findByInstructorId: ReturnType<typeof vi.fn>;
   };
 
   const sampleCourse: ICourse = {
@@ -56,6 +57,7 @@ describe('CourseController', () => {
   beforeEach(() => {
     mockCourseService = {
       createCourse: vi.fn(),
+      findByInstructorId: vi.fn(),
     };
 
     controller = new CourseController(mockCourseService as unknown as CourseService);
@@ -174,6 +176,90 @@ describe('CourseController', () => {
           instructorId: 'attacker_fake_id',
         }),
       );
+    });
+  });
+
+  describe('GET /courses/my-courses - getMyCourses', () => {
+    it('1. should allow INSTRUCTOR to fetch their own courses successfully', async () => {
+      // Arrange
+      const instructorId = 'instructor_1';
+      const myCourses: ICourse[] = [
+        sampleCourse,
+        {
+          ...sampleCourse,
+          id: 'course_456',
+          title: 'Khóa học Next.js 15 Toàn Diện',
+          slug: 'khoa-hoc-nextjs-15-toan-dien',
+        },
+      ];
+      mockCourseService.findByInstructorId.mockResolvedValue(myCourses);
+
+      // Act
+      const response = await controller.getMyCourses(instructorId);
+
+      // Assert
+      expect(mockCourseService.findByInstructorId).toHaveBeenCalledWith(instructorId);
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Lấy danh sách khóa học thành công');
+      expect(response.data).toEqual(myCourses);
+      expect(response.data).toHaveLength(2);
+    });
+
+    it('2. should allow ADMIN to fetch courses', async () => {
+      // Arrange
+      const adminId = 'admin_999';
+      mockCourseService.findByInstructorId.mockResolvedValue([]);
+
+      // Act
+      const response = await controller.getMyCourses(adminId);
+
+      // Assert
+      expect(mockCourseService.findByInstructorId).toHaveBeenCalledWith(adminId);
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual([]);
+    });
+
+    it('3. should return empty array when instructor has no courses', async () => {
+      // Arrange
+      const newInstructorId = 'instructor_empty';
+      mockCourseService.findByInstructorId.mockResolvedValue([]);
+
+      // Act
+      const response = await controller.getMyCourses(newInstructorId);
+
+      // Assert
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual([]);
+    });
+
+    it('4. should reject STUDENT access via @Roles configuration and RolesGuard', () => {
+      // Arrange: verify controller metadata
+      const reflector = new Reflector();
+      // oxlint-disable-next-line typescript/unbound-method
+      const handler = CourseController.prototype.getMyCourses;
+      const roles = reflector.get<RoleEnum[]>(ROLES_KEY, handler);
+      expect(roles).toEqual([RoleEnum.INSTRUCTOR, RoleEnum.ADMIN]);
+
+      // Assert: verify RolesGuard rejects STUDENT role
+      const guard = new RolesGuard(reflector);
+      const studentUser: IUserProfile = {
+        id: 'student_1',
+        email: 'student@example.com',
+        fullName: 'Student User',
+        role: RoleEnum.STUDENT,
+        status: UserStatusEnum.ACTIVE,
+        provider: AuthProviderEnum.LOCAL,
+      };
+
+      const mockContext = {
+        getHandler: vi.fn().mockReturnValue(handler),
+        getClass: vi.fn().mockReturnValue(CourseController),
+        switchToHttp: vi.fn().mockReturnValue({
+          getRequest: vi.fn().mockReturnValue({ user: studentUser }),
+        }),
+      } as unknown as ExecutionContext;
+
+      expect(() => guard.canActivate(mockContext)).toThrow(ForbiddenException);
     });
   });
 

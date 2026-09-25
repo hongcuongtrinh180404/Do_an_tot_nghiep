@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import type { IApiResponse, ICourse, ICreateCoursePayload } from 'share-lib';
@@ -9,6 +9,7 @@ import { apiClient } from '@/lib/api-client';
 export const courseKeys = {
   all: ['courses'] as const,
   lists: () => [...courseKeys.all, 'list'] as const,
+  myCourses: () => [...courseKeys.all, 'my-courses'] as const,
   detail: (id: string) => [...courseKeys.all, 'detail', id] as const,
 };
 
@@ -17,7 +18,18 @@ export const courseApi = {
     const res = await apiClient.post<IApiResponse<ICourse>>('/courses', payload);
     return res.data.data;
   },
+  async getMyCourses(): Promise<ICourse[]> {
+    const res = await apiClient.get<IApiResponse<ICourse[]>>('/courses/my-courses');
+    return res.data.data;
+  },
 };
+
+export function useMyCoursesQuery() {
+  return useQuery({
+    queryKey: courseKeys.myCourses(),
+    queryFn: () => courseApi.getMyCourses(),
+  });
+}
 
 export function useCreateCourseMutation() {
   const router = useRouter();

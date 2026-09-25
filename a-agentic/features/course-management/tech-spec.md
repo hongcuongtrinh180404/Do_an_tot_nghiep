@@ -47,6 +47,7 @@
 | Method | Endpoint | Description | Auth & Roles |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v1/courses` | Danh sách khóa học có phân trang & lọc | Public |
+| `GET` | `/api/v1/courses/my-courses` | Danh sách khóa học của giảng viên hiện tại (chưa xóa mềm) | `INSTRUCTOR`, `ADMIN` |
 | `GET` | `/api/v1/courses/:slug` | Chi tiết khóa học và cấu trúc chương/bài | Public |
 | `POST` | `/api/v1/courses` | Tạo khóa học mới | `INSTRUCTOR`, `ADMIN` |
 | `PATCH` | `/api/v1/courses/:id` | Cập nhật thông tin khóa học | `INSTRUCTOR` (Owner), `ADMIN` |

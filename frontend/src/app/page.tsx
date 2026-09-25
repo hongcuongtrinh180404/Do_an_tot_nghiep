@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { RoleEnum } from 'share-lib';
 import { useCurrentUserQuery, useLogoutMutation } from '@/features/auth/api/auth.api';
 import { LoginForm } from '@/features/auth/components/login-form';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -45,6 +46,15 @@ export default function Home(): React.JSX.Element {
           <div className="flex items-center gap-2">
             {isMounted && user ? (
               <>
+                {(user.role === RoleEnum.INSTRUCTOR || user.role === RoleEnum.ADMIN) && (
+                  <Link
+                    href="/instructor/courses"
+                    className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                  >
+                    <Icon icon="lucide:book-open" className="size-3.5 mr-1.5" />
+                    Khóa học của tôi
+                  </Link>
+                )}
                 <Link
                   href="/profile"
                   className={buttonVariants({ variant: 'outline', size: 'sm' })}

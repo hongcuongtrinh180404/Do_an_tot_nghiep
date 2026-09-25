@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   HttpCode,
@@ -15,6 +16,15 @@ import { CreateCourseDto } from './dto/create-course.dto.js';
 @Controller('courses')
 export class CourseController {
   constructor(private readonly courseService: CourseService) {}
+
+  @Get('my-courses')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  async getMyCourses(
+    @CurrentUser('id') userId: string,
+  ): Promise<ApiResponse<ICourse[]>> {
+    const courses = await this.courseService.findByInstructorId(userId);
+    return ApiResponse.success(courses, 'Lấy danh sách khóa học thành công');
+  }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
