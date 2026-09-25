@@ -27,6 +27,7 @@ describe('CourseController', () => {
   let mockCourseService: {
     createCourse: ReturnType<typeof vi.fn>;
     findByInstructorId: ReturnType<typeof vi.fn>;
+    getCourseDetailForInstructor: ReturnType<typeof vi.fn>;
   };
 
   const sampleCourse: ICourse = {
@@ -58,6 +59,7 @@ describe('CourseController', () => {
     mockCourseService = {
       createCourse: vi.fn(),
       findByInstructorId: vi.fn(),
+      getCourseDetailForInstructor: vi.fn(),
     };
 
     controller = new CourseController(mockCourseService as unknown as CourseService);
@@ -237,6 +239,99 @@ describe('CourseController', () => {
       const reflector = new Reflector();
       // oxlint-disable-next-line typescript/unbound-method
       const handler = CourseController.prototype.getMyCourses;
+      const roles = reflector.get<RoleEnum[]>(ROLES_KEY, handler);
+      expect(roles).toEqual([RoleEnum.INSTRUCTOR, RoleEnum.ADMIN]);
+
+      // Assert: verify RolesGuard rejects STUDENT role
+      const guard = new RolesGuard(reflector);
+      const studentUser: IUserProfile = {
+        id: 'student_1',
+        email: 'student@example.com',
+        fullName: 'Student User',
+        role: RoleEnum.STUDENT,
+        status: UserStatusEnum.ACTIVE,
+        provider: AuthProviderEnum.LOCAL,
+      };
+
+      const mockContext = {
+        getHandler: vi.fn().mockReturnValue(handler),
+        getClass: vi.fn().mockReturnValue(CourseController),
+        switchToHttp: vi.fn().mockReturnValue({
+          getRequest: vi.fn().mockReturnValue({ user: studentUser }),
+        }),
+      } as unknown as ExecutionContext;
+
+      expect(() => guard.canActivate(mockContext)).toThrow(ForbiddenException);
+    });
+  });
+
+  describe('GET /courses/:id - getDetail', () => {
+    const instructorProfile: IUserProfile = {
+      id: 'instructor_1',
+      email: 'instructor@example.com',
+      fullName: 'Master Instructor',
+      role: RoleEnum.INSTRUCTOR,
+      status: UserStatusEnum.ACTIVE,
+      provider: AuthProviderEnum.LOCAL,
+    };
+
+    const adminProfile: IUserProfile = {
+      id: 'admin_1',
+      email: 'admin@example.com',
+      fullName: 'System Admin',
+      role: RoleEnum.ADMIN,
+      status: UserStatusEnum.ACTIVE,
+      provider: AuthProviderEnum.LOCAL,
+    };
+
+    it('1. should allow INSTRUCTOR to fetch their own course detail successfully', async () => {
+      // Arrange
+      mockCourseService.getCourseDetailForInstructor.mockResolvedValue(sampleCourse);
+
+      // Act
+      const response = await controller.getDetail(
+        'course_123',
+        instructorProfile.id,
+        instructorProfile.role,
+      );
+
+      // Assert
+      expect(mockCourseService.getCourseDetailForInstructor).toHaveBeenCalledWith(
+        'course_123',
+        instructorProfile.id,
+        instructorProfile.role,
+      );
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Lấy chi tiết khóa học thành công');
+      expect(response.data).toEqual(sampleCourse);
+    });
+
+    it('2. should allow ADMIN to fetch course detail successfully', async () => {
+      // Arrange
+      mockCourseService.getCourseDetailForInstructor.mockResolvedValue(sampleCourse);
+
+      // Act
+      const response = await controller.getDetail(
+        'course_123',
+        adminProfile.id,
+        adminProfile.role,
+      );
+
+      // Assert
+      expect(mockCourseService.getCourseDetailForInstructor).toHaveBeenCalledWith(
+        'course_123',
+        adminProfile.id,
+        adminProfile.role,
+      );
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual(sampleCourse);
+    });
+
+    it('3. should reject STUDENT access via @Roles configuration and RolesGuard', () => {
+      // Arrange: verify controller metadata
+      const reflector = new Reflector();
+      // oxlint-disable-next-line typescript/unbound-method
+      const handler = CourseController.prototype.getDetail;
       const roles = reflector.get<RoleEnum[]>(ROLES_KEY, handler);
       expect(roles).toEqual([RoleEnum.INSTRUCTOR, RoleEnum.ADMIN]);
 

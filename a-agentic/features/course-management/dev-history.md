@@ -37,17 +37,25 @@
   - Tích hợp trạng thái Loading: Nút submit hiển thị spinner và label `"Đang tạo khóa học..."`, disable đồng thời nút Hủy và các trường input trong suốt quá trình mutation xử lý.
   - Kết nối thành công Happy Path: Tạo khóa học thành công -> Toast thông báo -> Invalidate query cache -> Tự động chuyển hướng về `/instructor/courses`.
   - Vượt qua toàn bộ kiểm tra: TypeScript (`tsc --noEmit`), ESLint (0 errors, 0 warnings), Next.js Build (prerendered static), và Monorepo Tests (90/90 vitest tests passed).
-- **Milestone 4 (Instructor Courses List Real Data Integration)**:
-  - Backend: Bổ sung endpoint `GET /api/v1/courses/my-courses` bảo vệ bằng `RolesGuard` với quyền `INSTRUCTOR` và `ADMIN`. Trích xuất an toàn `currentUserId` từ `@CurrentUser('id')`, tận dụng `CourseService.findByInstructorId` và `CourseRepository.findByInstructorId` hiện có để lọc `{ instructorId, deletedAt: null }` sắp xếp `{ createdAt: -1 }`.
-  - Backend Tests: Bổ sung unit tests cho `getMyCourses` trong `course.controller.spec.ts` (14/14 tests pass, 94/94 toàn bộ backend test suite pass).
-  - Frontend API: Mở rộng `courseKeys.myCourses()`, bổ sung `courseApi.getMyCourses(): Promise<ICourse[]>`, và custom hook `useMyCoursesQuery()` tại `course.api.ts`.
-  - Invalidation liên kết: Khi `useCreateCourseMutation` tạo khóa học thành công, `queryClient.invalidateQueries({ queryKey: courseKeys.all })` tự động làm mới danh sách `courseKeys.myCourses()` khi điều hướng về `/instructor/courses`.
-  - UI Components:
-    - `CourseCard`: Component hiển thị thông tin khóa học (`title`, `slug`, `price`, `level`, `status`, `createdAt`), `cursor-default` (không clickable ở milestone này), `price === 0` hiển thị "Miễn phí" thay vì "0 ₫", ngày tạo định dạng `vi-VN`.
-    - `CourseCardSkeleton` & `CourseListSkeleton`: Hiệu ứng pulse loading mô phỏng lưới thẻ.
-    - `CourseManagementContent`: Xử lý phân nhánh 4 trạng thái (Loading -> Skeleton; Error -> Card cảnh báo kèm nút "Thử lại"; Empty -> Giữ nguyên `CourseEmptyState`; Data -> Responsive Grid các thẻ `CourseCard`).
-  - Kiểm định toàn diện: Monorepo Backend Tests (94/94 passed), Frontend Lint (0 errors, 0 warnings), Frontend Typecheck (`tsc --noEmit` passed), Frontend Build (Turbopack static build passed).
-
-
+- **Milestone 5 (Instructor Course Detail View & IDOR Protection)**:
+  - Backend: Bổ sung endpoint `GET /api/v1/courses/:id` trong `CourseController` với kiểm tra phân quyền `INSTRUCTOR` và `ADMIN`.
+  - IDOR Protection: `CourseService.getCourseDetailForInstructor` kiểm tra quyền sở hữu cấp bản ghi. Nếu `currentUserRole !== ADMIN` và `course.instructorId !== currentUserId`, ném `403 ForbiddenException`. Nếu khóa học không tồn tại hoặc đã bị xóa mềm, ném `404 NotFoundException`. Bắt các lỗi chuyển đổi ID MongoDB (CastError) an toàn.
+  - Backend Tests: Bổ sung 8 test cases toàn diện trong `course.service.spec.ts` và `course.controller.spec.ts` (102/102 vitest tests passed).
+  - Frontend Clickable CourseCard: Chuyển `CourseCard` thành thẻ liên kết `<Link href={`/instructor/courses/${course.id}`}>` với hiệu ứng hover và chỉ dẫn "Chi tiết →".
+  - Frontend API: Bổ sung `courseApi.getCourseById(id)` và hook `useCourseDetailQuery(id)` tại `course.api.ts`.
+  - Frontend UI Detail View:
+    - Route `frontend/src/app/instructor/courses/[id]/page.tsx` (RSC dynamic route).
+    - `CourseDetailSkeleton`: Khung chờ loading với hiệu ứng pulse cho thanh điều hướng, card tổng quan và 2 khối mô tả.
+    - `CourseDetailContent`: Hiển thị đầy đủ thông tin khóa học (`title`, `slug` dạng monospace badge, `shortDescription`, `description` nhiều dòng, `price` chuẩn hóa "Miễn phí" nếu = 0, `level`, `status`, `createdAt`). Xử lý placeholder xám nhạt (`Chưa có mô tả ngắn`, `Chưa có nội dung mô tả chi tiết`) khi dữ liệu rỗng. Nút "Quay lại danh sách khóa học" thuận tiện.
+    - Xử lý Error State: Khối thông báo lỗi thân thiện phân biệt 403 Forbidden / 404 Not Found kèm nút quay lại và nút thử lại (`refetch`).
+  - Kiểm định toàn diện: Monorepo Backend Tests (102/102 passed), Frontend Lint (0 errors, 0 warnings), Frontend Typecheck (`tsc --noEmit` passed), Frontend Build (Turbopack dynamic build passed).
+- **Milestone 6 (Section Schema & Domain Interface)**:
+  - Khảo sát và định nghĩa `ISection` trong `share-lib/src/interfaces/section.interface.ts`: Sử dụng `id: string` và khóa ngoại `courseId: string` đồng bộ 100% convention với `ICourse` và `IUser`.
+  - Khởi tạo `SectionEntity` và `SectionSchema` tại `backend/src/modules/course/schemas/section.schema.ts`:
+    - Kế thừa `BaseAbstractDocument` để tái sử dụng toàn bộ `_id`, `createdAt`, `updatedAt`, `deletedAt`, `createdById`, `updatedById` mà không khai báo lặp lại.
+    - Khai báo 4 trường cốt lõi: `courseId` (Types.ObjectId ref `CourseEntity.name`), `title` (string, required, trimmed), `description` (string, optional, default null, trimmed), `order` (number, required, min: 0).
+    - Cấu hình Compound Index: `{ courseId: 1, deletedAt: 1, order: 1 }` để tối ưu truy vấn danh sách Section theo thứ tự và hỗ trợ soft-delete.
+  - Đăng ký `SectionEntity` vào `CourseModule` (`backend/src/modules/course/course.module.ts`) thông qua `MongooseModule.forFeature`.
+  - Giữ nguyên kiến trúc hiện tại: Không sinh CRUD API, không can thiệp frontend, không sửa đổi `CourseEntity`.
 
 

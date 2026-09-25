@@ -16,11 +16,13 @@
 - `isPublished`: boolean (default: false, index)
 - Inherits `BaseAbstractDocument` (`createdAt`, `updatedAt`, `deletedAt`, `createdById`, `updatedById`).
 
-### B. Chapter Schema (`chapters`)
-- `courseId`: Types.ObjectId (ref: `Course`, required, index)
+### B. Section Schema (`sections`)
+- `courseId`: Types.ObjectId (ref: `CourseEntity`, required, index)
 - `title`: string (required, trimmed)
-- `orderIndex`: number (required, default: 0)
-- Inherits `BaseAbstractDocument`.
+- `description`: string (optional, default: null, trimmed)
+- `order`: number (required, min: 0)
+- Inherits `BaseAbstractDocument` (`createdAt`, `updatedAt`, `deletedAt`, `createdById`, `updatedById`).
+- Compound Index: `{ courseId: 1, deletedAt: 1, order: 1 }`.
 
 ### C. Lesson Schema (`lessons`)
 - `courseId`: Types.ObjectId (ref: `Course`, required, index)

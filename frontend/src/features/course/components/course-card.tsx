@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import type { ICourse } from '../types/course.types';
@@ -67,65 +68,71 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
   const createdDate = formatDate(course.createdAt);
 
   return (
-    <Card className="cursor-default border-border/50 bg-card/60 shadow-xs hover:border-border transition-colors flex flex-col justify-between">
-      <CardHeader className="space-y-2 pb-3">
-        {/* Status & Level Badges */}
-        <div className="flex items-center justify-between gap-2">
-          <span
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${statusInfo.className}`}
+    <Link href={`/instructor/courses/${course.id}`} className="block group h-full">
+      <Card className="cursor-pointer border-border/50 bg-card/60 shadow-xs group-hover:border-foreground/30 group-hover:shadow-sm transition-all flex flex-col justify-between h-full">
+        <CardHeader className="space-y-2 pb-3">
+          {/* Status & Level Badges */}
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${statusInfo.className}`}
+            >
+              {statusInfo.label}
+            </span>
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md border border-border/40 font-medium">
+              <Icon icon="lucide:layers" className="size-3" />
+              {levelText}
+            </span>
+          </div>
+
+          {/* Title */}
+          <h3
+            className="text-base font-semibold text-foreground line-clamp-2 leading-snug tracking-tight group-hover:text-foreground/90 transition-colors"
+            title={course.title}
           >
-            {statusInfo.label}
-          </span>
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md border border-border/40 font-medium">
-            <Icon icon="lucide:layers" className="size-3" />
-            {levelText}
-          </span>
-        </div>
+            {course.title}
+          </h3>
 
-        {/* Title */}
-        <h3
-          className="text-base font-semibold text-foreground line-clamp-2 leading-snug tracking-tight"
-          title={course.title}
-        >
-          {course.title}
-        </h3>
-
-        {/* Slug */}
-        <p className="flex items-center gap-1 text-xs text-muted-foreground font-mono truncate">
-          <Icon icon="lucide:link" className="size-3 shrink-0 text-muted-foreground/60" />
-          <span className="truncate">{course.slug}</span>
-        </p>
-      </CardHeader>
-
-      <CardContent className="py-2">
-        {/* Short Description (if present) */}
-        {course.shortDescription ? (
-          <p className="text-xs text-muted-foreground line-clamp-2 mb-3 leading-relaxed">
-            {course.shortDescription}
+          {/* Slug */}
+          <p className="flex items-center gap-1 text-xs text-muted-foreground font-mono truncate">
+            <Icon icon="lucide:link" className="size-3 shrink-0 text-muted-foreground/60" />
+            <span className="truncate">{course.slug}</span>
           </p>
-        ) : null}
+        </CardHeader>
 
-        {/* Price Display */}
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-xs text-muted-foreground">Học phí:</span>
-          <span
-            className={`text-sm font-semibold ${
-              priceInfo.isFree
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-foreground'
-            }`}
-          >
-            {priceInfo.text}
+        <CardContent className="py-2">
+          {/* Short Description (if present) */}
+          {course.shortDescription ? (
+            <p className="text-xs text-muted-foreground line-clamp-2 mb-3 leading-relaxed">
+              {course.shortDescription}
+            </p>
+          ) : null}
+
+          {/* Price Display */}
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-xs text-muted-foreground">Học phí:</span>
+            <span
+              className={`text-sm font-semibold ${
+                priceInfo.isFree
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-foreground'
+              }`}
+            >
+              {priceInfo.text}
+            </span>
+          </div>
+        </CardContent>
+
+        <CardFooter className="pt-3 pb-3 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <Icon icon="lucide:calendar" className="size-3.5 text-muted-foreground/70" />
+            <span>Ngày tạo: {createdDate}</span>
+          </div>
+          <span className="text-xs text-muted-foreground/60 group-hover:text-foreground transition-colors flex items-center gap-0.5 font-medium">
+            Chi tiết
+            <Icon icon="lucide:chevron-right" className="size-3 transition-transform group-hover:translate-x-0.5" />
           </span>
-        </div>
-      </CardContent>
-
-      <CardFooter className="pt-3 pb-3 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
-        <div className="flex items-center gap-1.5">
-          <Icon icon="lucide:calendar" className="size-3.5 text-muted-foreground/70" />
-          <span>Ngày tạo: {createdDate}</span>
-        </div>
-      </CardFooter>
-    </Card>
+        </CardFooter>
+      </Card>
+    </Link>
   );
 }

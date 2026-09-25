@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Body,
+  Param,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -24,6 +25,21 @@ export class CourseController {
   ): Promise<ApiResponse<ICourse[]>> {
     const courses = await this.courseService.findByInstructorId(userId);
     return ApiResponse.success(courses, 'Lấy danh sách khóa học thành công');
+  }
+
+  @Get(':id')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  async getDetail(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: RoleEnum,
+  ): Promise<ApiResponse<ICourse>> {
+    const course = await this.courseService.getCourseDetailForInstructor(
+      id,
+      userId,
+      role,
+    );
+    return ApiResponse.success(course, 'Lấy chi tiết khóa học thành công');
   }
 
   @Post()

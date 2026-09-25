@@ -80,6 +80,30 @@ export class CourseService extends BaseService<ICourse, string> {
     return this.courseRepository.findByInstructorId(instructorId, session);
   }
 
+  async getCourseDetailForInstructor(
+    courseId: string,
+    currentUserId: string,
+    currentUserRole: RoleEnum,
+    session?: ClientSession,
+  ): Promise<ICourse> {
+    let course: ICourse | null = null;
+    try {
+      course = await this.courseRepository.findById(courseId, session);
+    } catch {
+      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+    }
+
+    if (!course || course.deletedAt) {
+      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+    }
+
+    if (currentUserRole !== RoleEnum.ADMIN && course.instructorId !== currentUserId) {
+      throw new ForbiddenException('Bạn không có quyền truy cập khóa học này');
+    }
+
+    return course;
+  }
+
   async createCourse(input: CreateCourseInput, session?: ClientSession): Promise<ICourse> {
     const normalizedSlug = input.slug.toLowerCase().trim();
 

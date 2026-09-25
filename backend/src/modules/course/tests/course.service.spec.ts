@@ -273,4 +273,83 @@ describe('CourseService', () => {
       expect(result).toEqual(mockCourses);
     });
   });
+
+  describe('getCourseDetailForInstructor', () => {
+    const courseOwner: ICourse = {
+      id: 'course_100',
+      title: 'Khóa học Node.js Chuyên Sâu',
+      slug: 'khoa-hoc-nodejs-chuyen-sau',
+      instructorId: 'instructor_1',
+      price: 399000,
+      status: CourseStatusEnum.DRAFT,
+      level: CourseLevelEnum.INTERMEDIATE,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    };
+
+    it('should return course when user is the owner instructor', async () => {
+      mockCourseRepository.findById.mockResolvedValue(courseOwner);
+
+      const result = await service.getCourseDetailForInstructor(
+        'course_100',
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(mockCourseRepository.findById).toHaveBeenCalledWith('course_100', undefined);
+      expect(result).toEqual(courseOwner);
+    });
+
+    it('should return course when user is ADMIN even if not owner', async () => {
+      mockCourseRepository.findById.mockResolvedValue(courseOwner);
+
+      const result = await service.getCourseDetailForInstructor(
+        'course_100',
+        'admin_999',
+        RoleEnum.ADMIN,
+      );
+
+      expect(result).toEqual(courseOwner);
+    });
+
+    it('should throw NotFoundException when course does not exist', async () => {
+      mockCourseRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.getCourseDetailForInstructor(
+          'non_existent_id',
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException when course is soft-deleted', async () => {
+      mockCourseRepository.findById.mockResolvedValue({
+        ...courseOwner,
+        deletedAt: new Date(),
+      });
+
+      await expect(
+        service.getCourseDetailForInstructor(
+          'course_100',
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException when user is another instructor (IDOR prevention)', async () => {
+      mockCourseRepository.findById.mockResolvedValue(courseOwner);
+
+      await expect(
+        service.getCourseDetailForInstructor(
+          'course_100',
+          'stranger_instructor_2',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
 });

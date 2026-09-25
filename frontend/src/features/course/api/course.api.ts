@@ -22,12 +22,24 @@ export const courseApi = {
     const res = await apiClient.get<IApiResponse<ICourse[]>>('/courses/my-courses');
     return res.data.data;
   },
+  async getCourseById(id: string): Promise<ICourse> {
+    const res = await apiClient.get<IApiResponse<ICourse>>(`/courses/${id}`);
+    return res.data.data;
+  },
 };
 
 export function useMyCoursesQuery() {
   return useQuery({
     queryKey: courseKeys.myCourses(),
     queryFn: () => courseApi.getMyCourses(),
+  });
+}
+
+export function useCourseDetailQuery(id: string) {
+  return useQuery({
+    queryKey: courseKeys.detail(id),
+    queryFn: () => courseApi.getCourseById(id),
+    enabled: Boolean(id),
   });
 }
 
