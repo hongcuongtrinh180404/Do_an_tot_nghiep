@@ -72,6 +72,27 @@ export function CourseDetailSkeleton(): React.JSX.Element {
           <div className="h-4 w-2/3 bg-muted/60 rounded" />
         </CardContent>
       </Card>
+
+      {/* Sections List Skeleton */}
+      <Card className="border-border/50 bg-card/60 shadow-xs">
+        <CardHeader className="pb-3">
+          <div className="h-5 w-36 bg-muted rounded" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="flex items-start gap-3.5 p-3.5 rounded-lg border border-border/30 bg-muted/20"
+            >
+              <div className="size-8 rounded-md bg-muted/60 shrink-0" />
+              <div className="flex-1 space-y-2 pt-1">
+                <div className="h-4 w-1/3 bg-muted rounded" />
+                <div className="h-3 w-2/3 bg-muted/50 rounded" />
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }

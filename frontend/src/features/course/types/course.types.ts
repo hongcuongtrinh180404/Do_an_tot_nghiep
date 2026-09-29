@@ -6,6 +6,7 @@ export {
 export type {
   ICourse,
   ICreateCoursePayload,
+  ISection,
 } from 'share-lib';
 
 export interface ICourseApiError {

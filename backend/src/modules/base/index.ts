@@ -17,5 +17,8 @@ export * from './dto/api-response.dto.js';
 export * from './interceptors/audit-context.interceptor.js';
 export * from './interceptors/transform.interceptor.js';
 
+// Pipes
+export * from './pipes/parse-object-id.pipe.js';
+
 // Module
 export * from './base.module.js';

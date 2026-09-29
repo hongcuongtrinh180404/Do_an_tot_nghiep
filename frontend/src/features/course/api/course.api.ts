@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import type { IApiResponse, ICourse, ICreateCoursePayload } from 'share-lib';
+import type { IApiResponse, ICourse, ICreateCoursePayload, ISection } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 
 export const courseKeys = {
@@ -11,6 +11,7 @@ export const courseKeys = {
   lists: () => [...courseKeys.all, 'list'] as const,
   myCourses: () => [...courseKeys.all, 'my-courses'] as const,
   detail: (id: string) => [...courseKeys.all, 'detail', id] as const,
+  sections: (courseId: string) => [...courseKeys.detail(courseId), 'sections'] as const,
 };
 
 export const courseApi = {
@@ -24,6 +25,10 @@ export const courseApi = {
   },
   async getCourseById(id: string): Promise<ICourse> {
     const res = await apiClient.get<IApiResponse<ICourse>>(`/courses/${id}`);
+    return res.data.data;
+  },
+  async getSections(courseId: string): Promise<ISection[]> {
+    const res = await apiClient.get<IApiResponse<ISection[]>>(`/courses/${courseId}/sections`);
     return res.data.data;
   },
 };
@@ -40,6 +45,14 @@ export function useCourseDetailQuery(id: string) {
     queryKey: courseKeys.detail(id),
     queryFn: () => courseApi.getCourseById(id),
     enabled: Boolean(id),
+  });
+}
+
+export function useCourseSectionsQuery(courseId: string) {
+  return useQuery({
+    queryKey: courseKeys.sections(courseId),
+    queryFn: () => courseApi.getSections(courseId),
+    enabled: Boolean(courseId),
   });
 }
 

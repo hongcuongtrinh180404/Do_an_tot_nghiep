@@ -9,6 +9,7 @@ import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
 import {
   ICourse,
+  ISection,
   IUser,
   RoleEnum,
   UserStatusEnum,
@@ -17,7 +18,9 @@ import {
 } from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { CourseRepository } from '../repositories/course.repository.js';
+import { SectionRepository } from '../repositories/section.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
+import { CreateSectionDto } from '../dto/create-section.dto.js';
 
 export interface CreateCourseInput {
   title: string;
@@ -35,6 +38,7 @@ export interface CreateCourseInput {
 export class CourseService extends BaseService<ICourse, string> {
   constructor(
     protected readonly courseRepository: CourseRepository,
+    protected readonly sectionRepository: SectionRepository,
     protected readonly userRepository: UserRepository,
     cls: ClsService,
   ) {
@@ -133,5 +137,62 @@ export class CourseService extends BaseService<ICourse, string> {
       } as unknown as Partial<ICourse>,
       session,
     );
+  }
+
+  async createSection(
+    courseId: string,
+    dto: CreateSectionDto,
+    userId: string,
+    role: RoleEnum,
+    session?: ClientSession,
+  ): Promise<ISection> {
+    let course: ICourse | null = null;
+    try {
+      course = await this.courseRepository.findById(courseId, session);
+    } catch {
+      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+    }
+
+    if (!course || course.deletedAt) {
+      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+    }
+
+    if (role !== RoleEnum.ADMIN && course.instructorId !== userId) {
+      throw new ForbiddenException(
+        'Bạn không có quyền thêm chương học vào khóa học này',
+      );
+    }
+
+    const section = await this.sectionRepository.create(
+      {
+        courseId: course.id,
+        title: dto.title,
+        description: dto.description ?? null,
+        order: dto.order,
+        createdById: userId,
+        updatedById: userId,
+      },
+      session,
+    );
+
+    return section;
+  }
+
+  async getSectionsByCourseId(
+    courseId: string,
+    session?: ClientSession,
+  ): Promise<ISection[]> {
+    let course: ICourse | null = null;
+    try {
+      course = await this.courseRepository.findById(courseId, session);
+    } catch {
+      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+    }
+
+    if (!course || course.deletedAt) {
+      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+    }
+
+    return this.sectionRepository.findByCourseId(courseId, session);
   }
 }

@@ -12,6 +12,7 @@ import {
   CourseLevelEnum,
   CourseStatusEnum,
   ICourse,
+  ISection,
   IUserProfile,
   UserStatusEnum,
   AuthProviderEnum,
@@ -19,7 +20,9 @@ import {
 import { CourseController } from '../course.controller.js';
 import { CourseService } from '../services/course.service.js';
 import { CreateCourseDto } from '../dto/create-course.dto.js';
+import { CreateSectionDto } from '../dto/create-section.dto.js';
 import { ROLES_KEY } from '../../auth/decorators/roles.decorator.js';
+import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator.js';
 import { RolesGuard } from '../../auth/guards/roles.guard.js';
 
 describe('CourseController', () => {
@@ -28,6 +31,8 @@ describe('CourseController', () => {
     createCourse: ReturnType<typeof vi.fn>;
     findByInstructorId: ReturnType<typeof vi.fn>;
     getCourseDetailForInstructor: ReturnType<typeof vi.fn>;
+    createSection: ReturnType<typeof vi.fn>;
+    getSectionsByCourseId: ReturnType<typeof vi.fn>;
   };
 
   const sampleCourse: ICourse = {
@@ -60,6 +65,8 @@ describe('CourseController', () => {
       createCourse: vi.fn(),
       findByInstructorId: vi.fn(),
       getCourseDetailForInstructor: vi.fn(),
+      createSection: vi.fn(),
+      getSectionsByCourseId: vi.fn(),
     };
 
     controller = new CourseController(mockCourseService as unknown as CourseService);
@@ -443,6 +450,250 @@ describe('CourseController', () => {
       expect(result.slug).toBe('khoa-hoc-nodejs-nang-cao');
       expect(result.price).toBe(299000);
       expect(result.level).toBe(CourseLevelEnum.ADVANCED);
+    });
+  });
+
+  describe('POST /courses/:courseId/sections - createSection', () => {
+    it('1. should delegate to courseService.createSection with courseId, dto, userId, and role', async () => {
+      // Arrange
+      const courseId = '507f1f77bcf86cd799439011';
+      const userId = 'instructor_1';
+      const role = RoleEnum.INSTRUCTOR;
+      const dto: CreateSectionDto = {
+        title: 'Chương 1: Giới thiệu khóa học',
+        description: 'Tổng quan nội dung',
+        order: 0,
+      };
+
+      const expectedSection: ISection = {
+        id: 'section_123',
+        courseId,
+        title: dto.title,
+        description: dto.description ?? null,
+        order: dto.order,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockCourseService.createSection.mockResolvedValue(expectedSection);
+
+      // Act
+      const response = await controller.createSection(courseId, userId, role, dto);
+
+      // Assert
+      expect(mockCourseService.createSection).toHaveBeenCalledWith(courseId, dto, userId, role);
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Tạo chương học thành công');
+      expect(response.data).toEqual(expectedSection);
+    });
+
+    it('2. should delegate properly when user is ADMIN', async () => {
+      // Arrange
+      const courseId = '507f1f77bcf86cd799439011';
+      const adminId = 'admin_999';
+      const role = RoleEnum.ADMIN;
+      const dto: CreateSectionDto = {
+        title: 'Chương 1: Admin tạo',
+        order: 0,
+      };
+
+      const expectedSection: ISection = {
+        id: 'section_admin',
+        courseId,
+        title: dto.title,
+        order: dto.order,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockCourseService.createSection.mockResolvedValue(expectedSection);
+
+      // Act
+      const response = await controller.createSection(courseId, adminId, role, dto);
+
+      // Assert
+      expect(mockCourseService.createSection).toHaveBeenCalledWith(courseId, dto, adminId, role);
+      expect(response.data).toEqual(expectedSection);
+    });
+
+    it('3. should enforce INSTRUCTOR and ADMIN roles on createSection route', () => {
+      const reflector = new Reflector();
+      const roles = reflector.get<string[]>(ROLES_KEY, CourseController.prototype.createSection);
+
+      expect(roles).toBeDefined();
+      expect(roles).toContain(RoleEnum.INSTRUCTOR);
+      expect(roles).toContain(RoleEnum.ADMIN);
+    });
+  });
+
+  describe('GET /courses/:courseId/sections - getSections', () => {
+    it('1. should pass courseId to courseService.getSectionsByCourseId and return ApiResponse', async () => {
+      const courseId = '507f1f77bcf86cd799439011';
+      const mockSections: ISection[] = [
+        {
+          id: 'section_1',
+          courseId,
+          title: 'Java Core',
+          description: 'Nền tảng Java',
+          order: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+
+      mockCourseService.getSectionsByCourseId.mockResolvedValue(mockSections);
+
+      const response = await controller.getSections(courseId);
+
+      expect(mockCourseService.getSectionsByCourseId).toHaveBeenCalledWith(courseId);
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual(mockSections);
+      expect(response.message).toBe('Lấy danh sách chương học thành công');
+    });
+
+    it('2. should return success ApiResponse with empty array [] when course has no sections', async () => {
+      const courseId = '507f1f77bcf86cd799439011';
+      mockCourseService.getSectionsByCourseId.mockResolvedValue([]);
+
+      const response = await controller.getSections(courseId);
+
+      expect(mockCourseService.getSectionsByCourseId).toHaveBeenCalledWith(courseId);
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual([]);
+      expect(response.message).toBe('Lấy danh sách chương học thành công');
+    });
+
+    it('3. should have @Public() metadata set on getSections', () => {
+      const reflector = new Reflector();
+      const isPublic = reflector.get<boolean>(IS_PUBLIC_KEY, CourseController.prototype.getSections);
+
+      expect(isPublic).toBe(true);
+    });
+  });
+
+  describe('CreateSectionDto Validation (ValidationPipe)', () => {
+    let validationPipe: ValidationPipe;
+
+    beforeEach(() => {
+      validationPipe = new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      });
+    });
+
+    it('should reject missing title', async () => {
+      const payload = {
+        order: 0,
+      };
+
+      await expect(
+        validationPipe.transform(payload, {
+          type: 'body',
+          metatype: CreateSectionDto,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject empty or whitespace-only title', async () => {
+      const payload = {
+        title: '   ',
+        order: 0,
+      };
+
+      await expect(
+        validationPipe.transform(payload, {
+          type: 'body',
+          metatype: CreateSectionDto,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject title exceeding 200 characters', async () => {
+      const payload = {
+        title: 'a'.repeat(201),
+        order: 0,
+      };
+
+      await expect(
+        validationPipe.transform(payload, {
+          type: 'body',
+          metatype: CreateSectionDto,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject missing order', async () => {
+      const payload = {
+        title: 'Chương 1',
+      };
+
+      await expect(
+        validationPipe.transform(payload, {
+          type: 'body',
+          metatype: CreateSectionDto,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject negative order', async () => {
+      const payload = {
+        title: 'Chương 1',
+        order: -1,
+      };
+
+      await expect(
+        validationPipe.transform(payload, {
+          type: 'body',
+          metatype: CreateSectionDto,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject non-integer order', async () => {
+      const payload = {
+        title: 'Chương 1',
+        order: 1.5,
+      };
+
+      await expect(
+        validationPipe.transform(payload, {
+          type: 'body',
+          metatype: CreateSectionDto,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject unwhitelisted properties', async () => {
+      const payload = {
+        title: 'Chương 1',
+        order: 0,
+        extraProperty: 'hacker_field',
+      };
+
+      await expect(
+        validationPipe.transform(payload, {
+          type: 'body',
+          metatype: CreateSectionDto,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should accept valid payload, trim whitespace on title and description', async () => {
+      const payload = {
+        title: '   Chương 1: Giới thiệu   ',
+        description: '   Mô tả nội dung chi tiết   ',
+        order: 0,
+      };
+
+      const result = (await validationPipe.transform(payload, {
+        type: 'body',
+        metatype: CreateSectionDto,
+      })) as CreateSectionDto;
+
+      expect(result.title).toBe('Chương 1: Giới thiệu');
+      expect(result.description).toBe('Mô tả nội dung chi tiết');
+      expect(result.order).toBe(0);
     });
   });
 });

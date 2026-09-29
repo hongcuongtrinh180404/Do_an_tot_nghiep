@@ -56,6 +56,80 @@
     - Khai báo 4 trường cốt lõi: `courseId` (Types.ObjectId ref `CourseEntity.name`), `title` (string, required, trimmed), `description` (string, optional, default null, trimmed), `order` (number, required, min: 0).
     - Cấu hình Compound Index: `{ courseId: 1, deletedAt: 1, order: 1 }` để tối ưu truy vấn danh sách Section theo thứ tự và hỗ trợ soft-delete.
   - Đăng ký `SectionEntity` vào `CourseModule` (`backend/src/modules/course/course.module.ts`) thông qua `MongooseModule.forFeature`.
-  - Giữ nguyên kiến trúc hiện tại: Không sinh CRUD API, không can thiệp frontend, không sửa đổi `CourseEntity`.
+- **Milestone 7 (Create Section HTTP Contract & Input DTO)**:
+  - Khởi tạo reusable `ParseObjectIdPipe` tại `backend/src/modules/base/pipes/parse-object-id.pipe.ts` và export qua `backend/src/modules/base/index.ts` để kiểm tra tính hợp lệ của MongoDB ObjectId (ném `400 Bad Request` nếu không phải 24 hex chars).
+  - Xây dựng `CreateSectionDto` tại `backend/src/modules/course/dto/create-section.dto.ts` với đầy đủ validation theo convention:
+    - `title`: required, trimmed, string, 1-200 ký tự.
+    - `description`: optional, trimmed (rỗng -> undefined), string, tối đa 1000 ký tự.
+    - `order`: required, integer, min 0.
+  - Khai báo route `POST /api/v1/courses/:courseId/sections` trong `CourseController`:
+    - Bảo vệ bởi `@Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)` và trích xuất `@CurrentUser('id') userId`.
+    - Validate `:courseId` qua `ParseObjectIdPipe`.
+    - Trả về `ApiResponse.success(section, 'Tạo chương học thành công')`.
+  - Khai báo method stub `createSection(courseId, dto, userId)` trong `CourseService` (CỐ Ý chưa implement business logic, check course tồn tại, repository hay database insert).
+  - Bổ sung toàn diện unit tests trong `parse-object-id.pipe.spec.ts` và `course.controller.spec.ts` (120/120 tests pass 100%).
+- **Milestone 8 (Task 2.2 - Course Existence & Ownership Authorization for Section Creation)**:
+  - Cập nhật `CourseController.createSection`: Trích xuất `@CurrentUser('role') role: RoleEnum` và truyền `(courseId, dto, userId, role)` xuống service.
+  - Implement nghiệp vụ trong `CourseService.createSection`:
+    - Tìm khóa học qua `courseRepository.findById(courseId, session)`.
+    - Bắt `CastError` và kiểm tra `!course || course.deletedAt` -> Ném `NotFoundException` (HTTP 404).
+    - Kiểm tra quyền sở hữu khóa học: `role !== RoleEnum.ADMIN && course.instructorId !== userId` -> Ném `ForbiddenException('Bạn không có quyền thêm chương học vào khóa học này')` (HTTP 403).
+    - Stub return: Trả về object tuân thủ contract `ISection` (CỐ Ý chưa persistence MongoDB, chưa tạo SectionRepository).
+  - Cập nhật và bổ sung 7 unit tests toàn diện trong `course.service.spec.ts` và `course.controller.spec.ts` (127/127 tests pass 100%).
+- **Milestone 9 (Task 2.3 - Persistence cho Create Section)**:
+  - Khởi tạo `SectionRepository` tại `backend/src/modules/course/repositories/section.repository.ts`:
+    - Kế thừa `BaseMongoRepository<ISection, SectionEntity>`.
+    - Không override `create()`. Tái sử dụng `super.create(payload, session)` (`new this.model(payload)` -> `save({ session })` -> `toDomain()`).
+    - Mapper trong constructor map: `_id` (ObjectId) -> `id: string`, `courseId` (ObjectId) -> `string`, giữ nguyên toàn bộ các trường khác (`title`, `description`, `order`, `createdAt`, `updatedAt`, `deletedAt`, `createdById`, `updatedById`).
+  - Đăng ký `SectionRepository` vào `providers` và `exports` của `CourseModule` (`backend/src/modules/course/course.module.ts`).
+  - Inject `SectionRepository` vào constructor của `CourseService` (`backend/src/modules/course/services/course.service.ts`).
+  - Thay thế stub trong `CourseService.createSection` bằng `this.sectionRepository.create(...)`:
+    - Payload: `{ courseId: course.id, title: dto.title, description: dto.description ?? null, order: dto.order, createdById: userId, updatedById: userId }` kèm `session`.
+    - Không tự tạo `createdAt`, `updatedAt`, `deletedAt` (Mongoose tự quản lý).
+    - Không kiểm tra duplicate order theo đúng scope của Task 2.3.
+  - Bổ sung unit tests cho `SectionRepository` (`section.repository.spec.ts`) và `CourseService` (`course.service.spec.ts`):
+    - Đảm bảo kiểm thử: authorization pass -> gọi repository với đúng payload, `courseId` dùng `course.id`, `createdById === userId`, `updatedById === userId`, `description` absent -> `null`, `order` truyền đúng `dto.order`, `session` truyền xuống repository, và mapper ObjectId -> string.
+    - Toàn bộ 135/135 tests pass 100%, typecheck TypeScript 0 errors.
+- **Milestone 10 (Task 2.4 - Integration/E2E Test cho POST Create Section)**:
+  - Khởi tạo integration test `backend/src/modules/course/tests/create-section.integration.spec.ts`:
+    - Khởi động full application context thông qua `AppModule` với `supertest`.
+    - Kết nối isolated test database (`thc_datn_create_section_e2e_test`), cleanup các collection `sections`, `courses`, `users`, `sessions` trước mỗi test và drop database sau khi hoàn tất.
+    - Tái sử dụng production interceptors (`AuditContextInterceptor`, `TransformInterceptor`), global prefix (`api/v1`), và validation pipes (`ValidationPipe`).
+    - Tái sử dụng `AuthTokenService` để sinh Bearer JWT hợp lệ cho instructor.
+    - Test Happy Path: POST `/api/v1/courses/:courseId/sections` trả về HTTP 201 Created, envelope `ApiResponse`, `id` là ObjectId thực tế hợp lệ từ MongoDB (không phải stub), `createdById` và `updatedById` trùng khớp với instructor, query trực tiếp collection `sections` xác nhận bản ghi tồn tại với đầy đủ trường.
+    - Test Authorization Negative Cases: 403 Forbidden khi instructor khác cố gắng thêm section vào khóa học không sở hữu; 404 Not Found khi `courseId` không tồn tại. Xác nhận MongoDB không lưu bất kỳ document nào trong các trường hợp lỗi.
+    - Không cần sửa bất kỳ production code nào; toàn bộ 138/138 tests pass 100%, typecheck 0 errors.
+- **Milestone 11 (Task 2.6 - API Lấy danh sách Sections: GET /api/v1/courses/:courseId/sections)**:
+  - `SectionRepository.findByCourseId(courseId, session)`:
+    - Tìm kiếm theo `{ courseId: Types.ObjectId.isValid(courseId) ? new Types.ObjectId(courseId) : courseId, deletedAt: null }`.
+    - Sắp xếp tăng dần theo `{ order: 1, _id: 1 }` tận dụng Compound Index `{ courseId: 1, deletedAt: 1, order: 1 }`.
+    - Tái sử dụng mapper `toDomain(doc)`.
+  - `CourseService.getSectionsByCourseId(courseId, session)`:
+    - Kiểm tra Course tồn tại và chưa bị soft-delete qua `courseRepository.findById(courseId, session)`.
+    - Bắt lỗi CastError hoặc không tìm thấy -> ném `NotFoundException("Không tìm thấy khóa học với ID '${courseId}'")`.
+    - Trả về danh sách `ISection[]` từ `sectionRepository.findByCourseId(courseId, session)` (rỗng -> `[]`).
+    - Không kiểm tra Instructor ownership để phục vụ việc xem outline/curriculum công khai của khóa học.
+  - `CourseController.getSections`:
+    - Endpoint `@Get(':courseId/sections')` với decorator `@Public()` và `@Param('courseId', ParseObjectIdPipe)`.
+    - Bọc kết quả trong `ApiResponse.success(sections, 'Lấy danh sách chương học thành công')`.
+  - Kiểm thử & Tích hợp:
+    - 4 test cases cho `SectionRepository.findByCourseId` trong `section.repository.spec.ts`.
+    - 4 test cases cho `CourseService.getSectionsByCourseId` trong `course.service.spec.ts`.
+    - 3 test cases cho `CourseController.getSections` trong `course.controller.spec.ts`.
+    - 5 integration test cases trong `create-section.integration.spec.ts` (Happy path sorted 0->1->2, soft delete filter, 404 course not found, 404 soft-deleted course, 200 empty array, 400 invalid param).
+    - Toàn bộ 17 test files (154/154 tests) pass 100%, typecheck TypeScript 0 errors.
+- **Milestone 12 (Task 2.7 - Frontend: Hiển thị danh sách Sections trong Course Detail)**:
+  - Tái sử dụng Interface `ISection` từ `share-lib` re-export qua `course.types.ts`.
+  - Mở rộng `courseApi.getSections(courseId)` và hook `useCourseSectionsQuery(courseId)` trong `course.api.ts` với query key `['courses', 'detail', courseId, 'sections']`.
+  - Xây dựng component `CourseSectionsList` (`course-sections-list.tsx`):
+    - Đầy đủ 4 trạng thái: Loading (Skeleton pulse), Error (Alert box có nút thử lại không làm crash trang), Empty ("Khóa học chưa có chương học nào."), và Success (danh sách chương học).
+    - Hiển thị thứ tự thân thiện dạng `01`, `02`, ... giữ nguyên thứ tự server trả về, hiển thị tiêu đề và mô tả (nếu có).
+    - Tuân thủ nghiêm ngặt Purple Ban và quy chuẩn design token.
+  - Tích hợp vào `CourseDetailContent` (`course-detail-content.tsx`) và bổ sung placeholder skeleton vào `CourseDetailSkeleton` (`course-detail-skeleton.tsx`).
+  - Kiểm thử & Chất lượng:
+    - TypeScript: 0 errors trên toàn monorepo (`tsc --noEmit`).
+    - ESLint: 0 errors, 0 warnings trên `frontend/src`.
+    - Production build: Next.js 16.3.5 Turbopack build thành công (toàn bộ 8 routes tĩnh và động).
+    - Regression test: 17 test files (154/154 tests) backend pass 100%.
 
 

@@ -8,6 +8,7 @@ import { Icon } from '@/components/ui/icon';
 import { useCourseDetailQuery } from '../api/course.api';
 import { CourseLevelEnum, CourseStatusEnum } from '../types/course.types';
 import { CourseDetailSkeleton } from './course-detail-skeleton';
+import { CourseSectionsList } from './course-sections-list';
 
 interface CourseDetailContentProps {
   courseId: string;
@@ -288,6 +289,9 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
           )}
         </CardContent>
       </Card>
+
+      {/* Course Curriculum / Sections Section */}
+      <CourseSectionsList courseId={courseId} />
     </div>
   );
 }
