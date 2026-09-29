@@ -12,6 +12,7 @@ export * from './interfaces/session.interface.js';
 export * from './interfaces/api-response.interface.js';
 export * from './interfaces/course.interface.js';
 export * from './interfaces/section.interface.js';
+export * from './interfaces/lesson.interface.js';
 
 // Constants
 export * from './constants/auth.constants.js';

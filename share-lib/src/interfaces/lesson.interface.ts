@@ -1,6 +1,6 @@
-export interface ISection {
+export interface ILesson {
   id: string;
-  courseId: string;
+  sectionId: string;
   title: string;
   description?: string | null;
   order: number;
@@ -10,10 +10,3 @@ export interface ISection {
   createdById?: string | null;
   updatedById?: string | null;
 }
-
-export interface ICreateSectionPayload {
-  title: string;
-  description?: string | null;
-  order: number;
-}
-

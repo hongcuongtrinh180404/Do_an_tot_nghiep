@@ -131,5 +131,33 @@
     - ESLint: 0 errors, 0 warnings trên `frontend/src`.
     - Production build: Next.js 16.3.5 Turbopack build thành công (toàn bộ 8 routes tĩnh và động).
     - Regression test: 17 test files (154/154 tests) backend pass 100%.
+- **Milestone 13 (Task 2.8 - Frontend: Giao diện Tạo Section trong Course Detail)**:
+  - Khảo sát và bổ sung contract `ICreateSectionPayload` vào `share-lib/src/interfaces/section.interface.ts` và export qua `share-lib/src/index.ts`.
+  - Xây dựng schema validation `create-section.schema.ts` dùng Zod: `title` (required, 1-200 ký tự, whitespace trimmed), `description` (optional, max 1000 ký tự, whitespace trimmed), `order` (required integer >= 0).
+  - Bổ sung `courseApi.createSection` và React Query Mutation Hook `useCreateSectionMutation(courseId)` trong `course.api.ts`:
+    - Xử lý cache invalidation: Gọi `queryClient.invalidateQueries({ queryKey: courseKeys.sections(courseId) })` giúp danh sách tự động cập nhật ngay lập tức mà không cần reload trang.
+    - Xử lý toast phản hồi qua `sonner`: Thông báo thành công và xử lý chi tiết các mã lỗi HTTP (400, 401, 403, 404, 500).
+  - Xây dựng component `CreateSectionDialog` (`create-section-dialog.tsx`) kế thừa hệ thống modal từ `@/components/ui/dialog`:
+    - Form tích hợp `react-hook-form` + `@hookform/resolvers/zod`.
+    - Tự động gợi ý thứ tự `defaultOrder = sections.length` khi mở modal, cho phép giảng viên tùy chỉnh linh hoạt.
+    - Hiệu ứng pending: Nút submit chuyển sang icon xoay `lucide:loader-2` và label `"Đang thêm..."`, disable các nút thao tác chống duplicate submit.
+  - Tích hợp vào `CourseSectionsList` (`course-sections-list.tsx`):
+    - Bổ sung nút "Thêm chương" trên `CardHeader`.
+    - Bổ sung nút "Thêm chương học đầu tiên" trong khối `Empty State`.
+  - Xuất bản đầy đủ qua `frontend/src/features/course/index.ts`.
+  - Kiểm định toàn diện:
+    - TypeScript: 0 errors trên toàn bộ `share-lib`, `frontend`, và `backend` (`tsc --noEmit`).
+    - ESLint: 0 errors, 0 warnings trên `frontend/src`.
+- **Milestone 14 (Task 3.1 - Lesson Schema & Domain Interface)**:
+  - Khởi tạo contract `ILesson` trong `share-lib/src/interfaces/lesson.interface.ts` và re-export qua `share-lib/src/index.ts` (`id`, `sectionId`, `title`, `description?`, `order`, timestamps, soft-delete, audit). Rebuild `share-lib` thành công.
+  - Thiết kế `LessonEntity` và `LessonSchema` tại `backend/src/modules/course/schemas/lesson.schema.ts`:
+    - Kế thừa `BaseAbstractDocument` (tự động có `_id`, timestamps, `deletedAt`, `createdById`, `updatedById`).
+    - Khai báo 4 trường tối thiểu: `sectionId` (Types.ObjectId ref `SectionEntity.name`, required, indexed), `title` (string, required, trimmed), `description` (string, optional, default null, trimmed), `order` (number, required, min: 0).
+    - Cấu hình Compound Index: `{ sectionId: 1, deletedAt: 1, order: 1 }` để tối ưu truy vấn danh sách Lesson theo Section theo thứ tự, đồng thời lọc bỏ soft-deleted. Không đặt unique index trên `order` để hỗ trợ reordering an toàn trong transaction.
+  - Đăng ký `LessonEntity` và `LessonSchema` vào `CourseModule` (`backend/src/modules/course/course.module.ts`) qua `MongooseModule.forFeature`.
+  - Khởi tạo schema tests toàn diện trong `backend/src/modules/course/tests/lesson.schema.spec.ts` kiểm thử đầy đủ các ràng buộc (required, default null, min 0, trim, single index trên `sectionId`, compound index).
+  - Toàn bộ 18 test files (161/161 tests) backend pass 100%, typecheck TypeScript 0 errors.
+
+
 
 
