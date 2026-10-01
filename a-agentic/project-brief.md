@@ -4,17 +4,6 @@
 > **File:** `a-agentic/project-brief.md`  
 > **Vai trò:** Single Source of Truth (Tài liệu gốc) định hướng toàn diện cho AI Agents (Antigravity, Gemini, Copilot...) về nghiệp vụ, kiến trúc và phạm vi đề tài đồ án tốt nghiệp.
 
----
-
-## 1. Thông tin Tổng quan Đề tài
-
-- **Tên đề tài:** Hệ thống Học trực tuyến với Video Đa tương tác (Interactive Video E-Learning Platform)
-- **Sinh viên thực hiện:** Trịnh Hồng Cường
-- **Mã số sinh viên (MSSV):** 28211151710
-- **Giảng viên hướng dẫn (GVHD):** ThS. Nguyễn Hữu Phúc
-- **Thời gian thực hiện:** 28/9/2026 – 22/12/2026 (3 tháng)
-
----
 
 ## 2. Mục tiêu Dự án & Bài toán Giải quyết
 
@@ -100,14 +89,4 @@
 > 2. ❌ **KHÔNG** làm AI chấm điểm tự luận phức tạp (chỉ tập trung trắc nghiệm, flashcard, điểm dừng in-video quiz và mindmap).
 > 3. ❌ **KHÔNG** yêu cầu tương tác 2 chiều phức tạp (như click node mindmap nhảy tua timeline video) trong giai đoạn hiện tại. Markmap tập trung thể hiện cấu trúc kiến thức phân cấp bài giảng.
 
----
 
-## 6. Lộ trình Triển khai (28/9/2026 – 22/12/2026)
-
-| Giai đoạn | Nội dung công việc | Mốc thời gian |
-| :--- | :--- | :--- |
-| **Giai đoạn 1** | Khảo sát & Phân tích yêu cầu | 28/9 – 05/10/2026 (8 ngày) |
-| **Giai đoạn 2** | Thiết kế hệ thống, DB Schema, RabbitMQ topology, DTO Contracts | 06/10 – 15/10/2026 (10 ngày) |
-| **Giai đoạn 3** | Cài đặt & Lập trình (Backend, AI Pipeline, Frontend) | 16/10 – 26/11/2026 (42 ngày) |
-| **Giai đoạn 4** | Kiểm thử hệ thống (Unit tests, Integration, E2E) | 27/11 – 05/12/2026 (9 ngày) |
-| **Giai đoạn 5** | Hoàn thiện báo cáo, nghiệm thu & bảo vệ đồ án | 06/12 – 15/12/2026 (8 ngày) |

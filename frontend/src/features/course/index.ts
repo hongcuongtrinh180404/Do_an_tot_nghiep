@@ -4,6 +4,8 @@ export * from './components/course-card';
 export * from './components/course-card-skeleton';
 export * from './components/course-detail-content';
 export * from './components/course-detail-skeleton';
+export * from './components/lesson-detail-content';
+export * from './components/lesson-detail-skeleton';
 export * from './components/course-sections-list';
 export * from './components/course-management-content';
 export * from './components/create-course-header';

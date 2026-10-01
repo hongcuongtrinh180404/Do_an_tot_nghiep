@@ -318,4 +318,56 @@ describe('LessonService', () => {
       );
     });
   });
+
+  describe('getLessonById', () => {
+    it('1. should return lesson domain model when lesson exists and is not soft-deleted', async () => {
+      mockLessonRepository.findById.mockResolvedValue(sampleLesson);
+
+      const result = await service.getLessonById('lesson_100');
+
+      expect(mockLessonRepository.findById).toHaveBeenCalledWith('lesson_100', undefined);
+      expect(result).toEqual(sampleLesson);
+    });
+
+    it('2. should throw NotFoundException when lesson does not exist in repository', async () => {
+      mockLessonRepository.findById.mockResolvedValue(null);
+
+      await expect(service.getLessonById('lesson_non_existent')).rejects.toThrow(NotFoundException);
+      await expect(service.getLessonById('lesson_non_existent')).rejects.toThrow(
+        "Không tìm thấy bài học với ID 'lesson_non_existent'",
+      );
+    });
+
+    it('3. should throw NotFoundException when lesson is soft-deleted', async () => {
+      const softDeletedLesson: ILesson = {
+        ...sampleLesson,
+        deletedAt: new Date(),
+      };
+      mockLessonRepository.findById.mockResolvedValue(softDeletedLesson);
+
+      await expect(service.getLessonById('lesson_100')).rejects.toThrow(NotFoundException);
+      await expect(service.getLessonById('lesson_100')).rejects.toThrow(
+        "Không tìm thấy bài học với ID 'lesson_100'",
+      );
+    });
+
+    it('4. should catch repository error and throw NotFoundException when repository rejects', async () => {
+      mockLessonRepository.findById.mockRejectedValue(new Error('Cast to ObjectId failed'));
+
+      await expect(service.getLessonById('invalid_id')).rejects.toThrow(NotFoundException);
+      await expect(service.getLessonById('invalid_id')).rejects.toThrow(
+        "Không tìm thấy bài học với ID 'invalid_id'",
+      );
+    });
+
+    it('5. should pass session down to lessonRepository.findById', async () => {
+      const mockSession = { id: 'mock_session_789' } as unknown as ClientSession;
+      mockLessonRepository.findById.mockResolvedValue(sampleLesson);
+
+      const result = await service.getLessonById('lesson_100', mockSession);
+
+      expect(mockLessonRepository.findById).toHaveBeenCalledWith('lesson_100', mockSession);
+      expect(result).toEqual(sampleLesson);
+    });
+  });
 });

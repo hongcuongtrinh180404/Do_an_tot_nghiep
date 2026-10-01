@@ -83,4 +83,19 @@ export class LessonService extends BaseService<ILesson, string> {
 
     return this.lessonRepository.findBySectionId(sectionId, session);
   }
+
+  async getLessonById(id: string, session?: ClientSession): Promise<ILesson> {
+    let lesson: ILesson | null = null;
+    try {
+      lesson = await this.lessonRepository.findById(id, session);
+    } catch {
+      throw new NotFoundException(`Không tìm thấy bài học với ID '${id}'`);
+    }
+
+    if (!lesson || lesson.deletedAt) {
+      throw new NotFoundException(`Không tìm thấy bài học với ID '${id}'`);
+    }
+
+    return lesson;
+  }
 }

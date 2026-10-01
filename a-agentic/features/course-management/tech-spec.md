@@ -55,5 +55,21 @@
 | `PATCH` | `/api/v1/courses/:id` | Cập nhật thông tin khóa học | `INSTRUCTOR` (Owner), `ADMIN` |
 | `DELETE` | `/api/v1/courses/:id` | Xóa mềm khóa học | `INSTRUCTOR` (Owner), `ADMIN` |
 | `POST` | `/api/v1/courses/:id/chapters` | Thêm chương học mới | `INSTRUCTOR` (Owner), `ADMIN` |
-| `POST` | `/api/v1/chapters/:id/lessons` | Thêm bài học mới | `INSTRUCTOR` (Owner), `ADMIN` |
-| `GET` | `/api/v1/lessons/:id` | Xem bài học (Check enrollment if not free) | `USER`, `INSTRUCTOR`, `ADMIN` |
+| `POST` | `/api/v1/sections/:sectionId/lessons` | Thêm bài học mới vào section | `INSTRUCTOR` (Owner), `ADMIN` |
+| `GET` | `/api/v1/sections/:sectionId/lessons` | Lấy danh sách bài học theo section | Public |
+| `GET` | `/api/v1/lessons/:id` | Xem chi tiết bài học & content | Public |
+
+---
+
+## 3. Frontend Components & Viewers (Milestone 26)
+
+- **Routes**:
+  - `/instructor/courses/:id/lessons/:lessonId`: Giao diện xem chi tiết bài học dành cho giảng viên.
+  - `/courses/:courseId/lessons/:lessonId`: Giao diện xem chi tiết bài học tiêu chuẩn.
+- **Component `LessonDetailContent`**:
+  - Tải dữ liệu qua hook `useLessonDetailQuery(lessonId)`.
+  - Hiển thị badge: `Bài {order}`, `Học thử` (`isPreview`), badge loại nội dung (`Video`, `Tài liệu`, `Chưa có nội dung`).
+  - **Video Viewer**: Thẻ HTML5 `<video controls>` phát trực tiếp `lesson.content.url`, kèm dải metadata (thời lượng, dung lượng file, định dạng MIME).
+  - **Document Viewer**: Card thông tin tài liệu (tên file, định dạng, dung lượng) + nút "Mở tài liệu" mở URL trong tab mới.
+  - **Empty State**: Hiển thị khi `lesson.content === null`.
+  - **Loading & Error**: `LessonDetailSkeleton` và Card báo lỗi thân thiện với nút "Thử lại" và "Quay lại khóa học".

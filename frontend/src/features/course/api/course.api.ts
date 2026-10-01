@@ -21,6 +21,7 @@ export const courseKeys = {
   detail: (id: string) => [...courseKeys.all, 'detail', id] as const,
   sections: (courseId: string) => [...courseKeys.detail(courseId), 'sections'] as const,
   lessons: (sectionId: string) => ['sections', sectionId, 'lessons'] as const,
+  lessonDetail: (lessonId: string) => ['lessons', 'detail', lessonId] as const,
 };
 
 export const courseApi = {
@@ -58,6 +59,10 @@ export const courseApi = {
     );
     return res.data.data;
   },
+  async getLessonById(id: string): Promise<ILesson> {
+    const res = await apiClient.get<IApiResponse<ILesson>>(`/lessons/${id}`);
+    return res.data.data;
+  },
 };
 
 export function useMyCoursesQuery() {
@@ -88,6 +93,14 @@ export function useSectionLessonsQuery(sectionId: string) {
     queryKey: courseKeys.lessons(sectionId),
     queryFn: () => courseApi.getLessons(sectionId),
     enabled: Boolean(sectionId),
+  });
+}
+
+export function useLessonDetailQuery(id: string) {
+  return useQuery({
+    queryKey: courseKeys.lessonDetail(id),
+    queryFn: () => courseApi.getLessonById(id),
+    enabled: Boolean(id),
   });
 }
 

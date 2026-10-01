@@ -5,6 +5,7 @@ import { SectionEntity, SectionSchema } from './schemas/section.schema.js';
 import { LessonEntity, LessonSchema } from './schemas/lesson.schema.js';
 import { CourseController } from './course.controller.js';
 import { LessonController } from './lesson.controller.js';
+import { LessonsController } from './lessons.controller.js';
 import { LessonContentController } from './lesson-content.controller.js';
 import { CourseRepository } from './repositories/course.repository.js';
 import { SectionRepository } from './repositories/section.repository.js';
@@ -24,7 +25,7 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module.js';
     UserModule,
     CloudinaryModule,
   ],
-  controllers: [CourseController, LessonController, LessonContentController],
+  controllers: [CourseController, LessonController, LessonsController, LessonContentController],
   providers: [CourseRepository, SectionRepository, LessonRepository, CourseService, LessonService],
   exports: [CourseRepository, SectionRepository, LessonRepository, CourseService, LessonService],
 })

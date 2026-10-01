@@ -348,6 +348,39 @@
       - Frontend TypeScript Typecheck: 0 errors (`pnpm --filter frontend exec tsc --noEmit`).
       - Frontend Linter: 0 errors (`pnpm --filter frontend lint`).
       - Share-lib build: Success (`pnpm --filter share-lib build`).
+  - **Milestone 26 (Task: Lesson Detail + Content Viewer)**:
+    - **Backend Architecture & Endpoints**:
+      - Tạo `LessonsController` (`backend/src/modules/course/lessons.controller.ts`) gắn `@Controller('lessons')` và endpoint `GET /api/v1/lessons/:id`.
+      - Sử dụng `ParseObjectIdPipe` xác thực Mongo ObjectId (trả về 400 Bad Request nếu chuỗi ID không hợp lệ).
+      - Decorator `@Public()` cho phép truy cập theo quy chuẩn mở của milestone hiện tại.
+      - Bổ sung `getLessonById(id: string)` trong `LessonService` (`backend/src/modules/course/services/lesson.service.ts`), ném `NotFoundException` (404) nếu bài học không tồn tại hoặc đã bị xóa mềm (`deletedAt`).
+      - Đăng ký `LessonsController` vào `CourseModule`.
+    - **Backend Unit Tests**:
+      - Tạo mới `backend/src/modules/course/tests/lessons.controller.spec.ts` (7/7 tests pass) kiểm thử 200 OK, 404 NotFound, 400 BadRequest khi ID sai, và phản chiếu metadata decorator `@Public()`.
+      - Mở rộng `backend/src/modules/course/tests/lesson.service.spec.ts` với suite `getLessonById` (5/5 new tests pass, tổng 21 tests).
+      - Toàn bộ backend test suite: 26/26 test files, 261/261 tests pass 100%.
+    - **Frontend API & Routing**:
+      - Bổ sung query key `courseKeys.lessonDetail(id)`, API call `courseApi.getLessonById(id)` và React Query hook `useLessonDetailQuery(id)` tại `frontend/src/features/course/api/course.api.ts`.
+      - Tạo các route:
+        - `/instructor/courses/[id]/lessons/[lessonId]/page.tsx` cho ngữ cảnh Giảng viên.
+        - `/courses/[courseId]/lessons/[lessonId]/page.tsx` cho ngữ cảnh tổng quát / học viên.
+      - Cập nhật `SectionLessonsList` (`section-lessons-list.tsx`): hiển thị link chuyển trang và nút "Xem bài học" điều hướng tới trang chi tiết bài học.
+      - Cập nhật `CourseSectionsList` (`course-sections-list.tsx`): truyền `courseId` xuống `SectionLessonsList`.
+    - **Frontend UI & Viewers (`lesson-detail-content.tsx` & `lesson-detail-skeleton.tsx`)**:
+      - `LessonDetailSkeleton`: Khung chờ loading với hiệu ứng pulse.
+      - Xử lý 404 / Error State thân thiện với nút "Thử lại" và nút "Quay lại khóa học".
+      - Xử lý 3 nhánh nội dung:
+        - **Video**: Thẻ HTML5 `<video controls>` phát qua `lesson.content.url`, kèm dải metadata (tên file, thời lượng mm:ss, dung lượng MB, định dạng MIME).
+        - **Document**: Document Info Card hiển thị thông tin file đính kèm + nút "Mở tài liệu" mở tab mới an toàn (`rel="noopener noreferrer"`).
+        - **Empty State**: Khung thông báo rõ ràng "Bài học chưa có nội dung" khi `lesson.content === null`.
+      - Tuân thủ nghiêm ngặt: Không dùng màu tím (Purple Ban), không dùng inline font classes, 100% strict TypeScript không dùng `any`.
+    - **Kiểm định chất lượng**:
+      - Share-lib build: 0 errors (`pnpm --filter share-lib build`).
+      - Backend test: 26/26 files, 261/261 tests pass (`pnpm --filter backend test`).
+      - Backend build: 0 errors (`pnpm --filter backend build`).
+      - Backend lint: 0 errors (`pnpm --filter backend lint`).
+      - Frontend build: Turbopack compile thành công toàn bộ static & dynamic routes (`pnpm --filter frontend build`).
+      - Frontend lint: 0 errors (`pnpm --filter frontend lint`).
 
 
 

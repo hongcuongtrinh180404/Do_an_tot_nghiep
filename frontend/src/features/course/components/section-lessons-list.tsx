@@ -1,14 +1,19 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Icon } from '@/components/ui/icon';
 import { useSectionLessonsQuery } from '../api/course.api';
 
 interface SectionLessonsListProps {
   sectionId: string;
+  courseId?: string;
 }
 
-export function SectionLessonsList({ sectionId }: SectionLessonsListProps): React.JSX.Element {
+export function SectionLessonsList({
+  sectionId,
+  courseId,
+}: SectionLessonsListProps): React.JSX.Element {
   const { data: lessons, isLoading, isError, refetch } = useSectionLessonsQuery(sectionId);
 
   // 1. Loading State
@@ -58,6 +63,52 @@ export function SectionLessonsList({ sectionId }: SectionLessonsListProps): Reac
     <div className="space-y-1 pl-4 border-l-2 border-border/40 ml-2">
       {lessons.map((lesson) => {
         const lessonOrder = String(lesson.order + 1).padStart(2, '0');
+        const lessonUrl = courseId
+          ? `/instructor/courses/${courseId}/lessons/${lesson.id}`
+          : undefined;
+
+        const iconName =
+          lesson.content?.type === 'video'
+            ? 'lucide:play-circle'
+            : lesson.content?.type === 'document'
+              ? 'lucide:file-text'
+              : 'lucide:circle-dashed';
+
+        if (lessonUrl) {
+          return (
+            <div
+              key={lesson.id}
+              className="flex items-center justify-between gap-2.5 py-1.5 px-2.5 rounded-md hover:bg-muted/40 transition-colors text-xs text-foreground group"
+            >
+              <Link
+                href={lessonUrl}
+                className="flex items-center gap-2.5 flex-1 min-w-0 hover:text-primary transition-colors"
+              >
+                <Icon
+                  icon={iconName}
+                  className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0"
+                />
+                <span className="font-mono text-muted-foreground text-[11px] shrink-0 font-medium">
+                  {lessonOrder}.
+                </span>
+                <span className="font-medium truncate">{lesson.title}</span>
+                {lesson.isPreview && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
+                    Học thử
+                  </span>
+                )}
+              </Link>
+
+              <Link
+                href={lessonUrl}
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-medium text-primary flex items-center gap-1 hover:underline shrink-0"
+              >
+                <span>Xem bài học</span>
+                <Icon icon="lucide:arrow-right" className="size-3" />
+              </Link>
+            </div>
+          );
+        }
 
         return (
           <div
@@ -65,13 +116,18 @@ export function SectionLessonsList({ sectionId }: SectionLessonsListProps): Reac
             className="flex items-center gap-2.5 py-1.5 px-2.5 rounded-md hover:bg-muted/30 transition-colors text-xs text-foreground group"
           >
             <Icon
-              icon="lucide:play-circle"
+              icon={iconName}
               className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0"
             />
             <span className="font-mono text-muted-foreground text-[11px] shrink-0 font-medium">
               {lessonOrder}.
             </span>
             <span className="font-medium truncate flex-1">{lesson.title}</span>
+            {lesson.isPreview && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
+                Học thử
+              </span>
+            )}
           </div>
         );
       })}

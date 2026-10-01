@@ -174,7 +174,7 @@ export function CourseSectionsList({ courseId }: CourseSectionsListProps): React
 
                     {/* Lesson List Container */}
                     <div className="border-t border-border/30 bg-muted/5 px-3.5 py-2.5">
-                      <SectionLessonsList sectionId={section.id} />
+                      <SectionLessonsList sectionId={section.id} courseId={courseId} />
                     </div>
                   </div>
                 );
