@@ -30,20 +30,24 @@ Trước khi bắt đầu, hãy đảm bảo máy tính của bạn đã cài đ
    npm install -g pnpm
    ```
 
- 3. **Cài đặt và khởi chạy MongoDB (Docker - Khuyên dùng)**:
-    * Dự án dùng MongoDB qua Docker (không auth cho dev để dễ nối Compass). Chỉ cần Docker Desktop, không cần cài MongoDB Community Server:
+ 3. **Cài đặt và khởi chạy Hạ tầng (MongoDB & MinIO Storage qua Docker)**:
+    * Dự án chạy cả **MongoDB (Replica Set)** và **MinIO (Object Storage)** hoàn toàn qua Docker Compose:
       ```bash
-      docker compose up -d mongo
+      docker compose up -d
       ```
-      Dữ liệu lưu trong named volume `mongo_data` nên restart máy / `pnpm dev` không mất.
-      Mongo chạy single-node replica set `rs0` để hỗ trợ transaction (`withTransaction()`).
-    * **Lưu ý Windows**: nếu trước đây đã cài MongoDB Server, tắt để tránh chiếm port `27017`:
+    * **MongoDB**:
+      - Chạy port `27017` với single-node replica set `rs0` (hỗ trợ MongoDB transaction `withTransaction()`).
+      - Kết nối Compass: `mongodb://localhost:27017/thc_datn` (nếu báo lỗi topology thì dùng `mongodb://localhost:27017/thc_datn?directConnection=true`).
+    * **MinIO Object Storage**:
+      - API Port: `http://localhost:9000` (dùng cho backend upload và frontend stream video/ảnh).
+      - Console UI Port: `http://localhost:9001` (giao diện web quản lý bucket và file).
+      - Tài khoản đăng nhập mặc định: `minioadmin` / `minioadmin123`.
+      - Bucket `thc-datn-media` đã được tự động tạo và phân quyền download công khai bởi service `minio-init`.
+    * **Lưu ý Windows**: nếu trước đây đã cài MongoDB Server cục bộ, tắt để tránh chiếm port `27017`:
       ```powershell
       net stop MongoDB
       ```
       Mở `Services` > `MongoDB Server` > set `Manual` thay vì `Automatic`.
-    * Kết nối Compass: `mongodb://localhost:27017/thc_datn` (nếu báo lỗi topology thì dùng `mongodb://localhost:27017/thc_datn?directConnection=true`).
-    * Chỉ cài MongoDB Compass GUI từ [mongodb.com](https://www.mongodb.com/try/download/compass) để xem data.
 
 ---
 
