@@ -157,6 +157,206 @@
   - Đăng ký `LessonEntity` và `LessonSchema` vào `CourseModule` (`backend/src/modules/course/course.module.ts`) qua `MongooseModule.forFeature`.
   - Khởi tạo schema tests toàn diện trong `backend/src/modules/course/tests/lesson.schema.spec.ts` kiểm thử đầy đủ các ràng buộc (required, default null, min 0, trim, single index trên `sectionId`, compound index).
   - Toàn bộ 18 test files (161/161 tests) backend pass 100%, typecheck TypeScript 0 errors.
+- **Milestone 15 (Task 3.2 - Lesson Repository: LessonRepository)**:
+  - Triển khai `LessonRepository` tại `backend/src/modules/course/repositories/lesson.repository.ts` kế thừa `BaseMongoRepository<ILesson, LessonEntity>`.
+  - Cấu hình custom mapper trong constructor chuyển đổi an toàn MongoDB `_id` sang `id: string` và `sectionId` sang `string`.
+  - Kế thừa phương thức `create(payload, session)` từ `BaseMongoRepository` để khởi tạo, lưu và ánh xạ `ILesson`.
+  - Triển khai phương thức `findBySectionId(sectionId, session)` lọc chính xác theo `sectionId` (hỗ trợ cả ObjectId và string), loại trừ bản ghi đã xóa mềm (`deletedAt: null`), sắp xếp tăng dần theo `{ order: 1, _id: 1 }` tận dụng Compound Index và hỗ trợ ClientSession.
+  - Đăng ký `LessonRepository` vào `providers` và `exports` của `CourseModule` (`backend/src/modules/course/course.module.ts`).
+  - Viết bộ unit tests toàn diện trong `backend/src/modules/course/tests/lesson.repository.spec.ts` (9 test cases) bao quát mapper, create, findBySectionId, lọc đúng section, loại trừ soft-deleted, mảng rỗng và session.
+  - Toàn bộ 19 test files (170/170 tests) backend pass 100%, typecheck TypeScript 0 errors.
+- **Milestone 16 (Task 3.3 - Lesson Service: LessonService)**:
+  - Triển khai `LessonService` tại `backend/src/modules/course/services/lesson.service.ts` kế thừa `BaseService<ILesson, string>`, inject `LessonRepository`, `SectionRepository`, và `ClsService`.
+  - Triển khai `createLesson(sectionId, input, session)`:
+    - Kiểm tra Section cha tồn tại và chưa bị soft-delete qua `sectionRepository.findById`. Ném `NotFoundException` nếu Section không tồn tại, đã xóa mềm hoặc ID lỗi.
+    - Validate `order >= 0`, ném `BadRequestException` nếu `< 0`.
+    - Chuẩn hóa khoảng trắng (`title.trim()`, `description?.trim() || null`).
+    - Audit capture: tự động gắn `createdById` và `updatedById` từ input hoặc CLS context.
+    - Gọi `lessonRepository.create` truyền `session`.
+  - Triển khai `getLessonsBySectionId(sectionId, session)`:
+    - Kiểm tra Section cha tồn tại qua `sectionRepository.findById`. Ném `NotFoundException` nếu không tìm thấy hoặc đã bị xóa mềm.
+    - Gọi `lessonRepository.findBySectionId(sectionId, session)`, trả về danh sách bài học giữ nguyên thứ tự `order ASC`.
+  - Đăng ký `LessonService` vào `providers` và `exports` của `CourseModule` (`backend/src/modules/course/course.module.ts`).
+  - Viết bộ unit tests toàn diện trong `backend/src/modules/course/tests/lesson.service.spec.ts` (16 test cases) bao quát đầy đủ kịch bản thành công và ngoại lệ.
+  - **Milestone 17 (Task 3.4 - CreateLessonDto Input Contract & Unit Tests)**:
+  - Khảo sát và đồng bộ hoàn toàn convention từ `CreateSectionDto`:
+    - `CreateLessonDto` tại `backend/src/modules/course/dto/create-lesson.dto.ts`.
+    - `title`: required, trimmed, string, 1-200 ký tự. Chuỗi toàn khoảng trắng bị `@Transform` trim và `@MinLength(1)` chặn lại.
+    - `description`: optional, trimmed (rỗng -> `undefined`), string, tối đa 1000 ký tự.
+    - `order`: required, integer, min 0, chuyển đổi kiểu số qua `@Type(() => Number)`.
+    - Không chứa bất kỳ trường nội bộ nào (`sectionId`, `createdById`, `updatedById`).
+  - Viết bộ unit tests độc lập tại `backend/src/modules/course/tests/create-lesson.dto.spec.ts` (15 test cases) bao quát toàn bộ happy path, transformations (trim, undefined conversion, numeric coercion), và negative validation cases.
+  - Tuân thủ nghiêm ngặt ranh giới: Chưa tạo Controller, API route hay đụng chạm Frontend/Service.
+  - **Milestone 18 (Task 3.5 - LessonController: Create Lesson Endpoint & Registration)**:
+  - Khởi tạo `LessonController` tại `backend/src/modules/course/lesson.controller.ts` kế thừa trọn vẹn convention của `CourseController`:
+    - Prefix route `@Controller('sections')`, endpoint `@Post(':sectionId/lessons')` -> URL hoàn chỉnh `POST /api/v1/sections/:sectionId/lessons`.
+    - Validate route param `sectionId` bằng `ParseObjectIdPipe` (ném 400 Bad Request nếu không phải ObjectId hợp lệ).
+    - Phân quyền nghiêm ngặt với `@Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)` và trích xuất `@CurrentUser('id') userId`.
+    - Body input sử dụng `CreateLessonDto`.
+    - Gắn `@HttpCode(HttpStatus.CREATED)` (201) và bọc kết quả trả về trong `ApiResponse.success(lesson, 'Tạo bài học thành công')`.
+    - Ủy quyền trực tiếp xuống `LessonService.createLesson(sectionId, { title, description, order, userId })`, tuyệt đối không truy cập database trực tiếp.
+  - Đăng ký `LessonController` vào mảng `controllers` của `CourseModule` (`backend/src/modules/course/course.module.ts`).
+  - Viết bộ unit tests toàn diện tại `backend/src/modules/course/tests/lesson.controller.spec.ts` (13 test cases) bao quát: delegation happy path, param/user binding, metadata reflection (route, roles, http code 201), propagation của NotFoundException / BadRequestException, và validation error qua ValidationPipe (missing title, whitespace title, negative order, non-whitelisted fields).
+  - Tuân thủ nghiêm ngặt ranh giới: Chưa implement GET List lessons, UI/Frontend hay các thao tác Edit/Delete/Reorder.
+  - **Milestone 19 (Task 3.6 - LessonController: GET Lesson List Endpoint)**:
+  - Bổ sung endpoint `@Get(':sectionId/lessons')` vào `LessonController` (`backend/src/modules/course/lesson.controller.ts`) tạo thành route `GET /api/v1/sections/:sectionId/lessons`.
+  - Validate route param `sectionId` bằng `ParseObjectIdPipe` (ném 400 Bad Request nếu không đúng format ObjectId).
+  - Áp dụng decorator `@Public()` đồng bộ 100% convention với `GET :courseId/sections` của `CourseController`, phục vụ xem cấu trúc bài giảng/đề cương công khai không cần JWT token.
+  - Tái sử dụng trọn vẹn `LessonService.getLessonsBySectionId(sectionId)` và `LessonRepository.findBySectionId(sectionId)` (đã kiểm tra Section tồn tại/soft-delete, sắp xếp `order ASC` và loại bỏ bài học soft-deleted).
+  - Bọc dữ liệu trả về bằng `ApiResponse.success(lessons, 'Lấy danh sách bài học thành công')`.
+  - Bổ sung 4 unit test cases trong `backend/src/modules/course/tests/lesson.controller.spec.ts` (nâng tổng số lên 17 test cases) kiểm thử: Happy path trả về `ILesson[]`, trả về mảng rỗng `[]` khi chưa có bài học, lan truyền `NotFoundException` khi Section không tồn tại hoặc đã xóa mềm, và reflection metadata `@Public()` cùng route path.
+  - Tuân thủ nghiêm ngặt ranh giới: Chưa implement Frontend UI/Client hay các tính năng Edit/Delete/Reorder.
+  - **Milestone 20 (Task 3.7 - Frontend: Hiển Thị Danh Sách Bài Học (Lessons) Trong Mỗi Section)**:
+  - Khảo sát và re-export interface `ILesson` từ `share-lib` qua `frontend/src/features/course/types/course.types.ts`.
+  - Mở rộng API client tại `frontend/src/features/course/api/course.api.ts`:
+    - Bổ sung query key `courseKeys.lessons(sectionId)`.
+    - Thêm method `courseApi.getLessons(sectionId)` gọi `GET /sections/:sectionId/lessons`.
+    - Xây dựng React Query hook `useSectionLessonsQuery(sectionId)`.
+  - Xây dựng component `SectionLessonsList` (`frontend/src/features/course/components/section-lessons-list.tsx`):
+    - Đầy đủ 4 trạng thái: Loading (khung xương pulse 2 hàng), Error (thông báo lỗi kèm nút thử lại `refetch`), Empty ("Chưa có bài học nào trong chương này"), và Success (danh sách bài học sắp xếp `order ASC`, icon play, số thứ tự `01.`, `02.`, tiêu đề `lesson.title`).
+    - Bố cục phân cấp cây trực quan với đường kẻ nhánh `border-l-2 border-border/40 ml-2 pl-4`.
+    - Tuân thủ triệt để Purple Ban và Design Token.
+  - Tích hợp `SectionLessonsList` vào `CourseSectionsList` (`course-sections-list.tsx`) và xuất bản qua `frontend/src/features/course/index.ts`.
+  - Tuân thủ nghiêm ngặt ranh giới: Chưa thêm nút "Add Lesson", chưa tạo/sửa/xóa/reorder bài học, không sửa backend API.
+  - Kiểm định toàn diện:
+    - Frontend TypeScript Typecheck: 0 errors (`tsc --noEmit`).
+    - Frontend ESLint: 0 errors, 0 warnings (`eslint src/`).
+    - Backend Regression Test: 22/22 test files (218/218 tests pass 100%).
+  - **Milestone 21 (Task: Lesson Create UI - Modal Dialog Thêm Bài Học Trong Section)**:
+  - Xây dựng schema validation `createLessonSchema` (`frontend/src/features/course/schemas/create-lesson.schema.ts`) bằng Zod:
+    - `title`: Bắt buộc, 1–200 ký tự, tự động trim khoảng trắng.
+    - `description`: Không bắt buộc, tối đa 1000 ký tự, tự động trim.
+    - `order`: Bắt buộc, số nguyên $\ge 0$.
+    - `contentFile`: Custom file type, giữ đối tượng `File` trong state, hỗ trợ MP4, WebM, MOV, PDF, DOC, DOCX.
+    - `isPreview`: Boolean toggle "Cho phép học thử miễn phí", mặc định `false`.
+  - Xây dựng component `SectionLessonCreateForm` (`frontend/src/features/course/components/section-lesson-create-form.tsx`):
+    - Modal Dialog tuân thủ `@/components/ui/dialog` và Design System của dự án.
+    - Nhận `sectionId` từ props và gắn vào form ngầm định (không cho phép người dùng nhập).
+    - Tự động gợi ý `defaultOrder` dựa trên số lượng bài học hiện có trong Section thông qua `useSectionLessonsQuery(sectionId)`.
+    - File picker dropzone trang nhã với native `<label htmlFor="lesson-file-input">` (chuẩn Accessibility, 100% tuân thủ React 19 ESLint không dùng ref dư thừa).
+    - Hiển thị thông tin file: Tên file, dung lượng format (MB/KB), icon phân biệt video vs document, nút xóa file.
+    - Checkbox / Toggle "Cho phép học thử miễn phí" với chú thích chi tiết.
+    - Nút "Hủy": Đóng form và reset toàn bộ state về ban đầu.
+    - Nút "Thêm bài học": Validate toàn diện qua `handleSubmit(onFormSubmit)` và bàn giao payload ra ngoài qua callback `onSubmit`.
+  - Tích hợp vào `CourseSectionsList` (`frontend/src/features/course/components/course-sections-list.tsx`):
+    - Bổ sung nút **"+ Thêm bài học"** trên Header của từng Section.
+    - Quản lý state mở modal `createLessonTarget` theo Section ID và tên Section.
+    - Xử lý callback `onSubmit` hiển thị toast thông báo nhận payload và đóng form.
+  - Xuất bản qua `frontend/src/features/course/index.ts`.
+  - **Tuân thủ nghiêm ngặt ranh giới**: Tuyệt đối không gọi API tạo Lesson, không upload Cloudinary/storage, không sửa backend, không tạo mutation hay invalidate React Query.
+  - **Kiểm định chất lượng**:
+    - Frontend TypeScript Typecheck: 0 errors (`pnpm --filter frontend exec tsc --noEmit`).
+    - Frontend ESLint: 0 errors, 0 warnings (`pnpm --filter frontend run lint`).
+    - Backend Regression Test: 22/22 test files, 218/218 tests pass 100%.
+  - **Milestone 22 (Task: Lesson Data Model & API Contract - Backend & Share-Lib)**:
+  - Khai báo enum `LessonContentTypeEnum` (`video`, `document`) và interface `ILessonContent` trong `share-lib/src/interfaces/lesson.interface.ts`.
+  - Cập nhật interface `ILesson` bổ sung `content?: ILessonContent | null;` và `isPreview: boolean;`. Re-export từ `share-lib/src/index.ts` và `frontend/src/features/course/types/course.types.ts`.
+  - Thiết kế và triển khai Mongoose Subdocument Schema:
+    - Định nghĩa `LessonContentEntity` (`@Schema({ _id: false })`) và `LessonContentSchema`.
+    - Thêm `content: LessonContentSchema` (default: null, required: false) và `isPreview: boolean` (default: false) vào `LessonEntity` (`backend/src/modules/course/schemas/lesson.schema.ts`).
+    - Cập nhật `toDomain` trong `LessonRepository` mapping tường minh `content` và `isPreview`.
+  - Thiết kế DTO và API Contract:
+    - Xây dựng `LessonContentDto` validate: `type` (enum `video`/`document`), `url` (valid URL), `publicId`, `fileName`, `fileSize` (int >= 0), `mimeType`, `duration` (number >= 0).
+    - Cập nhật `CreateLessonDto`: Thêm `@ValidateNested() content?: LessonContentDto | null` và `@IsBoolean() isPreview?: boolean`.
+    - **4 nguyên tắc kiến trúc nghiêm ngặt**:
+      1. `content` khi không có file: Bắt buộc là `null` hoặc `undefined`, tuyệt đối cấm object rỗng `{}` (DTO sẽ reject 400).
+      2. `sectionId`: Chỉ lấy từ route param URL (`POST /sections/:sectionId/lessons`), cấm đưa vào body (`whitelist: true, forbidNonWhitelisted: true` sẽ từ chối).
+      3. Tách biệt upload file và Create Lesson: 2 operations riêng, chưa implement upload.
+      4. Tách biệt RabbitMQ / AI pipeline: Hoãn sang milestone chuyên biệt sau.
+  - Cập nhật `LessonService` và `LessonController` tiếp nhận và chuyển tiếp `content`, `isPreview` vào repository.
+  - Bổ sung 10 unit test cases trong `create-lesson.dto.spec.ts` (nâng tổng số lên 25 tests) và cập nhật `lesson.service.spec.ts`, `lesson.controller.spec.ts`.
+  - **Kiểm định chất lượng**:
+    - Backend Unit Tests: 22/22 test files, 228/228 tests pass 100%.
+    - Backend TypeScript Typecheck: 0 errors (`pnpm --filter backend exec tsc --noEmit`).
+  - **Milestone 23 (Task: Connect Lesson Create UI với Create Lesson API)**:
+    - **Hợp đồng dữ liệu (`share-lib`)**:
+      - Bổ sung interface `ICreateLessonPayload` trong `share-lib/src/interfaces/lesson.interface.ts` ({ title: string; description?: string | null; order: number; content?: ILessonContent | null; isPreview?: boolean; }).
+      - Build lại gói `share-lib` (`pnpm --filter share-lib build`).
+    - **API Client & React Query Mutation Hook (`frontend/src/features/course/api/course.api.ts`)**:
+      - Thêm phương thức `courseApi.createLesson(sectionId: string, payload: ICreateLessonPayload): Promise<ILesson>` gọi `POST /api/v1/sections/:sectionId/lessons`. `sectionId` nằm hoàn toàn trên URL parameter, không gửi trong body.
+      - Xây dựng custom hook `useCreateLessonMutation(sectionId: string)`:
+        - Tự động gọi `queryClient.invalidateQueries({ queryKey: courseKeys.lessons(sectionId) })` khi thành công, giúp danh sách bài học cập nhật tức thì (no page reload).
+        - Hiển thị toast thông báo thành công qua `sonner`: `toast.success('Thêm bài học thành công!')`.
+        - Bắt mã lỗi HTTP chuẩn (400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found, 500 Internal Error) và hiển thị `toast.error`.
+    - **Tích hợp UI Form (`frontend/src/features/course/components/section-lesson-create-form.tsx`)**:
+      - Nhúng `useCreateLessonMutation(sectionId)`.
+      - **Guard `contentFile`**: Nếu người dùng đã chọn file, chặn submit và hiển thị `toast.warning('Chức năng upload file đang phát triển', { description: 'Upload file sẽ được kết nối ở bước tiếp theo...' })`. Không âm thầm bỏ qua file và tuyệt đối không gửi request API.
+      - **Happy Path Payload**: Gửi `{ title, description, order, content: null, isPreview }`.
+      - **Loading State**: Khi `isPending` (`isSubmitting || mutation.isPending`), disable toàn bộ input fields, textarea, order input, dropzone, nút hủy và checkbox `isPreview`. Nút submit hiển thị spinner `loader-2` và nhãn `"Đang thêm..."`. Chặn đóng dialog khi đang gọi API.
+      - **Success Flow**: Khi mutation hoàn tất thành công, tự động đóng modal `handleClose()` và reset form.
+      - **Error Flow**: Khi mutation gặp lỗi, giữ nguyên modal mở, bảo toàn toàn bộ dữ liệu người dùng đã nhập để có thể chỉnh sửa và gửi lại.
+    - **Dọn dẹp `course-sections-list.tsx`**:
+      - Loại bỏ dummy toast callback `(Frontend state)` trong thẻ `<SectionLessonCreateForm />` vì form đã tự quản lý mutation và hiển thị toast từ API thật.
+    - **Ranh giới nghiêm ngặt**:
+      - Tuyệt đối chưa triển khai file upload (Cloudinary/multipart), upload API, video/document processing, RabbitMQ, hay AI pipeline.
+      - Không sửa backend vì API hiện tại đã đáp ứng hoàn hảo contract.
+    - **Kiểm định chất lượng**:
+      - Frontend TypeScript Typecheck: 0 errors (`pnpm --filter frontend exec tsc --noEmit`).
+      - Frontend ESLint: 0 errors, 0 warnings (`pnpm --filter frontend lint`).
+      - Backend Regression Test: 22/22 test files, 228/228 tests pass 100% (`pnpm --filter backend test`).
+  - **Milestone 24 (Task: Build Lesson Content Upload Foundation)**:
+    - **Tách Cloudinary thành Shared Module (`backend/src/modules/cloudinary/`)**:
+      - Tạo `CloudinaryModule` và `CloudinaryService` dùng chung toàn hệ thống, cung cấp phương thức `uploadImage` (avatar người dùng với face crop) và `uploadLessonMedia` (video với duration, document với `resource_type: 'raw'`).
+      - Cập nhật `backend/src/modules/user/services/cloudinary.service.ts` re-export từ shared module để duy trì 100% tương thích ngược và bảo toàn các bài test hiện có.
+      - Đăng ký `CloudinaryModule` vào `AppModule`, `UserModule` và `CourseModule`.
+    - **Validation Pipe (`backend/src/modules/course/pipes/lesson-file-validation.pipe.ts`)**:
+      - Kiểm tra file tồn tại và có buffer (`BadRequestException`).
+      - Giới hạn MIME types:
+        - Video: `video/mp4`, `video/webm`, `video/quicktime` (Tối đa 900MB).
+        - Document: `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` (DOCX) (Tối đa 50MB).
+      - Từ chối các định dạng không hỗ trợ (bao gồm file `.doc` cũ, executable, zip, v.v.).
+      - Khử trùng (sanitize) `file.originalname` tránh các lỗ hổng path traversal (`..`, ký tự lạ).
+    - **API Endpoint (`backend/src/modules/course/lesson-content.controller.ts`)**:
+      - Thiết kế controller `POST /api/v1/lesson-content/upload` với `@UseInterceptors(FileInterceptor('file'))`.
+      - Phân quyền bảo mật: `@Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)` kết hợp `JwtAuthGuard` toàn cục.
+      - Trả về envelope chuẩn `ApiResponse<ILessonContent>` với metadata `{ type, url, publicId, fileName, fileSize, mimeType, duration }`.
+    - **Frontend API Client & Hook (`frontend/src/features/course/api/lesson-content.api.ts`)**:
+      - Cung cấp `lessonContentApi.upload(file: File)` truyền multipart `FormData`.
+      - Cung cấp hook React Query `useUploadLessonContentMutation` phơi bày `{ isPending, mutateAsync, error }` và toast thông báo tương ứng.
+      - Re-export qua `frontend/src/features/course/index.ts`.
+    - **Tuân thủ nghiêm ngặt ranh giới**:
+      - Tuyệt đối chưa tạo Lesson hay gọi API Create Lesson.
+      - Không sửa Create Lesson API, không đụng database Lesson.
+      - Chưa có RabbitMQ / AI video pipeline.
+    - **Kiểm định chất lượng**:
+      - Backend Unit & Regression Tests: 25/25 test files, 249/249 tests pass 100% (`pnpm --filter backend test`).
+      - Backend TypeScript Typecheck: 0 errors (`pnpm --filter backend exec tsc --noEmit`).
+      - Backend Linter: 0 errors (`pnpm --filter backend lint`).
+      - Frontend TypeScript Typecheck: 0 errors (`pnpm --filter frontend exec tsc --noEmit`).
+      - Frontend Linter: 0 errors (`pnpm --filter frontend lint`).
+      - Share-lib build: Success (`pnpm --filter share-lib build`).
+  - **Milestone 25 (Task: Integrate Lesson Content Upload với Create Lesson)**:
+    - **Frontend Schema & Validation (`create-lesson.schema.ts`)**:
+      - Cập nhật `ACCEPTED_LESSON_FILE_EXTENSIONS = '.mp4,.webm,.mov,.pdf,.docx'`, loại bỏ hoàn toàn `.doc` cũ theo thống nhất kiến trúc.
+      - Bổ sung hằng số `MAX_VIDEO_FILE_SIZE = 900MB`, `MAX_DOCUMENT_FILE_SIZE = 50MB` và helper functions `isVideoFile`, `isDocumentFile` phục vụ validation client-side trước khi upload.
+    - **Tích hợp State Machine trong `SectionLessonCreateForm` (`section-lesson-create-form.tsx`)**:
+      - Tách biệt rõ ràng 5 trạng thái chính: `IDLE` → `UPLOADING` → `UPLOADED` → `CREATING` → `SUCCESS` và 2 trạng thái ngoại lệ: `UPLOAD_ERROR`, `CREATE_ERROR`.
+      - **Nguyên tắc Upload file ≠ Create Lesson**:
+        - Chọn file: Kích hoạt upload lên Cloudinary qua `uploadMutation.mutateAsync(file)`, nhận và lưu `uploadedContent: ILessonContent`.
+        - Bấm "Thêm bài học": Gọi `createLessonMutation.mutateAsync(...)` gửi payload kèm `content: uploadedContent` (hoặc `content: null` nếu không có file).
+        - Nếu Create Lesson gặp lỗi: Giữ nguyên modal, bảo toàn form inputs và giữ nguyên `uploadedContent`. Retry submit không gọi lại Cloudinary upload!
+      - **Chống Silently Ignore & Race Condition**:
+        - Khi gặp `UPLOAD_ERROR`: Disable nút "Thêm bài học" cho đến khi user bấm `[Thử lại]` thành công hoặc bấm `[Xóa file]`.
+        - Khi đã `UPLOADED`: Khóa chọn đè file; yêu cầu người dùng bấm nút thùng rác "Xóa file" để đưa form về `IDLE` trước khi chọn file mới.
+      - **Bảo vệ đóng Dialog & Cảnh báo an toàn**:
+        - Chặn tuyệt đối việc đóng dialog khi đang `UPLOADING` hoặc `CREATING`.
+        - Nếu file đã `UPLOADED` mà người dùng bấm Hủy hoặc thoát: Kích hoạt confirmation `Dialog` cảnh báo file đã tải lên nhưng chưa được lưu vào bài học trước khi cho phép xác nhận hủy.
+    - **Kiểm định chất lượng**:
+      - Backend Unit & Regression Tests: 25/25 test files, 249/249 tests pass 100% (`pnpm --filter backend test`).
+      - Backend TypeScript Typecheck: 0 errors (`pnpm --filter backend exec tsc --noEmit`).
+      - Backend Linter: 0 errors (`pnpm --filter backend lint`).
+      - Frontend TypeScript Typecheck: 0 errors (`pnpm --filter frontend exec tsc --noEmit`).
+      - Frontend Linter: 0 errors (`pnpm --filter frontend lint`).
+      - Share-lib build: Success (`pnpm --filter share-lib build`).
+
+
+
+
+
+
+
+
+
 
 
 

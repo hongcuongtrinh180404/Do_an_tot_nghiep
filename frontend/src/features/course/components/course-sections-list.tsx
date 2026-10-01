@@ -6,6 +6,8 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { useCourseSectionsQuery } from '../api/course.api';
 import { CreateSectionDialog } from './create-section-dialog';
+import { SectionLessonsList } from './section-lessons-list';
+import { SectionLessonCreateForm } from './section-lesson-create-form';
 
 interface CourseSectionsListProps {
   courseId: string;
@@ -14,6 +16,10 @@ interface CourseSectionsListProps {
 export function CourseSectionsList({ courseId }: CourseSectionsListProps): React.JSX.Element {
   const { data: sections, isLoading, isError, refetch } = useCourseSectionsQuery(courseId);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [createLessonTarget, setCreateLessonTarget] = useState<{
+    sectionId: string;
+    sectionTitle: string;
+  } | null>(null);
 
   // Compute next suggested order (defaulting to current count)
   const nextOrder = sections ? sections.length : 0;
@@ -115,9 +121,9 @@ export function CourseSectionsList({ courseId }: CourseSectionsListProps): React
             </div>
           )}
 
-          {/* 4. Success State: Render Sections in exact order */}
+          {/* 4. Success State: Render Sections in exact order with nested Lessons */}
           {!isLoading && !isError && sections && sections.length > 0 && (
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               {sections.map((section) => {
                 const displayOrder = String(section.order + 1).padStart(2, '0');
                 const hasDescription = Boolean(section.description?.trim());
@@ -125,23 +131,50 @@ export function CourseSectionsList({ courseId }: CourseSectionsListProps): React
                 return (
                   <div
                     key={section.id}
-                    className="flex items-start gap-3.5 p-3.5 rounded-lg border border-border/40 bg-card hover:bg-muted/20 transition-colors"
+                    className="rounded-lg border border-border/40 bg-card overflow-hidden transition-colors"
                   >
-                    {/* Order badge */}
-                    <div className="flex items-center justify-center size-8 rounded-md bg-muted/60 text-muted-foreground border border-border/40 shrink-0 font-mono text-xs font-semibold">
-                      {displayOrder}
+                    {/* Section Header */}
+                    <div className="flex items-start justify-between gap-3.5 p-3.5 bg-muted/10">
+                      <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                        {/* Order badge */}
+                        <div className="flex items-center justify-center size-8 rounded-md bg-muted/60 text-muted-foreground border border-border/40 shrink-0 font-mono text-xs font-semibold">
+                          {displayOrder}
+                        </div>
+
+                        {/* Title & Description */}
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <h4 className="text-sm font-semibold text-foreground leading-snug">
+                            {section.title}
+                          </h4>
+                          {hasDescription && (
+                            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                              {section.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Button: + Thêm bài học */}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setCreateLessonTarget({
+                            sectionId: section.id,
+                            sectionTitle: section.title,
+                          })
+                        }
+                        className="text-xs shrink-0 h-8 gap-1.5 border-border/60 hover:bg-muted/50"
+                      >
+                        <Icon icon="lucide:plus" className="size-3.5" />
+                        <span>Thêm bài học</span>
+                      </Button>
                     </div>
 
-                    {/* Title & Description */}
-                    <div className="flex-1 min-w-0 pt-0.5">
-                      <h4 className="text-sm font-semibold text-foreground leading-snug">
-                        {section.title}
-                      </h4>
-                      {hasDescription && (
-                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                          {section.description}
-                        </p>
-                      )}
+                    {/* Lesson List Container */}
+                    <div className="border-t border-border/30 bg-muted/5 px-3.5 py-2.5">
+                      <SectionLessonsList sectionId={section.id} />
                     </div>
                   </div>
                 );
@@ -156,6 +189,17 @@ export function CourseSectionsList({ courseId }: CourseSectionsListProps): React
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         defaultOrder={nextOrder}
+      />
+
+      <SectionLessonCreateForm
+        open={Boolean(createLessonTarget)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateLessonTarget(null);
+          }
+        }}
+        sectionId={createLessonTarget?.sectionId ?? ''}
+        sectionTitle={createLessonTarget?.sectionTitle}
       />
     </>
   );

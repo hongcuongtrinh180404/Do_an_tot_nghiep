@@ -8,7 +8,9 @@ import type {
   ICourse,
   ICreateCoursePayload,
   ICreateSectionPayload,
+  ICreateLessonPayload,
   ISection,
+  ILesson,
 } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 
@@ -18,6 +20,7 @@ export const courseKeys = {
   myCourses: () => [...courseKeys.all, 'my-courses'] as const,
   detail: (id: string) => [...courseKeys.all, 'detail', id] as const,
   sections: (courseId: string) => [...courseKeys.detail(courseId), 'sections'] as const,
+  lessons: (sectionId: string) => ['sections', sectionId, 'lessons'] as const,
 };
 
 export const courseApi = {
@@ -44,6 +47,17 @@ export const courseApi = {
     );
     return res.data.data;
   },
+  async getLessons(sectionId: string): Promise<ILesson[]> {
+    const res = await apiClient.get<IApiResponse<ILesson[]>>(`/sections/${sectionId}/lessons`);
+    return res.data.data;
+  },
+  async createLesson(sectionId: string, payload: ICreateLessonPayload): Promise<ILesson> {
+    const res = await apiClient.post<IApiResponse<ILesson>>(
+      `/sections/${sectionId}/lessons`,
+      payload,
+    );
+    return res.data.data;
+  },
 };
 
 export function useMyCoursesQuery() {
@@ -66,6 +80,14 @@ export function useCourseSectionsQuery(courseId: string) {
     queryKey: courseKeys.sections(courseId),
     queryFn: () => courseApi.getSections(courseId),
     enabled: Boolean(courseId),
+  });
+}
+
+export function useSectionLessonsQuery(sectionId: string) {
+  return useQuery({
+    queryKey: courseKeys.lessons(sectionId),
+    queryFn: () => courseApi.getLessons(sectionId),
+    enabled: Boolean(sectionId),
   });
 }
 
@@ -204,6 +226,73 @@ export function useCreateSectionMutation(courseId: string) {
       }
 
       toast.error('Lỗi thêm chương học', {
+        description:
+          message || 'Không thể kết nối đến máy chủ hoặc đã xảy ra lỗi. Vui lòng thử lại sau.',
+      });
+    },
+  });
+}
+
+export function useCreateLessonMutation(sectionId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: ICreateLessonPayload) => courseApi.createLesson(sectionId, payload),
+    onSuccess: (data: ILesson) => {
+      // Invalidate section lessons query so list automatically updates
+      void queryClient.invalidateQueries({ queryKey: courseKeys.lessons(sectionId) });
+
+      toast.success('Thêm bài học thành công!', {
+        description: `Bài học "${data.title}" đã được thêm vào chương.`,
+      });
+    },
+    onError: (error: unknown) => {
+      const axiosError = error as {
+        response?: {
+          status?: number;
+          data?: {
+            message?: string | string[];
+            error?: string;
+            statusCode?: number;
+          };
+        };
+      };
+
+      const status = axiosError.response?.status;
+      const responseData = axiosError.response?.data;
+      const rawMessage = responseData?.message;
+      const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage;
+
+      if (status === 401) {
+        toast.error('Phiên làm việc đã hết hạn', {
+          description: 'Vui lòng đăng nhập lại để tiếp tục.',
+        });
+        return;
+      }
+
+      if (status === 403) {
+        toast.error('Không có quyền thực hiện', {
+          description:
+            message || 'Chỉ giảng viên hoặc quản trị viên mới có quyền thêm bài học.',
+        });
+        return;
+      }
+
+      if (status === 404) {
+        toast.error('Chương học không tồn tại', {
+          description: message || 'Chương học không tồn tại hoặc đã bị xóa.',
+        });
+        return;
+      }
+
+      if (status === 400) {
+        toast.error('Dữ liệu không hợp lệ', {
+          description: message || 'Vui lòng kiểm tra lại thông tin bài học đã nhập.',
+        });
+        return;
+      }
+
+      toast.error('Lỗi thêm bài học', {
         description:
           message || 'Không thể kết nối đến máy chủ hoặc đã xảy ra lỗi. Vui lòng thử lại sau.',
       });

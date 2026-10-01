@@ -10,6 +10,7 @@ import { UserModule } from './modules/user/user.module.js';
 import { SessionModule } from './modules/session/session.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CourseModule } from './modules/course/course.module.js';
+import { CloudinaryModule } from './modules/cloudinary/cloudinary.module.js';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { CourseModule } from './modules/course/course.module.js';
       middleware: { mount: true },
     }),
     BaseModule,
+    CloudinaryModule,
     UserModule,
     SessionModule,
     AuthModule,

@@ -1,0 +1,50 @@
+'use client';
+
+import { useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import type { IApiResponse, ILessonContent } from 'share-lib';
+import { apiClient } from '@/lib/api-client';
+
+export const lessonContentKeys = {
+  all: ['lesson-content'] as const,
+  upload: () => [...lessonContentKeys.all, 'upload'] as const,
+};
+
+export const lessonContentApi = {
+  async upload(file: File): Promise<ILessonContent> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await apiClient.post<IApiResponse<ILessonContent>>(
+      '/lesson-content/upload',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      },
+    );
+    return res.data.data;
+  },
+};
+
+export function useUploadLessonContentMutation() {
+  return useMutation({
+    mutationFn: (file: File) => lessonContentApi.upload(file),
+    onSuccess: (data: ILessonContent) => {
+      const typeLabel = data.type === 'video' ? 'Video bài học' : 'Tài liệu bài học';
+      toast.success('Tải lên nội dung bài học thành công!', {
+        description: `${typeLabel} "${data.fileName || 'tập tin'}" đã được lưu trữ an toàn trên Cloudinary.`,
+      });
+    },
+    onError: (error: unknown) => {
+      const message =
+        error && typeof error === 'object' && 'response' in error
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : 'Không thể tải file lên Cloudinary. Vui lòng kiểm tra lại kết nối hoặc file đã chọn.';
+      toast.error('Lỗi upload file', {
+        description: message || 'Quá trình upload thất bại. Vui lòng thử lại.',
+      });
+    },
+  });
+}

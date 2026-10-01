@@ -4,6 +4,7 @@ export * from './enums/auth-provider.enum.js';
 export * from './enums/user-status.enum.js';
 export * from './enums/course-status.enum.js';
 export * from './enums/course-level.enum.js';
+export * from './enums/lesson-content-type.enum.js';
 
 // Interfaces
 export * from './interfaces/user.interface.js';
