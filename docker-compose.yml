@@ -1,0 +1,75 @@
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: thc_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  mongo-init:
+    image: mongo:7.0
+    container_name: thc_mongo_init
+    depends_on:
+      mongo:
+        condition: service_healthy
+    # NOTE: RS member phải là localhost:27017 (không phải mongo:27017)
+    # để backend chạy trên host Windows (pnpm dev) + Compass resolve được.
+    # Lệnh initiate gửi qua host mongo:27017 nhưng config lưu localhost.
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Waiting for MongoDB replica set...';
+      mongosh --host mongo:27017 --quiet --eval \"
+        try { rs.status(); print('Replica set already initialized.'); }
+        catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }); print('Replica set initialized.'); }
+      \";
+      echo 'MongoDB init complete.';
+      exit 0;
+      "
+
+  minio:
+    image: minio/minio:latest
+    container_name: thc_minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: thc_minio_init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Waiting for MinIO server to be accessible...';
+      while ! /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin123 2>/dev/null; do
+        sleep 1;
+      done;
+      echo 'Connected to MinIO. Ensuring default bucket exists...';
+      /usr/bin/mc mb --ignore-existing myminio/thc-datn-media;
+      echo 'Configuring anonymous download policy for media assets...';
+      /usr/bin/mc anonymous set download myminio/thc-datn-media;
+      echo 'MinIO initialization complete.';
+      exit 0;
+      "
+
+volumes:
+  mongo_data:
+    driver: local
+  minio_data:
+    driver: local

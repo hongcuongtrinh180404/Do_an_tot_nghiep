@@ -4,7 +4,7 @@ import {
   ALLOWED_DOCUMENT_MIME_TYPES,
   MAX_VIDEO_SIZE_BYTES,
   MAX_DOCUMENT_SIZE_BYTES,
-} from '../../cloudinary/cloudinary.service.js';
+} from '../../storage/index.js';
 
 @Injectable()
 export class LessonFileValidationPipe

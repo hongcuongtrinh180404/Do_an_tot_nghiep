@@ -7,7 +7,6 @@ import {
   IsInt,
   Min,
   IsEnum,
-  IsUrl,
   IsNumber,
   IsBoolean,
   ValidateNested,
@@ -23,7 +22,10 @@ export class LessonContentDto {
   type: LessonContentTypeEnum;
 
   @IsNotEmpty({ message: 'URL nội dung không được để trống' })
-  @IsUrl({}, { message: 'URL nội dung phải là một URL hợp lệ' })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString({ message: 'URL nội dung phải là chuỗi ký tự' })
   url: string;
 
   @IsOptional()

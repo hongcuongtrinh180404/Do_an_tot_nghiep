@@ -3,34 +3,44 @@ import { BadRequestException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ILessonContent, LessonContentTypeEnum, RoleEnum } from 'share-lib';
 import { LessonContentController } from '../lesson-content.controller.js';
-import { CloudinaryService } from '../../cloudinary/cloudinary.service.js';
+import { StorageService } from '../../storage/index.js';
 import { ROLES_KEY } from '../../auth/decorators/roles.decorator.js';
 
 describe('LessonContentController', () => {
   let controller: LessonContentController;
-  let mockCloudinaryService: {
+  let mockStorageService: {
     uploadLessonMedia: ReturnType<typeof vi.fn>;
+    getPresignedStreamUrl: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mockCloudinaryService = {
+    mockStorageService = {
       uploadLessonMedia: vi.fn(),
+      getPresignedStreamUrl: vi.fn(),
     };
 
     controller = new LessonContentController(
-      mockCloudinaryService as unknown as CloudinaryService,
+      mockStorageService as unknown as StorageService,
     );
   });
 
   describe('Authorization and Decorator Metadata', () => {
-    it('should have Roles decorator with INSTRUCTOR and ADMIN roles', () => {
+    it('should have Roles decorator on uploadContent with INSTRUCTOR and ADMIN roles', () => {
       const reflector = new Reflector();
-      const roles = reflector.get<RoleEnum[]>(ROLES_KEY, LessonContentController);
+      const roles = reflector.get<RoleEnum[]>(ROLES_KEY, LessonContentController.prototype.uploadContent);
 
       expect(roles).toBeDefined();
       expect(roles).toEqual([RoleEnum.INSTRUCTOR, RoleEnum.ADMIN]);
+    });
+
+    it('should have Roles decorator on getStreamUrl with STUDENT, INSTRUCTOR and ADMIN roles', () => {
+      const reflector = new Reflector();
+      const roles = reflector.get<RoleEnum[]>(ROLES_KEY, LessonContentController.prototype.getStreamUrl);
+
+      expect(roles).toBeDefined();
+      expect(roles).toEqual([RoleEnum.STUDENT, RoleEnum.INSTRUCTOR, RoleEnum.ADMIN]);
     });
   });
 
@@ -47,19 +57,18 @@ describe('LessonContentController', () => {
 
       const mockContent: ILessonContent = {
         type: LessonContentTypeEnum.VIDEO,
-        url: 'https://res.cloudinary.com/demo/video/upload/courses/lessons/lesson-01.mp4',
+        url: 'http://localhost:9000/thc-datn-media/courses/lessons/lesson-01.mp4',
         publicId: 'courses/lessons/lesson-01',
         fileName: 'lesson-01.mp4',
         fileSize: 35680120,
         mimeType: 'video/mp4',
-        duration: 485,
       };
 
-      mockCloudinaryService.uploadLessonMedia.mockResolvedValue(mockContent);
+      mockStorageService.uploadLessonMedia.mockResolvedValue(mockContent);
 
       const response = await controller.uploadContent(fakeVideoFile);
 
-      expect(mockCloudinaryService.uploadLessonMedia).toHaveBeenCalledWith(
+      expect(mockStorageService.uploadLessonMedia).toHaveBeenCalledWith(
         fakeVideoFile,
         'courses/lessons',
       );
@@ -67,7 +76,6 @@ describe('LessonContentController', () => {
       expect(response.message).toBe('Tải lên nội dung bài học thành công');
       expect(response.data).toEqual(mockContent);
       expect(response.data?.type).toBe(LessonContentTypeEnum.VIDEO);
-      expect(response.data?.duration).toBe(485);
     });
 
     it('should successfully upload document file (PDF) and return standardized ApiResponse<ILessonContent>', async () => {
@@ -82,58 +90,27 @@ describe('LessonContentController', () => {
 
       const mockContent: ILessonContent = {
         type: LessonContentTypeEnum.DOCUMENT,
-        url: 'https://res.cloudinary.com/demo/raw/upload/courses/lessons/reference-guide.pdf',
+        url: 'http://localhost:9000/thc-datn-media/courses/lessons/reference-guide.pdf',
         publicId: 'courses/lessons/reference-guide',
         fileName: 'reference-guide.pdf',
         fileSize: 5242880,
         mimeType: 'application/pdf',
       };
 
-      mockCloudinaryService.uploadLessonMedia.mockResolvedValue(mockContent);
+      mockStorageService.uploadLessonMedia.mockResolvedValue(mockContent);
 
       const response = await controller.uploadContent(fakeDocFile);
 
-      expect(mockCloudinaryService.uploadLessonMedia).toHaveBeenCalledWith(
+      expect(mockStorageService.uploadLessonMedia).toHaveBeenCalledWith(
         fakeDocFile,
         'courses/lessons',
       );
       expect(response.success).toBe(true);
       expect(response.data).toEqual(mockContent);
       expect(response.data?.type).toBe(LessonContentTypeEnum.DOCUMENT);
-      expect(response.data?.duration).toBeUndefined();
     });
 
-    it('should successfully upload Word (.docx) document and return ILessonContent', async () => {
-      const fakeDocxFile = {
-        fieldname: 'file',
-        originalname: 'course-syllabus.docx',
-        encoding: '7bit',
-        mimetype:
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        buffer: Buffer.from('mock_docx_buffer'),
-        size: 1048576,
-      } as Express.Multer.File;
-
-      const mockContent: ILessonContent = {
-        type: LessonContentTypeEnum.DOCUMENT,
-        url: 'https://res.cloudinary.com/demo/raw/upload/courses/lessons/course-syllabus.docx',
-        publicId: 'courses/lessons/course-syllabus',
-        fileName: 'course-syllabus.docx',
-        fileSize: 1048576,
-        mimeType:
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      };
-
-      mockCloudinaryService.uploadLessonMedia.mockResolvedValue(mockContent);
-
-      const response = await controller.uploadContent(fakeDocxFile);
-
-      expect(response.success).toBe(true);
-      expect(response.data?.type).toBe(LessonContentTypeEnum.DOCUMENT);
-      expect(response.data?.fileName).toBe('course-syllabus.docx');
-    });
-
-    it('should propagate BadRequestException when CloudinaryService fails', async () => {
+    it('should propagate BadRequestException when StorageService fails', async () => {
       const fakeFile = {
         fieldname: 'file',
         originalname: 'video.mp4',
@@ -142,13 +119,33 @@ describe('LessonContentController', () => {
         size: 1000,
       } as Express.Multer.File;
 
-      mockCloudinaryService.uploadLessonMedia.mockRejectedValue(
-        new BadRequestException('Lỗi upload file lên Cloudinary: Cloud storage network timeout'),
+      mockStorageService.uploadLessonMedia.mockRejectedValue(
+        new BadRequestException('Không thể tải file lên máy chủ lưu trữ: timeout'),
       );
 
       await expect(controller.uploadContent(fakeFile)).rejects.toThrow(
-        'Lỗi upload file lên Cloudinary: Cloud storage network timeout',
+        'Không thể tải file lên máy chủ lưu trữ: timeout',
       );
+    });
+  });
+
+  describe('getStreamUrl (GET /lesson-content/stream-url)', () => {
+    it('should return presigned URL when valid key is provided', async () => {
+      const mockKey = 'courses/lessons/123-video.mp4';
+      const mockSignedUrl = 'http://localhost:9000/thc-datn-media/courses/lessons/123-video.mp4?X-Amz-Signature=xyz';
+
+      mockStorageService.getPresignedStreamUrl.mockResolvedValue(mockSignedUrl);
+
+      const response = await controller.getStreamUrl(mockKey);
+
+      expect(mockStorageService.getPresignedStreamUrl).toHaveBeenCalledWith(mockKey);
+      expect(response.success).toBe(true);
+      expect(response.data?.url).toBe(mockSignedUrl);
+    });
+
+    it('should throw BadRequestException when key is missing or empty', async () => {
+      await expect(controller.getStreamUrl('')).rejects.toThrow(BadRequestException);
+      await expect(controller.getStreamUrl('   ')).rejects.toThrow(BadRequestException);
     });
   });
 });

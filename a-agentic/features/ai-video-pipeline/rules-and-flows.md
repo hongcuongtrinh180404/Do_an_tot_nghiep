@@ -11,7 +11,7 @@ sequenceDiagram
     autonumber
     actor Instructor as Giảng viên
     participant API as NestJS Video Controller
-    participant Storage as Video Storage (S3/Cloudinary/Local)
+    participant Storage as Video Storage (MinIO S3)
     participant Broker as RabbitMQ Broker
     participant Consumer as NestJS Video Worker
     participant AAI as AssemblyAI API

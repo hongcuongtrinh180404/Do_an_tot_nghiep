@@ -29,10 +29,13 @@ export const envValidationSchema = Joi.object({
   THROTTLE_TTL: Joi.number().default(60000),
   THROTTLE_LIMIT: Joi.number().default(100),
 
-  // Cloudinary Storage Configuration
-  CLOUDINARY_CLOUD_NAME: Joi.string().allow('').optional(),
-  CLOUDINARY_API_KEY: Joi.string().allow('').optional(),
-  CLOUDINARY_API_SECRET: Joi.string().allow('').optional(),
-  CLOUDINARY_FOLDER: Joi.string().default('thc_datn/avatars'),
+  // MinIO Storage Configuration
+  MINIO_ENDPOINT: Joi.string().default('localhost'),
+  MINIO_PORT: Joi.number().default(9000),
+  MINIO_USE_SSL: Joi.boolean().default(false),
+  MINIO_ROOT_USER: Joi.string().default('minioadmin'),
+  MINIO_ROOT_PASSWORD: Joi.string().default('minioadmin123'),
+  MINIO_BUCKET_NAME: Joi.string().default('thc-datn-media'),
+  MINIO_PUBLIC_URL: Joi.string().default('http://localhost:9000'),
 });
 

@@ -26,6 +26,16 @@ export const lessonContentApi = {
     );
     return res.data.data;
   },
+
+  async getStreamUrl(key: string): Promise<string> {
+    const res = await apiClient.get<IApiResponse<{ url: string }>>(
+      '/lesson-content/stream-url',
+      {
+        params: { key },
+      },
+    );
+    return res.data.data.url;
+  },
 };
 
 export function useUploadLessonContentMutation() {
@@ -34,14 +44,14 @@ export function useUploadLessonContentMutation() {
     onSuccess: (data: ILessonContent) => {
       const typeLabel = data.type === 'video' ? 'Video bài học' : 'Tài liệu bài học';
       toast.success('Tải lên nội dung bài học thành công!', {
-        description: `${typeLabel} "${data.fileName || 'tập tin'}" đã được lưu trữ an toàn trên Cloudinary.`,
+        description: `${typeLabel} "${data.fileName || 'tập tin'}" đã được lưu trữ an toàn trên MinIO.`,
       });
     },
     onError: (error: unknown) => {
       const message =
         error && typeof error === 'object' && 'response' in error
           ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-          : 'Không thể tải file lên Cloudinary. Vui lòng kiểm tra lại kết nối hoặc file đã chọn.';
+          : 'Không thể tải file lên máy chủ lưu trữ. Vui lòng kiểm tra lại kết nối hoặc file đã chọn.';
       toast.error('Lỗi upload file', {
         description: message || 'Quá trình upload thất bại. Vui lòng thử lại.',
       });

@@ -346,13 +346,13 @@ describe('CreateLessonDto', () => {
       );
     });
 
-    it('21. should FAIL when content.url is not a valid URL', async () => {
+    it('21. should FAIL when content.url is not a string', async () => {
       const payload = {
         title: 'Bài học',
         order: 0,
         content: {
           type: LessonContentTypeEnum.VIDEO,
-          url: 'not-a-valid-url',
+          url: 12345,
         },
       };
 
@@ -361,8 +361,8 @@ describe('CreateLessonDto', () => {
 
       const contentError = errors.find((e) => e.property === 'content');
       const urlError = contentError?.children?.find((c) => c.property === 'url');
-      expect(urlError?.constraints).toHaveProperty('isUrl');
-      expect(urlError?.constraints?.isUrl).toBe('URL nội dung phải là một URL hợp lệ');
+      expect(urlError?.constraints).toHaveProperty('isString');
+      expect(urlError?.constraints?.isString).toBe('URL nội dung phải là chuỗi ký tự');
     });
 
     it('22. should FAIL when content.duration is negative (< 0)', async () => {
@@ -444,6 +444,46 @@ describe('CreateLessonDto', () => {
       const sectionIdError = errors.find((e) => e.property === 'sectionId');
       expect(sectionIdError).toBeDefined();
       expect(sectionIdError?.constraints).toHaveProperty('whitelistValidation');
+    });
+  });
+
+  describe('Validation: content (LessonContentDto)', () => {
+    it('26. should accept valid content with local MinIO URL', async () => {
+      const payload = {
+        title: 'Bài học 1',
+        order: 0,
+        content: {
+          type: LessonContentTypeEnum.VIDEO,
+          url: 'http://localhost:9000/thc-datn-media/courses/lessons/test-video.mp4',
+          fileName: 'test-video.mp4',
+          fileSize: 1048576,
+          mimeType: 'video/mp4',
+        },
+      };
+
+      const dto = plainToInstance(CreateLessonDto, payload);
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+      expect(dto.content?.url).toBe(
+        'http://localhost:9000/thc-datn-media/courses/lessons/test-video.mp4',
+      );
+    });
+
+    it('27. should fail if content.url is empty or whitespace only', async () => {
+      const payload = {
+        title: 'Bài học 1',
+        order: 0,
+        content: {
+          type: LessonContentTypeEnum.VIDEO,
+          url: '   ',
+        },
+      };
+
+      const dto = plainToInstance(CreateLessonDto, payload);
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+      const contentError = errors.find((e) => e.property === 'content');
+      expect(contentError).toBeDefined();
     });
   });
 });

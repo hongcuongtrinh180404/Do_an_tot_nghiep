@@ -124,14 +124,14 @@ export function useUploadAvatarMutation() {
       }
 
       toast.success('Tải ảnh đại diện thành công!', {
-        description: 'Ảnh đại diện cá nhân mới đã được lưu trữ an toàn trên Cloudinary.',
+        description: 'Ảnh đại diện cá nhân mới đã được lưu trữ an toàn trên MinIO.',
       });
     },
     onError: (error: unknown) => {
       const message =
         error && typeof error === 'object' && 'response' in error
           ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-          : 'Không thể tải ảnh lên Cloudinary. Vui lòng kiểm tra lại file hoặc cấu hình.';
+          : 'Không thể tải ảnh lên máy chủ lưu trữ. Vui lòng kiểm tra lại file hoặc cấu hình.';
       toast.error('Lỗi upload avatar', {
         description: message || 'Quá trình upload thất bại. Vui lòng thử lại.',
       });

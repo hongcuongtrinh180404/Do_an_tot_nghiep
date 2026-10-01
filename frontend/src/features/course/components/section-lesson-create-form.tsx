@@ -212,7 +212,7 @@ export function SectionLessonCreateForm({
     // Chặn submit khi đang upload file
     if (uploadStatus === 'UPLOADING') {
       toast.warning('File đang được tải lên', {
-        description: 'Vui lòng chờ quá trình tải file lên Cloudinary hoàn tất trước khi thêm bài học.',
+        description: 'Vui lòng chờ quá trình tải file lên máy chủ lưu trữ hoàn tất trước khi thêm bài học.',
       });
       return;
     }

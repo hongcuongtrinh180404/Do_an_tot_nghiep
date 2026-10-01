@@ -47,7 +47,7 @@ export function AvatarUploader({
     setPreviewUrl(objectUrl);
     setFailedUrl(null);
 
-    // Trigger upload to Cloudinary via backend
+    // Trigger upload to MinIO via backend
     uploadMutation.mutate(file, {
       onError: () => {
         // Revert local preview on failure

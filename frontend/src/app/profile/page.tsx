@@ -4,7 +4,7 @@ import { ProfilePageContent } from '@/features/profile';
 
 export const metadata: Metadata = {
   title: 'Hồ Sơ Cá Nhân | DATN Portal',
-  description: 'Quản lý thông tin tài khoản và ảnh đại diện cá nhân lưu trữ Cloudinary',
+  description: 'Quản lý thông tin tài khoản và ảnh đại diện cá nhân',
 };
 
 export default function ProfilePage(): React.JSX.Element {
