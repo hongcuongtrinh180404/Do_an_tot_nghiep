@@ -72,7 +72,7 @@ export function ProfilePageContent(): React.JSX.Element {
             Quản Lý Hồ Sơ
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Quản lý thông tin tài khoản cá nhân, cập nhật ảnh đại diện lưu trữ Cloudinary
+            Quản lý thông tin tài khoản cá nhân, cập nhật ảnh đại diện
           </p>
         </div>
 
@@ -87,7 +87,7 @@ export function ProfilePageContent(): React.JSX.Element {
         </div>
       </div>
 
-      {/* Main Grid: Left (Avatar & Identity) + Right (Form & Cloudinary info) */}
+      {/* Main Grid: Left (Avatar & Identity) + Right (Form & Storage info) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Avatar & Overview */}
         <div className="lg:col-span-5 space-y-6">
@@ -96,7 +96,7 @@ export function ProfilePageContent(): React.JSX.Element {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Icon icon="lucide:image" className="size-4 text-primary" />
-                Ảnh Đại Diện (Cloudinary)
+                Ảnh Đại Diện
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 pt-2">
@@ -120,27 +120,27 @@ export function ProfilePageContent(): React.JSX.Element {
         <div className="lg:col-span-7 space-y-6">
           <ProfileForm user={user} />
 
-          {/* Cloudinary Integration Status Card */}
+          {/* MinIO Object Storage Status Card */}
           <Card className="border-border/40 bg-muted/20">
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <Icon icon="lucide:cloud" className="size-4 text-sky-500" />
-                Lưu Trữ Đám Mây Cloudinary
+                <Icon icon="lucide:hard-drive" className="size-4 text-emerald-500" />
+                Lưu Trữ MinIO Object Storage
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-xs text-muted-foreground leading-relaxed">
               <p>
-                Ảnh đại diện của bạn được tự động nén, cắt góc và lưu trữ bảo mật trên CDN của{' '}
-                <strong className="text-foreground">Cloudinary</strong>.
+                Ảnh đại diện của bạn được tự động tối ưu hóa, nén định dạng WebP và lưu trữ an toàn trên{' '}
+                <strong className="text-foreground">MinIO S3 Storage</strong>.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
                 <div className="flex items-center gap-2 p-2 rounded-md bg-background border border-border/40">
                   <Icon icon="lucide:shield-check" className="size-4 text-emerald-500 shrink-0" />
-                  <span>HTTPS Secure Delivery</span>
+                  <span>S3-Compatible Storage</span>
                 </div>
                 <div className="flex items-center gap-2 p-2 rounded-md bg-background border border-border/40">
                   <Icon icon="lucide:sparkles" className="size-4 text-amber-500 shrink-0" />
-                  <span>Auto Format & Face Crop</span>
+                  <span>WebP High Performance</span>
                 </div>
               </div>
             </CardContent>

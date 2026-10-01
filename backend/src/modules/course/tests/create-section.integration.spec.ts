@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { getConnectionToken } from '@nestjs/mongoose';
 import { Connection, Types } from 'mongoose';
 import request from 'supertest';
@@ -52,10 +53,17 @@ describe('Course Section Endpoints (Integration/E2E Test)', () => {
 
     connection = app.get<Connection>(getConnectionToken());
     authTokenService = app.get<AuthTokenService>(AuthTokenService);
+
+    // CRITICAL SAFETY GUARD: Ensure test never touches development database
+    if (connection.name === 'thc_datn') {
+      throw new Error(
+        'CRITICAL SAFETY ERROR: Test is connected to development database "thc_datn"! Aborting to prevent data loss.',
+      );
+    }
   });
 
   afterAll(async () => {
-    if (connection) {
+    if (connection && connection.name !== 'thc_datn') {
       await connection.dropDatabase();
     }
     if (app) {
@@ -64,6 +72,11 @@ describe('Course Section Endpoints (Integration/E2E Test)', () => {
   });
 
   beforeEach(async () => {
+    if (connection.name === 'thc_datn') {
+      throw new Error(
+        'CRITICAL SAFETY ERROR: Cannot wipe collections on development database "thc_datn"!',
+      );
+    }
     await connection.collection('sections').deleteMany({});
     await connection.collection('courses').deleteMany({});
     await connection.collection('users').deleteMany({});

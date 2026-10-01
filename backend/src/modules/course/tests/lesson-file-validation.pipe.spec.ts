@@ -4,7 +4,7 @@ import { LessonFileValidationPipe } from '../pipes/lesson-file-validation.pipe.j
 import {
   MAX_VIDEO_SIZE_BYTES,
   MAX_DOCUMENT_SIZE_BYTES,
-} from '../../cloudinary/cloudinary.service.js';
+} from '../../storage/index.js';
 
 describe('LessonFileValidationPipe', () => {
   let pipe: LessonFileValidationPipe;

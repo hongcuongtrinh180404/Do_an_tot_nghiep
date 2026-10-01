@@ -182,6 +182,7 @@ export function LessonDetailContent({
                   controls
                   controlsList="nodownload"
                   playsInline
+                  preload="metadata"
                   className="w-full h-full object-contain"
                 >
                   Trình duyệt của bạn không hỗ trợ phát video HTML5.

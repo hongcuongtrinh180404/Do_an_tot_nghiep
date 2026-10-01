@@ -13,7 +13,7 @@ import { LessonRepository } from './repositories/lesson.repository.js';
 import { CourseService } from './services/course.service.js';
 import { LessonService } from './services/lesson.service.js';
 import { UserModule } from '../user/user.module.js';
-import { CloudinaryModule } from '../cloudinary/cloudinary.module.js';
+import { StorageModule } from '../storage/storage.module.js';
 
 @Module({
   imports: [
@@ -23,7 +23,7 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module.js';
       { name: LessonEntity.name, schema: LessonSchema },
     ]),
     UserModule,
-    CloudinaryModule,
+    StorageModule,
   ],
   controllers: [CourseController, LessonController, LessonsController, LessonContentController],
   providers: [CourseRepository, SectionRepository, LessonRepository, CourseService, LessonService],

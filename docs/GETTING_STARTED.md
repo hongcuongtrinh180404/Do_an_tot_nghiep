@@ -30,12 +30,20 @@ Trước khi bắt đầu, hãy đảm bảo máy tính của bạn đã cài đ
    npm install -g pnpm
    ```
 
-3. **Cài đặt và khởi chạy MongoDB**:
-   * **Cách 1 (Khuyên dùng - Cài đặt trực tiếp)**: Tải và cài đặt **MongoDB Community Server** cùng **MongoDB Compass** từ trang chủ [mongodb.com](https://www.mongodb.com/try/download/community). Sau khi cài, dịch vụ MongoDB sẽ tự động chạy ngầm ở cổng `27017`.
-   * **Cách 2 (Sử dụng Docker)**: Nếu máy đã cài Docker Desktop, bạn có thể khởi chạy một container MongoDB nhanh bằng lệnh:
-     ```bash
-     docker run -d --name mongo-datn -p 27017:27017 -v mongo_data:/data/db mongo:7.0
-     ```
+ 3. **Cài đặt và khởi chạy MongoDB (Docker - Khuyên dùng)**:
+    * Dự án dùng MongoDB qua Docker (không auth cho dev để dễ nối Compass). Chỉ cần Docker Desktop, không cần cài MongoDB Community Server:
+      ```bash
+      docker compose up -d mongo
+      ```
+      Dữ liệu lưu trong named volume `mongo_data` nên restart máy / `pnpm dev` không mất.
+      Mongo chạy single-node replica set `rs0` để hỗ trợ transaction (`withTransaction()`).
+    * **Lưu ý Windows**: nếu trước đây đã cài MongoDB Server, tắt để tránh chiếm port `27017`:
+      ```powershell
+      net stop MongoDB
+      ```
+      Mở `Services` > `MongoDB Server` > set `Manual` thay vì `Automatic`.
+    * Kết nối Compass: `mongodb://localhost:27017/thc_datn` (nếu báo lỗi topology thì dùng `mongodb://localhost:27017/thc_datn?directConnection=true`).
+    * Chỉ cài MongoDB Compass GUI từ [mongodb.com](https://www.mongodb.com/try/download/compass) để xem data.
 
 ---
 
@@ -214,11 +222,12 @@ Thứ tự Turborepo tự động giải quyết phụ thuộc:
 ## ❓ 8. Các lỗi thường gặp và cách khắc phục (Troubleshooting)
 
 ### 🔴 1. Lỗi kết nối MongoDB (`MongooseServerSelectionError: connect ECONNREFUSED 127.0.0.1:27017`)
-* **Nguyên nhân**: Dịch vụ MongoDB trên máy chưa được bật.
+* **Nguyên nhân**: Container `thc_mongo` chưa chạy, hoặc Windows MongoDB Service chiếm port `27017`.
 * **Cách khắc phục**:
-  * Mở ứng dụng **Services** (trên Windows), tìm `MongoDB Server` và nhấn **Start**.
-  * Hoặc mở terminal gõ: `net start MongoDB`.
-  * Nếu dùng Docker, gõ: `docker start mongo-datn`.
+  * Khởi động Mongo Docker: `docker compose up -d mongo` rồi kiểm tra `docker ps` thấy `thc_mongo healthy`.
+  * Kiểm tra replica set: `docker exec thc_mongo mongosh --quiet --eval "rs.status().ok"`.
+  * Nếu port bị chiếm: `netstat -ano | findstr :27017`, tắt Windows service: `net stop MongoDB`.
+  * Tuyệt đối không dùng `docker run` tay rời rạc (mất volume) - luôn dùng `docker compose`.
 
 ---
 

@@ -15,7 +15,9 @@ describe('SectionSchema & MongoDB Indexes (Integration / Unit Test)', () => {
 
   afterAll(async () => {
     if (connection) {
-      await connection.dropDatabase();
+      if (connection.name !== 'thc_datn') {
+        await connection.dropDatabase();
+      }
       await connection.close();
     }
   });

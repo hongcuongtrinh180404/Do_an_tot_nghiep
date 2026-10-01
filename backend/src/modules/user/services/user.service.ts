@@ -4,7 +4,7 @@ import { ClientSession } from 'mongoose';
 import { IUser, IUserProfile, AuthProviderEnum } from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { UserRepository } from '../repositories/user.repository.js';
-import { CloudinaryService } from './cloudinary.service.js';
+import { StorageService } from '../../storage/storage.service.js';
 import { UpdateProfileDto } from '../dto/update-profile.dto.js';
 
 @Injectable()
@@ -12,7 +12,7 @@ export class UserService extends BaseService<IUser, string> {
   constructor(
     protected readonly userRepository: UserRepository,
     cls: ClsService,
-    @Optional() protected readonly cloudinaryService?: CloudinaryService,
+    @Optional() protected readonly storageService?: StorageService,
   ) {
     super(userRepository, cls, UserService.name);
   }
@@ -97,10 +97,10 @@ export class UserService extends BaseService<IUser, string> {
     userId: string,
     file: Express.Multer.File,
   ): Promise<{ avatarUrl: string; avatar: string; user: IUserProfile }> {
-    if (!this.cloudinaryService) {
-      throw new ConflictException('Dịch vụ lưu trữ Cloudinary chưa được khởi tạo');
+    if (!this.storageService) {
+      throw new ConflictException('Dịch vụ lưu trữ chưa được khởi tạo');
     }
-    const avatarUrl = await this.cloudinaryService.uploadImage(file);
+    const avatarUrl = await this.storageService.uploadImage(file, 'avatars');
     const updated = await this.updateOrFail(userId, {
       avatarUrl,
       avatar: avatarUrl,

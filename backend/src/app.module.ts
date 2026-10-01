@@ -10,13 +10,13 @@ import { UserModule } from './modules/user/user.module.js';
 import { SessionModule } from './modules/session/session.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CourseModule } from './modules/course/course.module.js';
-import { CloudinaryModule } from './modules/cloudinary/cloudinary.module.js';
+import { StorageModule } from './modules/storage/storage.module.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: process.env.NODE_ENV === 'test' ? ['.env.test', '.env'] : '.env',
       validationSchema: envValidationSchema,
     }),
     MongooseModule.forRootAsync({
@@ -32,7 +32,7 @@ import { CloudinaryModule } from './modules/cloudinary/cloudinary.module.js';
       middleware: { mount: true },
     }),
     BaseModule,
-    CloudinaryModule,
+    StorageModule,
     UserModule,
     SessionModule,
     AuthModule,

@@ -4,7 +4,7 @@ import { ClsService } from 'nestjs-cls';
 import { AuthProviderEnum, IUser, RoleEnum, UserStatusEnum } from 'share-lib';
 import { UserService } from '../services/user.service.js';
 import { UserRepository } from '../repositories/user.repository.js';
-import { CloudinaryService } from '../services/cloudinary.service.js';
+import { StorageService } from '../../storage/storage.service.js';
 
 describe('UserService - Profile and Avatar Management', () => {
   let service: UserService;
@@ -13,7 +13,7 @@ describe('UserService - Profile and Avatar Management', () => {
     update: ReturnType<typeof vi.fn>;
   };
   let mockCls: { get: ReturnType<typeof vi.fn> };
-  let mockCloudinaryService: {
+  let mockStorageService: {
     uploadImage: ReturnType<typeof vi.fn>;
   };
 
@@ -40,14 +40,14 @@ describe('UserService - Profile and Avatar Management', () => {
     mockCls = {
       get: vi.fn().mockReturnValue('user_123'),
     };
-    mockCloudinaryService = {
+    mockStorageService = {
       uploadImage: vi.fn(),
     };
 
     service = new UserService(
       mockUserRepository as unknown as UserRepository,
       mockCls as unknown as ClsService,
-      mockCloudinaryService as unknown as CloudinaryService,
+      mockStorageService as unknown as StorageService,
     );
   });
 
@@ -99,7 +99,7 @@ describe('UserService - Profile and Avatar Management', () => {
   });
 
   describe('updateAvatar', () => {
-    it('should upload file to Cloudinary and update avatar in repository', async () => {
+    it('should upload file to StorageService and update avatar in repository', async () => {
       // Arrange
       const fakeFile = {
         buffer: Buffer.from('fake image content'),
@@ -108,8 +108,8 @@ describe('UserService - Profile and Avatar Management', () => {
         size: 1024,
       } as Express.Multer.File;
 
-      const newAvatarUrl = 'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg';
-      mockCloudinaryService.uploadImage.mockResolvedValue(newAvatarUrl);
+      const newAvatarUrl = 'http://localhost:9000/thc-datn-media/avatars/avatar.webp';
+      mockStorageService.uploadImage.mockResolvedValue(newAvatarUrl);
 
       const updatedUser: IUser = {
         ...mockUser,
@@ -122,15 +122,15 @@ describe('UserService - Profile and Avatar Management', () => {
       const result = await service.updateAvatar('user_123', fakeFile);
 
       // Assert
-      expect(mockCloudinaryService.uploadImage).toHaveBeenCalledWith(fakeFile);
+      expect(mockStorageService.uploadImage).toHaveBeenCalledWith(fakeFile, 'avatars');
       expect(mockUserRepository.update).toHaveBeenCalled();
       expect(result.avatarUrl).toBe(newAvatarUrl);
       expect(result.user.avatarUrl).toBe(newAvatarUrl);
     });
 
-    it('should throw ConflictException if CloudinaryService is not available', async () => {
+    it('should throw ConflictException if StorageService is not available', async () => {
       // Arrange
-      const serviceWithoutCloudinary = new UserService(
+      const serviceWithoutStorage = new UserService(
         mockUserRepository as unknown as UserRepository,
         mockCls as unknown as ClsService,
         undefined,
@@ -139,7 +139,7 @@ describe('UserService - Profile and Avatar Management', () => {
 
       // Act & Assert
       await expect(
-        serviceWithoutCloudinary.updateAvatar('user_123', fakeFile),
+        serviceWithoutStorage.updateAvatar('user_123', fakeFile),
       ).rejects.toThrow(ConflictException);
     });
   });

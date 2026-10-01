@@ -9,5 +9,10 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.spec.ts'],
+    env: {
+      NODE_ENV: 'test',
+      MONGODB_DB_NAME: 'thc_datn_test',
+      MONGODB_URI: 'mongodb://localhost:27017/thc_datn_test',
+    },
   },
 });

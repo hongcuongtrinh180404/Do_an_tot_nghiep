@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NotFoundException, BadRequestException, ArgumentMetadata } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ILesson } from 'share-lib';
+import { ILesson, LessonContentTypeEnum } from 'share-lib';
 import { ParseObjectIdPipe } from '../../base/index.js';
 import { LessonsController } from '../lessons.controller.js';
 import { LessonService } from '../services/lesson.service.js';
@@ -25,8 +25,8 @@ describe('LessonsController', () => {
     description: 'Nội dung bài học giới thiệu...',
     order: 0,
     content: {
-      type: 'video' as unknown as ILesson['content'] extends infer C ? NonNullable<C>['type'] : never,
-      url: 'https://res.cloudinary.com/demo/video/upload/lesson-01.mp4',
+      type: LessonContentTypeEnum.VIDEO,
+      url: 'http://localhost:9000/thc-datn-media/courses/lessons/lesson-01.mp4',
       publicId: 'courses/lessons/lesson-01',
       fileName: 'lesson-01.mp4',
       fileSize: 35680120,
@@ -93,7 +93,6 @@ describe('LessonsController', () => {
 
   describe('ParseObjectIdPipe Parameter Validation', () => {
     let pipe: ParseObjectIdPipe;
-    const metadata: ArgumentMetadata = { type: 'param', data: 'id' };
 
     beforeEach(() => {
       pipe = new ParseObjectIdPipe();
@@ -101,12 +100,12 @@ describe('LessonsController', () => {
 
     it('6. should allow valid 24-character hexadecimal ObjectId string', () => {
       const validId = '507f1f77bcf86cd799439011';
-      expect(pipe.transform(validId, metadata)).toBe(validId);
+      expect(pipe.transform(validId)).toBe(validId);
     });
 
     it('7. should throw BadRequestException for invalid ObjectId string', () => {
       const invalidId = 'not-a-valid-object-id';
-      expect(() => pipe.transform(invalidId, metadata)).toThrow(BadRequestException);
+      expect(() => pipe.transform(invalidId)).toThrow(BadRequestException);
     });
   });
 });
