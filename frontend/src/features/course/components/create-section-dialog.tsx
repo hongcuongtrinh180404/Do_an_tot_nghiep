@@ -49,20 +49,18 @@ export function CreateSectionDialog({
     defaultValues: {
       title: '',
       description: '',
-      order: defaultOrder,
     },
   });
 
-  // Reset form with latest defaultOrder whenever dialog opens
+  // Reset form whenever dialog opens
   useEffect(() => {
     if (open) {
       reset({
         title: '',
         description: '',
-        order: defaultOrder,
       });
     }
-  }, [open, defaultOrder, reset]);
+  }, [open, reset]);
 
   const isPending = isSubmitting || createSectionMutation.isPending;
 
@@ -71,7 +69,7 @@ export function CreateSectionDialog({
       await createSectionMutation.mutateAsync({
         title: data.title,
         description: data.description?.trim() ? data.description.trim() : undefined,
-        order: data.order,
+        order: defaultOrder,
       });
       onOpenChange(false);
       reset();
@@ -140,32 +138,6 @@ export function CreateSectionDialog({
               <p className="text-xs text-destructive mt-1 flex items-center gap-1">
                 <Icon icon="lucide:alert-circle" className="size-3.5 shrink-0" />
                 <span>{errors.description.message}</span>
-              </p>
-            )}
-          </div>
-
-          {/* Thứ tự */}
-          <div className="space-y-1.5">
-            <Label htmlFor="section-order" className="text-xs font-medium text-foreground">
-              Thứ tự hiển thị <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="section-order"
-              type="number"
-              min={0}
-              step={1}
-              placeholder="0"
-              disabled={isPending}
-              aria-invalid={Boolean(errors.order)}
-              {...register('order', { valueAsNumber: true })}
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Số nguyên từ 0 trở lên dùng để sắp xếp thứ tự các chương học trong khóa học.
-            </p>
-            {errors.order && (
-              <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                <Icon icon="lucide:alert-circle" className="size-3.5 shrink-0" />
-                <span>{errors.order.message}</span>
               </p>
             )}
           </div>

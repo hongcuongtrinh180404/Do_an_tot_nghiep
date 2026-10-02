@@ -377,10 +377,273 @@
     - **Kiểm định chất lượng**:
       - Share-lib build: 0 errors (`pnpm --filter share-lib build`).
       - Backend test: 26/26 files, 261/261 tests pass (`pnpm --filter backend test`).
-      - Backend build: 0 errors (`pnpm --filter backend build`).
-      - Backend lint: 0 errors (`pnpm --filter backend lint`).
-      - Frontend build: Turbopack compile thành công toàn bộ static & dynamic routes (`pnpm --filter frontend build`).
-      - Frontend lint: 0 errors (`pnpm --filter frontend lint`).
+  - **Milestone 27 (Task: Curriculum Master - Detail Split View)**:
+    - **Layout Split View (68% / 32%)**:
+      - Mở rộng container `CourseDetailContent` (`frontend/src/features/course/components/course-detail-content.tsx`) từ `max-w-5xl` sang `max-w-7xl` để tạo không gian thoáng đãng cho giao diện 2 cột.
+      - Tái cấu trúc `CourseSectionsList` (`course-sections-list.tsx`) thành 2 cột:
+        - Cột trái (`w-full lg:w-[68%]`): Cấu trúc khóa học trực quan, đánh dấu trạng thái Active bằng viền sáng `ring-2 ring-sky-500/20 border-sky-500/50 bg-sky-500/[0.02]`.
+        - Cột phải (`lg:w-[32%]`): Bảng Inspector Panel cố định `sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto` với thanh cuộn tinh tế.
+    - **Bộ Thành Phần Inspector Panel (`frontend/src/features/course/components/inspector/`)**:
+      - `InspectorEmptyState`: Minh họa thư mục mở (`lucide:folder-open`) kèm thông báo lịch sự khi chưa chọn mục nào.
+      - `ChapterInspector`: Tông màu dịu mắt (sky/slate), huy hiệu `CHƯƠNG XX`, tiêu đề in hoa đậm nét, nút icon bút chì (`lucide:pencil`), 2 Quick Metric Cards (Số bài học thực tế, Tổng thời lượng tính toán tự động từ `useSectionLessonsQuery`), Mục tiêu & Tóm tắt kiến thức.
+      - `LessonInspector`: Tông màu công nghệ (emerald/cyan), slide animation nhẹ nhàng, breadcrumb `Chương X > Bài học Y`, badge trạng thái Học thử (Preview) hoặc Đã khóa (Locked), Thumbnail Preview video với nút Play chuyển hướng sang `/instructor/courses/[id]/lessons/[lessonId]`, dòng thời lượng `Thời lượng: X phút Y giây` kèm kích thước tệp.
+      - `CurriculumInspector`: Bộ điều phối trạng thái hiển thị (Empty, Chapter, Lesson).
+      - `InspectorMobileDrawer`: Drawer ngăn kéo trượt mượt mà trên màn hình nhỏ (`< 1024px`), đóng mở tự động khi tương tác trên thiết bị di động.
+    - **Modal `EditSectionDialog`**:
+      - `frontend/src/features/course/components/edit-section-dialog.tsx`: Hộp thoại chỉnh sửa tiêu đề, mô tả và thứ tự chương với Zod validation và cập nhật giao diện mượt mà.
+    - **Cập nhật `SectionLessonsList`**:
+      - Bổ sung props `selectedLessonId` và `onSelectLesson`, kích hoạt trạng thái chọn bài học và highlight active rõ nét.
+    - **Kiểm định chất lượng**:
+      - Frontend Lint: `eslint src/` pass 0 errors, 0 warnings.
+      - TypeScript: `tsc --noEmit` pass không có bất kỳ lỗi nào.
+      - Frontend Build: `next build` Turbopack production compile thành công 100%.
+      - Tuân thủ tuyệt đối: Purple Ban (0 mã màu tím), không dùng `any`, không inline font classes.
+  - **Milestone 28 (Task: Simplify Curriculum UI & Modern Section Cards)**:
+    - **Loại bỏ Inspector Panel & Drawer**:
+      - Hủy bỏ hoàn toàn cấu trúc 2 cột Master - Detail và slide drawer trên mobile theo yêu cầu tinh gọn giao diện.
+      - Xóa bỏ thư mục `frontend/src/features/course/components/inspector/` và gỡ bỏ export trong `index.ts`.
+      - Điều chỉnh container `CourseDetailContent` về `max-w-5xl` liền mạch, thoáng mắt cho layout 1 cột.
+    - **Nâng cấp Thẻ Card Chương học (`SectionCardItem`)**:
+      - Áp dụng class theo đúng phong cách hiện đại:
+        `rounded-xl border border-border/60 bg-card/70 shadow-sm backdrop-blur-xs transition-all duration-300 overflow-hidden hover:border-border/90`.
+      - Tích hợp Badge thông số trực tiếp trên Header mỗi chương: Gọi hook `useSectionLessonsQuery(section.id)` để hiển thị real-time số lượng bài học và tổng thời lượng (`X bài học · Y giờ Z phút`).
+      - Tích hợp nút cây bút chì (`lucide:pencil`) mở `EditSectionDialog` trực tiếp tại Header chương.
+      - Nút "+ Thêm bài học" mở modal thêm bài học nhanh vào chương tương ứng.
+    - **Tinh giản `SectionLessonsList`**:
+      - Bỏ click selection trên dòng bài học; chỉ có liên kết "Xem bài học" ở bên phải điều hướng sang trang bài giảng (`/instructor/courses/[id]/lessons/[lessonId]`).
+    - **Kiểm định chất lượng**:
+      - TypeScript: `tsc --noEmit` pass 100%.
+      - Linter: `eslint src/` pass 0 errors, 0 warnings.
+      - Next.js Build: Turbopack compile thành công 100%.
+      - Tuân thủ nghiêm ngặt Purple Ban (0 mã màu tím), không dùng `any`.
+  - **Milestone 29 (Task: Course Studio Tree Hierarchy & Contextual Inspector)**:
+    - **Thanh Thông Số Tổng Quan (Top Metric Bar)**:
+      - Tạo component `CourseOverviewMetrics` (`frontend/src/features/course/components/course-overview-metrics.tsx`): 3 thẻ thống kê bo tròn `rounded-2xl` hiển thị tổng số chương, tổng bài giảng và thời lượng học.
+    - **Cột Trái Cây Phân Cấp (Master Tree - `lg:col-span-7`)**:
+      - Tái cấu trúc `CourseSectionsList` (`course-sections-list.tsx`): Cây phả hệ gồm Khóa học → Chương/Module → Bài học/Lecture.
+      - Nút chevron đóng/mở nhánh với hiệu ứng xoay 90 độ mượt mà. Mặc định: Thu gọn tất cả (All Collapsed) theo đúng yêu cầu người dùng.
+      - Hiển thị badge số lượng bài giảng và thời lượng trực tiếp trên từng chương (`X bài • Y phút/giờ`).
+      - Nhấp chọn chương: Kích hoạt viền active (`border-sky-500 ring-2 ring-sky-500/15`).
+      - Nhấp chọn bài học: Kích hoạt highlight viền trái (`bg-sky-500/10 border-l-4 border-sky-500`).
+      - Nút "+ Thêm bài" và nút bút chì (`lucide:pencil`) mở `EditSectionDialog`.
+    - **Cột Phải Contextual Inspector Panel (`lg:col-span-5 sticky top-20`)**:
+      - Tạo component `ContextualInspectorPanel` (`contextual-inspector-panel.tsx`):
+        - Khi chọn Chương: Badge "Tổng quan chương", tiêu đề & mô tả, 2 thẻ số liệu ("Số bài giảng thực tế", "Tổng thời lượng"), tài liệu chung của chương.
+        - Khi chọn Bài học: Badge "Chi tiết bài học", breadcrumb chương, tiêu đề & mô tả, khung Media Banner với nút "Xem trước bài giảng" chuyển trang `/instructor/courses/[id]/lessons/[lessonId]`, tài liệu riêng của bài học.
+        - Khi chưa chọn gì: Icon chỉ tay lịch sự + lời nhắc chọn chương hoặc bài học.
+    - **Kiểm định chất lượng**:
+      - TypeScript: `tsc --noEmit` pass 100%.
+      - Linter: `eslint src/` pass 0 errors, 0 warnings.
+      - Next.js Build: Turbopack compile thành công 100%.
+      - Tuân thủ nghiêm ngặt Purple Ban (0 mã màu tím), không dùng `any`.
+- **Milestone 30 (Drag & Drop Chapter Reordering & Auto-Indexing)**:
+  - **Mục tiêu**: Loại bỏ trường nhập thủ công "Thứ tự hiển thị" tại modal thêm/sửa chương, thay bằng tính năng Kéo - Thả (Drag & Drop) trực quan trên cây chương và tự động đánh số thứ tự liên tục.
+  - **Hợp đồng dữ liệu & DTOs**:
+    - `share-lib`: Khai báo `IReorderSectionsPayload` (`sectionIds: string[]`) và đổi `order?: number` trong `ICreateSectionPayload`.
+    - `ReorderSectionsDto`: Validate `sectionIds` là mảng không rỗng của các ObjectId hợp lệ (`@IsArray`, `@ArrayMinSize(1)`, `@IsMongoId({ each: true })`).
+    - `CreateSectionDto`: Đổi `order` thành `@IsOptional()`.
+  - **Backend Layer**:
+    - `SectionRepository.reorderSections`: Sử dụng MongoDB `bulkWrite` cập nhật `$set: { order: index, updatedById: userId }` trong `ClientSession` transaction.
+    - `CourseService.createSection`: Tự động tính toán `order = existingSections.length` khi `dto.order` là undefined/null.
+    - `CourseService.reorderSections`: Kiểm tra quyền sở hữu khóa học (`course.instructorId === userId` hoặc `ADMIN`), kiểm tra trùng lặp ID và xác thực tất cả ID phải thuộc về đúng khóa học trước khi cập nhật.
+    - `CourseController`: Thêm route `@Put(':courseId/sections/reorder')` với `@Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)`.
+    - Unit tests: Bổ sung comprehensive test cases trong `section.repository.spec.ts`, `course.service.spec.ts`, và `course.controller.spec.ts` (100% pass 284/284 backend tests).
+  - **Frontend Layer**:
+    - `CreateSectionDialog` & `EditSectionDialog`: Xóa bỏ hoàn toàn trường nhập "Thứ tự hiển thị" khỏi UI và form state; `create-section.schema.ts` cho phép `order` là optional.
+    - `courseApi.reorderSections` & `useReorderSectionsMutation`: Tích hợp Silent Optimistic UI (cập nhật cache ngay tức thì, không spam toast thông báo) kèm rollback tự động và toast thông báo lỗi khi API thất bại.
+    - Custom Hook `useChapterDnd`: Xử lý HTML5 Drag and Drop thuần, cung cấp drag handlers (`handleDragStart`, `handleDragOver`, `handleDragLeave`, `handleDrop`, `handleDragEnd`) và states (`draggedIndex`, `dragOverIndex`) với 0 external dependencies, tương thích tuyệt đối với React 19.2 và Next.js 16.
+    - `ChapterTreeItem`: Tích hợp icon tay nắm kéo (`lucide:grip-vertical` với con trỏ `cursor-grab active:cursor-grabbing`), badge đánh số thứ tự động `CHƯƠNG 01`, `CHƯƠNG 02`... cập nhật tức thì theo vị trí, hiệu ứng mờ nhẹ khi kéo (`opacity-40`) và viền nét đứt (`border-2 border-dashed border-sky-500 bg-sky-500/5`) tại vị trí đích.
+  - **Kiểm định chất lượng**:
+    - Backend Unit Tests: 284/284 tests passed (100%).
+    - Backend Lint: 0 errors.
+    - Backend Build: `nest build` thành công 100%.
+    - Frontend Lint: 0 errors, 0 warnings.
+    - Frontend Build: `next build` biên dịch production tĩnh/động thành công 100%.
+- **Milestone 31 (Lesson Modal UX Enhancement: Auto-Order, Content Type Dropdown & Interactive Toggle Card)**:
+  - **Mục tiêu**: Tối ưu hóa trải nghiệm giảng viên khi thêm bài học mới tại modal `SectionLessonCreateForm`:
+    1. Loại bỏ ô nhập "Thứ tự hiển thị" thủ công, tự động định vị bài học ở cuối chương (`calculatedOrder = existingLessons.length`).
+    2. Bổ sung Dropdown chọn loại nội dung (Video bài giảng vs Tài liệu học tập) với cơ chế tự động lọc định dạng file qua thuộc tính `accept` và icon tương ứng, tự động khóa dropdown khi đã có file để tránh bất nhất dữ liệu.
+    3. Nâng cấp mục "Cho phép học thử miễn phí" thành Interactive Toggle Card trực quan với hiệu ứng màu sắc xanh ngọc (`emerald`), huy hiệu "Mở phễu" và icon khóa/mở khóa linh hoạt.
+  - **Kỹ thuật & Giải pháp**:
+    - `create-lesson.schema.ts`: Bổ sung `contentType: z.enum(['video', 'document'])`, `ACCEPTED_VIDEO_FILE_EXTENSIONS`, `ACCEPTED_DOCUMENT_FILE_EXTENSIONS`.
+    - `SectionLessonCreateForm`:
+      - Gỡ bỏ ô nhập "Thứ tự hiển thị" khỏi UI; giá trị `order` vẫn được tính tự động từ `calculatedOrder` và truyền ngầm vào mutation payload.
+      - Tích hợp Dropdown `<select>` được quản lý trực tiếp qua `register('contentType')` và `useWatch`, tự động điều chỉnh thuộc tính `accept` của `<input type="file">` (`video/*` vs `.pdf,.docx`), thay đổi icon hiển thị (`lucide:video` vs `lucide:file-text`) và tooltip hướng dẫn. Khóa dropdown khi `selectedFile` tồn tại.
+      - Chuyển đổi checkbox `isPreview` thành thẻ Card bo góc sang trọng (`rounded-xl border p-3.5`), chuyển đổi giữa trạng thái khóa xám nhạt (`lucide:lock`) và trạng thái mở phễu xanh ngọc (`lucide:lock-open`, `bg-emerald-50/60`, `border-emerald-300`, badge "Mở phễu") kèm Switch toggle chuẩn accessibility.
+  - **Gotchas & Bài học kinh nghiệm**:
+    - *React 19 & ESLint `react-hooks/set-state-in-effect`*: Không sử dụng `useState` độc lập rồi gọi `setState` bên trong `useEffect` để reset `contentType` khi modal mở. Thay vào đó, đưa `contentType` vào thẳng `useForm` để `reset()` quản lý đồng bộ toàn bộ form state.
+    - *Zod Resolver Type Symmetry*: Tránh sử dụng `.default(...)` trên trường `contentType` trong `zod.object({...})` vì Zod sẽ tạo ra kiểu `input` (optional/undefined) và `output` (required) bất đối xứng, dẫn đến lỗi TS2322 với `zodResolver`. Thay vào đó, định nghĩa kiểu chặt chẽ `z.enum(['video', 'document'])` và truyền giá trị mặc định qua `defaultValues` của `useForm`.
+  - **Kiểm định chất lượng**:
+    - Frontend Typecheck: `tsc --noEmit` đạt 100% 0 lỗi.
+    - Frontend ESLint: `eslint src/` đạt 100% 0 lỗi, 0 cảnh báo.
+    - Backend Unit Tests: 38/38 tests cho `lesson.service.spec.ts` và `lesson.controller.spec.ts` pass 100%.
+- **Milestone 32 (Document Management & Access Status Icons on Contextual Inspector Panel)**:
+  - **Mục tiêu**: Nâng cấp cột bên phải (`ContextualInspectorPanel`) phục vụ quản lý tài liệu và gắn nhãn trạng thái truy cập trực quan:
+    1. Chỉ lọc và hiển thị tài liệu văn bản/bài đọc (`content.type === LessonContentTypeEnum.DOCUMENT`), không để lẫn file video.
+    2. Liên thông hiển thị toàn bộ tài liệu của chương tại mục "Tài liệu chung của chương" khi chọn Chương.
+    3. Hiển thị nhãn và Icon Khóa / Mở (Access Status Icons) trực quan ở góc phải mỗi tài liệu (Học thử 🔓 vs Đã khóa 🔒).
+    4. Phân tách rõ ràng bài học video và bài học tài liệu tại "Tài liệu riêng của bài" khi chọn Bài học.
+  - **Kỹ thuật & Giải pháp**:
+    - `contextual-inspector-panel.tsx`:
+      - Xây dựng component `DocumentItemWithStatus` hiển thị đồng bộ: icon tài liệu (`lucide:file-text`), tên file & dung lượng, link "Mở tệp" trong tab mới (`target="_blank" rel="noopener noreferrer"`), và huy hiệu trạng thái truy cập dạng Read-only badge.
+      - 🔓 Trạng thái Học thử: Icon mở khóa `lucide:lock-open` + nhãn "Học thử" (`bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20`).
+      - 🔒 Trạng thái Đã khóa: Icon ổ khóa `lucide:lock` + nhãn "Đã khóa" (`bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20`).
+      - `ChapterInspectorView`: Lọc danh sách bài học có `content.type === LessonContentTypeEnum.DOCUMENT`, hiển thị huy hiệu tổng số tệp và danh sách tài liệu với thanh cuộn tự động khi nhiều file.
+      - `LessonInspectorView`: Kiểm tra `isDocLesson` (`content.type === LessonContentTypeEnum.DOCUMENT`), chỉ hiển thị tài liệu nếu bài học thực sự có tài liệu đính kèm; nếu là bài học video, hiển thị thông báo "Không có tài liệu riêng cho bài học này".
+  - **Gotchas & Bài học kinh nghiệm**:
+    - *TypeScript TS2367 Comparison Narrowing*: Khi trường `content.type` được định kiểu bằng `LessonContentTypeEnum`, không so sánh `l.content.type === LessonContentTypeEnum.DOCUMENT || l.content.type === 'document'` vì TypeScript coi nhánh thứ hai là unreachable narrowing và ném lỗi TS2367. Chỉ so sánh duy nhất với enum member `LessonContentTypeEnum.DOCUMENT`.
+  - **Kiểm định chất lượng**:
+    - Frontend Typecheck: `tsc --noEmit` đạt 100% 0 lỗi.
+    - Frontend ESLint: `eslint src/...` đạt 100% 0 lỗi, 0 cảnh báo.
+    - Backend Unit Tests: 38/38 tests cho `lesson.service.spec.ts` và `lesson.controller.spec.ts` pass 100%.
+    - Tuân thủ nghiêm ngặt Purple Ban (0 mã màu tím), không sử dụng inline font classes.
+- **Milestone 33 (Curriculum View Mode Switcher / Segmented Control & Mindmap Placeholder)**:
+  - **Mục tiêu**: Bổ sung bộ điều khiển chuyển đổi chế độ xem (View Mode Switcher / Segmented Control) dạng viên thuốc (pill-shaped) cho đề cương khóa học:
+    1. Vị trí chính xác: Căn giữa (`mx-auto` / `justify-center`) trong khoảng whitespace ngay bên dưới 3 thẻ thống kê (`CourseOverviewMetrics`) và bên trên tiêu đề "Cấu trúc giáo trình".
+    2. Hai lựa chọn chuyển đổi: "Dạng Cây" (`viewMode: 'tree'`, mặc định) và "Sơ Đồ Tư Duy" (`viewMode: 'mindmap'`).
+    3. Thiết kế chuẩn UI/UX:
+       - Container ngoài: `inline-flex`, nền xám nhạt (`#f1f5f9` / `bg-slate-100`), bo tròn dạng viên thuốc (`rounded-full`), padding mỏng `4px - 6px`, viền nhẹ `border border-slate-200/80 shadow-xs`.
+       - Nút Active ("Dạng Cây"): Nền trắng (`#ffffff`), chữ xanh tím Indigo nổi bật (`text-indigo-600`), đổ bóng nhẹ (`shadow-xs`), bo góc tròn ôm khít (`rounded-full`), icon `lucide:folder-tree`.
+       - Nút Inactive ("Sơ Đồ Tư Duy"): Nền trong suốt (`bg-transparent`), chữ xám nhạt (`text-slate-600`), hover sáng nhẹ (`hover:text-slate-900 hover:bg-slate-200/50`), icon `lucide:network`.
+    4. Quản lý trạng thái & URL Sync: Đồng bộ trạng thái `?view=mindmap` hoặc `?view=tree` qua URL search params của Next.js, duy trì trạng thái khi reload (F5) hoặc chia sẻ đường dẫn.
+    5. Khung Placeholder cho Sơ Đồ Tư Duy: Khi chọn "Sơ Đồ Tư Duy", hiển thị giao diện placeholder trực quan, sẵn sàng kết nối pipeline AI Markmap tiếp theo.
+  - **Kỹ thuật & Giải pháp**:
+    - `course-view-mode-switcher.tsx`: Xây dựng component Segmented Control chuẩn accessible (`role="tablist"`, `role="tab"`, `aria-selected`), zero-dependency với Tailwind CSS v4 và Iconify.
+    - `course-mindmap-placeholder.tsx`: Xây dựng khung card placeholder hiện đại với visual illustration, badge trạng thái "Sắp ra mắt" và nút hành động nhanh "Quay lại Dạng Cây".
+    - `course-sections-list.tsx`: Bọc `CourseSectionsList` trong `<React.Suspense>` boundary để tương thích SSR Next.js 15+ khi dùng `useSearchParams()`, tích hợp hook chuyển đổi query param mượt mà không scroll (`router.replace(..., { scroll: false })`).
+  - **Kiểm định chất lượng**:
+    - Frontend ESLint: `pnpm --filter frontend lint` đạt 100% 0 lỗi, 0 cảnh báo.
+    - Strict Typing: Hoàn toàn không dùng kiểu `any`, type union chặt chẽ `CourseViewMode = 'tree' | 'mindmap'`.
+- **Milestone 34 (Fix UTF-8 / Latin-1 Mojibake Encoding Bug on Document & Lesson File Names)**:
+  - **Nguyên nhân gốc rễ (Root Cause Analysis)**:
+    - Khi người dùng tải lên tệp có tên tiếng Việt có dấu (ví dụ: `Các chủ đề tiểu luận.docx`), trình duyệt gửi header `Content-Disposition: form-data; name="file"; filename="Các chủ đề tiểu luận.docx"` mã hóa UTF-8.
+    - Bộ phân tích HTTP multipart của Node.js (`multer` / `busboy`) theo chuẩn RFC lịch sử đã giải mã các byte UTF-8 này bằng bảng mã `ISO-8859-1` (Latin-1/binary).
+    - Chuỗi byte UTF-8 đa byte bị phân tách thành các ký tự Latin-1 riêng rẽ (`0xC3 0xA1` -> `Ã¡`, `0xE1 0xBB 0xA7` -> `á»§`, `0xC4 0x91` -> `Ä\x91`, v.v.), sinh ra chuỗi lỗi font Mojibake: `CÃ¡c chá»§ Ä‘á»  tiá» u luáº­n.docx`.
+    - Dữ liệu này được lưu vào MongoDB và khi frontend render lên panel thanh tra ("Tài liệu chung của chương" / "Chi tiết bài học"), các ký tự điều khiển không in được hiển thị thành ô vuông `[]` gây lỗi font.
+  - **Kỹ thuật & Giải pháp toàn diện (Frontend + Backend + Share-Lib)**:
+    - **`share-lib` (Shared Utility)**:
+      - Tạo hàm `decodeUtf8FileName(fileName?: string | null): string` tại [`share-lib/src/utils/file.util.ts`](file:///d:/Download/hk1_2027/project_do_an/share-lib/src/utils/file.util.ts).
+      - Cơ chế: Kiểm tra nếu chuỗi chỉ gồm các mã ký tự `<= 255` (Latin-1 byte stream), chuyển đổi sang `Uint8Array` và giải mã an toàn bằng `new TextDecoder('utf-8', { fatal: true }).decode(bytes)`. Nếu chuỗi đã là tiếng Việt Unicode chuẩn hoặc tiếng Anh không dấu, hàm tự động trả về nguyên bản một cách an toàn mà không làm hỏng chuỗi.
+    - **Backend (Chuẩn hóa tự động khi tải lên)**:
+      - `LessonFileValidationPipe`: Tự động khôi phục UTF-8 cho `file.originalname` trước khi thực hiện khử trùng ký tự lạ.
+      - `StorageService.uploadLessonMedia`: Khôi phục `originalName` thành UTF-8 chuẩn trước khi trả về `ILessonContent`.
+      - `CreateLessonDto`: Gắn `@Transform` với `decodeUtf8FileName` trên trường `LessonContentDto.fileName` đảm bảo dữ liệu gửi từ client luôn được chuẩn hóa trước khi lưu vào MongoDB.
+      - Unit Tests: Bổ sung test cases tự động trong `lesson-file-validation.pipe.spec.ts` và `create-lesson.dto.spec.ts` (100% pass 286/286 tests).
+    - **Frontend (Khắc phục ngay các tệp cũ đã lưu)**:
+      - `ContextualInspectorPanel`: Bọc `decodeUtf8FileName` cho `fileName` và `lessonTitle` tại `DocumentItemWithStatus`, giúp toàn bộ tài liệu cũ đã lưu trong DB lập tức hiển thị tiếng Việt mượt mà không còn ô vuông hay ký tự lạ.
+      - `LessonDetailContent`: Giải mã `lesson.content.fileName` tại cả Video Metadata Strip và Document Viewer Card.
+      - `LessonContentApi`: Giải mã tên file trong thông báo Toast thành công.
+  - **Kiểm định chất lượng**:
+    - Backend Unit Tests: 286/286 tests passed (100%).
+    - Frontend ESLint: 0 errors, 0 warnings.
+    - Share-lib TypeScript Build: `tsc` biên dịch thành công 100%.
+
+- **Frontend Milestone (Curriculum Master-Detail 70/30 Layout Ratio)**:
+  - **Mục tiêu**: Điều chỉnh tỉ lệ bố cục Split View tại giao diện chi tiết khóa học của giảng viên (`/instructor/courses/[id]`) theo yêu cầu: Cột bên trái (Cấu trúc giáo trình) chiếm 70% và Cột bên phải (Tổng quan thông tin) chiếm 30%.
+  - **Kỹ thuật & Giải pháp**:
+    - `course-sections-list.tsx`: Chuyển đổi hệ thống Grid từ `grid-cols-12` sang `grid-cols-10`:
+      - Cột trái: `lg:col-span-7 min-w-0 space-y-4` (chiếm đúng 7/10 = 70% bề ngang).
+      - Cột phải: `lg:col-span-3 min-w-0 sticky top-20` (chiếm đúng 3/10 = 30% bề ngang).
+      - Thêm `min-w-0` để ngăn ngừa hiện tượng grid blowout khi có tiêu đề hoặc văn bản dài.
+      - Trên màn hình nhỏ (`< lg`), tự động xếp dọc (100% full-width).
+    - `contextual-inspector-panel.tsx`:
+      - Tinh chỉnh padding thẻ Card từ `p-5` thành `p-4 sm:p-4.5` để tăng diện tích hiển thị hữu ích.
+      - Thẻ Quick Stats: Đổi padding thành `p-2.5`, chữ tiêu đề `text-[10px] leading-tight`, số lượng `text-sm font-bold` giúp các nhãn "Số bài giảng thực tế", "Tổng thời lượng" không bị ngắt dòng chật chội.
+      - `DocumentItemWithStatus`: Giảm padding thành `p-2 gap-1.5`, nút "Mở" rút gọn `text-[10px]`, nhãn trạng thái `text-[9.5px]` và `truncate max-w-[90px]` cho tên bài giảng, đảm bảo danh sách tài liệu hiển thị sắc nét trong không gian 30% mà không bị tràn viền hay che khuất nút bấm.
+  - **Kiểm định**:
+    - ESLint: 0 errors, 0 warnings.
+    - UI: Đã cập nhật tỉ lệ 7:3 chuẩn xác trên live dev server.
+- **Milestone 35 (Lesson Key Points Dynamic Input & Pastel Color Cycling)**:
+  - **Mục tiêu**:
+    1. Thay thế ô `<textarea>` "Mô tả bài học" truyền thống tại modal thêm bài học (`SectionLessonCreateForm`) bằng danh sách nhập liệu động các **Ý cốt lõi của bài học** (Lesson Key Points).
+    2. Mỗi ý cốt lõi khi thêm mới tự động mang một màu nền pastel dịu mắt xoay vòng (color cycling 5 màu) ở tầng UI:
+       - 1. Vàng kem ấm: `#FFF8E6` (viền `#F3E0B5`, dot `#C49B3E`)
+       - 2. Hồng cam pastel: `#FFE2DE` (viền `#F0C4BF`, dot `#D97368`)
+       - 3. Lam xám dịu: `#ADB2C5` (viền `#9297AC`, dot `#5F677D`)
+       - 4. Xanh xám nhạt: `#B5CFD1` (viền `#9BB7B9`, dot `#4E7A7D`)
+       - 5. Xanh sương mù: `#D9E4E6` (viền `#C1D0D3`, dot `#6E888C`)
+       - Chu kỳ lặp lại bằng phép toán `index % 5`. Tuân thủ triệt để Purple Ban (0 mã màu tím).
+       - Thay vì hiển thị số `#1, #2`, mỗi dòng được đánh dấu bằng một dấu chấm tròn (bullet dot) bo tròn tinh tế mang màu sắc phối hợp hài hòa.
+    3. Trải nghiệm bàn phím (Keyboard UX): Bấm `Enter` tại bất kỳ ô input nào sẽ tự động tạo một dòng ý mới ngay bên dưới và focus con trỏ vào ô mới. Hỗ trợ `Backspace` khi ô rỗng và phím mũi tên lên/xuống để điều hướng.
+    4. Cấu trúc dữ liệu lưu trữ: Chuỗi JSON array thuần túy của `string[]` (không lưu mã màu), serialize qua trường `description` hiện tại để duy trì 100% tương thích ngược với MongoDB schema và backend DTO.
+    5. Đồng bộ hiển thị: Hiển thị các thẻ ý cốt lõi mang màu pastel tương ứng tại trang xem chi tiết bài học (`LessonDetailContent`) và bảng thông tin ngữ cảnh (`ContextualInspectorPanel`).
+  - **Kỹ thuật & Giải pháp**:
+    - `frontend/src/features/course/utils/lesson-key-points.util.ts`:
+      - Cung cấp palette 5 màu pastel `PASTEL_KEY_POINT_PALETTE` và hàm `getKeyPointColor(index)`.
+      - Cung cấp danh sách placeholder gợi ý `getKeyPointPlaceholder(index)`.
+      - Cung cấp hàm `serializeKeyPoints(points)` (loại bỏ dòng rỗng, trim khoảng trắng, serialize thành JSON) và `deserializeKeyPoints(desc)` (parse JSON mảng hoặc tách dòng legacy fallback).
+    - `frontend/src/features/course/components/lesson-key-points-input.tsx`:
+      - Component độc lập, tái sử dụng cao, quản lý ref input động và tự động focus khi thêm dòng mới.
+      - Nút bấm thêm nhanh `+ Thêm ý` bo tròn tinh tế cùng hàng với tiêu đề ở góc phải.
+      - Nút xóa `×` hover hiệu ứng đỏ nổi bật.
+    - `frontend/src/features/course/schemas/create-lesson.schema.ts`:
+      - Bổ sung validation cho `keyPoints`: mảng chuỗi, bắt buộc tối thiểu 1 ý, mỗi ý tối đa 200 ký tự, tổng độ dài serialized không quá 1000 ký tự (chống lỗi `@MaxLength(1000)` từ backend).
+    - `frontend/src/features/course/components/section-lesson-create-form.tsx`:
+      - Tích hợp `LessonKeyPointsInput` qua `Controller`, serialize payload khi gọi mutation.
+    - `frontend/src/features/course/components/lesson-detail-content.tsx` & `contextual-inspector-panel.tsx`:
+      - Giải mã `lesson.description` và hiển thị các thẻ/badge pastel xoay vòng sinh động.
+  - **Gotchas & Bài học kinh nghiệm**:
+    - *Zod Resolver Input/Output Asymmetry*: Khi dùng `z.array(...).default([''])`, Zod sinh kiểu input là `string[] | undefined` nhưng output là `string[]`, làm `zodResolver` báo lỗi TypeScript TS2322 với `useForm`. Giải pháp: bỏ `.default(...)` trong Zod schema, dùng `.min(1)` và định nghĩa `defaultValues: { keyPoints: [''] }` trong `useForm`.
+  - **Kiểm định chất lượng**:
+    - Unit Tests: 12/12 unit tests pass 100% tại `frontend/src/features/course/tests/lesson-key-points.spec.ts`.
+    - Backend Unit Tests: 286/286 tests pass 100%.
+    - Frontend Typecheck: `tsc --noEmit` đạt 0 errors.
+    - Frontend Lint: `eslint src/` đạt 0 errors, 0 warnings.
+
+- **Milestone 36 (Lesson Key Points Unique UUID v4 Identification)**:
+  - **Mục tiêu**:
+    1. Lưu trữ ID riêng biệt cho từng ý cốt lõi của bài học (`ILessonKeyPoint = { id: string; text: string }`), chuẩn hóa theo định dạng **UUID v4** (`crypto.randomUUID()`).
+    2. Cung cấp nền tảng định danh bền vững cho sơ đồ Mindmap (Markmap / React Flow nodes), tracking tiến độ học tập và đồng bộ React DOM (`key={point.id}`).
+    3. Tương thích ngược 100% (zero backend schema breaking changes): Serialize mảng `[{ id, text }]` thành chuỗi JSON qua trường `description`.
+    4. Tự động chuyển đổi dữ liệu legacy (auto-migration): Tự động cấp phát UUID v4 khi đọc dữ liệu cũ dạng mảng chuỗi `string[]` hoặc plain text nhiều dòng.
+  - **Kỹ thuật & Giải pháp**:
+    - `frontend/src/features/course/utils/lesson-key-points.util.ts`:
+      - Khai báo interface `ILessonKeyPoint { id: string; text: string }`.
+      - Hàm `generateKeyPointId()`: Sử dụng `crypto.randomUUID()` với fallback regex chuẩn UUID v4.
+      - Hàm `serializeKeyPoints()`: Lọc các ý có nội dung, sinh ID nếu thiếu, serialize thành chuỗi JSON mảng đối tượng.
+      - Hàm `deserializeKeyPoints()`: Nhận diện mảng đối tượng `{ id, text }`, tự động sinh ID cho mảng chuỗi cũ hoặc plain text.
+    - `frontend/src/features/course/schemas/create-lesson.schema.ts`:
+      - Cập nhật `keyPoints`: validate mảng đối tượng `z.object({ id: z.string().min(1), text: z.string().max(200) })`.
+      - Kiểm tra tối thiểu 1 ý có text không rỗng và tổng độ dài serialize $\le 1000$ ký tự.
+    - `frontend/src/features/course/components/lesson-key-points-input.tsx`:
+      - Props `value?: ILessonKeyPoint[]`, `onChange: (points: ILessonKeyPoint[]) => void`.
+      - Sử dụng `key={point.id}` trên DOM, phím Enter tạo mới object `{ id: generateKeyPointId(), text: '' }`.
+      - Hiển thị dấu chấm tròn (bullet dot) màu tương ứng ở vị trí ngoài cùng bên phải thay cho số thứ tự `#1, #2`.
+    - `frontend/src/features/course/components/section-lesson-create-form.tsx`:
+      - Khởi tạo giá trị mặc định `[{ id: generateKeyPointId(), text: '' }]`, submit serialize JSON.
+    - `frontend/src/features/course/components/lesson-detail-content.tsx` & `contextual-inspector-panel.tsx`:
+      - Render thẻ pastel và badge với `key={point.id}` và hiển thị `point.text`.
+    - `frontend/src/features/course/tests/lesson-key-points.spec.ts`:
+      - Bổ sung 14/14 unit tests kiểm tra UUID format, serialization, auto-migration, và schema validation.
+  - **Kiểm định chất lượng**:
+    - Frontend Unit Tests: 14/14 unit tests pass 100%.
+    - Backend Unit Tests: 286/286 unit tests pass 100%.
+    - Frontend Typecheck: `tsc --noEmit` 0 errors.
+    - Frontend Lint: `eslint src/` 0 errors, 0 warnings.
+
+- **Frontend Quick Stat Cards Typography Refinement**:
+  - Tăng kích thước phông chữ của nhãn *"Số bài giảng thực tế"* và *"Tổng thời lượng"* tại `ChapterInspectorView` (`contextual-inspector-panel.tsx`) lên 140% (từ `text-[10px]` lên `text-[14px]` kèm `leading-snug`).
+  - Đồng thời nâng giá trị số liệu từ `text-sm font-bold` lên `text-base font-bold` và `space-y-1` để duy trì tỷ lệ tương quan thị giác hài hòa, rõ nét và dễ đọc.
+  - ESLint: 0 errors, 0 warnings.
+
+- **Relax Maximum Upload File Size Limits (Global)**:
+  - **Mục tiêu & Yêu cầu**: Gỡ bỏ rào cản dung lượng tối đa nhằm hỗ trợ tải lên các tệp bài giảng video độ phân giải cao và tài liệu chuyên sâu, đồng thời duy trì trần bảo vệ chống tràn bộ nhớ (OOM).
+  - **Backend Updates**:
+    - `backend/src/modules/storage/storage.constants.ts`: Nâng `MAX_VIDEO_SIZE_BYTES` từ 900MB lên 5GB (`5 * 1024 * 1024 * 1024`), `MAX_DOCUMENT_SIZE_BYTES` từ 50MB lên 500MB (`500 * 1024 * 1024`), định nghĩa `MAX_AVATAR_SIZE_BYTES = 50MB` (`50 * 1024 * 1024`).
+    - `backend/src/modules/course/pipes/lesson-file-validation.pipe.ts`: Cập nhật thông báo lỗi dung lượng tương ứng (5GB cho video, 500MB cho tài liệu).
+    - `backend/src/modules/user/user.controller.ts`: Nâng giới hạn `MaxFileSizeValidator` cho upload avatar từ 5MB lên 50MB.
+    - `backend/src/modules/course/tests/lesson-file-validation.pipe.spec.ts`: Cập nhật test cases kiểm thử dung lượng 5GB/500MB.
+  - **Frontend Updates**:
+    - `frontend/src/features/course/schemas/create-lesson.schema.ts`: Nâng `MAX_VIDEO_FILE_SIZE = 5GB`, `MAX_DOCUMENT_FILE_SIZE = 500MB`.
+    - `frontend/src/features/course/components/section-lesson-create-form.tsx`: Cập nhật validation client, toast thông báo lỗi và text hướng dẫn (`Hỗ trợ Video (MP4, WebM, MOV ≤ 5GB)` & `Hỗ trợ Tài liệu (PDF, Word .docx ≤ 500MB)`).
+    - `frontend/src/features/profile/components/avatar-uploader.tsx`: Cập nhật `maxSize = 50MB`, toast và text hướng dẫn avatar 50MB.
+  - **Kiểm định chất lượng**:
+    - Backend Unit Tests: 286/286 unit tests pass 100%.
+    - Frontend Lint: `eslint src/` pass 0 errors, 0 warnings.
+
+
+
+
 
 
 

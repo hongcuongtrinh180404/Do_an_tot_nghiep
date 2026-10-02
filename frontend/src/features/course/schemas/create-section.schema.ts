@@ -19,7 +19,8 @@ export const createSectionSchema = z.object({
   order: z
     .number({ message: 'Thứ tự chương học phải là một số hợp lệ' })
     .int('Thứ tự chương học phải là số nguyên')
-    .min(0, 'Thứ tự chương học phải lớn hơn hoặc bằng 0'),
+    .min(0, 'Thứ tự chương học phải lớn hơn hoặc bằng 0')
+    .optional(),
 });
 
 export type CreateSectionFormData = z.infer<typeof createSectionSchema>;

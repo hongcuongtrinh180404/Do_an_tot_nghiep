@@ -36,7 +36,7 @@ services:
       "
 
   minio:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     container_name: thc_minio
     restart: unless-stopped
     ports:
@@ -50,7 +50,7 @@ services:
     command: server /data --console-address ":9001"
 
   minio-init:
-    image: minio/mc:latest
+    image: cgr.dev/chainguard/minio-client:latest-dev
     container_name: thc_minio_init
     depends_on:
       - minio

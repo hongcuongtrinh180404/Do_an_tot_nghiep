@@ -283,6 +283,27 @@ describe('CreateLessonDto', () => {
       expect(dto.content?.fileName).toBe('guide.pdf');
     });
 
+    it('17b. should transform and decode mojibake fileName in content', async () => {
+      const rawVietnamese = 'Tài liệu hướng dẫn môn học.pdf';
+      const latin1FileName = Buffer.from(rawVietnamese, 'utf8').toString('latin1');
+
+      const payload = {
+        title: 'Tài liệu môn học',
+        order: 1,
+        content: {
+          type: LessonContentTypeEnum.DOCUMENT,
+          url: 'https://storage.example.com/guide.pdf',
+          fileName: latin1FileName,
+        },
+      };
+
+      const dto = plainToInstance(CreateLessonDto, payload);
+      const errors = await validate(dto);
+
+      expect(errors).toHaveLength(0);
+      expect(dto.content?.fileName).toBe('Tài liệu hướng dẫn môn học.pdf');
+    });
+
     it('18. should validate successfully when content is null or omitted', async () => {
       const payloadNull = {
         title: 'Bài học chưa có media',

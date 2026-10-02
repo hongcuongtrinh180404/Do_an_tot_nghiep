@@ -12,7 +12,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { LessonContentTypeEnum } from 'share-lib';
+import { LessonContentTypeEnum, decodeUtf8FileName } from 'share-lib';
 
 export class LessonContentDto {
   @IsNotEmpty({ message: 'Loại nội dung bài học không được để trống' })
@@ -33,6 +33,9 @@ export class LessonContentDto {
   publicId?: string;
 
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? decodeUtf8FileName(value.trim()) : value,
+  )
   @IsString({ message: 'fileName phải là chuỗi ký tự' })
   fileName?: string;
 

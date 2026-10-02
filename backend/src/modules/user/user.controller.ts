@@ -15,6 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { IUserProfile } from 'share-lib';
 import { ApiResponse } from '../base/index.js';
+import { MAX_AVATAR_SIZE_BYTES } from '../storage/index.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { UserService } from './services/user.service.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
@@ -51,8 +52,8 @@ export class UserController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({
-            maxSize: 5 * 1024 * 1024,
-            message: 'Dung lượng ảnh tối đa là 5MB',
+            maxSize: MAX_AVATAR_SIZE_BYTES,
+            message: 'Dung lượng ảnh tối đa là 50MB',
           }),
           new FileTypeValidator({
             fileType: /(jpg|jpeg|png|webp|gif)$/i,

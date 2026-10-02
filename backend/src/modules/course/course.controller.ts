@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Param,
   HttpCode,
@@ -15,6 +16,7 @@ import { Public } from '../auth/decorators/public.decorator.js';
 import { CourseService } from './services/course.service.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
 import { CreateSectionDto } from './dto/create-section.dto.js';
+import { ReorderSectionsDto } from './dto/reorder-sections.dto.js';
 
 @Controller('courses')
 export class CourseController {
@@ -75,6 +77,23 @@ export class CourseController {
   ): Promise<ApiResponse<ISection>> {
     const section = await this.courseService.createSection(courseId, dto, userId, role);
     return ApiResponse.success(section, 'Tạo chương học thành công');
+  }
+
+  @Put(':courseId/sections/reorder')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  async reorderSections(
+    @Param('courseId', ParseObjectIdPipe) courseId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: RoleEnum,
+    @Body() dto: ReorderSectionsDto,
+  ): Promise<ApiResponse<ISection[]>> {
+    const sections = await this.courseService.reorderSections(
+      courseId,
+      dto,
+      userId,
+      role,
+    );
+    return ApiResponse.success(sections, 'Cập nhật thứ tự chương học thành công');
   }
 
   @Get(':courseId/sections')

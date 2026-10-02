@@ -22,6 +22,7 @@ import { CourseRepository } from '../repositories/course.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { CreateSectionDto } from '../dto/create-section.dto.js';
+import { ReorderSectionsDto } from '../dto/reorder-sections.dto.js';
 
 describe('CourseService', () => {
   let service: CourseService;
@@ -35,6 +36,7 @@ describe('CourseService', () => {
   let mockSectionRepository: {
     create: ReturnType<typeof vi.fn>;
     findByCourseId: ReturnType<typeof vi.fn>;
+    reorderSections: ReturnType<typeof vi.fn>;
   };
   let mockUserRepository: {
     findById: ReturnType<typeof vi.fn>;
@@ -79,6 +81,7 @@ describe('CourseService', () => {
     mockSectionRepository = {
       create: vi.fn(),
       findByCourseId: vi.fn(),
+      reorderSections: vi.fn(),
     };
 
     mockUserRepository = {
@@ -610,6 +613,35 @@ describe('CourseService', () => {
         mockSession,
       );
     });
+
+    it('11. should auto-calculate order as existingSections.length when dto.order is undefined', async () => {
+      mockCourseRepository.findById.mockResolvedValue(courseOwner);
+      mockSectionRepository.findByCourseId.mockResolvedValue([
+        { id: 'sec_1', order: 0 },
+        { id: 'sec_2', order: 1 },
+      ]);
+      mockSectionRepository.create.mockResolvedValue({
+        ...sampleCreatedSection,
+        order: 2,
+      });
+
+      const dtoWithoutOrder: CreateSectionDto = {
+        title: 'Chương tự động thứ tự',
+      };
+
+      await service.createSection(
+        'course_100',
+        dtoWithoutOrder,
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(mockSectionRepository.findByCourseId).toHaveBeenCalledWith('course_100', undefined);
+      expect(mockSectionRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ order: 2 }),
+        undefined,
+      );
+    });
   });
 
   describe('getSectionsByCourseId', () => {
@@ -708,6 +740,186 @@ describe('CourseService', () => {
       expect(mockCourseRepository.findById).toHaveBeenCalledWith('course_existing_123', mockSession);
       expect(mockSectionRepository.findByCourseId).toHaveBeenCalledWith('course_existing_123', mockSession);
       expect(result).toEqual(sampleSections);
+    });
+  });
+
+  describe('reorderSections', () => {
+    const targetCourse: ICourse = {
+      id: 'course_123',
+      title: 'Khóa học TypeScript',
+      slug: 'khoa-hoc-typescript',
+      instructorId: 'instructor_1',
+      price: 150000,
+      status: CourseStatusEnum.PUBLISHED,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const existingSections: ISection[] = [
+      {
+        id: 'sec_1',
+        courseId: 'course_123',
+        title: 'Chương 1',
+        order: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: 'sec_2',
+        courseId: 'course_123',
+        title: 'Chương 2',
+        order: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+
+    it('1. should successfully reorder sections when user is course owner (INSTRUCTOR)', async () => {
+      mockCourseRepository.findById.mockResolvedValue(targetCourse);
+      mockSectionRepository.findByCourseId.mockResolvedValue(existingSections);
+      mockSectionRepository.reorderSections.mockResolvedValue([
+        { ...existingSections[1], order: 0 },
+        { ...existingSections[0], order: 1 },
+      ]);
+
+      const dto: ReorderSectionsDto = { sectionIds: ['sec_2', 'sec_1'] };
+
+      const result = await service.reorderSections(
+        'course_123',
+        dto,
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(mockSectionRepository.reorderSections).toHaveBeenCalledWith(
+        'course_123',
+        ['sec_2', 'sec_1'],
+        'instructor_1',
+        undefined,
+      );
+      expect(result[0].id).toBe('sec_2');
+      expect(result[0].order).toBe(0);
+      expect(result[1].id).toBe('sec_1');
+      expect(result[1].order).toBe(1);
+    });
+
+    it('2. should successfully reorder sections when user is ADMIN even if not course owner', async () => {
+      mockCourseRepository.findById.mockResolvedValue(targetCourse);
+      mockSectionRepository.findByCourseId.mockResolvedValue(existingSections);
+      mockSectionRepository.reorderSections.mockResolvedValue([
+        { ...existingSections[1], order: 0 },
+        { ...existingSections[0], order: 1 },
+      ]);
+
+      const dto: ReorderSectionsDto = { sectionIds: ['sec_2', 'sec_1'] };
+
+      const result = await service.reorderSections(
+        'course_123',
+        dto,
+        'admin_1',
+        RoleEnum.ADMIN,
+      );
+
+      expect(mockSectionRepository.reorderSections).toHaveBeenCalledWith(
+        'course_123',
+        ['sec_2', 'sec_1'],
+        'admin_1',
+        undefined,
+      );
+      expect(result).toHaveLength(2);
+    });
+
+    it('3. should throw NotFoundException when course does not exist or findById throws', async () => {
+      mockCourseRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.reorderSections(
+          'non_existent_course',
+          { sectionIds: ['sec_1'] },
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('4. should throw NotFoundException when course is soft-deleted', async () => {
+      mockCourseRepository.findById.mockResolvedValue({
+        ...targetCourse,
+        deletedAt: new Date(),
+      });
+
+      await expect(
+        service.reorderSections(
+          'course_123',
+          { sectionIds: ['sec_1'] },
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('5. should throw ForbiddenException when user is neither course owner nor ADMIN', async () => {
+      mockCourseRepository.findById.mockResolvedValue(targetCourse);
+
+      await expect(
+        service.reorderSections(
+          'course_123',
+          { sectionIds: ['sec_2', 'sec_1'] },
+          'stranger_instructor_99',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('6. should throw BadRequestException when sectionIds contains duplicate IDs', async () => {
+      mockCourseRepository.findById.mockResolvedValue(targetCourse);
+
+      await expect(
+        service.reorderSections(
+          'course_123',
+          { sectionIds: ['sec_1', 'sec_1'] },
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('7. should throw BadRequestException when sectionIds contains IDs not in existing sections', async () => {
+      mockCourseRepository.findById.mockResolvedValue(targetCourse);
+      mockSectionRepository.findByCourseId.mockResolvedValue(existingSections);
+
+      await expect(
+        service.reorderSections(
+          'course_123',
+          { sectionIds: ['sec_1', 'foreign_id'] },
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('8. should pass session down to sectionRepository.reorderSections when provided', async () => {
+      const mockSession = { id: 'mock_session_1' } as unknown as ClientSession;
+      mockCourseRepository.findById.mockResolvedValue(targetCourse);
+      mockSectionRepository.findByCourseId.mockResolvedValue(existingSections);
+      mockSectionRepository.reorderSections.mockResolvedValue(existingSections);
+
+      const dto: ReorderSectionsDto = { sectionIds: ['sec_1', 'sec_2'] };
+
+      await service.reorderSections(
+        'course_123',
+        dto,
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+        mockSession,
+      );
+
+      expect(mockSectionRepository.reorderSections).toHaveBeenCalledWith(
+        'course_123',
+        ['sec_1', 'sec_2'],
+        'instructor_1',
+        mockSession,
+      );
     });
   });
 });

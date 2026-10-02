@@ -18,3 +18,6 @@ export * from './interfaces/lesson.interface.js';
 // Constants
 export * from './constants/auth.constants.js';
 
+// Utils
+export * from './utils/file.util.js';
+

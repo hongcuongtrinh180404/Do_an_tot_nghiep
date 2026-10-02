@@ -14,6 +14,10 @@ export interface ISection {
 export interface ICreateSectionPayload {
   title: string;
   description?: string | null;
-  order: number;
+  order?: number;
+}
+
+export interface IReorderSectionsPayload {
+  sectionIds: string[];
 }
 

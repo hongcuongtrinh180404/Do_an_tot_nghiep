@@ -55,4 +55,43 @@ export class SectionRepository extends BaseMongoRepository<ISection, SectionEnti
 
     return docs.map((doc) => this.toDomain(doc));
   }
+
+  async reorderSections(
+    courseId: string,
+    sectionIds: string[],
+    userId?: string,
+    session?: ClientSession,
+  ): Promise<ISection[]> {
+    const courseObjectId = Types.ObjectId.isValid(courseId)
+      ? new Types.ObjectId(courseId)
+      : courseId;
+
+    const operations = sectionIds.map((id, index) => {
+      const sectionObjectId = Types.ObjectId.isValid(id)
+        ? new Types.ObjectId(id)
+        : id;
+
+      return {
+        updateOne: {
+          filter: {
+            _id: sectionObjectId,
+            courseId: courseObjectId,
+            deletedAt: null,
+          },
+          update: {
+            $set: {
+              order: index,
+              ...(userId ? { updatedById: userId } : {}),
+            },
+          },
+        },
+      };
+    });
+
+    if (operations.length > 0) {
+      await this.model.bulkWrite(operations, { session: session ?? undefined });
+    }
+
+    return this.findByCourseId(courseId, session);
+  }
 }

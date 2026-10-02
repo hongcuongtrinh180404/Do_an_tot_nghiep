@@ -21,8 +21,10 @@
 
 ## 2. Quy tắc Nghiệp vụ Cốt lõi (Core Business Rules)
 
-1. **Thứ tự hiển thị (Order Indexing)**:
-   - Các chương học (`Chapter`) và bài học (`Lesson`) phải luôn được sắp xếp tăng dần theo trường `orderIndex`. Khi xóa hoặc chèn bài học, hệ thống duy trì tính liên tục của `orderIndex`.
+1. **Thứ tự hiển thị (Order Indexing) & Kéo - Thả (Drag & Drop)**:
+   - Các chương học (`Section`) và bài học (`Lesson`) được sắp xếp tăng dần theo trường `order` (0-based).
+   - Khi tạo chương học mới, trường `order` tự động được tính bằng `max(current_orders) + 1` (hoặc `0` nếu là chương đầu tiên) mà không cần người dùng nhập tay.
+   - Thao tác Kéo - Thả (Drag & Drop) tại giao diện Master Tree tự động kích hoạt tính năng tính toán lại vị trí và đồng bộ hàng loạt vào CSDL thông qua MongoDB Transaction với cơ chế Silent Optimistic UI.
 2. **Trạng thái bài giảng liên quan tới Video**:
    - Khi tạo bài học mới và tải video lên, trạng thái video ban đầu là `UPLOADED`. Bài học chỉ có thể chuyển sang trạng thái `ACTIVE` khi AI Pipeline hoàn tất xử lý và trả về `READY`.
 3. **Audit & Soft Delete**:

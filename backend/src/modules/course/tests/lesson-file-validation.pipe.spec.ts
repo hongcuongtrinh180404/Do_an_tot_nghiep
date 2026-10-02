@@ -45,7 +45,7 @@ describe('LessonFileValidationPipe', () => {
     }
   });
 
-  it('should throw BadRequestException when video exceeds 900MB limit', () => {
+  it('should throw BadRequestException when video exceeds 5GB limit', () => {
     const oversizedVideo = {
       originalname: 'huge_lecture.mp4',
       mimetype: 'video/mp4',
@@ -56,7 +56,7 @@ describe('LessonFileValidationPipe', () => {
     expect(() => pipe.transform(oversizedVideo)).toThrow(BadRequestException);
   });
 
-  it('should throw BadRequestException when document exceeds 50MB limit', () => {
+  it('should throw BadRequestException when document exceeds 500MB limit', () => {
     const oversizedDoc = {
       originalname: 'heavy_doc.pdf',
       mimetype: 'application/pdf',
@@ -108,5 +108,21 @@ describe('LessonFileValidationPipe', () => {
       expect(result.originalname).not.toContain('..');
       expect(result.originalname).not.toContain(':');
     }
+  });
+
+  it('should automatically decode Latin-1 mangled UTF-8 filenames (mojibake from multer)', () => {
+    const rawVietnamese = 'Các chủ đề tiểu luận.docx';
+    // Simulate multer parsing UTF-8 bytes as Latin-1 string
+    const multerLatin1Name = Buffer.from(rawVietnamese, 'utf8').toString('latin1');
+
+    const file = {
+      mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      originalname: multerLatin1Name,
+      size: 5 * 1024 * 1024,
+      buffer: Buffer.from('doc_bytes'),
+    } as Express.Multer.File;
+
+    const result = pipe.transform(file);
+    expect(result.originalname).toBe('Các chủ đề tiểu luận.docx');
   });
 });

@@ -33,11 +33,11 @@ export function AvatarUploader({
       return;
     }
 
-    // Validate size (max 5MB)
-    const maxSize = 5 * 1024 * 1024;
+    // Validate size (max 50MB)
+    const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
       toast.error('File quá lớn', {
-        description: 'Dung lượng ảnh tối đa cho phép là 5MB.',
+        description: 'Dung lượng ảnh tối đa cho phép là 50MB.',
       });
       return;
     }
@@ -210,7 +210,7 @@ export function AvatarUploader({
         </div>
 
         <p className="text-[11px] text-muted-foreground leading-tight">
-          Hỗ trợ JPG, PNG, WEBP hoặc GIF (Tối đa 5MB). Tự động lưu lên Cloudinary.
+          Hỗ trợ JPG, PNG, WEBP hoặc GIF (Tối đa 50MB). Tự động lưu lên Cloudinary.
         </p>
       </div>
     </div>

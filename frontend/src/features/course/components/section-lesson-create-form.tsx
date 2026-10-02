@@ -17,18 +17,23 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Icon } from '@/components/ui/icon';
 
 import {
   createLessonSchema,
   type CreateLessonFormData,
-  ACCEPTED_LESSON_FILE_EXTENSIONS,
+  ACCEPTED_VIDEO_FILE_EXTENSIONS,
+  ACCEPTED_DOCUMENT_FILE_EXTENSIONS,
   MAX_VIDEO_FILE_SIZE,
   MAX_DOCUMENT_FILE_SIZE,
   isVideoFile,
   isDocumentFile,
 } from '../schemas/create-lesson.schema';
+import { LessonKeyPointsInput } from './lesson-key-points-input';
+import {
+  serializeKeyPoints,
+  generateKeyPointId,
+} from '../utils/lesson-key-points.util';
 import { useSectionLessonsQuery, useCreateLessonMutation } from '../api/course.api';
 import { useUploadLessonContentMutation } from '../api/lesson-content.api';
 
@@ -85,14 +90,16 @@ export function SectionLessonCreateForm({
     resolver: zodResolver(createLessonSchema),
     defaultValues: {
       title: '',
-      description: '',
+      keyPoints: [{ id: generateKeyPointId(), text: '' }],
       order: calculatedOrder,
+      contentType: 'video',
       contentFile: null,
       isPreview: false,
     },
   });
 
   const selectedFile = useWatch({ control, name: 'contentFile' });
+  const contentType = useWatch({ control, name: 'contentType' }) ?? 'video';
 
   const isUploading = uploadStatus === 'UPLOADING' || uploadMutation.isPending;
   const isCreating = isSubmitting || createLessonMutation.isPending;
@@ -103,8 +110,9 @@ export function SectionLessonCreateForm({
     if (open) {
       reset({
         title: '',
-        description: '',
+        keyPoints: [{ id: generateKeyPointId(), text: '' }],
         order: calculatedOrder,
+        contentType: 'video',
         contentFile: null,
         isPreview: false,
       });
@@ -114,8 +122,9 @@ export function SectionLessonCreateForm({
   const performClose = () => {
     reset({
       title: '',
-      description: '',
+      keyPoints: [{ id: generateKeyPointId(), text: '' }],
       order: calculatedOrder,
+      contentType: 'video',
       contentFile: null,
       isPreview: false,
     });
@@ -130,7 +139,7 @@ export function SectionLessonCreateForm({
   const handleRequestClose = () => {
     if (isPending) return;
 
-    // Nếu đã upload file thành công lên Cloudinary mà chưa submit bài học -> Hiện confirmation dialog
+    // Nếu đã upload file thành công lên MinIO mà chưa submit bài học -> Hiện confirmation dialog
     if (uploadStatus === 'UPLOADED' && uploadedContent) {
       setShowExitConfirm(true);
       return;
@@ -152,8 +161,8 @@ export function SectionLessonCreateForm({
       const msg =
         err && typeof err === 'object' && 'response' in err
           ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-          : 'Tải file lên Cloudinary thất bại. Vui lòng thử lại.';
-      setUploadErrorMessage(msg || 'Lỗi tải file lên Cloudinary');
+          : 'Tải file lên máy chủ lưu trữ thất bại. Vui lòng thử lại.';
+      setUploadErrorMessage(msg || 'Lỗi tải file lên máy chủ lưu trữ');
     }
   };
 
@@ -166,30 +175,35 @@ export function SectionLessonCreateForm({
       return;
     }
 
-    // Client-side file type validation
-    const isVideo = isVideoFile(file);
-    const isDoc = isDocumentFile(file);
-
-    if (!isVideo && !isDoc) {
-      toast.error('Định dạng file không được hỗ trợ', {
-        description: 'Chỉ chấp nhận video (.mp4, .webm, .mov) hoặc tài liệu (.pdf, .docx).',
-      });
-      return;
-    }
-
-    // Client-side file size validation
-    if (isVideo && file.size > MAX_VIDEO_FILE_SIZE) {
-      toast.error('Dung lượng video vượt quá giới hạn', {
-        description: `Dung lượng video (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá mức tối đa cho phép là 900MB.`,
-      });
-      return;
-    }
-
-    if (isDoc && file.size > MAX_DOCUMENT_FILE_SIZE) {
-      toast.error('Dung lượng tài liệu vượt quá giới hạn', {
-        description: `Dung lượng tài liệu (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá mức tối đa cho phép là 50MB.`,
-      });
-      return;
+    // Client-side file type and size validation according to contentType
+    if (contentType === 'video') {
+      if (!isVideoFile(file)) {
+        toast.error('Định dạng file không phù hợp', {
+          description:
+            'Bạn đang chọn loại "Video bài giảng". Vui lòng chọn file video định dạng .mp4, .webm hoặc .mov.',
+        });
+        return;
+      }
+      if (file.size > MAX_VIDEO_FILE_SIZE) {
+        toast.error('Dung lượng video vượt quá giới hạn', {
+          description: `Dung lượng video (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá mức tối đa cho phép là 5GB.`,
+        });
+        return;
+      }
+    } else {
+      if (!isDocumentFile(file)) {
+        toast.error('Định dạng file không phù hợp', {
+          description:
+            'Bạn đang chọn loại "Tài liệu tham khảo / Bài đọc". Vui lòng chọn file tài liệu định dạng .pdf hoặc .docx.',
+        });
+        return;
+      }
+      if (file.size > MAX_DOCUMENT_FILE_SIZE) {
+        toast.error('Dung lượng tài liệu vượt quá giới hạn', {
+          description: `Dung lượng tài liệu (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá mức tối đa cho phép là 500MB.`,
+        });
+        return;
+      }
     }
 
     setValue('contentFile', file, { shouldValidate: true });
@@ -232,10 +246,12 @@ export function SectionLessonCreateForm({
       uploadStatus === 'UPLOADED' && uploadedContent ? uploadedContent : null;
 
     try {
+      const serializedDescription = serializeKeyPoints(data.keyPoints);
+
       await createLessonMutation.mutateAsync({
         title: data.title.trim(),
-        description: data.description?.trim() ? data.description.trim() : undefined,
-        order: data.order,
+        description: serializedDescription,
+        order: calculatedOrder,
         content: payloadContent,
         isPreview: data.isPreview,
       });
@@ -305,61 +321,59 @@ export function SectionLessonCreateForm({
               )}
             </div>
 
-            {/* Mô tả bài học */}
+            {/* Nội dung cốt lõi của bài học (Lesson Key Points) */}
+            <Controller
+              name="keyPoints"
+              control={control}
+              render={({ field }) => (
+                <LessonKeyPointsInput
+                  id="lesson-key-points"
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={isPending}
+                  error={errors.keyPoints?.message}
+                />
+              )}
+            />
+
+            {/* Loại nội dung bài học */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="lesson-description" className="text-xs font-medium text-foreground">
-                  Mô tả bài học
+                <Label htmlFor="lesson-content-type" className="text-xs font-medium text-foreground">
+                  Loại nội dung bài học
                 </Label>
-                <span className="text-[11px] text-muted-foreground">Không bắt buộc</span>
+                {selectedFile && (
+                  <span className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium">
+                    <Icon icon="lucide:info" className="size-3 shrink-0" />
+                    <span>Xóa file hiện tại để đổi loại nội dung</span>
+                  </span>
+                )}
               </div>
-              <Textarea
-                id="lesson-description"
-                rows={3}
-                placeholder="Tóm tắt ngắn gọn nội dung hoặc mục tiêu của bài học..."
-                disabled={isPending}
-                aria-invalid={Boolean(errors.description)}
-                {...register('description')}
-              />
-              {errors.description && (
-                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                  <Icon icon="lucide:alert-circle" className="size-3.5 shrink-0" />
-                  <span>{errors.description.message}</span>
-                </p>
-              )}
-            </div>
-
-            {/* Thứ tự bài học */}
-            <div className="space-y-1.5">
-              <Label htmlFor="lesson-order" className="text-xs font-medium text-foreground">
-                Thứ tự hiển thị <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="lesson-order"
-                type="number"
-                min={0}
-                step={1}
-                placeholder="0"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.order)}
-                {...register('order', { valueAsNumber: true })}
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Số nguyên từ 0 trở lên dùng để sắp xếp thứ tự các bài học trong chương này.
-              </p>
-              {errors.order && (
-                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                  <Icon icon="lucide:alert-circle" className="size-3.5 shrink-0" />
-                  <span>{errors.order.message}</span>
-                </p>
-              )}
+              <div className="relative">
+                <select
+                  id="lesson-content-type"
+                  disabled={isPending || Boolean(selectedFile)}
+                  {...register('contentType')}
+                  className="h-9 w-full appearance-none rounded-lg border border-input bg-transparent px-3 py-1.5 pr-8 text-xs font-medium text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-muted/40 disabled:opacity-75 dark:bg-input/30"
+                >
+                  <option value="video" className="bg-popover text-popover-foreground">
+                    🎬 Video bài giảng (MP4, WebM, MOV)
+                  </option>
+                  <option value="document" className="bg-popover text-popover-foreground">
+                    📄 Tài liệu tham khảo / Bài đọc (PDF, DOCX)
+                  </option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground">
+                  <Icon icon="lucide:chevron-down" className="size-3.5" />
+                </div>
+              </div>
             </div>
 
             {/* Tài liệu / Video bài học */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-medium text-foreground">
-                  Tài liệu / Video bài học
+                  {contentType === 'video' ? 'Video bài giảng' : 'Tài liệu học tập'}
                 </Label>
                 <span className="text-[11px] font-mono text-muted-foreground">
                   {uploadStatus === 'UPLOADING' && (
@@ -371,7 +385,7 @@ export function SectionLessonCreateForm({
                   {uploadStatus === 'UPLOADED' && (
                     <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
                       <Icon icon="lucide:check-circle-2" className="size-3" />
-                      Đã lưu Cloudinary
+                      Đã lưu MinIO
                     </span>
                   )}
                   {uploadStatus === 'UPLOAD_ERROR' && (
@@ -386,9 +400,13 @@ export function SectionLessonCreateForm({
 
               <input
                 id="lesson-file-input"
-                key={selectedFile ? selectedFile.name : 'empty-file-input'}
+                key={`${contentType}-${selectedFile ? selectedFile.name : 'empty'}`}
                 type="file"
-                accept={ACCEPTED_LESSON_FILE_EXTENSIONS}
+                accept={
+                  contentType === 'video'
+                    ? ACCEPTED_VIDEO_FILE_EXTENSIONS
+                    : ACCEPTED_DOCUMENT_FILE_EXTENSIONS
+                }
                 disabled={isPending || uploadStatus === 'UPLOADED'}
                 className="sr-only"
                 onChange={(e) => {
@@ -422,13 +440,20 @@ export function SectionLessonCreateForm({
                   }`}
                 >
                   <div className="size-8 rounded-full bg-muted/60 flex items-center justify-center text-muted-foreground mb-2">
-                    <Icon icon="lucide:upload-cloud" className="size-4" />
+                    <Icon
+                      icon={contentType === 'video' ? 'lucide:video' : 'lucide:file-text'}
+                      className="size-4"
+                    />
                   </div>
                   <p className="text-xs font-medium text-foreground">
-                    Nhấn hoặc kéo thả video / tài liệu vào đây
+                    {contentType === 'video'
+                      ? 'Nhấn hoặc kéo thả video bài giảng vào đây'
+                      : 'Nhấn hoặc kéo thả tài liệu học tập vào đây'}
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Hỗ trợ Video (MP4, WebM, MOV ≤ 900MB) hoặc Tài liệu (PDF, DOCX ≤ 50MB)
+                    {contentType === 'video'
+                      ? 'Hỗ trợ Video (MP4, WebM, MOV ≤ 5GB)'
+                      : 'Hỗ trợ Tài liệu (PDF, Word .docx ≤ 500MB)'}
                   </p>
                 </label>
               ) : (
@@ -455,7 +480,7 @@ export function SectionLessonCreateForm({
                         <Icon icon="lucide:loader-2" className="size-4 animate-spin" />
                       ) : (
                         <Icon
-                          icon={isVideo ? 'lucide:file-video' : 'lucide:file-text'}
+                          icon={isVideo ? 'lucide:video' : 'lucide:file-text'}
                           className="size-4"
                         />
                       )}
@@ -524,36 +549,73 @@ export function SectionLessonCreateForm({
               )}
             </div>
 
-            {/* Toggle Học thử miễn phí (isPreview) */}
-            <div className="rounded-lg border border-border/40 p-3 bg-muted/10">
-              <Controller
-                name="isPreview"
-                control={control}
-                render={({ field }) => (
-                  <label
-                    className={`flex items-start gap-3 select-none ${
-                      isPending ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
-                    }`}
+            {/* Interactive Toggle Card: Cho phép học thử miễn phí (isPreview) */}
+            <Controller
+              name="isPreview"
+              control={control}
+              render={({ field }) => {
+                const isChecked = Boolean(field.value);
+                return (
+                  <div
+                    className={`rounded-xl border p-3.5 transition-all duration-200 ${
+                      isChecked
+                        ? 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-800 dark:bg-emerald-950/25 shadow-xs'
+                        : 'border-border/60 bg-muted/10 hover:border-border/80'
+                    } ${isPending ? 'opacity-60 pointer-events-none' : ''}`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={field.value}
-                      disabled={isPending}
-                      onChange={(e) => field.onChange(e.target.checked)}
-                      className="size-4 mt-0.5 rounded border-border text-primary focus:ring-primary/20 accent-primary"
-                    />
-                    <div className="flex-1">
-                      <span className="text-xs font-semibold text-foreground block">
-                        Cho phép học thử miễn phí
-                      </span>
-                      <span className="text-[11px] text-muted-foreground block mt-0.5 leading-relaxed">
-                        Học viên có thể xem trước nội dung bài học này mà không cần mua khóa học.
-                      </span>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                            isChecked
+                              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          <Icon
+                            icon={isChecked ? 'lucide:lock-open' : 'lucide:lock'}
+                            className="size-4.5"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-foreground">
+                              Cho phép học thử miễn phí
+                            </span>
+                            {isChecked ? (
+                              <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+                                Mở phễu
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                Khóa
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1 leading-relaxed">
+                            {isChecked
+                              ? 'Học viên có thể xem trước nội dung bài học này mà không cần mua khóa học.'
+                              : 'Chỉ học viên đã đăng ký khóa học mới có quyền truy cập bài học này.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Switch toggle control */}
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          disabled={isPending}
+                          onChange={(e) => field.onChange(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-muted-foreground/30 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 dark:peer-checked:bg-emerald-500"></div>
+                      </label>
                     </div>
-                  </label>
-                )}
-              />
-            </div>
+                  </div>
+                );
+              }}
+            />
 
             <DialogFooter className="gap-2 sm:gap-0 pt-2">
               <Button
@@ -592,7 +654,7 @@ export function SectionLessonCreateForm({
         </DialogContent>
       </Dialog>
 
-      {/* Confirmation Dialog: Cảnh báo khi file đã upload lên Cloudinary nhưng chưa lưu vào Lesson */}
+      {/* Confirmation Dialog: Cảnh báo khi file đã upload lên MinIO nhưng chưa lưu vào Lesson */}
       <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -605,7 +667,7 @@ export function SectionLessonCreateForm({
                   Hủy tạo bài học?
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  File nội dung đã được tải lên Cloudinary thành công nhưng chưa được lưu vào bài học nào.
+                  File nội dung đã được tải lên máy chủ lưu trữ (MinIO) thành công nhưng chưa được lưu vào bài học nào.
                 </DialogDescription>
               </div>
             </div>

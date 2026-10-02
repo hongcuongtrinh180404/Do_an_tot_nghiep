@@ -21,6 +21,7 @@ import { CourseController } from '../course.controller.js';
 import { CourseService } from '../services/course.service.js';
 import { CreateCourseDto } from '../dto/create-course.dto.js';
 import { CreateSectionDto } from '../dto/create-section.dto.js';
+import { ReorderSectionsDto } from '../dto/reorder-sections.dto.js';
 import { ROLES_KEY } from '../../auth/decorators/roles.decorator.js';
 import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator.js';
 import { RolesGuard } from '../../auth/guards/roles.guard.js';
@@ -32,6 +33,7 @@ describe('CourseController', () => {
     findByInstructorId: ReturnType<typeof vi.fn>;
     getCourseDetailForInstructor: ReturnType<typeof vi.fn>;
     createSection: ReturnType<typeof vi.fn>;
+    reorderSections: ReturnType<typeof vi.fn>;
     getSectionsByCourseId: ReturnType<typeof vi.fn>;
   };
 
@@ -66,6 +68,7 @@ describe('CourseController', () => {
       findByInstructorId: vi.fn(),
       getCourseDetailForInstructor: vi.fn(),
       createSection: vi.fn(),
+      reorderSections: vi.fn(),
       getSectionsByCourseId: vi.fn(),
     };
 
@@ -526,6 +529,59 @@ describe('CourseController', () => {
     });
   });
 
+  describe('PUT /courses/:courseId/sections/reorder - reorderSections', () => {
+    it('1. should delegate to courseService.reorderSections with courseId, dto, userId, and role', async () => {
+      const courseId = '507f1f77bcf86cd799439011';
+      const userId = 'instructor_1';
+      const role = RoleEnum.INSTRUCTOR;
+      const dto: ReorderSectionsDto = {
+        sectionIds: ['507f1f77bcf86cd799439022', '507f1f77bcf86cd799439033'],
+      };
+
+      const mockReordered: ISection[] = [
+        {
+          id: '507f1f77bcf86cd799439022',
+          courseId,
+          title: 'Chương 2',
+          order: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: '507f1f77bcf86cd799439033',
+          courseId,
+          title: 'Chương 1',
+          order: 1,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+
+      mockCourseService.reorderSections.mockResolvedValue(mockReordered);
+
+      const response = await controller.reorderSections(courseId, userId, role, dto);
+
+      expect(mockCourseService.reorderSections).toHaveBeenCalledWith(
+        courseId,
+        dto,
+        userId,
+        role,
+      );
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Cập nhật thứ tự chương học thành công');
+      expect(response.data).toEqual(mockReordered);
+    });
+
+    it('2. should enforce INSTRUCTOR and ADMIN roles on reorderSections route', () => {
+      const reflector = new Reflector();
+      const roles = reflector.get<string[]>(ROLES_KEY, CourseController.prototype.reorderSections);
+
+      expect(roles).toBeDefined();
+      expect(roles).toContain(RoleEnum.INSTRUCTOR);
+      expect(roles).toContain(RoleEnum.ADMIN);
+    });
+  });
+
   describe('GET /courses/:courseId/sections - getSections', () => {
     it('1. should pass courseId to courseService.getSectionsByCourseId and return ApiResponse', async () => {
       const courseId = '507f1f77bcf86cd799439011';
@@ -623,17 +679,18 @@ describe('CourseController', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should reject missing order', async () => {
+    it('should accept missing order as optional', async () => {
       const payload = {
         title: 'Chương 1',
       };
 
-      await expect(
-        validationPipe.transform(payload, {
-          type: 'body',
-          metatype: CreateSectionDto,
-        }),
-      ).rejects.toThrow(BadRequestException);
+      const result = (await validationPipe.transform(payload, {
+        type: 'body',
+        metatype: CreateSectionDto,
+      })) as CreateSectionDto;
+
+      expect(result.title).toBe('Chương 1');
+      expect(result.order).toBeUndefined();
     });
 
     it('should reject negative order', async () => {
@@ -694,6 +751,87 @@ describe('CourseController', () => {
       expect(result.title).toBe('Chương 1: Giới thiệu');
       expect(result.description).toBe('Mô tả nội dung chi tiết');
       expect(result.order).toBe(0);
+    });
+  });
+
+  describe('ReorderSectionsDto validation', () => {
+    let validationPipe: ValidationPipe;
+
+    beforeEach(() => {
+      validationPipe = new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      });
+    });
+
+    it('should accept valid array of Mongo ObjectId strings', async () => {
+      const payload = {
+        sectionIds: ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439022'],
+      };
+
+      const result = (await validationPipe.transform(payload, {
+        type: 'body',
+        metatype: ReorderSectionsDto,
+      })) as ReorderSectionsDto;
+
+      expect(result.sectionIds).toEqual([
+        '507f1f77bcf86cd799439011',
+        '507f1f77bcf86cd799439022',
+      ]);
+    });
+
+    it('should reject non-array sectionIds', async () => {
+      const payload = {
+        sectionIds: 'not-an-array',
+      };
+
+      await expect(
+        validationPipe.transform(payload, {
+          type: 'body',
+          metatype: ReorderSectionsDto,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject empty array of sectionIds', async () => {
+      const payload = {
+        sectionIds: [],
+      };
+
+      await expect(
+        validationPipe.transform(payload, {
+          type: 'body',
+          metatype: ReorderSectionsDto,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject invalid Mongo ObjectId in sectionIds array', async () => {
+      const payload = {
+        sectionIds: ['invalid-id-string'],
+      };
+
+      await expect(
+        validationPipe.transform(payload, {
+          type: 'body',
+          metatype: ReorderSectionsDto,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject unwhitelisted properties', async () => {
+      const payload = {
+        sectionIds: ['507f1f77bcf86cd799439011'],
+        maliciousKey: 'maliciousValue',
+      };
+
+      await expect(
+        validationPipe.transform(payload, {
+          type: 'body',
+          metatype: ReorderSectionsDto,
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

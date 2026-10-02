@@ -27,9 +27,9 @@ export class CreateSectionDto {
   @MaxLength(1000, { message: 'Mô tả chương học không được vượt quá 1000 ký tự' })
   description?: string;
 
-  @IsNotEmpty({ message: 'Thứ tự chương học không được để trống' })
+  @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'Thứ tự chương học phải là số nguyên' })
   @Min(0, { message: 'Thứ tự chương học phải lớn hơn hoặc bằng 0' })
-  order: number;
+  order?: number;
 }

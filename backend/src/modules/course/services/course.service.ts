@@ -21,6 +21,7 @@ import { CourseRepository } from '../repositories/course.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { CreateSectionDto } from '../dto/create-section.dto.js';
+import { ReorderSectionsDto } from '../dto/reorder-sections.dto.js';
 
 export interface CreateCourseInput {
   title: string;
@@ -163,12 +164,18 @@ export class CourseService extends BaseService<ICourse, string> {
       );
     }
 
+    let targetOrder = dto.order;
+    if (targetOrder === undefined || targetOrder === null) {
+      const existingSections = await this.sectionRepository.findByCourseId(courseId, session);
+      targetOrder = existingSections.length;
+    }
+
     const section = await this.sectionRepository.create(
       {
         courseId: course.id,
         title: dto.title,
         description: dto.description ?? null,
-        order: dto.order,
+        order: targetOrder,
         createdById: userId,
         updatedById: userId,
       },
@@ -176,6 +183,48 @@ export class CourseService extends BaseService<ICourse, string> {
     );
 
     return section;
+  }
+
+  async reorderSections(
+    courseId: string,
+    dto: ReorderSectionsDto,
+    userId: string,
+    role: RoleEnum,
+    session?: ClientSession,
+  ): Promise<ISection[]> {
+    let course: ICourse | null = null;
+    try {
+      course = await this.courseRepository.findById(courseId, session);
+    } catch {
+      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+    }
+
+    if (!course || course.deletedAt) {
+      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+    }
+
+    if (role !== RoleEnum.ADMIN && course.instructorId !== userId) {
+      throw new ForbiddenException(
+        'Bạn không có quyền sắp xếp chương học của khóa học này',
+      );
+    }
+
+    const uniqueIds = new Set(dto.sectionIds);
+    if (uniqueIds.size !== dto.sectionIds.length) {
+      throw new BadRequestException('Danh sách ID chương học chứa các phần tử trùng lặp');
+    }
+
+    const existingSections = await this.sectionRepository.findByCourseId(courseId, session);
+    const existingIds = new Set(existingSections.map((s) => s.id));
+
+    const allBelong = dto.sectionIds.every((id) => existingIds.has(id));
+    if (!allBelong || dto.sectionIds.length !== existingSections.length) {
+      throw new BadRequestException(
+        'Danh sách ID chương học không hợp lệ hoặc không khớp với các chương hiện có của khóa học',
+      );
+    }
+
+    return this.sectionRepository.reorderSections(courseId, dto.sectionIds, userId, session);
   }
 
   async getSectionsByCourseId(

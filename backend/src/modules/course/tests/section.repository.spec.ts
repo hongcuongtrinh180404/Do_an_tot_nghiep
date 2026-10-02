@@ -29,6 +29,7 @@ describe('SectionRepository', () => {
     mockModelConstructor.countDocuments = vi.fn();
     mockModelConstructor.findOneAndUpdate = vi.fn();
     mockModelConstructor.updateOne = vi.fn();
+    mockModelConstructor.bulkWrite = vi.fn();
 
     repository = new SectionRepository(mockModelConstructor as unknown as Model<SectionEntity>);
   });
@@ -279,6 +280,89 @@ describe('SectionRepository', () => {
       // Without session
       await repository.findByCourseId(courseId);
       expect(sessionMock).toHaveBeenCalledWith(null);
+    });
+  });
+
+  describe('reorderSections', () => {
+    it('1. should execute bulkWrite with correct updateOne operations and return reordered sections', async () => {
+      const courseId = new Types.ObjectId().toString();
+      const secId1 = new Types.ObjectId().toString();
+      const secId2 = new Types.ObjectId().toString();
+      const sectionIds = [secId2, secId1];
+      const userId = 'user_instructor_1';
+
+      mockModelConstructor.bulkWrite.mockResolvedValue({ ok: 1 });
+
+      const sortMock = vi.fn().mockReturnThis();
+      const sessionMock = vi.fn().mockReturnThis();
+      const execMock = vi.fn().mockResolvedValue([
+        { _id: secId2, courseId, title: 'Sec 2', order: 0 },
+        { _id: secId1, courseId, title: 'Sec 1', order: 1 },
+      ]);
+
+      mockModelConstructor.find.mockReturnValue({
+        sort: sortMock,
+        session: sessionMock,
+        exec: execMock,
+      });
+
+      const results = await repository.reorderSections(courseId, sectionIds, userId);
+
+      expect(mockModelConstructor.bulkWrite).toHaveBeenCalledTimes(1);
+      const [ops, options] = mockModelConstructor.bulkWrite.mock.calls[0];
+      expect(ops).toHaveLength(2);
+      expect(ops[0].updateOne.update.$set.order).toBe(0);
+      expect(ops[0].updateOne.update.$set.updatedById).toBe(userId);
+      expect(ops[1].updateOne.update.$set.order).toBe(1);
+      expect(ops[1].updateOne.update.$set.updatedById).toBe(userId);
+      expect(options).toEqual({ session: undefined });
+
+      expect(results).toHaveLength(2);
+      expect(results[0].id).toBe(secId2);
+      expect(results[0].order).toBe(0);
+      expect(results[1].id).toBe(secId1);
+      expect(results[1].order).toBe(1);
+    });
+
+    it('2. should pass session down to bulkWrite when provided', async () => {
+      const courseId = new Types.ObjectId().toString();
+      const secId1 = new Types.ObjectId().toString();
+      const mockSession = {} as ClientSession;
+
+      mockModelConstructor.bulkWrite.mockResolvedValue({ ok: 1 });
+
+      const sortMock = vi.fn().mockReturnThis();
+      const sessionMock = vi.fn().mockReturnThis();
+      const execMock = vi.fn().mockResolvedValue([]);
+      mockModelConstructor.find.mockReturnValue({
+        sort: sortMock,
+        session: sessionMock,
+        exec: execMock,
+      });
+
+      await repository.reorderSections(courseId, [secId1], undefined, mockSession);
+
+      expect(mockModelConstructor.bulkWrite).toHaveBeenCalledWith(
+        expect.any(Array),
+        { session: mockSession },
+      );
+    });
+
+    it('3. should skip bulkWrite if sectionIds array is empty', async () => {
+      const courseId = new Types.ObjectId().toString();
+      const sortMock = vi.fn().mockReturnThis();
+      const sessionMock = vi.fn().mockReturnThis();
+      const execMock = vi.fn().mockResolvedValue([]);
+      mockModelConstructor.find.mockReturnValue({
+        sort: sortMock,
+        session: sessionMock,
+        exec: execMock,
+      });
+
+      const results = await repository.reorderSections(courseId, []);
+
+      expect(mockModelConstructor.bulkWrite).not.toHaveBeenCalled();
+      expect(results).toEqual([]);
     });
   });
 });

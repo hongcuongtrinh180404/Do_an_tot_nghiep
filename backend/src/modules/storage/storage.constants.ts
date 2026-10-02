@@ -9,5 +9,6 @@ export const ALLOWED_DOCUMENT_MIME_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ] as const;
 
-export const MAX_VIDEO_SIZE_BYTES = 900 * 1024 * 1024; // 900MB
-export const MAX_DOCUMENT_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
+export const MAX_VIDEO_SIZE_BYTES = 5 * 1024 * 1024 * 1024; // 5GB (Nới lỏng giới hạn tối đa)
+export const MAX_DOCUMENT_SIZE_BYTES = 500 * 1024 * 1024; // 500MB (Nới lỏng giới hạn tối đa)
+export const MAX_AVATAR_SIZE_BYTES = 50 * 1024 * 1024; // 50MB (Nới lỏng giới hạn tối đa)

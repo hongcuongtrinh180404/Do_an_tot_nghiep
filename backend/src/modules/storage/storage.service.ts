@@ -10,7 +10,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import sharp from 'sharp';
 import { randomUUID } from 'crypto';
 import path from 'path';
-import { ILessonContent, LessonContentTypeEnum } from 'share-lib';
+import { ILessonContent, LessonContentTypeEnum, decodeUtf8FileName } from 'share-lib';
 import {
   ALLOWED_VIDEO_MIME_TYPES,
   ALLOWED_DOCUMENT_MIME_TYPES,
@@ -145,7 +145,8 @@ export class StorageService implements IStorageService {
       : LessonContentTypeEnum.DOCUMENT;
 
     const cleanFolder = subFolder.replace(/^\/+|\/+$/g, '');
-    const originalName = file.originalname ? file.originalname.trim() : 'media';
+    const rawOriginalName = file.originalname ? file.originalname.trim() : 'media';
+    const originalName = decodeUtf8FileName(rawOriginalName) || 'media';
     const ext = path.extname(originalName) || (isVideo ? '.mp4' : '.pdf');
     const baseName = path
       .basename(originalName, ext)

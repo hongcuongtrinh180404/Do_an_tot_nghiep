@@ -8,6 +8,7 @@ import type {
   ICourse,
   ICreateCoursePayload,
   ICreateSectionPayload,
+  IReorderSectionsPayload,
   ICreateLessonPayload,
   ISection,
   ILesson,
@@ -44,6 +45,16 @@ export const courseApi = {
   async createSection(courseId: string, payload: ICreateSectionPayload): Promise<ISection> {
     const res = await apiClient.post<IApiResponse<ISection>>(
       `/courses/${courseId}/sections`,
+      payload,
+    );
+    return res.data.data;
+  },
+  async reorderSections(
+    courseId: string,
+    payload: IReorderSectionsPayload,
+  ): Promise<ISection[]> {
+    const res = await apiClient.put<IApiResponse<ISection[]>>(
+      `/courses/${courseId}/sections/reorder`,
       payload,
     );
     return res.data.data;
@@ -242,6 +253,54 @@ export function useCreateSectionMutation(courseId: string) {
         description:
           message || 'Không thể kết nối đến máy chủ hoặc đã xảy ra lỗi. Vui lòng thử lại sau.',
       });
+    },
+  });
+}
+
+export function useReorderSectionsMutation(courseId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: IReorderSectionsPayload) =>
+      courseApi.reorderSections(courseId, payload),
+    onMutate: async (newOrderPayload) => {
+      await queryClient.cancelQueries({ queryKey: courseKeys.sections(courseId) });
+
+      const previousSections = queryClient.getQueryData<ISection[]>(
+        courseKeys.sections(courseId),
+      );
+
+      if (previousSections) {
+        const idMap = new Map(previousSections.map((s) => [s.id, s]));
+        const reordered: ISection[] = newOrderPayload.sectionIds
+          .map((id, index) => {
+            const section = idMap.get(id);
+            if (!section) return null;
+            return {
+              ...section,
+              order: index,
+            };
+          })
+          .filter((s): s is ISection => s !== null);
+
+        queryClient.setQueryData<ISection[]>(courseKeys.sections(courseId), reordered);
+      }
+
+      return { previousSections };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousSections) {
+        queryClient.setQueryData<ISection[]>(
+          courseKeys.sections(courseId),
+          context.previousSections,
+        );
+      }
+      toast.error('Không thể cập nhật thứ tự chương', {
+        description: 'Đã có lỗi xảy ra khi lưu vị trí mới. Đã khôi phục lại thứ tự ban đầu.',
+      });
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: courseKeys.sections(courseId) });
     },
   });
 }

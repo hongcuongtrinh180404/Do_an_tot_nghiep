@@ -2,7 +2,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import type { IApiResponse, ILessonContent } from 'share-lib';
+import { decodeUtf8FileName, type IApiResponse, type ILessonContent } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 
 export const lessonContentKeys = {
@@ -43,8 +43,9 @@ export function useUploadLessonContentMutation() {
     mutationFn: (file: File) => lessonContentApi.upload(file),
     onSuccess: (data: ILessonContent) => {
       const typeLabel = data.type === 'video' ? 'Video bài học' : 'Tài liệu bài học';
+      const cleanFileName = decodeUtf8FileName(data.fileName);
       toast.success('Tải lên nội dung bài học thành công!', {
-        description: `${typeLabel} "${data.fileName || 'tập tin'}" đã được lưu trữ an toàn trên MinIO.`,
+        description: `${typeLabel} "${cleanFileName || 'tập tin'}" đã được lưu trữ an toàn trên MinIO.`,
       });
     },
     onError: (error: unknown) => {
