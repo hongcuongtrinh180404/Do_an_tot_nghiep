@@ -15,6 +15,7 @@ describe('UserService - Profile and Avatar Management', () => {
   let mockCls: { get: ReturnType<typeof vi.fn> };
   let mockStorageService: {
     uploadImage: ReturnType<typeof vi.fn>;
+    deleteFile: ReturnType<typeof vi.fn>;
   };
 
   const mockUser: IUser = {
@@ -42,6 +43,7 @@ describe('UserService - Profile and Avatar Management', () => {
     };
     mockStorageService = {
       uploadImage: vi.fn(),
+      deleteFile: vi.fn().mockResolvedValue(true),
     };
 
     service = new UserService(
@@ -99,8 +101,9 @@ describe('UserService - Profile and Avatar Management', () => {
   });
 
   describe('updateAvatar', () => {
-    it('should upload file to StorageService and update avatar in repository', async () => {
+    it('should upload file, update avatar in repository, and delete old avatar from storage', async () => {
       // Arrange
+      mockUserRepository.findById.mockResolvedValue(mockUser);
       const fakeFile = {
         buffer: Buffer.from('fake image content'),
         mimetype: 'image/jpeg',
@@ -108,7 +111,7 @@ describe('UserService - Profile and Avatar Management', () => {
         size: 1024,
       } as Express.Multer.File;
 
-      const newAvatarUrl = 'http://localhost:9000/thc-datn-media/avatars/avatar.webp';
+      const newAvatarUrl = 'http://localhost:9000/thc-datn-media/avatars/new-avatar.webp';
       mockStorageService.uploadImage.mockResolvedValue(newAvatarUrl);
 
       const updatedUser: IUser = {
@@ -122,10 +125,77 @@ describe('UserService - Profile and Avatar Management', () => {
       const result = await service.updateAvatar('user_123', fakeFile);
 
       // Assert
+      expect(mockUserRepository.findById).toHaveBeenCalledWith('user_123', undefined);
       expect(mockStorageService.uploadImage).toHaveBeenCalledWith(fakeFile, 'avatars');
       expect(mockUserRepository.update).toHaveBeenCalled();
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith('https://example.com/old_avatar.jpg');
       expect(result.avatarUrl).toBe(newAvatarUrl);
       expect(result.user.avatarUrl).toBe(newAvatarUrl);
+    });
+
+    it('should not call deleteFile if user does not have an existing avatar', async () => {
+      // Arrange
+      const userWithoutAvatar: IUser = {
+        ...mockUser,
+        avatarUrl: undefined,
+        avatar: undefined,
+      };
+      mockUserRepository.findById.mockResolvedValue(userWithoutAvatar);
+
+      const fakeFile = {
+        buffer: Buffer.from('fake image content'),
+        mimetype: 'image/jpeg',
+        originalname: 'avatar.jpg',
+        size: 1024,
+      } as Express.Multer.File;
+
+      const newAvatarUrl = 'http://localhost:9000/thc-datn-media/avatars/first-avatar.webp';
+      mockStorageService.uploadImage.mockResolvedValue(newAvatarUrl);
+
+      const updatedUser: IUser = {
+        ...userWithoutAvatar,
+        avatarUrl: newAvatarUrl,
+        avatar: newAvatarUrl,
+      };
+      mockUserRepository.update.mockResolvedValue(updatedUser);
+
+      // Act
+      const result = await service.updateAvatar('user_123', fakeFile);
+
+      // Assert
+      expect(mockStorageService.uploadImage).toHaveBeenCalledWith(fakeFile, 'avatars');
+      expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
+      expect(result.avatarUrl).toBe(newAvatarUrl);
+    });
+
+    it('should continue successfully even if deleteFile throws an error', async () => {
+      // Arrange
+      mockUserRepository.findById.mockResolvedValue(mockUser);
+      mockStorageService.deleteFile.mockRejectedValue(new Error('MinIO connection timeout'));
+
+      const fakeFile = {
+        buffer: Buffer.from('fake image content'),
+        mimetype: 'image/jpeg',
+        originalname: 'avatar.jpg',
+        size: 1024,
+      } as Express.Multer.File;
+
+      const newAvatarUrl = 'http://localhost:9000/thc-datn-media/avatars/new-avatar.webp';
+      mockStorageService.uploadImage.mockResolvedValue(newAvatarUrl);
+
+      const updatedUser: IUser = {
+        ...mockUser,
+        avatarUrl: newAvatarUrl,
+        avatar: newAvatarUrl,
+      };
+      mockUserRepository.update.mockResolvedValue(updatedUser);
+
+      // Act
+      const result = await service.updateAvatar('user_123', fakeFile);
+
+      // Assert
+      expect(result.avatarUrl).toBe(newAvatarUrl);
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith('https://example.com/old_avatar.jpg');
     });
 
     it('should throw ConflictException if StorageService is not available', async () => {

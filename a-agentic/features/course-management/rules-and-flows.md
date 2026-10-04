@@ -29,3 +29,7 @@
    - Khi tạo bài học mới và tải video lên, trạng thái video ban đầu là `UPLOADED`. Bài học chỉ có thể chuyển sang trạng thái `ACTIVE` khi AI Pipeline hoàn tất xử lý và trả về `READY`.
 3. **Audit & Soft Delete**:
    - Mọi thao tác xóa khóa học/bài học đều sử dụng Soft Delete (`deletedAt != null`) để đảm bảo quyền lợi của học viên đã mua khóa học trước đó.
+4. **Lưu trữ & Truy vấn Sơ đồ Tư duy (`course_mindmaps`)**:
+   - Nhằm tối ưu hóa tốc độ tải trang sơ đồ tư duy cho học viên mà không phải thực hiện các phép JOIN / `$lookup` qua 4 collection (`courses` -> `sections` -> `lessons` -> `keypoints`), hệ thống duy trì một document store `course_mindmaps` với khóa chính `courseId`.
+   - **Ghi (Upsert)**: Khi Giảng viên nhấn nút "Cập nhật Mindmap", backend nhận toàn bộ chuỗi JSON và thực hiện upsert ghi đè (`findOneAndUpdate` với `upsert: true`). Chỉ Giảng viên sở hữu khóa học hoặc Quản trị viên (`ADMIN`) mới có quyền ghi đè.
+   - **Đọc (Query)**: Endpoint `GET /api/v1/courses/:courseId/mindmap` mở công khai (Public), cho phép học viên và khách vãng lai truy vấn trực tiếp cây phân cấp JSON trong vài mili-giây để vẽ giao diện sơ đồ tư duy 4 cấp độ.

@@ -641,19 +641,251 @@
     - Backend Unit Tests: 286/286 unit tests pass 100%.
     - Frontend Lint: `eslint src/` pass 0 errors, 0 warnings.
 
+---
+
+## 2026-10-02 - Milestone 29: Thiết kế CSDL & API Lưu Trữ Sơ Đồ Tư Duy (`course_mindmaps`)
+
+- **Bối cảnh & Động lực**:
+  - Giao diện sơ đồ tư duy (Mindmap) phân cấp 4 cấp độ (Khóa học -> Chương -> Bài học -> Các ý cốt lõi) nếu phải query JOIN / `$lookup` qua 4 collection độc lập thì sẽ chậm và tốn tài nguyên DB khi số lượng chương/bài lớn.
+  - Cần một bảng/collection chuyên dụng `course_mindmaps` đóng vai trò Materialized Document Store: Lưu trữ toàn bộ chuỗi JSON phân cấp dưới dạng pre-computed document theo `courseId`.
+  - Giảng viên click "Cập nhật Mindmap" -> Backend UPSERT ghi đè hoàn toàn. Học viên xem Mindmap -> Query trực tiếp `courseId` siêu nhẹ nhàng, trả về JSON trong vài mili-giây.
+
+- **Các thay đổi đã thực hiện**:
+  1. **Tầng Shared Domain (`share-lib`)**:
+     - Tạo interface `ICourseMindmap` và `ICourseMindmapNode` trong `share-lib/src/interfaces/course-mindmap.interface.ts`.
+     - Export interface mới qua `share-lib/src/index.ts` và build thành công.
+  2. **Tầng CSDL & Schema Mongoose (`backend/src/modules/course/schemas`)**:
+     - Tạo `CourseMindmapEntity` kế thừa `BaseAbstractDocument`, collection `course_mindmaps`.
+     - Khóa chính `courseId: Types.ObjectId` tham chiếu `CourseEntity`.
+     - Trường `mindmapData: Record<string, unknown>` (kiểu `Schema.Types.Mixed`).
+     - Partial Unique Index: `{ courseId: 1 }` với `{ unique: true, partialFilterExpression: { deletedAt: null } }`.
+  3. **Tầng Repository (`backend/src/modules/course/repositories`)**:
+     - Tạo `CourseMindmapRepository` kế thừa `BaseMongoRepository<ICourseMindmap, CourseMindmapEntity>`.
+     - Triển khai `findByCourseId(courseId)` và `upsertByCourseId(courseId, mindmapData, userId)`.
+  4. **Tầng DTO & Service (`backend/src/modules/course`)**:
+     - `UpsertCourseMindmapDto`: validate `@IsNotEmpty`, `@IsObject`.
+     - `CourseMindmapService` kế thừa `BaseService`, inject `CourseMindmapRepository`, `CourseRepository`, `ClsService`. Kiểm tra quyền sở hữu của Giảng viên (`isOwner`) hoặc `ADMIN`.
+  5. **Tầng Controller (`backend/src/modules/course/course-mindmap.controller.ts`)**:
+     - `GET /api/v1/courses/:courseId/mindmap`: `@Public()`, trả về `mindmapData` hoặc `null`.
+     - `PUT /api/v1/courses/:courseId/mindmap`: `@Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)`, thực hiện upsert ghi đè an toàn.
+  6. **Đăng ký Module (`backend/src/modules/course/course.module.ts`)**:
+     - Đăng ký `CourseMindmapEntity` vào `MongooseModule.forFeature`, đăng ký Controller, Providers và Exports.
+  7. **Kiểm thử chất lượng (Unit & Integration Tests)**:
+     - `course-mindmap.service.spec.ts`: 10/10 tests pass (NotFound, Forbidden, Instructor Upsert, Admin Bypass, Get Mindmap).
+     - `course-mindmap.controller.spec.ts`: 3/3 tests pass (GET, PUT delegation & ApiResponse formatting).
+     - `course-mindmap.schema.spec.ts`: 5/5 tests pass (Schema defaults, required fields, partial unique index).
+     - Toàn bộ 18/18 tests mindmap và 230/230 tests course module pass 100%. Type checking `tsc --noEmit` pass 100%.
+
+---
+
+## 2026-10-04 - Milestone 30: MinIO Folder Structure & API Upload Thumbnail & Trailer cho Khóa Học
+
+- **Bối cảnh & Động lực**:
+  - Khóa học cần lưu trữ riêng biệt ảnh bìa (thumbnail) và video trailer trong MinIO tại các thư mục cùng cấp với bài học (`courses/lessons/`):
+    - `courses/thumbnail/`: Ảnh bìa khóa học (1280x720 WebP, nén tối ưu qua Sharp).
+    - `courses/trailer/`: Video giới thiệu / trailer khóa học (MP4, WebM, QuickTime, tối đa 2GB).
+  - Tự động xóa file cũ trên MinIO khi người dùng upload file mới (fire-and-forget, không làm gián đoạn transaction).
+  - Phân quyền chặt chẽ: Chỉ Giảng viên sở hữu khóa học (`INSTRUCTOR`) hoặc Quản trị viên (`ADMIN`) mới có quyền upload.
+
+- **Các thay đổi đã thực hiện**:
+  1. **Tầng Shared Domain (`share-lib`)**:
+     - Thêm trường `trailerUrl?: string | null` vào interface `ICourse` (`share-lib/src/interfaces/course.interface.ts`).
+     - Build thành công `pnpm --filter share-lib build`.
+  2. **Tầng CSDL & Schema Mongoose (`backend/src/modules/course/schemas`)**:
+     - Cập nhật `CourseEntity` trong `course.schema.ts` với `@Prop({ type: String, required: false, default: null, trim: true }) trailerUrl?: string | null`.
+  3. **Tầng Storage Constants (`backend/src/modules/storage/storage.constants.ts`)**:
+     - Thêm `ALLOWED_THUMBNAIL_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']`.
+     - Thêm `MAX_THUMBNAIL_SIZE_BYTES = 10 * 1024 * 1024` (10MB).
+     - Thêm `MAX_TRAILER_SIZE_BYTES = 2 * 1024 * 1024 * 1024` (2GB).
+  4. **Pipes Validation (`backend/src/modules/course/pipes/`)**:
+     - Tạo `CourseImageValidationPipe`: Validate ảnh hợp lệ (MIME, size ≤ 10MB).
+     - Tạo `CourseTrailerValidationPipe`: Validate video hợp lệ (MIME video, size ≤ 2GB) và chuẩn hóa tên file UTF-8.
+  5. **Tầng Service (`backend/src/modules/course/services/course.service.ts`)**:
+     - Inject `StorageService` vào `CourseService`.
+     - Thêm `updateCourseThumbnail(courseId, userId, role, file)`: Upload ảnh vào `courses/thumbnail/`, dọn dẹp file cũ nếu có, cập nhật DB qua `this.updateOrFail`.
+     - Thêm `updateCourseTrailer(courseId, userId, role, file)`: Upload video vào `courses/trailer/`, dọn dẹp file cũ nếu có, cập nhật DB qua `this.updateOrFail`.
+  6. **Tầng Controller (`backend/src/modules/course/course.controller.ts`)**:
+     - `PATCH /api/v1/courses/:courseId/thumbnail`: `@Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)`, `FileInterceptor('file')`.
+     - `PATCH /api/v1/courses/:courseId/trailer`: `@Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)`, `FileInterceptor('file')`.
+  7. **Kiểm thử chất lượng (Unit Tests & Quality Assurance)**:
+     - Tạo `backend/src/modules/course/tests/course.service.media.spec.ts`: 16/16 test cases pass (Upload thumbnail, upload trailer, dọn dẹp file cũ, check quyền Giảng viên/Admin, reject Forbidden/NotFound, validation pipes).
+     - Chạy toàn bộ 19 test files của module course: 251/251 tests pass 100%.
+     - Kiểm tra kiểu dữ liệu `pnpm --filter backend exec npx tsc --noEmit`: 0 errors.
+
+---
+
+## [2026-10-04] - Triển Khai Hoàn Chỉnh Logic End-to-End Cho Course Thumbnail & Trailer Upload
+
+- **Mục tiêu**:
+  - Triển khai toàn bộ logic thực tế cho việc upload/thay đổi Course Thumbnail và Course Trailer Video trên giao diện Course Detail (`/instructor/courses/[id]`).
+  - Nâng giới hạn trailer lên 600MB (đồng bộ Backend & Frontend), ẩn text dung lượng trên UI theo đúng chỉ đạo.
+  - Hỗ trợ xem trước tương tác (Click-to-Preview): Modal Lightbox phóng to ảnh bìa sắc nét và Modal Video Player phát video trailer trực tiếp.
+  - Upload file ngay lập tức khi người dùng chọn file kèm thanh tiến trình trực quan.
+
+- **Các thay đổi đã thực hiện**:
+  1. **Tầng Backend Storage & Pipe**:
+     - Cập nhật `MAX_TRAILER_SIZE_BYTES = 600 * 1024 * 1024` (600MB) trong `backend/src/modules/storage/storage.constants.ts`.
+     - Cập nhật thông báo lỗi trong `CourseTrailerValidationPipe` và test case trong `course.service.media.spec.ts`.
+     - Vitest kiểm thử: 16/16 tests pass, 19/19 files pass (251/251 tests pass 100%).
+  2. **Tầng Frontend API Client & Mutations (`frontend/src/features/course/api/course.api.ts`)**:
+     - Thêm `uploadThumbnail` và `uploadTrailer` vào `courseApi` (hỗ trợ `FormData`, `onUploadProgress`, override timeout để hỗ trợ video dung lượng lớn).
+     - Thêm React Query hooks: `useUploadCourseThumbnailMutation(courseId)` và `useUploadCourseTrailerMutation(courseId)` với cache invalidation cho `courseKeys.detail(courseId)` và thông báo toast Sonner.
+  3. **Tầng Frontend Component (`frontend/src/features/course/components/course-media-preview.tsx`)**:
+     - Cập nhật nhận props `courseId`, `thumbnailUrl`, `trailerUrl`, `readOnly`.
+     - Tạo input file ẩn kích hoạt ngay khi người dùng chọn file hoặc nhấn nút [ 📷 Thay ảnh bìa ] / [ 🎬 Thay video trailer ].
+     - Validation client-side: Thumbnail <= 10MB (ảnh JPEG/PNG/WebP/GIF), Trailer <= 600MB (video MP4/WebM/MOV).
+     - Giao diện Trailer tuân thủ nghiêm ngặt quy tắc: **Không hiển thị text giới hạn dung lượng lên UI**.
+     - Trạng thái Uploading: Overlay spinner kèm thanh progress hiển thị % upload trực quan, disable các nút bấm chống spam.
+     - Tích hợp Lightbox Modal phóng to ảnh và Video Player Modal phát trailer với controls chuẩn HTML5.
+  4. **Tích hợp vào Trang Chi tiết Khóa học (`course-detail-content.tsx`)**:
+     - Truyền `courseId={course.id}`, `thumbnailUrl={course.thumbnailUrl}`, `trailerUrl={course.trailerUrl}` vào `<CourseMediaPreview />`.
+     - Export `CourseMediaPreview` trong `features/course/index.ts`.
+  5. **Kiểm tra chất lượng**:
+     - Frontend TypeScript check: `pnpm --filter frontend exec npx tsc --noEmit` -> 0 lỗi.
+     - Backend TypeScript check: `pnpm --filter backend exec npx tsc --noEmit` -> 0 lỗi.
+     - Backend Vitest: 251/251 tests pass 100%.
+
+---
+
+## [2026-10-04] - Tích Hợp Rich Text Editor Cho Trường Mô Tả Khóa Học (Tiptap v2 + Tailwind Typography + DOMPurify)
+
+- **Mục tiêu**:
+  - Thay thế thẻ `<textarea id="description">` tại trang Tạo mới khóa học (`/instructor/courses/new`) bằng Rich Text Editor chuyên nghiệp, hiện đại, thân thiện với giảng viên.
+  - Cung cấp thanh công cụ soạn thảo tối ưu với chiều cao tối thiểu 250px - 350px, hỗ trợ đầy đủ các định dạng: Bold, Italic, Heading 2, Heading 3, Bullet List, Numbered List, Link, Code/Codeblock cùng cặp nút Undo/Redo.
+  - Lưu trữ nội dung dưới định dạng HTML string chuẩn ngữ nghĩa vào MongoDB (thông qua `CreateCourseDto` và schema hiện có).
+  - Khử khuẩn HTML tự động bằng `DOMPurify` (`isomorphic-dompurify`) trước khi render qua `dangerouslySetInnerHTML` để phòng chống triệt để lỗ hổng Stored XSS.
+  - Kết hợp plugin `@tailwindcss/typography` với class `prose prose-slate dark:prose-invert max-w-none` để hiển thị văn bản đẹp mắt, chuẩn tỉ lệ căn chỉnh.
+
+- **Các thay đổi đã thực hiện**:
+  1. **Dependencies & Cấu hình Styling**:
+     - Cài đặt `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extension-link`, `@tailwindcss/typography`, `isomorphic-dompurify`.
+     - Cấu hình `@plugin "@tailwindcss/typography";` trong `frontend/src/app/globals.css`.
+     - Bổ sung style cơ bản cho Tiptap editor contenteditable (`.tiptap`) trong `globals.css` (headings, lists, code, pre, focus outline).
+  2. **Tạo Reusable Component `RichTextEditor` (`frontend/src/components/ui/rich-text-editor.tsx`)**:
+     - Xây dựng component Tiptap chuẩn React 19 + Next.js 16 (`immediatelyRender: false` chống lỗi hydration SSR).
+     - Thiết kế thanh công cụ Toolbar đồng bộ Design System (Shadcn + Lucide icon từ `@iconify/react`), tuân thủ Purple Ban.
+     - Chiều cao tối thiểu 280px, tự động cuộn nội dung, đồng bộ hai chiều `value`/`onChange`.
+  3. **Tích hợp vào Form Tạo Khóa Học (`create-course-form.tsx`)**:
+     - Tích hợp `RichTextEditor` qua `<Controller control={control} name="description" />`.
+     - Cập nhật `create-course.schema.ts` với helper biến đổi các thẻ HTML rỗng (như `<p></p>`, `<p><br></p>`) thành chuỗi rỗng để tránh lưu dữ liệu rác vào cơ sở dữ liệu.
+  4. **Hiển thị An toàn tại Trang Chi Tiết Khóa Học (`course-detail-content.tsx`)**:
+     - Sử dụng `DOMPurify.sanitize(course.description)` để khử sạch mọi mã độc/script/event handlers độc hại.
+     - Render nội dung qua thẻ có lớp `prose prose-slate dark:prose-invert max-w-none`.
+  5. **Kiểm tra chất lượng (Quality Assurance)**:
+     - Tạo unit test suite `frontend/src/features/course/tests/course-rich-editor.spec.ts`: 7/7 test cases pass (Validation chuỗi HTML, lọc thẻ rỗng, khử khuẩn XSS của DOMPurify).
+     - Toàn bộ unit tests frontend pass (21/21 tests pass 100%).
+     - TypeScript check: `pnpm --filter frontend exec tsc --noEmit` -> 0 lỗi.
+     - ESLint: `pnpm --filter frontend lint` -> 0 lỗi, 0 cảnh báo.
+
+
+
+---
+
+## [2026-10-04] - Triển Khai Chức Năng Inline Edit Chi Tiết Khóa Học (Course Inline Editing & Auto Unique Slug)
+
+- **Mục tiêu**:
+  - Triển khai chức năng chỉnh sửa trực tiếp (Inline Editing) tại trang http://localhost:3000/instructor/courses/:id cho các trường: Tiêu đề khóa học, Học phí, Cấp độ, Mô tả ngắn gọn và Nội dung mô tả chi tiết.
+  - Tự động sinh slug tiếng Việt không dấu chuẩn SEO khi đổi tên khóa học, tự động đánh số thứ tự -1, -2, ... nếu phát hiện trùng lặp với khóa học khác.
+  - Hỗ trợ chọn Miễn phí hoặc Có phí (kèm Giá gốc và Giá khuyến mãi, tự động gạch ngang giá cũ 500.000 đ -> 299.000 đ).
+  - Dropdown chọn Cấp độ tại chỗ (ALL_LEVELS, BEGINNER, INTERMEDIATE, ADVANCED).
+  - Card Mô tả ngắn gọn mở rộng Textarea 3 dòng với bộ đếm ký tự 0/200.
+  - Card Nội dung mô tả chi tiết chuyển đổi sang trình soạn thảo RichTextEditor (Tiptap) tại chỗ.
+
+- **Các thay đổi đã thực hiện**:
+  1. **Shared Library (share-lib)**:
+     - Bổ sung originalPrice?: number | null; và IUpdateCoursePayload vào course.interface.ts.
+     - Tạo tiện ích dùng chung slugify tiếng Việt tại share-lib/src/utils/slug.util.ts.
+  2. **Backend Core API (NestJS + MongoDB)**:
+     - course.schema.ts: Thêm trường originalPrice vào CourseEntity.
+     - update-course.dto.ts: Tạo DTO với validation và whitespace normalization.
+     - course.repository.ts: Bổ sung findConflictingSlugs tìm regex các slug có hậu tố số.
+     - course.service.ts: Xây dựng generateUniqueSlug tự động tăng số thứ tự và updateCourse với audit context và validation giá (price <= originalPrice).
+     - course.controller.ts: Endpoint PATCH /courses/:id bảo vệ bằng RolesGuard và kiểm tra quyền sở hữu.
+     - Tests: Bổ sung 12 test cases mới trong course.service.spec.ts và course.controller.spec.ts (toàn bộ 337/337 tests backend pass).
+  3. **Frontend Components & Inline Editing (Next.js 16 + React 19)**:
+     - popover.tsx: Popover component chuẩn Shadcn dựa trên @base-ui/react.
+     - course-title-inline-edit.tsx: Sửa tiêu đề, hover hiển thị icon bút chì, tự lưu khi Enter hoặc bấm Tick xanh, hủy khi bấm Esc hoặc blur ra ngoài (phương án A), hiển thị badge slug dự kiến.
+     - course-price-inline-popover.tsx: Popover chuyển đổi Miễn phí / Có phí, nhập Giá gốc và Giá khuyến mãi, hiển thị giá gạch ngang.
+     - course-level-inline-select.tsx: Dropdown select cấp độ tại chỗ với phản hồi tức thời.
+     - course-short-desc-inline-card.tsx: Card chuyển thành Textarea 3 dòng, giới hạn 200 ký tự với bộ đếm ký tự 0/200 đổi màu cảnh báo khi > 180 ký tự.
+     - course-desc-inline-card.tsx: Card chuyển sang trình soạn thảo RichTextEditor (Tiptap) để chỉnh sửa định dạng HTML trực tiếp.
+     - Tích hợp toàn diện vào course-detail-content.tsx.
+  4. **Kiểm tra chất lượng (Quality Assurance)**:
+     - Frontend Unit Tests: 10/10 test cases pass trong course-inline-edit.spec.ts.
+     - Backend Vitest: 337/337 tests pass 100%.
+     - Frontend TypeScript: npx tsc --noEmit -> 0 lỗi.
+     - Frontend ESLint: eslint src/ -> 0 lỗi, 0 cảnh báo.
+
+- **Milestone 25 (Interactive Course Mindmap Canvas Integration & Hybrid Rendering Paradigm)**:
+  - Thiết kế và triển khai thành công Mindmap Canvas tương tác (`CourseMindmapView`) thay thế placeholder trong `CourseSectionsList` (`frontend/src/features/course/components/course-sections-list.tsx`).
+  - Áp dụng mô hình lai HTML/DOM + SVG:
+    - HTML Nodes: Sử dụng thẻ `div` kết hợp Tailwind CSS để tự động bẻ dòng chữ (text-wrap), hiển thị icon loại bài giảng, badge "Học thử", và nút thu/bung (+/−) nhánh.
+    - SVG Background: Vẽ đường nối Cubic Bézier Curves (`SmoothBezierEdge`) bằng thẻ `<svg><path>` mượt mà tự nhiên với 2 điểm điều khiển P1, P2.
+    - Infinite Canvas: Tích hợp `@xyflow/react` v12, hỗ trợ Pan/Zoom 60fps, Minimap góc dưới, và chế độ toàn màn hình (Fullscreen).
+  - Thuật toán bố cục tự động (Tree Layout Engine):
+    - Tích hợp `@dagrejs/dagre` căn chỉnh cây phân cấp từ trái sang phải (`LR`), tính toán bounding box chính xác cho từng loại node (`courseRoot`, `section`, `lesson`, `keypoint`), giữ khoảng đệm AABB an toàn (`ranksep: 80`, `nodesep: 24`) chống đè lấn khối.
+  - Tích hợp dữ liệu hai chiều:
+    - Tiện ích `mindmap-converter.util.ts`: Tự động trích xuất và chuyển đổi dữ liệu Khóa học -> Chương mục -> Bài học -> Ý chính (`ILessonKeyPoint[]`) thành cấu trúc nodes & edges.
+    - Tiện ích `course-mindmap.api.ts` & hook `useCourseMindmap`: Tải snapshot cấu trúc đã lưu từ backend (`GET /courses/:courseId/mindmap`) hoặc tự động sinh mới từ Curriculum; Giảng viên có thể bấm "Lưu sơ đồ" để snapshot lưu lên MongoDB (`PUT /courses/:courseId/mindmap`).
+  - Kiến trúc Context Event-Driven (`CourseMindmapContext`):
+    - Tách biệt logic toggle nhánh (+/−) ra khỏi dữ liệu node, loại bỏ hoàn toàn các closure callback mutable trong `node.data`, tuân thủ triệt để React Compiler và ESLint (0 errors, 0 warnings).
+  - Kiểm định toàn diện:
+    - TypeScript: `pnpm --filter frontend exec tsc --noEmit` -> 100% clean (0 errors).
+    - ESLint: `pnpm --filter frontend run lint` -> 100% clean (0 errors, 0 warnings).
+    - Share-lib build: `pnpm --filter share-lib build` -> Pass.
+    - Backend build & test: 337/337 vitest tests pass 100%.
+
+- **Milestone 26 (Modern Course Level Custom Select Redesign & Visual Indicator Bars)**:
+  - Thiết kế và triển khai `CourseLevelSelect` (`frontend/src/features/course/components/course-level-select.tsx`) thay thế hoàn toàn thẻ `<select>` native mặc định trong form tạo khóa học (`create-course-form.tsx`) và cập nhật đồng bộ component chọn trình độ tại trang chi tiết khóa học (`frontend/src/features/course/components/inline/course-level-inline-select.tsx`).
+  - Giao diện SaaS hiện đại, tối giản, sạch sẽ:
+    - Đồng bộ kích thước tuyệt đối 1:1 với ô "Học phí (VND)": cùng chiều cao `h-8` (32px), cùng bán kính bo góc `rounded-xl`, cùng nền trong suốt/dark input, cùng border và focus ring chuẩn token (`ring-ring/50`).
+    - Tại trang chi tiết khóa học (`/instructor/courses/[id]`), ô Trình độ hiển thị icon indicator đồng bộ với tiêu đề card, click vào mở popup custom select thanh lịch thay thế thẻ select native cũ.
+  - Thanh chỉ số trực quan (LevelIndicator):
+    - `ALL_LEVELS` ("Tất cả cấp độ"): Biểu tượng phân tầng `lucide:layers` thanh lịch.
+    - `BEGINNER` ("Cơ bản"): 1 vạch kích hoạt (`1/3`).
+    - `INTERMEDIATE` ("Trung cấp"): 2 vạch kích hoạt (`2/3`).
+    - `ADVANCED` ("Nâng cao"): 3 vạch kích hoạt (`3/3`).
+    - Các vạch mini được bo góc (`rounded-full`), tự động đổi màu theo trạng thái (`bg-current` khi active / `bg-muted-foreground/30` khi inactive).
+  - Quy chuẩn thẩm mỹ:
+    - Tuyệt đối không emoji, không có subtitle hay văn bản giải thích phụ, checkmark (`lucide:check`) chỉ xuất hiện tại option đang chọn.
+    - Chevron xoay 180 độ khi mở menu với transition mượt mà.
+    - Floating panel có z-index `z-50`, đổ bóng `shadow-lg`, mở/đóng nhẹ nhàng với hiệu ứng `fade-in-0 zoom-in-95`.
+  - Tương tác & Khả năng tiếp cận (Accessibility):
+    - Hỗ trợ click-outside đóng dropdown, phím Escape, phím mũi tên lên/xuống và phím Enter/Space để chọn.
+    - Khai báo đầy đủ các thuộc tính ARIA: `role="combobox"`, `aria-expanded`, `aria-controls`, `aria-haspopup="listbox"`, `aria-selected` giúp hỗ trợ screen-readers và pass 100% ESLint jsx-a11y.
+  - Tích hợp Form & Inline Update:
+    - Tích hợp với `react-hook-form` qua `<Controller />` trong form tạo khóa học.
+    - Tích hợp trực tiếp với `useUpdateCourseMutation` trong `CourseLevelInlineSelect` tại trang chi tiết để cập nhật tức thời kèm trạng thái pending loading spinner.
+  - Gotchas & Khắc phục lỗi che khuất danh sách (Clipping by Card overflow-hidden):
+    - *Vấn đề*: Thẻ cha `Card` mặc định có thuộc tính CSS `overflow-hidden`. Khi `CourseLevelInlineSelect` dùng dropdown absolute thông thường nằm ở hàng cuối cùng của card Hero Overview, danh sách sổ xuống bị cắt ngắn và bị khối card "Mô tả ngắn gọn" bên dưới che khuất.
+    - *Giải pháp*:
+      1. Tái cấu trúc `CourseLevelInlineSelect` sử dụng `Popover`, `PopoverTrigger`, và `PopoverContent` (kế thừa `PopoverPortal` đưa portal ra khỏi stacking context của Card gắn vào `document.body` với `z-50`).
+      2. Thêm class `overflow-visible` cho Hero Overview `Card` tại `course-detail-content.tsx`.
+      3. Cập nhật `components/ui/popover.tsx` sử dụng `cn` từ `@/lib/utils` (kết hợp `twMerge`) để cho phép ghi đè độ rộng `w-[210px]` và padding `p-1.5` một cách chuẩn xác.
+- **Milestone 26 (Tự Động Đồng Bộ Thumbnail Làm Poster Cho Video Trailer Khóa Học)**:
+  - Yêu cầu nghiệp vụ: Tự động sử dụng ảnh bìa khóa học (`thumbnailUrl`) làm poster cho video trailer (`trailerUrl`) trên giao diện chi tiết khóa học, hỗ trợ đầy đủ 4 trường hợp (upload thumbnail trước, upload trailer trước, upload thumbnail sau trailer, thay đổi thumbnail).
+  - Kiến trúc Single Source of Truth: Không tạo thêm trường `posterUrl` dư thừa trong database. Poster được tính toán động (derived state) từ `activeThumbnail = localThumbnailUrl || thumbnailUrl`.
+  - Giải pháp React Remounting: Để khắc phục đặc tính của thẻ HTML5 `<video>` trên các trình duyệt hiện đại (không tự động vẽ lại poster khi thuộc tính poster thay đổi trên thẻ đã nạp metadata), gán React key phụ thuộc `key={`trailer_card_${activeTrailer}_${activePoster}`}` giúp remount tức thì khi poster hoặc trailer thay đổi.
+  - Tối ưu hóa tải tài nguyên: Sử dụng `preload={activePoster ? 'none' : 'metadata'}` để hiển thị poster ảnh sắc nét khi đã có thumbnail mà không bị frame 0 ghi đè; tự động fallback lấy frame đầu tiên qua `preload="metadata"` khi chưa có thumbnail.
+  - Đồng bộ Modal Player: Thẻ `<video>` trong Video Dialog Modal cũng nhận `poster={activePoster}` và `key={trailerModalKey}` để poster hiển thị đồng nhất.
+  - Quản lý bộ nhớ ObjectURL: Thêm `useEffect` dọn dẹp `URL.revokeObjectURL()` khi unmount và giải phóng object URL trong `onSuccess`/`onError` của mutation để chống rò rỉ bộ nhớ.
+- **Milestone 27 (Tinh Chỉnh Thẩm Mỹ Khung Trailer Preview: Giảm Thêm 30% Dark Overlay, Poster Sắc Nét 100%, Tối Giản Nút Play)**:
+  - Yêu cầu UI/UX: Làm sáng và trong trẻo hình ảnh poster video trailer tối đa, xóa nhãn văn bản rườm rà, tập trung thị giác vào nút Play tròn trung tâm.
+  - Tối ưu Dark Overlay: Tiếp tục giảm thêm 30% độ tối kênh alpha từ `bg-black/10 group-hover:bg-black/20` xuống `bg-black/[0.07] group-hover:bg-black/[0.14]`, giúp ảnh nền poster sáng rõ, trung thực và sắc nét tối đa.
+  - Tối đa độ sắc nét Poster: Đưa độ hiển thị của thẻ `<video>` lên tuyệt đối `opacity-100` (không hạ mờ ở bất kỳ trạng thái nào).
+  - Tối giản hóa Layout: Xóa bỏ thẻ `<span>Nhấn để phát video trailer</span>`, đưa container overlay về `flex items-center justify-center` với duy nhất nút tròn Play glassmorphism phóng to khi hover (`group-hover:scale-110 group-hover:bg-primary`).
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
+- **Milestone 28 (Mindmap Canvas Initial 2-Level Default Collapse)**:
+  - Thiết kế và triển khai cơ chế thu gọn mặc định cho sơ đồ tư duy: Khi người dùng chuyển sang tab "Sơ Đồ Tư Duy", canvas luôn reset và hiển thị đúng 2 cấp độ đầu tiên (Level 1: Gốc Khóa học, Level 2: Các Chương mục).
+  - Thuật toán thu gọn:
+    - Bổ sung hàm tiện ích `generateDefaultCollapsedIds(rawData)` trong `mindmap-converter.util.ts`, tự động gom toàn bộ `section.id` và `lesson.id` vào `Set<string>`.
+    - Level 3 (Bài học) và Level 4 (Ý chính) được đưa sẵn vào danh sách thu gọn ngay từ bước khởi tạo `initialElements`.
+    - Khi Giảng viên nhấn nút `+` trên từng Chương, chỉ các Bài học của chương đó được mở ra (các Ý chính của bài học vẫn giữ trạng thái đóng cho đến khi click `+` của bài học), hỗ trợ khám phá đa nhánh (`Multi-branch`).
+    - Thao tác "Làm mới cây" (`handleSyncFromCurriculum`) cũng khôi phục về trạng thái 2 cấp độ mặc định và tự động căn vừa màn hình (`fitView`).
+  - Kiểm tra chất lượng:
+    - TypeScript: `pnpm --filter frontend exec tsc --noEmit` -> 100% clean (0 errors).
+    - ESLint: `pnpm --filter frontend run lint` -> 100% clean (0 errors, 0 warnings).

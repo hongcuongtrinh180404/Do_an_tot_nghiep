@@ -23,7 +23,7 @@ import {
   CourseViewModeSwitcher,
   type CourseViewMode,
 } from './course-view-mode-switcher';
-import { CourseMindmapPlaceholder } from './course-mindmap-placeholder';
+import { CourseMindmapView } from './mindmap/course-mindmap-view';
 
 interface CourseSectionsListProps {
   courseId: string;
@@ -335,9 +335,13 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
         />
       </div>
 
-      {/* 2. Main Content: Split View Grid (Tree) OR Mindmap Placeholder */}
+      {/* 2. Main Content: Split View Grid (Tree) OR Interactive Mindmap Canvas */}
       {viewMode === 'mindmap' ? (
-        <CourseMindmapPlaceholder onBackToTree={() => handleViewModeChange('tree')} />
+        <CourseMindmapView
+          courseId={courseId}
+          sections={sectionList}
+          onBackToTree={() => handleViewModeChange('tree')}
+        />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[62fr_38fr] gap-6 items-start">
         {/* CỘT TRÁI (62%): CÂY PHÂN CẤP CHƯƠNG & BÀI HỌC */}

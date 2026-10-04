@@ -38,11 +38,37 @@
     1. Multiple active users with `username: null` or `undefined` never conflict.
     2. Active users have strictly unique emails and usernames.
     3. Soft-deleted accounts release their email and username for future registration.
-    4. Verified with 10 real MongoDB integration test cases in `user.schema.integration.spec.ts`.
+- **Gotcha 9 (MinIO Avatar Replacement & Old Avatar Garbage Collection)**:
+  - When users upload a new avatar, the previous avatar file in MinIO must be cleaned up to prevent uncontrolled storage bloat.
+  - The process must follow a strict safe order:
+    1. Query current user to capture `oldAvatarUrl`.
+    2. Upload new avatar image to MinIO (`StorageService.uploadImage`).
+    3. Persist new `avatarUrl` in MongoDB.
+    4. Call `StorageService.deleteFile(oldAvatarUrl)` to remove the old asset from the bucket.
+  - Third-party / OAuth avatar URLs (e.g. Google OAuth `https://lh3.googleusercontent.com/...`) must be detected and skipped without calling MinIO `DeleteObject`.
+  - The deletion step must be non-blocking with graceful error handling (`try-catch` + `logger.warn`), ensuring that any transient storage failure never interrupts or fails the user profile update.
 
 ---
 
 ## 2. Change Log & Bug Fixes
+
+### [2026-10-03] - MinIO Old Avatar Deletion & Storage Cleanup Workflow
+
+- **Backend (`UserService.updateAvatar`)**:
+  - Implemented 5-step safe avatar replacement flow:
+    1. Query current user profile with `findByIdOrFail` to obtain `oldAvatarUrl`.
+    2. Upload new cropped/compressed avatar via `StorageService.uploadImage(file, 'avatars')`.
+    3. Update user document in MongoDB with new `avatarUrl`.
+    4. Clean up old avatar from MinIO via `StorageService.deleteFile(oldAvatarUrl)` with `try-catch` fault-tolerance.
+    5. Return updated user profile.
+- **Storage Infrastructure (`StorageService.deleteFile`)**:
+  - Improved `deleteFile` to cleanly strip both public URL prefix and `/thc-datn-media/` bucket prefix.
+  - Automatically filters external URLs (e.g. Google OAuth avatars `https://lh3.googleusercontent.com/...`), skipping unnecessary S3 DeleteObject requests and returning `false`.
+- **Frontend UI Polish (`AvatarUploader`)**:
+  - Removed remaining "Cloudinary" references in tooltip and guideline text, replaced with "MinIO Storage".
+- **Testing & Verification**:
+  - Added test cases in `user.service.avatar.spec.ts` and `storage.service.spec.ts` covering old avatar deletion, null avatar upload, Google OAuth avatar skipping, and storage error resilience.
+  - 100% tests pass (19/19 tests) with 0 TypeScript compilation errors.
 
 ### [2026-09-22] - Mongoose User Schema v1 & Partial Unique Indexes Implementation
 

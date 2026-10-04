@@ -100,11 +100,35 @@ export class UserService extends BaseService<IUser, string> {
     if (!this.storageService) {
       throw new ConflictException('Dịch vụ lưu trữ chưa được khởi tạo');
     }
+
+    // 1. Lấy thông tin user hiện tại để trích xuất avatar cũ
+    const currentUser = await this.findByIdOrFail(userId);
+    const oldAvatarUrl = currentUser.avatarUrl || currentUser.avatar || null;
+
+    // 2. Upload avatar mới lên MinIO
     const avatarUrl = await this.storageService.uploadImage(file, 'avatars');
+
+    // 3. Cập nhật URL avatar mới vào Database
     const updated = await this.updateOrFail(userId, {
       avatarUrl,
       avatar: avatarUrl,
     });
+
+    // 4. Xóa avatar cũ khỏi MinIO (nếu có và khác avatar mới)
+    if (oldAvatarUrl && oldAvatarUrl !== avatarUrl) {
+      try {
+        await this.storageService.deleteFile(oldAvatarUrl);
+        this.logger.log(
+          `[${this.getCorrelationId()}] Đã xóa avatar cũ khỏi MinIO: ${oldAvatarUrl}`,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `[${this.getCorrelationId()}] Không thể xóa avatar cũ (${oldAvatarUrl}) khỏi MinIO: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    // 5. Trả về profile đã cập nhật
     return {
       avatarUrl,
       avatar: avatarUrl,

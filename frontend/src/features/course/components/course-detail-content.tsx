@@ -3,12 +3,20 @@
 import React from 'react';
 import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { useCourseDetailQuery } from '../api/course.api';
 import { CourseLevelEnum, CourseStatusEnum } from '../types/course.types';
 import { CourseDetailSkeleton } from './course-detail-skeleton';
 import { CourseSectionsList } from './course-sections-list';
+import { CourseMediaPreview } from './course-media-preview';
+import {
+  CourseTitleInlineEdit,
+  CoursePriceInlinePopover,
+  CourseLevelInlineSelect,
+  CourseShortDescInlineCard,
+  CourseDescInlineCard,
+} from './inline';
 
 interface CourseDetailContentProps {
   courseId: string;
@@ -33,21 +41,8 @@ const levelMap: Record<CourseLevelEnum, string> = {
   [CourseLevelEnum.BEGINNER]: 'Cơ bản',
   [CourseLevelEnum.INTERMEDIATE]: 'Trung cấp',
   [CourseLevelEnum.ADVANCED]: 'Nâng cao',
-  [CourseLevelEnum.ALL_LEVELS]: 'Mọi cấp độ',
+  [CourseLevelEnum.ALL_LEVELS]: 'Tất cả cấp độ',
 };
-
-function formatPrice(price?: number): { text: string; isFree: boolean } {
-  if (price === undefined || price === null || price === 0) {
-    return { text: 'Miễn phí', isFree: true };
-  }
-  return {
-    text: new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-    }).format(price),
-    isFree: false,
-  };
-}
 
 function formatDate(dateValue: Date | string): string {
   try {
@@ -143,7 +138,6 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
     className: 'bg-muted text-muted-foreground border-border/50',
   };
   const levelText = levelMap[course.level] ?? 'Mọi cấp độ';
-  const priceInfo = formatPrice(course.price);
   const createdDate = formatDate(course.createdAt);
 
   return (
@@ -174,7 +168,7 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
       </div>
 
       {/* Hero Overview Card */}
-      <Card className="border-border/50 bg-card/60 shadow-xs">
+      <Card className="border-border/50 bg-card/60 shadow-xs overflow-visible">
         <CardHeader className="space-y-4 pb-6">
           {/* Status & Level Badges */}
           <div className="flex items-center gap-2">
@@ -190,44 +184,17 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
           </div>
 
           {/* Title */}
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight">
-              {course.title}
-            </h1>
-            {/* Slug badge */}
-            <div className="mt-2.5">
-              <span className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground bg-muted/60 border border-border/50 px-2.5 py-1 rounded-md">
-                <Icon icon="lucide:link" className="size-3 text-muted-foreground/70 shrink-0" />
-                <span>{course.slug}</span>
-              </span>
-            </div>
-          </div>
+          <CourseTitleInlineEdit course={course} />
         </CardHeader>
 
         {/* Quick Stats Grid */}
         <CardContent className="pt-4 border-t border-border/40">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {/* Price */}
-            <div className="p-3 rounded-lg bg-muted/25 border border-border/30">
-              <span className="text-xs text-muted-foreground block mb-1">Học phí</span>
-              <span
-                className={`text-sm sm:text-base font-semibold ${
-                  priceInfo.isFree
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-foreground'
-                }`}
-              >
-                {priceInfo.text}
-              </span>
-            </div>
+            {/* Price Popover */}
+            <CoursePriceInlinePopover course={course} />
 
-            {/* Level */}
-            <div className="p-3 rounded-lg bg-muted/25 border border-border/30">
-              <span className="text-xs text-muted-foreground block mb-1">Trình độ</span>
-              <span className="text-sm sm:text-base font-semibold text-foreground">
-                {levelText}
-              </span>
-            </div>
+            {/* Level Select */}
+            <CourseLevelInlineSelect course={course} />
 
             {/* Status */}
             <div className="p-3 rounded-lg bg-muted/25 border border-border/30">
@@ -249,46 +216,17 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
       </Card>
 
       {/* Short Description Section */}
-      <Card className="border-border/50 bg-card/60 shadow-xs">
-        <CardHeader className="pb-3 border-b border-border/30">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
-            <Icon icon="lucide:file-text" className="size-4 text-muted-foreground" />
-            Mô tả ngắn gọn
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-4">
-          {course.shortDescription?.trim() ? (
-            <p className="text-sm text-foreground/90 leading-relaxed">
-              {course.shortDescription}
-            </p>
-          ) : (
-            <p className="text-sm italic text-muted-foreground">
-              Chưa có mô tả ngắn
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <CourseShortDescInlineCard course={course} />
 
       {/* Full Description Section */}
-      <Card className="border-border/50 bg-card/60 shadow-xs">
-        <CardHeader className="pb-3 border-b border-border/30">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
-            <Icon icon="lucide:align-left" className="size-4 text-muted-foreground" />
-            Nội dung mô tả chi tiết
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-4">
-          {course.description?.trim() ? (
-            <div className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap font-sans">
-              {course.description}
-            </div>
-          ) : (
-            <p className="text-sm italic text-muted-foreground">
-              Chưa có nội dung mô tả chi tiết
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <CourseDescInlineCard course={course} />
+
+      {/* Course Media (Thumbnail & Trailer with MinIO Upload) */}
+      <CourseMediaPreview
+        courseId={course.id}
+        thumbnailUrl={course.thumbnailUrl}
+        trailerUrl={course.trailerUrl}
+      />
 
       {/* Course Curriculum / Sections Section */}
       <CourseSectionsList courseId={courseId} />

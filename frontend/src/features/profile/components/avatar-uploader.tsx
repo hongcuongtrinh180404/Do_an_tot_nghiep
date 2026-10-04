@@ -157,11 +157,11 @@ export function AvatarUploader({
           )}
         </div>
 
-        {/* Cloudinary Active Badge */}
+        {/* MinIO Storage Active Badge */}
         {displayImage && (
           <div
             className="absolute bottom-1 right-1 bg-background/80 backdrop-blur-xs p-1 rounded-full text-emerald-600 shadow"
-            title="Lưu trữ trên Cloudinary"
+            title="Lưu trữ an toàn trên MinIO Storage"
           >
             <Icon icon="lucide:cloud" className="size-3.5" />
           </div>
@@ -210,7 +210,7 @@ export function AvatarUploader({
         </div>
 
         <p className="text-[11px] text-muted-foreground leading-tight">
-          Hỗ trợ JPG, PNG, WEBP hoặc GIF (Tối đa 50MB). Tự động lưu lên Cloudinary.
+          Hỗ trợ JPG, PNG, WEBP hoặc GIF (Tối đa 50MB). Tự động nén WebP và lưu trữ trên MinIO.
         </p>
       </div>
     </div>

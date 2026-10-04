@@ -14,10 +14,12 @@ export * from './interfaces/api-response.interface.js';
 export * from './interfaces/course.interface.js';
 export * from './interfaces/section.interface.js';
 export * from './interfaces/lesson.interface.js';
+export * from './interfaces/course-mindmap.interface.js';
 
 // Constants
 export * from './constants/auth.constants.js';
 
 // Utils
 export * from './utils/file.util.js';
+export * from './utils/slug.util.js';
 

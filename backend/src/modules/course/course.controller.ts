@@ -3,11 +3,15 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Body,
   Param,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ICourse, ISection, RoleEnum } from 'share-lib';
 import { ApiResponse, ParseObjectIdPipe } from '../base/index.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
@@ -15,8 +19,11 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
 import { Public } from '../auth/decorators/public.decorator.js';
 import { CourseService } from './services/course.service.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
+import { UpdateCourseDto } from './dto/update-course.dto.js';
 import { CreateSectionDto } from './dto/create-section.dto.js';
 import { ReorderSectionsDto } from './dto/reorder-sections.dto.js';
+import { CourseImageValidationPipe } from './pipes/course-image-validation.pipe.js';
+import { CourseTrailerValidationPipe } from './pipes/course-trailer-validation.pipe.js';
 
 @Controller('courses')
 export class CourseController {
@@ -44,6 +51,18 @@ export class CourseController {
       role,
     );
     return ApiResponse.success(course, 'Lấy chi tiết khóa học thành công');
+  }
+
+  @Patch(':id')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  async update(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: RoleEnum,
+    @Body() dto: UpdateCourseDto,
+  ): Promise<ApiResponse<ICourse>> {
+    const course = await this.courseService.updateCourse(id, dto, userId, role);
+    return ApiResponse.success(course, 'Cập nhật khóa học thành công');
   }
 
   @Post()
@@ -103,5 +122,41 @@ export class CourseController {
   ): Promise<ApiResponse<ISection[]>> {
     const sections = await this.courseService.getSectionsByCourseId(courseId);
     return ApiResponse.success(sections, 'Lấy danh sách chương học thành công');
+  }
+
+  @Patch(':courseId/thumbnail')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadThumbnail(
+    @Param('courseId', ParseObjectIdPipe) courseId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: RoleEnum,
+    @UploadedFile(CourseImageValidationPipe) file: Express.Multer.File,
+  ): Promise<ApiResponse<ICourse>> {
+    const course = await this.courseService.updateCourseThumbnail(
+      courseId,
+      userId,
+      role,
+      file,
+    );
+    return ApiResponse.success(course, 'Cập nhật ảnh bìa khóa học thành công');
+  }
+
+  @Patch(':courseId/trailer')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadTrailer(
+    @Param('courseId', ParseObjectIdPipe) courseId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: RoleEnum,
+    @UploadedFile(CourseTrailerValidationPipe) file: Express.Multer.File,
+  ): Promise<ApiResponse<ICourse>> {
+    const course = await this.courseService.updateCourseTrailer(
+      courseId,
+      userId,
+      role,
+      file,
+    );
+    return ApiResponse.success(course, 'Cập nhật video trailer khóa học thành công');
   }
 }

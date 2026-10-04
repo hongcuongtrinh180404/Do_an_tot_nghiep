@@ -30,6 +30,7 @@ describe('CourseController', () => {
   let controller: CourseController;
   let mockCourseService: {
     createCourse: ReturnType<typeof vi.fn>;
+    updateCourse: ReturnType<typeof vi.fn>;
     findByInstructorId: ReturnType<typeof vi.fn>;
     getCourseDetailForInstructor: ReturnType<typeof vi.fn>;
     createSection: ReturnType<typeof vi.fn>;
@@ -65,6 +66,7 @@ describe('CourseController', () => {
   beforeEach(() => {
     mockCourseService = {
       createCourse: vi.fn(),
+      updateCourse: vi.fn(),
       findByInstructorId: vi.fn(),
       getCourseDetailForInstructor: vi.fn(),
       createSection: vi.fn(),
@@ -473,7 +475,7 @@ describe('CourseController', () => {
         courseId,
         title: dto.title,
         description: dto.description ?? null,
-        order: dto.order,
+        order: dto.order ?? 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -504,7 +506,7 @@ describe('CourseController', () => {
         id: 'section_admin',
         courseId,
         title: dto.title,
-        order: dto.order,
+        order: dto.order ?? 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -832,6 +834,54 @@ describe('CourseController', () => {
           metatype: ReorderSectionsDto,
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('PATCH /courses/:id - update', () => {
+    it('1. should allow INSTRUCTOR to update their course successfully', async () => {
+      const courseId = 'course_123';
+      const userId = 'instructor_1';
+      const dto = { title: 'Tên mới' };
+      const updatedCourse: ICourse = {
+        ...sampleCourse,
+        title: 'Tên mới',
+        slug: 'ten-moi',
+      };
+      mockCourseService.updateCourse.mockResolvedValue(updatedCourse);
+
+      const response = await controller.update(courseId, userId, RoleEnum.INSTRUCTOR, dto);
+
+      expect(mockCourseService.updateCourse).toHaveBeenCalledWith(
+        courseId,
+        dto,
+        userId,
+        RoleEnum.INSTRUCTOR,
+      );
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Cập nhật khóa học thành công');
+      expect(response.data.title).toBe('Tên mới');
+    });
+
+    it('2. should allow ADMIN to update any course', async () => {
+      const courseId = 'course_123';
+      const adminId = 'admin_1';
+      const dto = { price: 299000 };
+      const updatedCourse: ICourse = {
+        ...sampleCourse,
+        price: 299000,
+      };
+      mockCourseService.updateCourse.mockResolvedValue(updatedCourse);
+
+      const response = await controller.update(courseId, adminId, RoleEnum.ADMIN, dto);
+
+      expect(mockCourseService.updateCourse).toHaveBeenCalledWith(
+        courseId,
+        dto,
+        adminId,
+        RoleEnum.ADMIN,
+      );
+      expect(response.success).toBe(true);
+      expect(response.data.price).toBe(299000);
     });
   });
 });

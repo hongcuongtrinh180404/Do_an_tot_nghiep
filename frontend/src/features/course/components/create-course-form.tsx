@@ -2,7 +2,7 @@
 
 import React, { useRef } from 'react';
 import Link from 'next/link';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CourseLevelEnum } from 'share-lib';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 
@@ -20,6 +21,7 @@ import {
 } from '../schemas/create-course.schema';
 import { slugify } from '../utils/slugify';
 import { useCreateCourseMutation } from '../api/course.api';
+import { CourseLevelSelect } from './course-level-select';
 
 export function CreateCourseForm(): React.JSX.Element {
   const isSlugManuallyModified = useRef(false);
@@ -31,6 +33,7 @@ export function CreateCourseForm(): React.JSX.Element {
     setValue,
     getValues,
     setError,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<CreateCourseFormData>({
     resolver: zodResolver(createCourseSchema),
@@ -198,6 +201,7 @@ export function CreateCourseForm(): React.JSX.Element {
                   placeholder="0"
                   aria-invalid={Boolean(errors.price)}
                   disabled={isPending}
+                  className="rounded-xl"
                   {...register('price', { valueAsNumber: true })}
                 />
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none pointer-events-none font-medium">
@@ -220,38 +224,20 @@ export function CreateCourseForm(): React.JSX.Element {
               <Label htmlFor="level">
                 Cấp độ <span className="text-xs text-muted-foreground">(Tùy chọn)</span>
               </Label>
-              <select
-                id="level"
-                className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive md:text-sm dark:bg-input/30"
-                aria-invalid={Boolean(errors.level)}
-                disabled={isPending}
-                {...register('level')}
-              >
-                <option
-                  value={CourseLevelEnum.ALL_LEVELS}
-                  className="bg-popover text-popover-foreground"
-                >
-                  Tất cả cấp độ
-                </option>
-                <option
-                  value={CourseLevelEnum.BEGINNER}
-                  className="bg-popover text-popover-foreground"
-                >
-                  Cơ bản
-                </option>
-                <option
-                  value={CourseLevelEnum.INTERMEDIATE}
-                  className="bg-popover text-popover-foreground"
-                >
-                  Trung cấp
-                </option>
-                <option
-                  value={CourseLevelEnum.ADVANCED}
-                  className="bg-popover text-popover-foreground"
-                >
-                  Nâng cao
-                </option>
-              </select>
+              <Controller
+                control={control}
+                name="level"
+                render={({ field, fieldState }) => (
+                  <CourseLevelSelect
+                    id="level"
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    disabled={isPending}
+                    isInvalid={Boolean(fieldState.error)}
+                  />
+                )}
+              />
               {errors.level && (
                 <p className="text-xs font-medium text-destructive mt-1">
                   {errors.level.message}
@@ -288,13 +274,20 @@ export function CreateCourseForm(): React.JSX.Element {
             <Label htmlFor="description">
               Mô tả chi tiết <span className="text-xs text-muted-foreground">(Tùy chọn)</span>
             </Label>
-            <Textarea
-              id="description"
-              rows={6}
-              placeholder="Nội dung giới thiệu chi tiết lộ trình học tập, yêu cầu kiến thức tiên quyết, công cụ thực hành..."
-              aria-invalid={Boolean(errors.description)}
-              disabled={isPending}
-              {...register('description')}
+            <Controller
+              control={control}
+              name="description"
+              render={({ field }) => (
+                <RichTextEditor
+                  id="description"
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Nội dung giới thiệu chi tiết lộ trình học tập, yêu cầu kiến thức tiên quyết, công cụ thực hành..."
+                  disabled={isPending}
+                  aria-invalid={Boolean(errors.description)}
+                  minHeight="280px"
+                />
+              )}
             />
             {errors.description && (
               <p className="text-xs font-medium text-destructive mt-1">

@@ -7,6 +7,7 @@ import type {
   IApiResponse,
   ICourse,
   ICreateCoursePayload,
+  IUpdateCoursePayload,
   ICreateSectionPayload,
   IReorderSectionsPayload,
   ICreateLessonPayload,
@@ -28,6 +29,10 @@ export const courseKeys = {
 export const courseApi = {
   async createCourse(payload: ICreateCoursePayload): Promise<ICourse> {
     const res = await apiClient.post<IApiResponse<ICourse>>('/courses', payload);
+    return res.data.data;
+  },
+  async updateCourse(id: string, payload: IUpdateCoursePayload): Promise<ICourse> {
+    const res = await apiClient.patch<IApiResponse<ICourse>>(`/courses/${id}`, payload);
     return res.data.data;
   },
   async getMyCourses(): Promise<ICourse[]> {
@@ -72,6 +77,58 @@ export const courseApi = {
   },
   async getLessonById(id: string): Promise<ILesson> {
     const res = await apiClient.get<IApiResponse<ILesson>>(`/lessons/${id}`);
+    return res.data.data;
+  },
+  async uploadThumbnail(
+    courseId: string,
+    file: File,
+    onProgress?: (percent: number) => void,
+  ): Promise<ICourse> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await apiClient.patch<IApiResponse<ICourse>>(
+      `/courses/${courseId}/thumbnail`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 60000,
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total && onProgress) {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            onProgress(percent);
+          }
+        },
+      },
+    );
+    return res.data.data;
+  },
+  async uploadTrailer(
+    courseId: string,
+    file: File,
+    onProgress?: (percent: number) => void,
+  ): Promise<ICourse> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await apiClient.patch<IApiResponse<ICourse>>(
+      `/courses/${courseId}/trailer`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 0,
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total && onProgress) {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            onProgress(percent);
+          }
+        },
+      },
+    );
     return res.data.data;
   },
 };
@@ -186,6 +243,34 @@ export function useCreateCourseMutation() {
         description:
           message || 'Không thể kết nối đến máy chủ hoặc đã xảy ra lỗi. Vui lòng thử lại sau.',
       });
+    },
+  });
+}
+
+export function useUpdateCourseMutation(courseId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: IUpdateCoursePayload) => courseApi.updateCourse(courseId, payload),
+    onSuccess: (updatedCourse) => {
+      queryClient.setQueryData(courseKeys.detail(courseId), updatedCourse);
+      void queryClient.invalidateQueries({ queryKey: courseKeys.detail(courseId) });
+      void queryClient.invalidateQueries({ queryKey: courseKeys.myCourses() });
+      toast.success('Cập nhật thông tin thành công');
+    },
+    onError: (error: unknown) => {
+      const axiosError = error as {
+        response?: {
+          status?: number;
+          data?: {
+            message?: string | string[];
+          };
+        };
+      };
+      const message = Array.isArray(axiosError.response?.data?.message)
+        ? axiosError.response?.data?.message.join(', ')
+        : axiosError.response?.data?.message || 'Không thể cập nhật khóa học. Vui lòng thử lại sau.';
+      toast.error(message);
     },
   });
 }
@@ -367,6 +452,94 @@ export function useCreateLessonMutation(sectionId: string) {
       toast.error('Lỗi thêm bài học', {
         description:
           message || 'Không thể kết nối đến máy chủ hoặc đã xảy ra lỗi. Vui lòng thử lại sau.',
+      });
+    },
+  });
+}
+
+export function useUploadCourseThumbnailMutation(courseId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      file,
+      onProgress,
+    }: {
+      file: File;
+      onProgress?: (percent: number) => void;
+    }) => courseApi.uploadThumbnail(courseId, file, onProgress),
+    onSuccess: (updatedCourse: ICourse) => {
+      queryClient.setQueryData<ICourse>(courseKeys.detail(courseId), (old) => {
+        if (!old) return updatedCourse;
+        return {
+          ...old,
+          thumbnailUrl: updatedCourse.thumbnailUrl,
+        };
+      });
+      void queryClient.invalidateQueries({ queryKey: courseKeys.detail(courseId) });
+      void queryClient.invalidateQueries({ queryKey: courseKeys.all });
+
+      toast.success('Cập nhật ảnh bìa thành công!', {
+        description: 'Ảnh bìa khóa học mới đã được lưu trữ an toàn trên MinIO.',
+      });
+    },
+    onError: (error: unknown) => {
+      const axiosError = error as {
+        response?: {
+          status?: number;
+          data?: { message?: string | string[] };
+        };
+      };
+      const rawMessage = axiosError.response?.data?.message;
+      const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage;
+
+      toast.error('Lỗi tải ảnh bìa', {
+        description:
+          message || 'Không thể tải ảnh bìa lên máy chủ lưu trữ. Vui lòng thử lại sau.',
+      });
+    },
+  });
+}
+
+export function useUploadCourseTrailerMutation(courseId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      file,
+      onProgress,
+    }: {
+      file: File;
+      onProgress?: (percent: number) => void;
+    }) => courseApi.uploadTrailer(courseId, file, onProgress),
+    onSuccess: (updatedCourse: ICourse) => {
+      queryClient.setQueryData<ICourse>(courseKeys.detail(courseId), (old) => {
+        if (!old) return updatedCourse;
+        return {
+          ...old,
+          trailerUrl: updatedCourse.trailerUrl,
+        };
+      });
+      void queryClient.invalidateQueries({ queryKey: courseKeys.detail(courseId) });
+      void queryClient.invalidateQueries({ queryKey: courseKeys.all });
+
+      toast.success('Cập nhật video trailer thành công!', {
+        description: 'Video giới thiệu khóa học đã được lưu trữ an toàn trên MinIO.',
+      });
+    },
+    onError: (error: unknown) => {
+      const axiosError = error as {
+        response?: {
+          status?: number;
+          data?: { message?: string | string[] };
+        };
+      };
+      const rawMessage = axiosError.response?.data?.message;
+      const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage;
+
+      toast.error('Lỗi tải video trailer', {
+        description:
+          message || 'Không thể tải video trailer lên máy chủ lưu trữ. Vui lòng thử lại sau.',
       });
     },
   });

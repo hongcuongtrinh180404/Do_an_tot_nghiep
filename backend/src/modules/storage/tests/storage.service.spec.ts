@@ -158,10 +158,33 @@ describe('StorageService', () => {
       expect(deleted).toBe(true);
     });
 
+    it('should extract key and delete object when full MinIO URL is passed', async () => {
+      const fullUrl = 'http://localhost:9000/thc-datn-media/avatars/old-avatar.webp';
+      const deleted = await service.deleteFile(fullUrl);
+      expect(sendSpy).toHaveBeenCalledTimes(1);
+      const command = sendSpy.mock.calls[0][0];
+      expect(command).toBeInstanceOf(DeleteObjectCommand);
+      expect((command as DeleteObjectCommand).input.Key).toBe('avatars/old-avatar.webp');
+      expect(deleted).toBe(true);
+    });
+
+    it('should skip deletion and return false for external third-party URLs (e.g. Google OAuth)', async () => {
+      const externalUrl = 'https://lh3.googleusercontent.com/a/ACg8ocTestAvatar123=s96-c';
+      const deleted = await service.deleteFile(externalUrl);
+      expect(sendSpy).not.toHaveBeenCalled();
+      expect(deleted).toBe(false);
+    });
+
     it('should return false if file key is empty', async () => {
       const deleted = await service.deleteFile('');
       expect(deleted).toBe(false);
       expect(sendSpy).not.toHaveBeenCalled();
+    });
+
+    it('should return false and not throw when MinIO deletion encounters an error', async () => {
+      sendSpy.mockRejectedValue(new Error('S3 connection failed'));
+      const deleted = await service.deleteFile('avatars/failing-avatar.webp');
+      expect(deleted).toBe(false);
     });
   });
 });

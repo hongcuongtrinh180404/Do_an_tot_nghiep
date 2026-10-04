@@ -8,7 +8,9 @@ export interface ICourse {
   description?: string | null;
   shortDescription?: string | null;
   thumbnailUrl?: string | null;
+  trailerUrl?: string | null;
   price: number;
+  originalPrice?: number | null;
   instructorId: string;
   status: CourseStatusEnum;
   level: CourseLevelEnum;
@@ -26,5 +28,18 @@ export interface ICreateCoursePayload {
   description?: string;
   thumbnailUrl?: string;
   price?: number;
+  level?: CourseLevelEnum;
+}
+
+export interface IUpdateCoursePayload {
+  title?: string;
+  slug?: string;
+  shortDescription?: string | null;
+  description?: string | null;
+  thumbnailUrl?: string | null;
+  trailerUrl?: string | null;
+  price?: number;
+  originalPrice?: number | null;
+  status?: CourseStatusEnum;
   level?: CourseLevelEnum;
 }

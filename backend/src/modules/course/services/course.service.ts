@@ -15,6 +15,7 @@ import {
   UserStatusEnum,
   CourseStatusEnum,
   CourseLevelEnum,
+  slugify,
 } from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { CourseRepository } from '../repositories/course.repository.js';
@@ -22,6 +23,8 @@ import { SectionRepository } from '../repositories/section.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { CreateSectionDto } from '../dto/create-section.dto.js';
 import { ReorderSectionsDto } from '../dto/reorder-sections.dto.js';
+import { UpdateCourseDto } from '../dto/update-course.dto.js';
+import { StorageService } from '../../storage/index.js';
 
 export interface CreateCourseInput {
   title: string;
@@ -30,6 +33,7 @@ export interface CreateCourseInput {
   description?: string | null;
   shortDescription?: string | null;
   thumbnailUrl?: string | null;
+  trailerUrl?: string | null;
   price?: number;
   status?: CourseStatusEnum;
   level?: CourseLevelEnum;
@@ -41,6 +45,7 @@ export class CourseService extends BaseService<ICourse, string> {
     protected readonly courseRepository: CourseRepository,
     protected readonly sectionRepository: SectionRepository,
     protected readonly userRepository: UserRepository,
+    protected readonly storageService: StorageService,
     cls: ClsService,
   ) {
     super(courseRepository, cls, CourseService.name);
@@ -243,5 +248,170 @@ export class CourseService extends BaseService<ICourse, string> {
     }
 
     return this.sectionRepository.findByCourseId(courseId, session);
+  }
+
+  async updateCourseThumbnail(
+    courseId: string,
+    userId: string,
+    role: RoleEnum,
+    file: Express.Multer.File,
+    session?: ClientSession,
+  ): Promise<ICourse> {
+    const course = await this.getCourseDetailForInstructor(courseId, userId, role, session);
+
+    const oldThumbnailUrl = course.thumbnailUrl;
+
+    const newThumbnailUrl = await this.storageService.uploadImage(file, {
+      subFolder: 'courses/thumbnail',
+      width: 1280,
+      height: 720,
+      quality: 85,
+    });
+
+    if (oldThumbnailUrl) {
+      this.storageService.deleteFile(oldThumbnailUrl).catch((err: unknown) => {
+        this.logger.warn(
+          `Không thể xóa ảnh thumbnail cũ: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+    }
+
+    return this.updateOrFail(
+      courseId,
+      { thumbnailUrl: newThumbnailUrl } as unknown as Partial<ICourse>,
+      session,
+    );
+  }
+
+  async updateCourseTrailer(
+    courseId: string,
+    userId: string,
+    role: RoleEnum,
+    file: Express.Multer.File,
+    session?: ClientSession,
+  ): Promise<ICourse> {
+    const course = await this.getCourseDetailForInstructor(courseId, userId, role, session);
+
+    const oldTrailerUrl = course.trailerUrl;
+
+    const lessonContent = await this.storageService.uploadLessonMedia(file, 'courses/trailer');
+
+    if (oldTrailerUrl) {
+      this.storageService.deleteFile(oldTrailerUrl).catch((err: unknown) => {
+        this.logger.warn(
+          `Không thể xóa video trailer cũ: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+    }
+
+    return this.updateOrFail(
+      courseId,
+      { trailerUrl: lessonContent.url } as unknown as Partial<ICourse>,
+      session,
+    );
+  }
+
+  async generateUniqueSlug(
+    baseSlug: string,
+    excludeCourseId: string,
+    session?: ClientSession,
+  ): Promise<string> {
+    const normalized = slugify(baseSlug);
+    const conflictingSlugs = await this.courseRepository.findConflictingSlugs(
+      normalized,
+      excludeCourseId,
+      session,
+    );
+
+    if (!conflictingSlugs || conflictingSlugs.length === 0) {
+      return normalized;
+    }
+
+    if (!conflictingSlugs.includes(normalized)) {
+      return normalized;
+    }
+
+    let maxSuffix = 0;
+    const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const suffixRegex = new RegExp(`^${escaped}-([0-9]+)$`, 'i');
+
+    for (const slug of conflictingSlugs) {
+      const match = slug.match(suffixRegex);
+      if (match && match[1]) {
+        const num = parseInt(match[1], 10);
+        if (num > maxSuffix) {
+          maxSuffix = num;
+        }
+      }
+    }
+
+    return `${normalized}-${maxSuffix + 1}`;
+  }
+
+  async updateCourse(
+    courseId: string,
+    dto: UpdateCourseDto,
+    userId: string,
+    role: RoleEnum,
+    session?: ClientSession,
+  ): Promise<ICourse> {
+    // 1. Fetch course and check authorization
+    const course = await this.getCourseDetailForInstructor(courseId, userId, role, session);
+
+    // 2. Validate price constraint
+    const targetPrice = dto.price !== undefined ? dto.price : course.price;
+    const targetOriginalPrice =
+      dto.originalPrice !== undefined ? dto.originalPrice : course.originalPrice;
+
+    if (dto.price !== undefined && dto.price < 0) {
+      throw new BadRequestException('Giá khóa học không được nhỏ hơn 0');
+    }
+
+    if (dto.originalPrice !== undefined && dto.originalPrice !== null && dto.originalPrice < 0) {
+      throw new BadRequestException('Giá gốc khóa học không được nhỏ hơn 0');
+    }
+
+    if (
+      targetOriginalPrice !== null &&
+      targetOriginalPrice !== undefined &&
+      targetPrice > targetOriginalPrice
+    ) {
+      throw new BadRequestException('Giá bán không được lớn hơn giá gốc');
+    }
+
+    // 3. Handle slug update
+    let updatedSlug: string | undefined = undefined;
+    if (dto.slug) {
+      const normalizedSlug = slugify(dto.slug);
+      if (normalizedSlug !== course.slug) {
+        const conflicting = await this.courseRepository.findConflictingSlugs(
+          normalizedSlug,
+          courseId,
+          session,
+        );
+        if (conflicting.includes(normalizedSlug)) {
+          throw new ConflictException(`Đường dẫn slug '${normalizedSlug}' đã tồn tại`);
+        }
+        updatedSlug = normalizedSlug;
+      }
+    } else if (dto.title && dto.title.trim() !== course.title) {
+      updatedSlug = await this.generateUniqueSlug(dto.title.trim(), courseId, session);
+    }
+
+    // 4. Prepare update payload
+    const updateData: Partial<ICourse> = {};
+    if (dto.title !== undefined) updateData.title = dto.title.trim();
+    if (updatedSlug !== undefined) updateData.slug = updatedSlug;
+    if (dto.shortDescription !== undefined) updateData.shortDescription = dto.shortDescription;
+    if (dto.description !== undefined) updateData.description = dto.description;
+    if (dto.thumbnailUrl !== undefined) updateData.thumbnailUrl = dto.thumbnailUrl;
+    if (dto.trailerUrl !== undefined) updateData.trailerUrl = dto.trailerUrl;
+    if (dto.price !== undefined) updateData.price = dto.price;
+    if (dto.originalPrice !== undefined) updateData.originalPrice = dto.originalPrice;
+    if (dto.level !== undefined) updateData.level = dto.level;
+    if (dto.status !== undefined) updateData.status = dto.status;
+
+    // 5. Execute update via BaseService
+    return this.updateOrFail(courseId, updateData as unknown as Partial<ICourse>, session);
   }
 }

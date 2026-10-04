@@ -10,7 +10,8 @@
 - `title`: string (required, trimmed, index)
 - `slug`: string (unique index, auto-generated from title)
 - `description`: string
-- `thumbnailUrl`: string
+- `thumbnailUrl`: string (optional, default: null, MinIO path: `courses/thumbnail/`)
+- `trailerUrl`: string (optional, default: null, MinIO path: `courses/trailer/`)
 - `price`: number (min: 0, default: 0)
 - `instructorId`: Types.ObjectId (ref: `User`, required, index)
 - `isPublished`: boolean (default: false, index)
@@ -42,6 +43,11 @@
   - `explanation`: string
 - Inherits `BaseAbstractDocument`.
 
+### D. Course Mindmap Schema (`course_mindmaps`)
+- `courseId`: Types.ObjectId (ref: `CourseEntity`, required, unique partial index `{ courseId: 1, deletedAt: null }`)
+- `mindmapData`: Record<string, unknown> (type `Mixed`, required - lưu trữ chuỗi JSON phân cấp Khóa học -> Chương -> Bài học -> Các ý cốt lõi cùng UI metadata)
+- Inherits `BaseAbstractDocument` (`createdAt`, `updatedAt`, `deletedAt`, `createdById`, `updatedById`).
+
 ---
 
 ## 2. API Endpoints
@@ -56,6 +62,10 @@
 | `DELETE` | `/api/v1/courses/:id` | Xóa mềm khóa học | `INSTRUCTOR` (Owner), `ADMIN` |
 | `POST` | `/api/v1/courses/:id/chapters` | Thêm chương học mới (tự động gán thứ tự nếu không truyền order) | `INSTRUCTOR` (Owner), `ADMIN` |
 | `PUT` | `/api/v1/courses/:id/sections/reorder` | Sắp xếp lại thứ tự các chương học hàng loạt bằng transaction | `INSTRUCTOR` (Owner), `ADMIN` |
+| `GET` | `/api/v1/courses/:courseId/mindmap` | Lấy dữ liệu sơ đồ tư duy khóa học siêu tốc (không cần JOIN) | Public |
+| `PUT` | `/api/v1/courses/:courseId/mindmap` | Upsert ghi đè toàn bộ dữ liệu Mindmap khóa học | `INSTRUCTOR` (Owner), `ADMIN` |
+| `PATCH` | `/api/v1/courses/:courseId/thumbnail` | Upload ảnh bìa khóa học lên `courses/thumbnail/` | `INSTRUCTOR` (Owner), `ADMIN` |
+| `PATCH` | `/api/v1/courses/:courseId/trailer` | Upload video trailer khóa học lên `courses/trailer/` | `INSTRUCTOR` (Owner), `ADMIN` |
 | `POST` | `/api/v1/sections/:sectionId/lessons` | Thêm bài học mới vào section | `INSTRUCTOR` (Owner), `ADMIN` |
 | `GET` | `/api/v1/sections/:sectionId/lessons` | Lấy danh sách bài học theo section | Public |
 | `GET` | `/api/v1/lessons/:id` | Xem chi tiết bài học & content | Public |

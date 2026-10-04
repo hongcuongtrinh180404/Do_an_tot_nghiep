@@ -60,4 +60,31 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
 
     return docs.map((doc) => this.toDomain(doc));
   }
+
+  async findConflictingSlugs(
+    baseSlug: string,
+    excludeCourseId: string,
+    session?: ClientSession,
+  ): Promise<string[]> {
+    const escaped = baseSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`^${escaped}(-[0-9]+)?$`, 'i');
+
+    const filter: Record<string, unknown> = {
+      slug: regex,
+      deletedAt: null,
+    };
+
+    if (excludeCourseId) {
+      filter._id = { $ne: excludeCourseId };
+    }
+
+    const docs = await this.model
+      .find(filter)
+      .select('slug')
+      .session(session ?? null)
+      .lean()
+      .exec();
+
+    return docs.map((d) => (d as unknown as { slug: string }).slug);
+  }
 }

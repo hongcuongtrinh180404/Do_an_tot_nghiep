@@ -221,13 +221,24 @@ export class StorageService implements IStorageService {
    * Delete an object from MinIO
    */
   async deleteFile(fileKeyOrUrl: string): Promise<boolean> {
-    if (!fileKeyOrUrl) return false;
+    if (!fileKeyOrUrl || typeof fileKeyOrUrl !== 'string') return false;
 
     let key = fileKeyOrUrl.trim();
     const publicUrlPrefix = `${this.publicUrl}/${this.bucketName}/`;
     if (key.startsWith(publicUrlPrefix)) {
       key = key.slice(publicUrlPrefix.length);
+    } else if (key.includes(`/${this.bucketName}/`)) {
+      key = key.slice(key.indexOf(`/${this.bucketName}/`) + `/${this.bucketName}/`.length);
     }
+
+    // Bỏ qua nếu là URL bên ngoài (Google OAuth, external CDN)
+    if (/^https?:\/\//i.test(key)) {
+      this.logger.debug(`Bỏ qua xóa file do không thuộc MinIO bucket: ${fileKeyOrUrl}`);
+      return false;
+    }
+
+    key = key.replace(/^\/+/, '');
+    if (!key) return false;
 
     try {
       await this.s3Client.send(

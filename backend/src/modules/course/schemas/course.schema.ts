@@ -23,8 +23,14 @@ export class CourseEntity extends BaseAbstractDocument {
   @Prop({ type: String, required: false, default: null, trim: true })
   thumbnailUrl?: string | null;
 
+  @Prop({ type: String, required: false, default: null, trim: true })
+  trailerUrl?: string | null;
+
   @Prop({ type: Number, required: true, default: 0, min: [0, 'Course price cannot be negative'] })
   price: number;
+
+  @Prop({ type: Number, required: false, default: null, min: [0, 'Original price cannot be negative'] })
+  originalPrice?: number | null;
 
   @Prop({
     type: MongooseSchema.Types.ObjectId,

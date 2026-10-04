@@ -32,7 +32,11 @@ export const createCourseSchema = z.object({
     .or(z.literal('')),
   description: z
     .string()
-    .transform((val) => val.trim())
+    .transform((val) => {
+      const trimmed = val.trim();
+      const stripped = trimmed.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+      return stripped.length === 0 ? '' : trimmed;
+    })
     .optional()
     .or(z.literal('')),
   price: z

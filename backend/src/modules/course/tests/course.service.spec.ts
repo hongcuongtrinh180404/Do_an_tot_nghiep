@@ -23,6 +23,7 @@ import { SectionRepository } from '../repositories/section.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { CreateSectionDto } from '../dto/create-section.dto.js';
 import { ReorderSectionsDto } from '../dto/reorder-sections.dto.js';
+import { StorageService } from '../../storage/index.js';
 
 describe('CourseService', () => {
   let service: CourseService;
@@ -32,6 +33,7 @@ describe('CourseService', () => {
     create: ReturnType<typeof vi.fn>;
     findById: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+    findConflictingSlugs: ReturnType<typeof vi.fn>;
   };
   let mockSectionRepository: {
     create: ReturnType<typeof vi.fn>;
@@ -40,6 +42,11 @@ describe('CourseService', () => {
   };
   let mockUserRepository: {
     findById: ReturnType<typeof vi.fn>;
+  };
+  let mockStorageService: {
+    uploadImage: ReturnType<typeof vi.fn>;
+    uploadLessonMedia: ReturnType<typeof vi.fn>;
+    deleteFile: ReturnType<typeof vi.fn>;
   };
   let mockCls: { get: ReturnType<typeof vi.fn> };
 
@@ -76,6 +83,7 @@ describe('CourseService', () => {
       create: vi.fn(),
       findById: vi.fn(),
       update: vi.fn(),
+      findConflictingSlugs: vi.fn(),
     };
 
     mockSectionRepository = {
@@ -92,10 +100,17 @@ describe('CourseService', () => {
       get: vi.fn().mockReturnValue('instructor_1'),
     };
 
+    mockStorageService = {
+      uploadImage: vi.fn(),
+      uploadLessonMedia: vi.fn(),
+      deleteFile: vi.fn().mockResolvedValue(true),
+    };
+
     service = new CourseService(
       mockCourseRepository as unknown as CourseRepository,
       mockSectionRepository as unknown as SectionRepository,
       mockUserRepository as unknown as UserRepository,
+      mockStorageService as unknown as StorageService,
       mockCls as unknown as ClsService,
     );
   });
@@ -751,6 +766,7 @@ describe('CourseService', () => {
       instructorId: 'instructor_1',
       price: 150000,
       status: CourseStatusEnum.PUBLISHED,
+      level: CourseLevelEnum.BEGINNER,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -920,6 +936,174 @@ describe('CourseService', () => {
         'instructor_1',
         mockSession,
       );
+    });
+  });
+
+  describe('generateUniqueSlug', () => {
+    it('should return normalized base slug when there are no conflicting slugs', async () => {
+      mockCourseRepository.findConflictingSlugs.mockResolvedValue([]);
+
+      const result = await service.generateUniqueSlug('Lập trình Next.js', 'course_123');
+
+      expect(result).toBe('lap-trinh-nextjs');
+      expect(mockCourseRepository.findConflictingSlugs).toHaveBeenCalledWith(
+        'lap-trinh-nextjs',
+        'course_123',
+        undefined,
+      );
+    });
+
+    it('should append -1 when base slug is already taken', async () => {
+      mockCourseRepository.findConflictingSlugs.mockResolvedValue(['lap-trinh-next-js']);
+
+      const result = await service.generateUniqueSlug('lap-trinh-next-js', 'course_123');
+
+      expect(result).toBe('lap-trinh-next-js-1');
+    });
+
+    it('should append highest suffix + 1 when multiple numbered slugs exist', async () => {
+      mockCourseRepository.findConflictingSlugs.mockResolvedValue([
+        'lap-trinh-next-js',
+        'lap-trinh-next-js-1',
+        'lap-trinh-next-js-2',
+      ]);
+
+      const result = await service.generateUniqueSlug('lap-trinh-next-js', 'course_123');
+
+      expect(result).toBe('lap-trinh-next-js-3');
+    });
+  });
+
+  describe('updateCourse', () => {
+    const existingCourse: ICourse = {
+      id: 'course_123',
+      title: 'Khóa học Cũ',
+      slug: 'khoa-hoc-cu',
+      instructorId: 'instructor_1',
+      price: 200000,
+      originalPrice: 300000,
+      status: CourseStatusEnum.DRAFT,
+      level: CourseLevelEnum.BEGINNER,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it('should successfully update course title and auto-generate unique slug', async () => {
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+      mockCourseRepository.findConflictingSlugs.mockResolvedValue([]);
+      mockCourseRepository.update.mockResolvedValue({
+        ...existingCourse,
+        title: 'Khóa học Mới',
+        slug: 'khoa-hoc-moi',
+      });
+
+      const result = await service.updateCourse(
+        'course_123',
+        { title: 'Khóa học Mới' },
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(result.title).toBe('Khóa học Mới');
+      expect(result.slug).toBe('khoa-hoc-moi');
+      expect(mockCourseRepository.update).toHaveBeenCalledWith(
+        'course_123',
+        expect.objectContaining({
+          title: 'Khóa học Mới',
+          slug: 'khoa-hoc-moi',
+        }),
+        undefined,
+      );
+    });
+
+    it('should auto-append suffix if new title slug collides with an existing course', async () => {
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+      mockCourseRepository.findConflictingSlugs.mockResolvedValue(['khoa-hoc-moi']);
+      mockCourseRepository.update.mockResolvedValue({
+        ...existingCourse,
+        title: 'Khóa học Mới',
+        slug: 'khoa-hoc-moi-1',
+      });
+
+      const result = await service.updateCourse(
+        'course_123',
+        { title: 'Khóa học Mới' },
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(result.slug).toBe('khoa-hoc-moi-1');
+    });
+
+    it('should throw ForbiddenException if user is not instructor and not admin', async () => {
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+
+      await expect(
+        service.updateCourse(
+          'course_123',
+          { title: 'Tiêu đề' },
+          'other_user',
+          RoleEnum.STUDENT,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw BadRequestException if price is negative', async () => {
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+
+      await expect(
+        service.updateCourse(
+          'course_123',
+          { price: -1000 },
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException if originalPrice is negative', async () => {
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+
+      await expect(
+        service.updateCourse(
+          'course_123',
+          { originalPrice: -500 },
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException if price > originalPrice', async () => {
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+
+      await expect(
+        service.updateCourse(
+          'course_123',
+          { price: 500000, originalPrice: 300000 },
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should update price and originalPrice successfully', async () => {
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+      mockCourseRepository.update.mockResolvedValue({
+        ...existingCourse,
+        price: 250000,
+        originalPrice: 400000,
+      });
+
+      const result = await service.updateCourse(
+        'course_123',
+        { price: 250000, originalPrice: 400000 },
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(result.price).toBe(250000);
+      expect(result.originalPrice).toBe(400000);
     });
   });
 });
