@@ -151,7 +151,7 @@ export function deserializeKeyPoints(
       const parsed = JSON.parse(trimmed) as unknown;
       if (Array.isArray(parsed)) {
         return parsed
-          .map((item): ILessonKeyPoint | null => {
+          .map((item, index): ILessonKeyPoint | null => {
             // Định dạng mới: { id, text }
             if (
               item &&
@@ -163,15 +163,15 @@ export function deserializeKeyPoints(
               const id =
                 typeof obj.id === 'string' && obj.id.trim()
                   ? obj.id.trim()
-                  : generateKeyPointId();
+                  : `kp-${index}`;
               const text = obj.text.trim();
               return text ? { id, text } : null;
             }
 
-            // Định dạng cũ (chuỗi string): "Khái niệm..." -> Tự động cấp UUID
+            // Định dạng cũ (chuỗi string): "Khái niệm..." -> Dùng ID cố định theo vị trí
             if (typeof item === 'string') {
               const text = item.trim();
-              return text ? { id: generateKeyPointId(), text } : null;
+              return text ? { id: `kp-${index}`, text } : null;
             }
 
             return null;
@@ -188,8 +188,8 @@ export function deserializeKeyPoints(
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
-    .map((text) => ({
-      id: generateKeyPointId(),
+    .map((text, index) => ({
+      id: `kp-${index}`,
       text,
     }));
 }

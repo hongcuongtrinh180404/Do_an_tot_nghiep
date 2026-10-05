@@ -152,7 +152,8 @@ export function convertCurriculumToFlowElements(
 
       // 4. Keypoints (Level 3)
       keyPoints.forEach((kp, kpIdx) => {
-        const kpNodeId = `kp-${lesson.id}-${kp.id || kpIdx}`;
+        // ID cố định và duy nhất theo bài học và index để tránh đổi ID ngẫu nhiên giữa các lần render
+        const kpNodeId = `kp-${lesson.id}-${kpIdx}`;
 
         nodes.push({
           id: kpNodeId,

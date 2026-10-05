@@ -889,3 +889,80 @@
   - Kiểm tra chất lượng:
     - TypeScript: `pnpm --filter frontend exec tsc --noEmit` -> 100% clean (0 errors).
     - ESLint: `pnpm --filter frontend run lint` -> 100% clean (0 errors, 0 warnings).
+- **Milestone 29 (Tối Ưu Hóa Mindmap 90fps - 120fps+ & Triển Khai Huy Hiệu Thu Gọn +Count Badge)**:
+  - Tối ưu hóa hiệu năng 90fps - 120fps+ (High Refresh Rate / ProMotion Ready):
+    - Bật `onlyRenderVisibleElements={true}` trong React Flow (`course-mindmap-view.tsx`) để viewport virtualization culling các node/edge nằm ngoài tầm nhìn.
+    - Bổ sung `will-change: transform`, `transform: translateZ(0)` và `backface-visibility: hidden` cho `.react-flow__viewport` trong `globals.css`, ép trình duyệt đẩy các thao tác pan/zoom lên GPU Compositor riêng biệt.
+    - Thêm `contain: layout style` cho `.react-flow__node` và `[contain:paint]` cho container canvas.
+    - Loại bỏ lớp `backdrop-blur-xs` trên wrapper canvas để triệt tiêu tải GPU fillrate khi rê chuột với tốc độ cao.
+    - Rút ngắn thời lượng animation căn chỉnh sơ đồ (`fitView`) xuống `300ms` với chu kỳ mượt mà.
+  - Triển khai Huy hiệu thu gọn (+Count Badge) neo mép phải Node:
+    - Tạo component `CollapseCountBadge` (`nodes/collapse-count-badge.tsx`):
+      - Vị trí neo: `absolute top-1/2 -right-3 -translate-y-1/2` (khoảng `-11px` đến `-12px`), nhô nửa hình khối ra ngoài khung tại đúng cổng ra của đường cong Bézier.
+      - Trạng thái Thu gọn (`isCollapsed = true`): Hiển thị huy hiệu viên thuốc bo tròn `+{count}` (ví dụ `+4`, `+12`), nền cùng tông cấp độ (`bg-sky-600` cho Chương, `bg-emerald-600` cho Bài học), viền nổi `border-2 border-background`, đổ bóng `shadow-xs hover:shadow-md`, hiệu ứng hover phóng to nhẹ `scale-110`.
+      - Trạng thái Mở rộng (`isCollapsed = false`): Nút đổi thành biểu tượng dấu trừ `−` (`lucide:minus`), bao bọc hoặc kết hợp với cổng xuất `Handle type="source"` để các đường cong Cubic Bézier tuôn ra tự nhiên từ mép ngoài nút bấm.
+      - Tinh gọn nội dung thân thẻ: Xóa bỏ nút `+ / −` cũ nằm bên trong card ở `SectionNode` và `LessonNode`, giải phóng không gian giúp tiêu đề và thông tin bài học hiển thị thoáng đãng, không bị ép dòng sớm.
+  - Kiểm tra chất lượng:
+    - TypeScript: `pnpm --filter frontend exec tsc --noEmit` -> 100% clean (0 errors).
+    - ESLint: `pnpm --filter frontend lint` -> 100% clean (0 errors, 0 warnings).
+    - Frontend Tests: `pnpm --filter frontend test` -> 100% pass (31/31 passed).
+- **Milestone 30 (Unified Course Media Preview Card - Hợp Nhất Media 16:9 & State Machine)**:
+  - Tái cấu trúc component `CourseMediaPreview` từ bố cục 2 cột (Thumbnail riêng, Trailer riêng) thành **một khối Card duy nhất** với khung hiển thị 16:9 thích ứng thông minh theo 4 trạng thái dữ liệu (State Machine), đi kèm 2 nút bấm độc lập ở chân thẻ (`Tải/Thay ảnh bìa` và `Tải/Thay trailer`).
+  - Triển khai State Machine 4 trạng thái:
+    - 1. *Chưa có gì (Empty State):* Khung nét đứt 16:9 (`w-full max-w-4xl mx-auto aspect-video`), icon đôi camera & film, click vùng trống ưu tiên kích hoạt chọn Ảnh bìa; 2 nút `[+ Tải lên ảnh bìa]` và `[+ Tải lên trailer]`.
+    - 2. *Chỉ có Ảnh:* Hiển thị ảnh tĩnh sắc nét, click mở Lightbox Modal phóng to ảnh, huy hiệu `[🏷️ Ảnh bìa khóa học]`; nút `[📷 Thay ảnh bìa]` và `[+ Tải lên trailer]`.
+    - 3. *Chỉ có Trailer:* Khung video lấy frame đầu làm bìa (`preload="metadata"`), nút Play tròn ở tâm, click mở Video Modal Dialog, huy hiệu `[🎬 Video trailer (Chưa có ảnh bìa)]`; nút `[+ Tải lên ảnh bìa]` và `[🎬 Thay trailer]`.
+    - 4. *Có cả 2 (Chuẩn nhất):* Video player dùng Thumbnail làm poster (sắc nét 100%), nút Play tròn ở tâm, click mở Video Modal Dialog, cả 2 huy hiệu ở 2 góc; nút `[📷 Thay ảnh bìa]` và `[🎬 Thay trailer]`.
+  - Cơ chế Reactive Poster: Đang có trailer mà upload ảnh bìa mới thì poster video lập tức đổi sang ảnh mới thông qua React remount key (`trailerPreviewKey = \`trailer_card_${activeTrailer}_${activePoster}\``) mà không cần upload lại video.
+  - Tối ưu hóa thẩm mỹ: Khung 16:9 giới hạn `max-w-4xl mx-auto` không bị kéo dãn quá cao trên desktop lớn; Dark Overlay nhẹ nhàng `bg-black/[0.07] hover:bg-black/[0.14]`, nút Play tròn glassmorphism tinh tế ở tâm; thanh tiến trình upload MinIO hiển thị mượt mà.
+  - Kiểm tra chất lượng:
+    - TypeScript: `pnpm --filter frontend exec tsc --noEmit` -> 100% clean (0 errors).
+    - Tuân thủ nghiêm ngặt Purple Ban (0 mã màu tím), không sử dụng inline font classes, không dùng kiểu `any`.
+- **Milestone 31 (Inline Trailer Video Playback at 16:9 Frame & Complete Modal Dialog Elimination)**:
+  - Thay thế trải nghiệm mở Video Modal Dialog khi nhấp phát trailer bằng Inline Video Playback trực tiếp tại khung hình 16:9 của `CourseMediaPreview`.
+  - Cơ chế điều khiển Inline:
+    - Khởi chạy video trực tiếp (`videoRef.current?.play()`) và bật thanh điều khiển trình duyệt mặc định (`controls = true`, `autoPlay = true`).
+    - Tự động ẩn hoàn toàn nút Play tròn ở tâm và các badge góc dưới (`[🏷️ Ảnh bìa (Poster)]`, `[🎬 Video trailer]`) khi đang phát, giúp giao diện xem video trọn vẹn và không che khuất thanh tua/âm lượng.
+    - Quản lý trạng thái thông minh không gây cascading renders (`prevThumbnail` & `prevTrailer` pattern): Tự động reset `isPlayingInline = false`, tạm dừng phát video (`pause()`) ngay khi giảng viên thay đổi ảnh bìa hoặc trailer mới, đảm bảo video trailer tuyệt đối KHÔNG tự động phát khi người dùng chọn thumbnail mới mà hiển thị đúng poster tĩnh cùng nút Play.
+  - Loại bỏ Modal Dialog:
+    - Gỡ bỏ hoàn toàn Video Modal Dialog và Lightbox Modal phóng to ảnh bìa.
+    - Dọn dẹp các component `<Dialog>` và state liên quan, giảm hơn 80 dòng mã dư thừa.
+    - Trạng thái chỉ có ảnh hiển thị sạch sẽ, trang nhã, không còn overlay "Nhấn để xem ảnh phóng to".
+  - Kiểm tra chất lượng:
+    - TypeScript: `pnpm --filter frontend exec tsc --noEmit` -> 100% clean (0 errors).
+    - ESLint: `pnpm --filter frontend lint` -> 100% clean (0 errors, 0 warnings).
+    - Tuân thủ nghiêm ngặt Purple Ban (0 mã màu tím), không sử dụng inline font classes, không dùng kiểu `any`.
+- **Milestone 32 (Tối Ưu Hóa Animation Thu Gọn & Mở Rộng Mindmap Xuống Thang Điểm 8/10 Mượt Mà)**:
+  - Vấn đề: Khi người dùng nhấp vào huy hiệu `+Count` hoặc nút `−` để đóng/mở nhánh, các node con xuất hiện/biến mất và các node anh em nhảy tọa độ tức thời (tốc độ 10/10), gây cảm giác giật cục và mắt người khó theo dõi sự dịch chuyển của các nhánh sơ đồ.
+  - Giải pháp & Kiến trúc:
+    - Xây dựng tiện ích `mindmap-animation.util.ts`:
+      - Triển khai thuật toán Frame-by-frame Tweening qua `requestAnimationFrame` kết hợp hàm gia tốc `easeOutCubic(progress) = 1 - (1 - progress)^3`.
+      - Điều chỉnh tốc độ từ 10/10 (tức thì 0ms) xuống đúng mức **8/10** (chu kỳ **400ms** mượt mà, thanh thoát).
+      - Xử lý mở rộng (Expand): Các node con mới xuất phát từ vị trí node cha và nở dần sang tọa độ mục tiêu đồng thời tăng độ hiển thị từ `0 -> 1` (fade in).
+      - Xử lý thu gọn (Collapse): Các node con trượt nhẹ về phía node cha và giảm độ hiển thị từ `1 -> 0` (fade out) trước khi được gỡ bỏ hoàn toàn khỏi DOM.
+      - Xử lý dịch chuyển (Glide): Các node anh em (sibling branches) trượt êm ái về vị trí Dagre layout mới, các đường cong Cubic Bézier tự động uốn lượn bám sát tọa độ node liên tục trong từng frame.
+      - Chống ngắt quãng (Interrupt-safe): Hỗ trợ hủy và chuyển hướng mượt mà nếu người dùng click liên tục nhiều nhánh.
+    - Cập nhật `CollapseCountBadge` (`nodes/collapse-count-badge.tsx`):
+      - Nâng thời lượng chuyển đổi trạng thái nút bấm từ `duration-150` lên `duration-300` với hiệu ứng xoay và fade icon êm dịu.
+    - Tích hợp `animateToLayout` vào `course-mindmap-view.tsx` cho toàn bộ các thao tác đóng/mở nhánh, căn chỉnh lại (`handleRelayout`), và làm mới cây (`handleSyncFromCurriculum`).
+    - Tuân thủ quy tắc React 19 / ESLint compiler: đồng bộ `nodesRef` và `edgesRef` bên trong `useEffect`, không truy cập gán ref trực tiếp trong quá trình render.
+    - Tinh chỉnh tốc độ lên thang điểm **9.5/10 (220ms)**: Đáp ứng yêu cầu thao tác cực kỳ nhanh, dứt khoát, phản hồi tức thời nhưng vẫn giữ trọn hiệu ứng tweening mượt mà, không bị giật cục. Đồng thời rút ngắn transition nút `CollapseCountBadge` về `duration-200`.
+- **Milestone 33 (Khắc Phục Triệt Để Hiện Tượng Các Bài Học Anh Em Tác Động Qua Lại Lẫn Nhau Khi Đóng/Mở)**:
+  - Vấn đề: Tại Chương 1, khi người dùng bấm mở/thu gọn bài "con cá đi câu", các ý con của bài "con meo di hia" (đang mở) tự nhiên cũng bị chớp tắt, nhảy vị trí hoặc bị animation ảnh hưởng như thể đang bị tác động chung.
+  - Root Cause (Nguyên nhân gốc rễ):
+    1. *Unstable Keypoint Node IDs:* Trong `convertCurriculumToFlowElements`, ID của node ý chính được đặt là `kp-${lesson.id}-${kp.id || kpIdx}`. Khi `deserializeKeyPoints(lesson.description)` chạy trên các mô tả bài học dạng mảng string hoặc plaintext, hàm fallback gọi `generateKeyPointId()` sinh chuỗi ngẫu nhiên UUID v4 mới trên mỗi lần giải mã.
+    2. *Xung đột Tweening Animation:* Khi người dùng nhấp mở bài "con cá đi câu", toàn bộ cây được chuyển đổi lại. Bài "con meo di hia" bị sinh lại tập hợp UUID mới $\rightarrow$ React Flow coi toàn bộ các node ý con cũ của "con meo di hia" là đã bị xóa (`closingNodes`) và các node mang UUID mới là vừa được tạo (`animatingTargetNodes`). Do đó, các ý con của "con meo di hia" đồng thời chạy animation lướt về rồi nở ra, gây hiện tượng chớp tắt và giật hình dù người dùng chỉ click bài bên dưới.
+  - Giải pháp khắc phục:
+    1. Chuẩn hóa ID cố định trong `mindmap-converter.util.ts`: Đổi ID thành `const kpNodeId = \`kp-${lesson.id}-${kpIdx}\``. ID này 100% deterministic, bất biến và duy nhất theo cặp `(lesson.id, index)`, không bao giờ bị thay đổi ngẫu nhiên giữa các lần render.
+    2. Chuẩn hóa Fallback ID trong `lesson-key-points.util.ts`: Hàm `deserializeKeyPoints` sử dụng fallback `kp-${index}` thay vì sinh UUID ngẫu nhiên khi parse dữ liệu văn bản.
+    3. Kết quả: Khi click đóng/mở bài "con cá đi câu", toàn bộ node và edge của bài "con meo di hia" giữ nguyên ID ổn định, không bị kích hoạt animation đóng/mở sai, chỉ trượt nhẹ theo trục Y tự nhiên của Dagre layout mà không ảnh hưởng lẫn nhau.
+  - Kiểm tra chất lượng:
+    - TypeScript: `pnpm --filter frontend exec tsc --noEmit` -> 100% clean (0 errors).
+    - ESLint: `pnpm --filter frontend lint` -> 100% clean (0 errors, 0 warnings).
+    - Frontend Tests: `pnpm --filter frontend test` -> 100% pass (31/31 passed).
+
+
+
+
+
+

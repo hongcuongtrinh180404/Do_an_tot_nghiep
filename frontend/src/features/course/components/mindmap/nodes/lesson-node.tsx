@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/icon';
 import type { LessonNodeData } from '../../../utils/mindmap-converter.util';
 
 import { useCourseMindmapContext } from '../course-mindmap-context';
+import { CollapseCountBadge } from './collapse-count-badge';
 
 function formatDuration(seconds?: number): string {
   if (!seconds || seconds <= 0) return '';
@@ -29,66 +30,46 @@ function LessonNodeComponent({ data }: NodeProps): React.JSX.Element {
         className="!size-2 !bg-emerald-500 !border-2 !border-background !-left-1.5 transition-transform group-hover:scale-125"
       />
 
-      <div className="flex items-start justify-between gap-1.5">
-        <div className="flex items-start gap-2 min-w-0">
-          <div className="size-6 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
-            <Icon
-              icon={isVideo ? 'lucide:play' : 'lucide:file-text'}
-              className="size-3"
-            />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h5 className="text-[11px] font-medium text-foreground leading-snug line-clamp-2">
-              {nodeData.title}
-            </h5>
-            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-              {durationText && (
-                <span className="text-[9px] px-1 py-0.2 rounded bg-muted text-muted-foreground flex items-center gap-0.5">
-                  <Icon icon="lucide:clock" className="size-2.5" />
-                  {durationText}
-                </span>
-              )}
-              {nodeData.isPreview && (
-                <span className="text-[9px] px-1 py-0.2 rounded font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  Học thử
-                </span>
-              )}
-              {hasKeypoints && (
-                <span className="text-[9px] text-muted-foreground">
-                  {nodeData.keyPointCount} ý chính
-                </span>
-              )}
-            </div>
+      <div className="flex items-start gap-2 min-w-0 pr-2">
+        <div className="size-6 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+          <Icon
+            icon={isVideo ? 'lucide:play' : 'lucide:file-text'}
+            className="size-3"
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h5 className="text-[11px] font-medium text-foreground leading-snug line-clamp-2">
+            {nodeData.title}
+          </h5>
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            {durationText && (
+              <span className="text-[9px] px-1 py-0.2 rounded bg-muted text-muted-foreground flex items-center gap-0.5">
+                <Icon icon="lucide:clock" className="size-2.5" />
+                {durationText}
+              </span>
+            )}
+            {nodeData.isPreview && (
+              <span className="text-[9px] px-1 py-0.2 rounded font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                Học thử
+              </span>
+            )}
+            {hasKeypoints && (
+              <span className="text-[9px] text-muted-foreground">
+                {nodeData.keyPointCount} ý chính
+              </span>
+            )}
           </div>
         </div>
-
-        {/* Toggle Keypoints Collapse Button */}
-        {hasKeypoints && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleLessonCollapse(nodeData.lessonId);
-            }}
-            title={nodeData.isCollapsed ? 'Mở rộng ý chính' : 'Thu gọn ý chính'}
-            className="size-4.5 rounded bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center shrink-0 transition-colors"
-          >
-            <Icon
-              icon={nodeData.isCollapsed ? 'lucide:plus' : 'lucide:minus'}
-              className="size-2.5"
-            />
-          </button>
-        )}
       </div>
 
-      {/* Source Handle to Keypoints */}
-      {hasKeypoints && !nodeData.isCollapsed && (
-        <Handle
-          type="source"
-          position={Position.Right}
-          className="!size-2 !bg-emerald-500 !border-2 !border-background !-right-1.5 transition-transform group-hover:scale-125"
-        />
-      )}
+      {/* Huy hiệu thu gọn +count / nút mở rộng neo mép phải */}
+      <CollapseCountBadge
+        count={nodeData.keyPointCount}
+        isCollapsed={nodeData.isCollapsed}
+        onToggle={() => onToggleLessonCollapse(nodeData.lessonId)}
+        variant="emerald"
+        typeLabel="ý chính"
+      />
     </div>
   );
 }

@@ -196,4 +196,17 @@
   color: var(--primary);
   text-decoration: underline;
   text-underline-offset: 2px;
-}
+}
+
+/* React Flow High Refresh Rate (90fps - 120fps+) Performance Optimization */
+.react-flow__viewport {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.react-flow__node {
+  contain: layout style;
+  transform: translateZ(0);
+}
+
