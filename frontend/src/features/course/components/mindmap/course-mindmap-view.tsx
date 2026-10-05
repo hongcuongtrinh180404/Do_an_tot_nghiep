@@ -105,16 +105,11 @@ function InnerCanvas({
   const [showMinimap, setShowMinimap] = useState(false);
   const [isModified, setIsModified] = useState(false);
 
+  // Sync ref trực tiếp trong render (thay vì qua useEffect async) → không bao giờ stale
   const nodesRef = React.useRef(nodes);
   const edgesRef = React.useRef(edges);
-
-  useEffect(() => {
-    nodesRef.current = nodes;
-  }, [nodes]);
-
-  useEffect(() => {
-    edgesRef.current = edges;
-  }, [edges]);
+  nodesRef.current = nodes;
+  edgesRef.current = edges;
 
   const cancelAnimationRef = React.useRef<(() => void) | null>(null);
 
@@ -126,6 +121,7 @@ function InnerCanvas({
   }, []);
 
   // Điều phối animation layout chuyển động mượt mà ở thang điểm 9.5/10 (220ms - siêu nhanh & êm ái)
+  // React 19 tự batch setNodes + setEdges trong rAF - không cần wrapper
   const animateToLayout = useCallback(
     (targetNodes: Node[], targetEdges: Edge[]) => {
       cancelAnimationRef.current?.();
@@ -148,7 +144,33 @@ function InnerCanvas({
     [setNodes, setEdges],
   );
 
+  // Cache kết quả Dagre theo signature của collapsedIds → skip re-layout khi toggle cùng set
+  const layoutCacheRef = React.useRef<Map<string, { nodes: Node[]; edges: Edge[] }>>(new Map());
+
+  const getLayoutedCached = useCallback(
+    (nextCollapsedIds: Set<string>): { nodes: Node[]; edges: Edge[] } => {
+      const cacheKey = Array.from(nextCollapsedIds).sort().join(',');
+      const cached = layoutCacheRef.current.get(cacheKey);
+      if (cached) return cached;
+
+      const { nodes: rawNodes, edges: rawEdges } = convertCurriculumToFlowElements(
+        rawData,
+        nextCollapsedIds,
+      );
+      const result = getLayoutedElements(rawNodes, rawEdges, { direction: 'LR' });
+      // Giớ hạn cache tối đa 20 entry → tránh memory leak
+      if (layoutCacheRef.current.size >= 20) {
+        const firstKey = layoutCacheRef.current.keys().next().value;
+        if (firstKey) layoutCacheRef.current.delete(firstKey);
+      }
+      layoutCacheRef.current.set(cacheKey, result);
+      return result;
+    },
+    [rawData],
+  );
+
   // Quản lý sự kiện đóng/mở nhánh thông qua Context an toàn
+  // CPU-heavy work (Dagre + convert) chạy TRƯỚC setState → không block commit phase
   const contextValue = useMemo<CourseMindmapContextValue>(
     () => ({
       onToggleSectionCollapse: (sectionId: string) => {
@@ -159,11 +181,8 @@ function InnerCanvas({
           } else {
             next.add(sectionId);
           }
-          const { nodes: rawNodes, edges: rawEdges } = convertCurriculumToFlowElements(
-            rawData,
-            next,
-          );
-          const layouted = getLayoutedElements(rawNodes, rawEdges, { direction: 'LR' });
+          // Layout được cache → không tính lại nếu toggle lại cùng set
+          const layouted = getLayoutedCached(next);
           animateToLayout(layouted.nodes, layouted.edges);
           return next;
         });
@@ -177,18 +196,14 @@ function InnerCanvas({
           } else {
             next.add(lessonId);
           }
-          const { nodes: rawNodes, edges: rawEdges } = convertCurriculumToFlowElements(
-            rawData,
-            next,
-          );
-          const layouted = getLayoutedElements(rawNodes, rawEdges, { direction: 'LR' });
+          const layouted = getLayoutedCached(next);
           animateToLayout(layouted.nodes, layouted.edges);
           return next;
         });
         setIsModified(true);
       },
     }),
-    [rawData, animateToLayout],
+    [getLayoutedCached, animateToLayout],
   );
 
   // Tự động căn chỉnh màn hình khi khởi tạo
@@ -201,32 +216,27 @@ function InnerCanvas({
 
   // Căn chỉnh lại sơ đồ
   const handleRelayout = useCallback(() => {
-    const { nodes: rawNodes, edges: rawEdges } = convertCurriculumToFlowElements(
-      rawData,
-      collapsedIds,
-    );
-    const layouted = getLayoutedElements(rawNodes, rawEdges, { direction: 'LR' });
+    // Xóa cache để buộc tính lại mới (relayout thủ công nên bỏ cache)
+    layoutCacheRef.current.clear();
+    const layouted = getLayoutedCached(collapsedIds);
     animateToLayout(layouted.nodes, layouted.edges);
     requestAnimationFrame(() => {
       void fitView({ duration: 250, padding: 0.2 });
     });
-  }, [rawData, collapsedIds, animateToLayout, fitView]);
+  }, [collapsedIds, getLayoutedCached, animateToLayout, fitView]);
 
   // Đồng bộ lại từ cấu trúc giáo trình: Đưa về 2 cấp độ mặc định (Khóa học + Chương)
   const handleSyncFromCurriculum = useCallback(() => {
     const defaultCollapsed = generateDefaultCollapsedIds(rawData);
     setCollapsedIds(defaultCollapsed);
-    const { nodes: rawNodes, edges: rawEdges } = convertCurriculumToFlowElements(
-      rawData,
-      defaultCollapsed,
-    );
-    const layouted = getLayoutedElements(rawNodes, rawEdges, { direction: 'LR' });
+    layoutCacheRef.current.clear(); // Reset cache khi sync từ giáo trình
+    const layouted = getLayoutedCached(defaultCollapsed);
     animateToLayout(layouted.nodes, layouted.edges);
     setIsModified(true);
     requestAnimationFrame(() => {
       void fitView({ duration: 250, padding: 0.2 });
     });
-  }, [rawData, animateToLayout, fitView]);
+  }, [rawData, getLayoutedCached, animateToLayout, fitView]);
 
   // Thao tác Lưu sơ đồ
   const handleSave = async () => {

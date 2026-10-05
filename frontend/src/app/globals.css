@@ -198,15 +198,16 @@
   text-underline-offset: 2px;
 }
 
-/* React Flow High Refresh Rate (90fps - 120fps+) Performance Optimization */
-.react-flow__viewport {
-  will-change: transform;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
-
+/* React Flow Vector & Typography Optimization */
 .react-flow__node {
   contain: layout style;
-  transform: translateZ(0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
+
+.react-flow__edge path {
+  shape-rendering: geometricPrecision;
+}
+
 
