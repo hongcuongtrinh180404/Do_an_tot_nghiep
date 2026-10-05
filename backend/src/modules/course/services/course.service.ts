@@ -22,6 +22,7 @@ import { CourseRepository } from '../repositories/course.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { CreateSectionDto } from '../dto/create-section.dto.js';
+import { UpdateSectionDto } from '../dto/update-section.dto.js';
 import { ReorderSectionsDto } from '../dto/reorder-sections.dto.js';
 import { UpdateCourseDto } from '../dto/update-course.dto.js';
 import { StorageService } from '../../storage/index.js';
@@ -230,6 +231,73 @@ export class CourseService extends BaseService<ICourse, string> {
     }
 
     return this.sectionRepository.reorderSections(courseId, dto.sectionIds, userId, session);
+  }
+
+  async updateSection(
+    courseId: string,
+    sectionId: string,
+    dto: UpdateSectionDto,
+    userId: string,
+    role: RoleEnum,
+    session?: ClientSession,
+  ): Promise<ISection> {
+    let course: ICourse | null = null;
+    try {
+      course = await this.courseRepository.findById(courseId, session);
+    } catch {
+      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+    }
+
+    if (!course || course.deletedAt) {
+      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+    }
+
+    if (role !== RoleEnum.ADMIN && course.instructorId !== userId) {
+      throw new ForbiddenException(
+        'Bạn không có quyền chỉnh sửa chương học của khóa học này',
+      );
+    }
+
+    let section: ISection | null = null;
+    try {
+      section = await this.sectionRepository.findById(sectionId, session);
+    } catch {
+      throw new NotFoundException(`Không tìm thấy chương học với ID '${sectionId}'`);
+    }
+
+    if (!section || section.deletedAt || section.courseId !== courseId) {
+      throw new NotFoundException(
+        `Không tìm thấy chương học với ID '${sectionId}' trong khóa học này`,
+      );
+    }
+
+    const updatePayload: Partial<ISection> = {
+      updatedById: userId,
+    };
+
+    if (dto.title !== undefined) {
+      updatePayload.title = dto.title;
+    }
+
+    if (dto.description !== undefined) {
+      updatePayload.description = dto.description ?? null;
+    }
+
+    if (dto.order !== undefined) {
+      updatePayload.order = dto.order;
+    }
+
+    const updatedSection = await this.sectionRepository.update(
+      sectionId,
+      updatePayload,
+      session,
+    );
+
+    if (!updatedSection) {
+      throw new NotFoundException(`Không tìm thấy chương học với ID '${sectionId}'`);
+    }
+
+    return updatedSection;
   }
 
   async getSectionsByCourseId(

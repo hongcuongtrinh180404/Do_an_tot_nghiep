@@ -957,9 +957,33 @@
     2. Chuẩn hóa Fallback ID trong `lesson-key-points.util.ts`: Hàm `deserializeKeyPoints` sử dụng fallback `kp-${index}` thay vì sinh UUID ngẫu nhiên khi parse dữ liệu văn bản.
     3. Kết quả: Khi click đóng/mở bài "con cá đi câu", toàn bộ node và edge của bài "con meo di hia" giữ nguyên ID ổn định, không bị kích hoạt animation đóng/mở sai, chỉ trượt nhẹ theo trục Y tự nhiên của Dagre layout mà không ảnh hưởng lẫn nhau.
   - Kiểm tra chất lượng:
-    - TypeScript: `pnpm --filter frontend exec tsc --noEmit` -> 100% clean (0 errors).
-    - ESLint: `pnpm --filter frontend lint` -> 100% clean (0 errors, 0 warnings).
-    - Frontend Tests: `pnpm --filter frontend test` -> 100% pass (31/31 passed).
+- **Milestone 34 (Modal Chỉnh Sửa Chương Học, Endpoint PATCH Section & Cơ Chế Snapshot "Lưu Sơ Đồ" Mindmap)**:
+  - Yêu cầu & Bối cảnh:
+    1. Cập nhật tiêu đề và mô tả của chương học trực tiếp từ Modal `EditSectionDialog` trên trang chi tiết khóa học. Tên mới phải phản ánh ngay lập tức lên danh sách/cây chương và bảng Inspector mà không cần reload trang.
+    2. Quy tắc cốt lõi (Golden Rule): Khi Thêm / Sửa / Xóa (Chương, Bài học, Ý chính), Backend chỉ tập trung ghi và cập nhật đúng bảng/collection nghiệp vụ tương ứng (`sections`, `lessons`, v.v.). Tuyệt đối KHÔNG can thiệp hay tự động sửa đổi bản ghi trong `course_mindmaps`.
+    3. Cơ chế "Lưu sơ đồ": Chỉ khi Giảng viên bấm nút "Lưu sơ đồ" trên Canvas Mindmap, hệ thống mới trích xuất toàn bộ cấu trúc cây mới nhất của khóa học (Course $\rightarrow$ Sections $\rightarrow$ Lessons $\rightarrow$ Points), đóng gói thành bản snapshot JSON hoàn chỉnh, gửi request lên Backend ghi đè (UPSERT) bản ghi `course_mindmaps`, và canvas render lại dữ liệu mới nhất ở trạng thái thu gọn mặc định 2 cấp độ (Khóa học + Các chương).
+  - Triển khai:
+    - `share-lib`: Thêm interface `IUpdateSectionPayload` (hợp đồng dữ liệu chung giữa Backend và Frontend).
+    - Backend:
+      - Tạo DTO `UpdateSectionDto` (`backend/src/modules/course/dto/update-section.dto.ts`) với validation class-validator & class-transformer: whitespace trimming, `@IsOptional()`, `title` (1-200 chars), `description` (tối đa 1000 chars), `order` (min 0).
+      - Bổ sung method `CourseService.updateSection(...)`: Kiểm tra khóa học tồn tại (chưa soft-delete), IDOR check (`course.instructorId === userId || role === ADMIN`), kiểm tra section tồn tại và thuộc khóa học, cập nhật thông qua `SectionRepository.update(...)`. Tuyệt đối không import hoặc gọi `CourseMindmapRepository`.
+      - Bổ sung route `PATCH /api/v1/courses/:courseId/sections/:sectionId` trong `CourseController`, bảo vệ bằng `@Roles(INSTRUCTOR, ADMIN)` và `ParseObjectIdPipe` cho cả 2 params.
+      - Unit Tests: Bổ sung bộ test cases toàn diện trong `course.service.spec.ts` (7 tests) và `course.controller.spec.ts` (5 tests) tuân thủ AAA pattern, 100% tests pass (104 tests cho 2 suite).
+    - Frontend:
+      - Bổ sung `courseApi.updateSection` và hook `useUpdateSectionMutation(courseId)` trong `frontend/src/features/course/api/course.api.ts`. Cập nhật tức thì dữ liệu trong cache thông qua `queryClient.setQueryData` và invalidate `courseKeys.sections(courseId)` để cây danh sách chương và bảng Inspector đổi tên ngay lập tức.
+      - Nối `EditSectionDialog` với `useUpdateSectionMutation`, hiển thị spinner `isPending`, disable inputs khi đang lưu, thông báo toast kết quả.
+    - Cập nhật logic `CourseMindmapView`: Tắt cơ chế tự sinh từ Cây giáo trình khi hiển thị. Canvas chỉ hiển thị đúng theo bản ghi trong bảng `course_mindmaps`:
+      - Nếu chưa có bản ghi trong DB (`savedMindmapData === null`): Hiển thị màn hình thông báo Empty State *"Chưa có sơ đồ tư duy"* kèm nút *"Khởi tạo sơ đồ từ giáo trình"*.
+      - Khi bấm *"Khởi tạo sơ đồ từ giáo trình"* hoặc *"Lưu sơ đồ"*: Trích xuất cấu trúc cây mới nhất (`rawData`), áp dụng thu gọn mặc định 2 cấp độ (`generateDefaultCollapsedIds`), tính toán layout Dagre LR (`getLayoutedElements`), đóng gói snapshot JSON và gọi `upsertMutation.mutateAsync` để ghi đè `course_mindmaps` trong DB.
+      - Canvas khởi tạo `nodes`, `edges` và `collapsedIds` trực tiếp từ dữ liệu DB, đồng thời áp dụng pattern React Key (`key={`${courseId}_${savedData.updatedAt}}``) để remount mượt mà, loại bỏ hoàn toàn cảnh báo cascading `setState` trong `useEffect`.
+  - Kiểm tra chất lượng:
+    - `pnpm --filter share-lib build` -> 100% pass (code 0).
+    - `pnpm --filter backend exec tsc --noEmit` -> 100% clean (0 errors).
+    - Backend Unit Tests: 275/275 vitest tests pass 100% (19 test files).
+    - Frontend Typecheck: `pnpm --filter frontend exec tsc --noEmit` -> 100% clean (0 errors).
+    - Frontend Lint: `pnpm --filter frontend lint` -> 100% clean (0 errors, 0 warnings).
+    - Tuân thủ nghiêm ngặt Purple Ban (0 mã màu tím), không sử dụng inline font classes, không dùng kiểu `any`.
+
 
 
 

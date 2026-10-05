@@ -3,8 +3,6 @@
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import type { ISection } from 'share-lib';
 
 import {
@@ -25,7 +23,7 @@ import {
   createSectionSchema,
   type CreateSectionFormData,
 } from '../schemas/create-section.schema';
-import { courseKeys } from '../api/course.api';
+import { useUpdateSectionMutation } from '../api/course.api';
 
 interface EditSectionDialogProps {
   section: ISection | null;
@@ -40,7 +38,7 @@ export function EditSectionDialog({
   onOpenChange,
   onSuccess,
 }: EditSectionDialogProps): React.JSX.Element {
-  const queryClient = useQueryClient();
+  const updateSectionMutation = useUpdateSectionMutation(section?.courseId ?? '');
 
   const {
     register,
@@ -65,26 +63,18 @@ export function EditSectionDialog({
     }
   }, [open, section, reset]);
 
+  const isPending = isSubmitting || updateSectionMutation.isPending;
+
   const onSubmit = async (data: CreateSectionFormData) => {
     if (!section) return;
 
     try {
-      // Create updated section representation
-      const updatedSection: ISection = {
-        ...section,
-        title: data.title,
-        description: data.description?.trim() ? data.description.trim() : undefined,
-        order: section.order,
-        updatedAt: new Date().toISOString(),
-      };
-
-      // Invalidate queries so UI refreshes
-      await queryClient.invalidateQueries({
-        queryKey: courseKeys.sections(section.courseId),
-      });
-
-      toast.success('Cập nhật chương học thành công!', {
-        description: `Chương "${data.title}" đã được lưu thông tin mới.`,
+      const updatedSection = await updateSectionMutation.mutateAsync({
+        sectionId: section.id,
+        payload: {
+          title: data.title.trim(),
+          description: data.description?.trim() ? data.description.trim() : null,
+        },
       });
 
       if (onSuccess) {
@@ -92,9 +82,7 @@ export function EditSectionDialog({
       }
       onOpenChange(false);
     } catch {
-      toast.error('Có lỗi xảy ra khi lưu thay đổi', {
-        description: 'Vui lòng kiểm tra lại thông tin và thử lại.',
-      });
+      // Lỗi đã được xử lý bởi onError trong mutation (toast thông báo chi tiết)
     }
   };
 
@@ -126,7 +114,7 @@ export function EditSectionDialog({
             <Input
               id="edit-section-title"
               placeholder="VD: Kiến trúc Node.js Core & Vòng đời Request"
-              disabled={isSubmitting}
+              disabled={isPending}
               {...register('title')}
               className={errors.title ? 'border-destructive focus-visible:ring-destructive' : ''}
             />
@@ -147,7 +135,7 @@ export function EditSectionDialog({
               id="edit-section-description"
               placeholder="Mô tả ngắn gọn mục tiêu kiến thức và kỹ năng đạt được trong chương này..."
               rows={4}
-              disabled={isSubmitting}
+              disabled={isPending}
               {...register('description')}
               className={
                 errors.description ? 'border-destructive focus-visible:ring-destructive' : ''
@@ -167,12 +155,12 @@ export function EditSectionDialog({
               variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
+              disabled={isPending}
             >
               Hủy
             </Button>
-            <Button type="submit" size="sm" disabled={isSubmitting}>
-              {isSubmitting ? (
+            <Button type="submit" size="sm" disabled={isPending}>
+              {isPending ? (
                 <>
                   <Icon icon="lucide:loader-2" className="size-3.5 mr-1.5 animate-spin" />
                   Đang lưu...

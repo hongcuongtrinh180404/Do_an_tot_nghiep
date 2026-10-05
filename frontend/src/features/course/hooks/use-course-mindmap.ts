@@ -22,7 +22,7 @@ export function useUpsertCourseMindmapMutation(courseId: string) {
       courseMindmapApi.upsertMindmap(courseId, mindmapData),
     onSuccess: (data: ICourseMindmap) => {
       queryClient.setQueryData(courseMindmapKeys.detail(courseId), data.mindmapData);
-      toast.success('Lưu sơ đồ tư duy thành công', {
+      toast.success('Cập nhật sơ đồ tư duy thành công', {
         description: 'Cấu trúc Mindmap của khóa học đã được lưu vào hệ thống.',
       });
     },
@@ -34,7 +34,7 @@ export function useUpsertCourseMindmapMutation(courseId: string) {
       };
       const rawMessage = axiosError.response?.data?.message;
       const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage;
-      toast.error('Lưu sơ đồ tư duy thất bại', {
+      toast.error('Cập nhật sơ đồ tư duy thất bại', {
         description: message || 'Đã có lỗi xảy ra trong quá trình lưu dữ liệu sơ đồ.',
       });
     },

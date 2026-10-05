@@ -21,6 +21,7 @@ import { CourseController } from '../course.controller.js';
 import { CourseService } from '../services/course.service.js';
 import { CreateCourseDto } from '../dto/create-course.dto.js';
 import { CreateSectionDto } from '../dto/create-section.dto.js';
+import { UpdateSectionDto } from '../dto/update-section.dto.js';
 import { ReorderSectionsDto } from '../dto/reorder-sections.dto.js';
 import { ROLES_KEY } from '../../auth/decorators/roles.decorator.js';
 import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator.js';
@@ -34,6 +35,7 @@ describe('CourseController', () => {
     findByInstructorId: ReturnType<typeof vi.fn>;
     getCourseDetailForInstructor: ReturnType<typeof vi.fn>;
     createSection: ReturnType<typeof vi.fn>;
+    updateSection: ReturnType<typeof vi.fn>;
     reorderSections: ReturnType<typeof vi.fn>;
     getSectionsByCourseId: ReturnType<typeof vi.fn>;
   };
@@ -70,6 +72,7 @@ describe('CourseController', () => {
       findByInstructorId: vi.fn(),
       getCourseDetailForInstructor: vi.fn(),
       createSection: vi.fn(),
+      updateSection: vi.fn(),
       reorderSections: vi.fn(),
       getSectionsByCourseId: vi.fn(),
     };
@@ -882,6 +885,126 @@ describe('CourseController', () => {
       );
       expect(response.success).toBe(true);
       expect(response.data.price).toBe(299000);
+    });
+  });
+
+  describe('PATCH /courses/:courseId/sections/:sectionId - updateSection', () => {
+    const courseId = '507f1f77bcf86cd799439011';
+    const sectionId = '507f1f77bcf86cd799439022';
+    const userId = 'instructor_1';
+    const sampleSection: ISection = {
+      id: sectionId,
+      courseId,
+      title: 'Chương 1: Mở đầu',
+      description: 'Mô tả chương',
+      order: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    };
+
+    let validationPipe: ValidationPipe;
+
+    beforeEach(() => {
+      validationPipe = new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      });
+    });
+
+    it('1. should delegate to courseService.updateSection and return ApiResponse.success', async () => {
+      // Arrange
+      const dto: UpdateSectionDto = {
+        title: 'Chương 1: Kiến trúc căn bản',
+        description: 'Mô tả chi tiết mới',
+      };
+      mockCourseService.updateSection.mockResolvedValue({
+        ...sampleSection,
+        title: dto.title,
+        description: dto.description,
+      });
+
+      // Act
+      const response = await controller.updateSection(
+        courseId,
+        sectionId,
+        userId,
+        RoleEnum.INSTRUCTOR,
+        dto,
+      );
+
+      // Assert
+      expect(mockCourseService.updateSection).toHaveBeenCalledWith(
+        courseId,
+        sectionId,
+        dto,
+        userId,
+        RoleEnum.INSTRUCTOR,
+      );
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Cập nhật chương học thành công');
+      expect(response.data.title).toBe('Chương 1: Kiến trúc căn bản');
+      expect(response.data.description).toBe('Mô tả chi tiết mới');
+    });
+
+    it('2. should trim whitespace from title in DTO validation', async () => {
+      // Arrange
+      const rawPayload = {
+        title: '   Chương có nhiều khoảng trắng   ',
+      };
+
+      // Act
+      const transformed = (await validationPipe.transform(rawPayload, {
+        type: 'body',
+        metatype: UpdateSectionDto,
+      })) as UpdateSectionDto;
+
+      // Assert
+      expect(transformed.title).toBe('Chương có nhiều khoảng trắng');
+    });
+
+    it('3. should reject empty title string in DTO validation', async () => {
+      // Arrange
+      const rawPayload = {
+        title: '   ',
+      };
+
+      // Act & Assert
+      await expect(
+        validationPipe.transform(rawPayload, {
+          type: 'body',
+          metatype: UpdateSectionDto,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('4. should reject unwhitelisted properties', async () => {
+      // Arrange
+      const rawPayload = {
+        title: 'Chương hợp lệ',
+        unauthorizedField: 'someValue',
+      };
+
+      // Act & Assert
+      await expect(
+        validationPipe.transform(rawPayload, {
+          type: 'body',
+          metatype: UpdateSectionDto,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('5. should have @Roles(INSTRUCTOR, ADMIN) decorator configured', () => {
+      const reflector = new Reflector();
+      const roles = reflector.get<RoleEnum[]>(
+        ROLES_KEY,
+        CourseController.prototype.updateSection,
+      );
+
+      expect(roles).toBeDefined();
+      expect(roles).toContain(RoleEnum.INSTRUCTOR);
+      expect(roles).toContain(RoleEnum.ADMIN);
     });
   });
 });

@@ -22,6 +22,7 @@ import { CourseRepository } from '../repositories/course.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { CreateSectionDto } from '../dto/create-section.dto.js';
+import { UpdateSectionDto } from '../dto/update-section.dto.js';
 import { ReorderSectionsDto } from '../dto/reorder-sections.dto.js';
 import { StorageService } from '../../storage/index.js';
 
@@ -39,6 +40,8 @@ describe('CourseService', () => {
     create: ReturnType<typeof vi.fn>;
     findByCourseId: ReturnType<typeof vi.fn>;
     reorderSections: ReturnType<typeof vi.fn>;
+    findById: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
   };
   let mockUserRepository: {
     findById: ReturnType<typeof vi.fn>;
@@ -90,6 +93,8 @@ describe('CourseService', () => {
       create: vi.fn(),
       findByCourseId: vi.fn(),
       reorderSections: vi.fn(),
+      findById: vi.fn(),
+      update: vi.fn(),
     };
 
     mockUserRepository = {
@@ -1104,6 +1109,185 @@ describe('CourseService', () => {
 
       expect(result.price).toBe(250000);
       expect(result.originalPrice).toBe(400000);
+    });
+  });
+
+  describe('updateSection', () => {
+    const existingCourse: ICourse = {
+      id: 'course_123',
+      title: 'TypeScript Advanced',
+      slug: 'typescript-advanced',
+      instructorId: 'instructor_1',
+      price: 100000,
+      status: CourseStatusEnum.DRAFT,
+      level: CourseLevelEnum.BEGINNER,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    };
+
+    const existingSection: ISection = {
+      id: 'section_123',
+      courseId: 'course_123',
+      title: 'Chương 1: Mở đầu',
+      description: 'Mô tả cũ',
+      order: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    };
+
+    it('1. should allow course INSTRUCTOR to update section title and description', async () => {
+      // Arrange
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+      mockSectionRepository.findById.mockResolvedValue(existingSection);
+      const updatedSection = {
+        ...existingSection,
+        title: 'Chương 1: Kiến trúc căn bản',
+        description: 'Mô tả mới',
+      };
+      mockSectionRepository.update.mockResolvedValue(updatedSection);
+
+      // Act
+      const result = await service.updateSection(
+        'course_123',
+        'section_123',
+        { title: 'Chương 1: Kiến trúc căn bản', description: 'Mô tả mới' },
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      // Assert
+      expect(result.title).toBe('Chương 1: Kiến trúc căn bản');
+      expect(result.description).toBe('Mô tả mới');
+      expect(mockSectionRepository.update).toHaveBeenCalledWith(
+        'section_123',
+        expect.objectContaining({
+          title: 'Chương 1: Kiến trúc căn bản',
+          description: 'Mô tả mới',
+          updatedById: 'instructor_1',
+        }),
+        undefined,
+      );
+    });
+
+    it('2. should allow ADMIN to update section of any course', async () => {
+      // Arrange
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+      mockSectionRepository.findById.mockResolvedValue(existingSection);
+      mockSectionRepository.update.mockResolvedValue({
+        ...existingSection,
+        title: 'Admin Updated Title',
+      });
+
+      // Act
+      const result = await service.updateSection(
+        'course_123',
+        'section_123',
+        { title: 'Admin Updated Title' },
+        'admin_1',
+        RoleEnum.ADMIN,
+      );
+
+      // Assert
+      expect(result.title).toBe('Admin Updated Title');
+      expect(mockSectionRepository.update).toHaveBeenCalledWith(
+        'section_123',
+        expect.objectContaining({
+          title: 'Admin Updated Title',
+          updatedById: 'admin_1',
+        }),
+        undefined,
+      );
+    });
+
+    it('3. should throw ForbiddenException if user is not the instructor nor ADMIN', async () => {
+      // Arrange
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+
+      // Act & Assert
+      await expect(
+        service.updateSection(
+          'course_123',
+          'section_123',
+          { title: 'Hacked Title' },
+          'other_user',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockSectionRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('4. should throw NotFoundException if course does not exist', async () => {
+      // Arrange
+      mockCourseRepository.findById.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.updateSection(
+          'non_existent_course',
+          'section_123',
+          { title: 'New Title' },
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('5. should throw NotFoundException if course is soft-deleted', async () => {
+      // Arrange
+      mockCourseRepository.findById.mockResolvedValue({
+        ...existingCourse,
+        deletedAt: new Date(),
+      });
+
+      // Act & Assert
+      await expect(
+        service.updateSection(
+          'course_123',
+          'section_123',
+          { title: 'New Title' },
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('6. should throw NotFoundException if section does not exist', async () => {
+      // Arrange
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+      mockSectionRepository.findById.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.updateSection(
+          'course_123',
+          'non_existent_section',
+          { title: 'New Title' },
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('7. should throw NotFoundException if section belongs to a different course', async () => {
+      // Arrange
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+      mockSectionRepository.findById.mockResolvedValue({
+        ...existingSection,
+        courseId: 'other_course_456',
+      });
+
+      // Act & Assert
+      await expect(
+        service.updateSection(
+          'course_123',
+          'section_123',
+          { title: 'New Title' },
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

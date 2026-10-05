@@ -21,3 +21,9 @@ export interface IReorderSectionsPayload {
   sectionIds: string[];
 }
 
+export interface IUpdateSectionPayload {
+  title?: string;
+  description?: string | null;
+  order?: number;
+}
+

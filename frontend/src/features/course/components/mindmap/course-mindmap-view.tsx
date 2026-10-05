@@ -66,8 +66,16 @@ interface CourseMindmapViewProps {
   className?: string;
 }
 
+export interface ISavedMindmapData {
+  nodes: Node[];
+  edges: Edge[];
+  collapsedIds?: string[];
+  updatedAt?: string;
+}
+
 interface InnerCanvasProps {
   courseId: string;
+  savedData: ISavedMindmapData;
   rawData: CourseMindmapRawData;
   onBackToTree: () => void;
   isFullscreen: boolean;
@@ -76,6 +84,7 @@ interface InnerCanvasProps {
 
 function InnerCanvas({
   courseId,
+  savedData,
   rawData,
   onBackToTree,
   isFullscreen,
@@ -84,32 +93,22 @@ function InnerCanvas({
   const { fitView } = useReactFlow();
   const upsertMutation = useUpsertCourseMindmapMutation(courseId);
 
-  // Tính toán elements khởi tạo: Luôn khởi tạo ở 2 cấp độ đầu tiên (Khóa học + Chương mục)
-  const initialElements = useMemo(() => {
-    const defaultCollapsed = generateDefaultCollapsedIds(rawData);
-    const { nodes: rawNodes, edges: rawEdges } = convertCurriculumToFlowElements(
-      rawData,
-      defaultCollapsed,
-    );
-    const layouted = getLayoutedElements(rawNodes, rawEdges, { direction: 'LR' });
-    return {
-      nodes: layouted.nodes,
-      edges: layouted.edges,
-      collapsedIds: defaultCollapsed,
-    };
-  }, [rawData]);
-
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initialElements.nodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initialElements.edges);
-  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(initialElements.collapsedIds);
+  // Khởi tạo state CHÍNH XÁC từ dữ liệu lưu trong database course_mindmaps!
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(savedData.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(savedData.edges);
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(
+    () => new Set(savedData.collapsedIds || []),
+  );
   const [showMinimap, setShowMinimap] = useState(false);
   const [isModified, setIsModified] = useState(false);
 
-  // Sync ref trực tiếp trong render (thay vì qua useEffect async) → không bao giờ stale
   const nodesRef = React.useRef(nodes);
   const edgesRef = React.useRef(edges);
-  nodesRef.current = nodes;
-  edgesRef.current = edges;
+
+  useEffect(() => {
+    nodesRef.current = nodes;
+    edgesRef.current = edges;
+  }, [nodes, edges]);
 
   const cancelAnimationRef = React.useRef<(() => void) | null>(null);
 
@@ -238,16 +237,41 @@ function InnerCanvas({
     });
   }, [rawData, getLayoutedCached, animateToLayout, fitView]);
 
-  // Thao tác Lưu sơ đồ
+  // Thao tác Lưu sơ đồ: Trích xuất toàn bộ cấu trúc cây mới nhất, thu gọn 2 cấp độ mặc định, layout LR, lưu snapshot JSON và render lại
   const handleSave = async () => {
-    const payload = {
-      nodes,
-      edges,
-      collapsedIds: Array.from(collapsedIds),
+    // 1. Trích xuất cấu trúc cây mới nhất và tạo trạng thái thu gọn mặc định 2 cấp độ (Khóa học + Các chương)
+    const defaultCollapsed = generateDefaultCollapsedIds(rawData);
+
+    // 2. Chuyển đổi toàn bộ cấu trúc cây thành Flow elements
+    const { nodes: rawNodes, edges: rawEdges } = convertCurriculumToFlowElements(
+      rawData,
+      defaultCollapsed,
+    );
+
+    // 3. Tính toán vị trí hiển thị chuẩn với layout LR
+    const layouted = getLayoutedElements(rawNodes, rawEdges, { direction: 'LR' });
+
+    // 4. Đóng gói bản snapshot JSON hoàn chỉnh
+    const snapshotPayload = {
+      nodes: layouted.nodes,
+      edges: layouted.edges,
+      collapsedIds: Array.from(defaultCollapsed),
       updatedAt: new Date().toISOString(),
     };
-    await upsertMutation.mutateAsync(payload);
+
+    // 5. Gửi request lên Backend ghi đè (UPSERT) bản ghi course_mindmaps của khóa học
+    await upsertMutation.mutateAsync(snapshotPayload);
+
+    // 6. Xóa cache layout, render lại dữ liệu mới nhất ở trạng thái thu gọn 2 cấp độ và fitView
+    layoutCacheRef.current.clear();
+    setCollapsedIds(defaultCollapsed);
+    setNodes(layouted.nodes);
+    setEdges(layouted.edges);
     setIsModified(false);
+
+    requestAnimationFrame(() => {
+      void fitView({ duration: 300, padding: 0.2 });
+    });
   };
 
   return (
@@ -347,8 +371,9 @@ export function CourseMindmapView({
   // Lấy chi tiết khóa học (tên, cấp độ)
   const { data: courseDetail, isLoading: isCourseLoading } = useCourseDetailQuery(courseId);
 
-  // Lấy trạng thái Mindmap đã lưu
-  const { isLoading: isMindmapLoading } = useCourseMindmapQuery(courseId);
+  // Lấy trạng thái Mindmap đã lưu trong database
+  const { data: savedMindmapData, isLoading: isMindmapLoading } = useCourseMindmapQuery(courseId);
+  const upsertMutation = useUpsertCourseMindmapMutation(courseId);
 
   // Lấy danh sách bài học của toàn bộ các section song song
   const lessonQueries = useQueries({
@@ -384,6 +409,39 @@ export function CourseMindmapView({
   }, [courseId, courseDetail, sections, lessonsBySection]);
 
   const isLoading = isCourseLoading || isMindmapLoading || isLessonsLoading;
+
+  const typedSavedData = savedMindmapData as unknown as ISavedMindmapData | null;
+  const hasSavedMindmap = Boolean(
+    typedSavedData &&
+      Array.isArray(typedSavedData.nodes) &&
+      typedSavedData.nodes.length > 0 &&
+      Array.isArray(typedSavedData.edges),
+  );
+
+  const handleInitializeMindmap = async () => {
+    // 1. Thu gọn mặc định 2 cấp độ từ rawData mới nhất
+    const defaultCollapsed = generateDefaultCollapsedIds(rawData);
+
+    // 2. Chuyển đổi dữ liệu giáo trình hiện tại thành Flow elements
+    const { nodes: rawNodes, edges: rawEdges } = convertCurriculumToFlowElements(
+      rawData,
+      defaultCollapsed,
+    );
+
+    // 3. Tính toán vị trí hiển thị chuẩn với layout LR
+    const layouted = getLayoutedElements(rawNodes, rawEdges, { direction: 'LR' });
+
+    // 4. Đóng gói bản snapshot JSON hoàn chỉnh
+    const snapshotPayload = {
+      nodes: layouted.nodes,
+      edges: layouted.edges,
+      collapsedIds: Array.from(defaultCollapsed),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // 5. Gửi request lên Backend ghi đè (UPSERT) bản ghi course_mindmaps
+    await upsertMutation.mutateAsync(snapshotPayload);
+  };
 
   if (isLoading) {
     return (
@@ -424,16 +482,69 @@ export function CourseMindmapView({
     );
   }
 
+  // Khóa học chưa từng lưu Mindmap vào database course_mindmaps -> Hiển thị Empty State kèm nút Khởi tạo
+  if (!hasSavedMindmap) {
+    return (
+      <div className="w-full h-[520px] rounded-2xl border border-border/70 bg-card/60 backdrop-blur-xs flex flex-col items-center justify-center gap-4 text-center p-8">
+        <div className="size-16 rounded-2xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-500/20">
+          <Icon icon="lucide:workflow" className="size-8" />
+        </div>
+        <div className="space-y-1.5 max-w-md">
+          <h4 className="text-base font-bold text-foreground">Chưa có sơ đồ tư duy</h4>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Khóa học này chưa được lưu cấu trúc sơ đồ tư duy trong hệ thống.
+            Bạn có thể khởi tạo sơ đồ tự động từ nội dung giáo trình hiện tại.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onBackToTree}
+            className="rounded-xl text-xs font-semibold gap-1.5"
+            disabled={upsertMutation.isPending}
+          >
+            <Icon icon="lucide:arrow-left" className="size-3.5" />
+            Quay lại Dạng Cây
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleInitializeMindmap}
+            disabled={upsertMutation.isPending || sections.length === 0}
+            className="rounded-xl text-xs font-semibold gap-1.5 shadow-xs"
+          >
+            {upsertMutation.isPending ? (
+              <>
+                <Icon icon="lucide:loader-2" className="size-3.5 mr-1.5 animate-spin" />
+                Đang khởi tạo sơ đồ...
+              </>
+            ) : (
+              <>
+                <Icon icon="lucide:sparkles" className="size-3.5" />
+                Khởi tạo sơ đồ từ giáo trình
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   const containerClasses = isFullscreen
     ? 'fixed inset-0 z-50 w-screen h-screen bg-background'
     : `w-full h-[680px] rounded-2xl border border-border/70 shadow-xs overflow-hidden ${className ?? ''}`;
+
+  const canvasKey = `${courseId}_${typedSavedData?.updatedAt || 'saved'}`;
 
   return (
     <div className={containerClasses}>
       <ReactFlowProvider>
         <InnerCanvas
-          key={courseId}
+          key={canvasKey}
           courseId={courseId}
+          savedData={typedSavedData!}
           rawData={rawData}
           onBackToTree={onBackToTree}
           isFullscreen={isFullscreen}

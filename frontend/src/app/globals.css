@@ -210,4 +210,18 @@
   shape-rendering: geometricPrecision;
 }
 
+/* Animation Zoom In/Out cho nút Cập nhật Mindmap */
+@keyframes zoomInOut {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+.animate-zoom-in-out {
+  animation: zoomInOut 1.8s ease-in-out infinite;
+}
+
 

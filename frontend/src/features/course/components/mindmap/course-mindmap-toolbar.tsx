@@ -120,19 +120,19 @@ export function CourseMindmapToolbar({
         </Button>
       </div>
 
-      {/* Save Button */}
+      {/* Update Button */}
       <Button
         type="button"
         size="sm"
         onClick={onSave}
         disabled={isSaving}
-        className="h-8 px-3.5 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 ml-0.5"
+        className="h-8 px-3.5 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 ml-0.5 animate-zoom-in-out origin-center"
       >
         <Icon
-          icon={isSaving ? 'lucide:loader-2' : 'lucide:save'}
+          icon={isSaving ? 'lucide:loader-2' : 'lucide:cloud-upload'}
           className={`size-3.5 ${isSaving ? 'animate-spin' : ''}`}
         />
-        <span>{isSaving ? 'Đang lưu...' : 'Lưu sơ đồ'}</span>
+        <span>{isSaving ? 'Đang cập nhật...' : 'Cập nhật'}</span>
         {isModified && (
           <span className="size-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" />
         )}

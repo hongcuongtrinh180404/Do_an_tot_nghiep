@@ -21,6 +21,7 @@ import { CourseService } from './services/course.service.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
 import { UpdateCourseDto } from './dto/update-course.dto.js';
 import { CreateSectionDto } from './dto/create-section.dto.js';
+import { UpdateSectionDto } from './dto/update-section.dto.js';
 import { ReorderSectionsDto } from './dto/reorder-sections.dto.js';
 import { CourseImageValidationPipe } from './pipes/course-image-validation.pipe.js';
 import { CourseTrailerValidationPipe } from './pipes/course-trailer-validation.pipe.js';
@@ -96,6 +97,25 @@ export class CourseController {
   ): Promise<ApiResponse<ISection>> {
     const section = await this.courseService.createSection(courseId, dto, userId, role);
     return ApiResponse.success(section, 'Tạo chương học thành công');
+  }
+
+  @Patch(':courseId/sections/:sectionId')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  async updateSection(
+    @Param('courseId', ParseObjectIdPipe) courseId: string,
+    @Param('sectionId', ParseObjectIdPipe) sectionId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: RoleEnum,
+    @Body() dto: UpdateSectionDto,
+  ): Promise<ApiResponse<ISection>> {
+    const section = await this.courseService.updateSection(
+      courseId,
+      sectionId,
+      dto,
+      userId,
+      role,
+    );
+    return ApiResponse.success(section, 'Cập nhật chương học thành công');
   }
 
   @Put(':courseId/sections/reorder')

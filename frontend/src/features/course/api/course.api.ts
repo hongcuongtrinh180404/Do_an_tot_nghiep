@@ -9,6 +9,7 @@ import type {
   ICreateCoursePayload,
   IUpdateCoursePayload,
   ICreateSectionPayload,
+  IUpdateSectionPayload,
   IReorderSectionsPayload,
   ICreateLessonPayload,
   ISection,
@@ -50,6 +51,17 @@ export const courseApi = {
   async createSection(courseId: string, payload: ICreateSectionPayload): Promise<ISection> {
     const res = await apiClient.post<IApiResponse<ISection>>(
       `/courses/${courseId}/sections`,
+      payload,
+    );
+    return res.data.data;
+  },
+  async updateSection(
+    courseId: string,
+    sectionId: string,
+    payload: IUpdateSectionPayload,
+  ): Promise<ISection> {
+    const res = await apiClient.patch<IApiResponse<ISection>>(
+      `/courses/${courseId}/sections/${sectionId}`,
       payload,
     );
     return res.data.data;
@@ -335,6 +347,85 @@ export function useCreateSectionMutation(courseId: string) {
       }
 
       toast.error('Lỗi thêm chương học', {
+        description:
+          message || 'Không thể kết nối đến máy chủ hoặc đã xảy ra lỗi. Vui lòng thử lại sau.',
+      });
+    },
+  });
+}
+
+export function useUpdateSectionMutation(courseId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      sectionId,
+      payload,
+    }: {
+      sectionId: string;
+      payload: IUpdateSectionPayload;
+    }) => courseApi.updateSection(courseId, sectionId, payload),
+    onSuccess: (updatedSection: ISection) => {
+      // 1. Cập nhật tức thì dữ liệu trong query cache để UI đổi ngay lập tức
+      queryClient.setQueryData<ISection[]>(courseKeys.sections(courseId), (old) => {
+        if (!old) return [updatedSection];
+        return old.map((s) => (s.id === updatedSection.id ? updatedSection : s));
+      });
+
+      // 2. Invalidate query để đồng bộ dữ liệu mới nhất từ server
+      void queryClient.invalidateQueries({ queryKey: courseKeys.sections(courseId) });
+
+      toast.success('Cập nhật chương học thành công!', {
+        description: `Chương "${updatedSection.title}" đã được lưu thay đổi.`,
+      });
+    },
+    onError: (error: unknown) => {
+      const axiosError = error as {
+        response?: {
+          status?: number;
+          data?: {
+            message?: string | string[];
+            error?: string;
+            statusCode?: number;
+          };
+        };
+      };
+
+      const status = axiosError.response?.status;
+      const responseData = axiosError.response?.data;
+      const rawMessage = responseData?.message;
+      const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage;
+
+      if (status === 401) {
+        toast.error('Phiên làm việc đã hết hạn', {
+          description: 'Vui lòng đăng nhập lại để tiếp tục.',
+        });
+        return;
+      }
+
+      if (status === 403) {
+        toast.error('Không có quyền thực hiện', {
+          description:
+            message || 'Chỉ giảng viên sở hữu khóa học mới có quyền chỉnh sửa chương học.',
+        });
+        return;
+      }
+
+      if (status === 404) {
+        toast.error('Chương học không tồn tại', {
+          description: message || 'Chương học không tồn tại hoặc đã bị xóa.',
+        });
+        return;
+      }
+
+      if (status === 400) {
+        toast.error('Dữ liệu không hợp lệ', {
+          description: message || 'Vui lòng kiểm tra lại thông tin chương học đã nhập.',
+        });
+        return;
+      }
+
+      toast.error('Lỗi cập nhật chương học', {
         description:
           message || 'Không thể kết nối đến máy chủ hoặc đã xảy ra lỗi. Vui lòng thử lại sau.',
       });
