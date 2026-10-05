@@ -984,6 +984,46 @@
     - Frontend Lint: `pnpm --filter frontend lint` -> 100% clean (0 errors, 0 warnings).
     - Tuân thủ nghiêm ngặt Purple Ban (0 mã màu tím), không sử dụng inline font classes, không dùng kiểu `any`.
 
+- **Milestone 35 (Nút Xóa Chương Học Trên Section Header & Mock Confirm Dialog - UI Only)**:
+  - Yêu cầu & Bối cảnh:
+    - Bổ sung nút icon thùng rác (Xóa chương học) vào cụm công cụ quản lý chương trên thanh tiêu đề thẻ chương (`Section Header`) ở trang Chi tiết khóa học giảng viên (`/instructor/courses/:id`).
+    - Vị trí chuẩn: Đặt ngay sau icon cây bút chì `[ + Thêm bài ] [ ✏️ Sửa ] [ 🗑️ Xóa ]`.
+    - Kiểu dáng & Tương tác (UI/UX Styling):
+      - Trạng thái mặc định: Icon button không viền, hình vuông bo góc nhẹ `w-8 h-8 rounded-lg flex items-center justify-center`, icon `lucide:trash-2` kích thước `size-3.5`, màu xám nhạt `text-slate-400` hòa lẫn nền thẻ chương, tránh thu hút và bấm nhầm.
+      - Trạng thái hover: Nền đổi sang đỏ hồng nhạt `hover:bg-rose-50`, icon đổi sang đỏ cảnh báo `hover:text-rose-600`, chuyển động mượt `transition-colors duration-150`, tooltip `title="Xóa chương học"`. Đồng bộ với Dark Mode (`dark:hover:bg-rose-950/40 dark:hover:text-rose-400`).
+      - Trạng thái disabled/loading: `disabled:opacity-50 disabled:cursor-not-allowed` và icon xoay `lucide:loader-2 animate-spin`.
+      - Sự kiện click: Chặn sự kiện lan truyền `e.stopPropagation()` để không kích hoạt đóng/mở thẻ Accordion cha.
+    - Scope Rule: Chỉ dừng lại ở tầng giao diện người dùng (UI Only), chưa can thiệp logic backend hoặc gọi API xóa thật.
+  - Triển khai:
+    - Tạo component `DeleteSectionDialog` (`frontend/src/features/course/components/delete-section-dialog.tsx`): Sử dụng `Dialog`, `DialogHeader`, `DialogFooter` từ `@/components/ui/dialog.tsx`, hiển thị badge số thứ tự chương, tên chương học cần xóa, cảnh báo thao tác không thể hoàn tác, nút Hủy và nút "Xác nhận xóa" (`variant="destructive"`). Khi xác nhận, đóng dialog và hiển thị thông báo toast mock thông tin, sẵn sàng để nối API xóa backend trong sprint sau.
+    - Cập nhật `ChapterTreeItem` trong `frontend/src/features/course/components/course-sections-list.tsx`: Bổ sung props `onDeleteChapter` và `isDeletingChapter`, chèn nút thùng rác vào sau nút bút chì.
+    - Kết nối state `deleteSectionTarget` trong `CourseSectionsListContent` để mở `DeleteSectionDialog` đúng chương được chọn khi click.
+  - Kiểm tra chất lượng:
+    - `pnpm --filter frontend exec tsc --noEmit` -> 100% clean (0 errors).
+    - Tuân thủ quy tắc kiến trúc: Không dùng type `any`, không dùng inline font classes, tuân thủ Purple Ban.
+
+- **Milestone 36 (Tái Thiết Kế Hộp Thoại Xác Nhận Xóa Chương Học - AlertDialog UI Only)**:
+  - Yêu cầu & Bối cảnh:
+    - Nâng cấp hộp thoại xác nhận xóa chương `DeleteSectionDialog` thành chuẩn **AlertDialog (Hộp thoại xác nhận nguy hiểm)** chuyên biệt.
+    - Lớp phủ nền: Nền đen mờ nhẹ làm nổi bật hộp thoại `bg-slate-900/60 backdrop-blur-xs`.
+    - Thân hộp thoại: `max-w-md w-full rounded-2xl bg-white dark:bg-card p-6 shadow-2xl`, ẩn nút `X` để chuẩn hóa trải nghiệm AlertDialog.
+    - Icon cảnh báo: Tam giác chấm than `lucide:alert-triangle` (`size-6`) trong vòng tròn đỏ nhạt `w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400`.
+    - Tiêu đề: "Xác nhận xóa chương học?".
+    - Phân nhánh cảnh báo dữ liệu con:
+      - Chương chưa có bài (0 bài): Thông báo nhẹ nhàng, 1 click là xác nhận xong.
+      - Chương có bài (> 0 bài): Cảnh báo dữ liệu con bị xóa vĩnh viễn với số lượng bài học được bôi đỏ đậm (`text-rose-600 dark:text-rose-400 font-bold`).
+    - Footer 2 nút hành động:
+      - Nút phụ [ Hủy bỏ ]: viền xám, hover:bg-slate-100 text-slate-700.
+      - Nút chính [ Xóa vĩnh viễn ]: đỏ rượu `bg-rose-600 hover:bg-rose-700 text-white font-semibold`.
+    - Phạm vi nghiêm ngặt: UI Only, không can thiệp logic backend.
+  - Triển khai:
+    - Bổ sung `overlayClassName?: string` vào `DialogContent` (`frontend/src/components/ui/dialog.tsx`).
+    - Tái cấu trúc `DeleteSectionDialog` (`frontend/src/features/course/components/delete-section-dialog.tsx`): Tích hợp `useSectionLessonsQuery` lấy số lượng bài học từ React Query cache, render layout AlertDialog theo đúng đặc tả.
+  - Kiểm tra chất lượng:
+    - `pnpm --filter frontend exec tsc --noEmit` -> 100% clean (0 errors).
+    - `pnpm --filter frontend exec eslint` -> 100% clean (0 errors, 0 warnings).
+
+
 
 
 

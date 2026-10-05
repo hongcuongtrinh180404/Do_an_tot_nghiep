@@ -13,6 +13,7 @@ import {
 import { useChapterDnd } from '../hooks/use-chapter-dnd';
 import { CreateSectionDialog } from './create-section-dialog';
 import { EditSectionDialog } from './edit-section-dialog';
+import { DeleteSectionDialog } from './delete-section-dialog';
 import { SectionLessonCreateForm } from './section-lesson-create-form';
 import { CourseOverviewMetrics } from './course-overview-metrics';
 import {
@@ -50,6 +51,8 @@ interface ChapterTreeItemProps {
   onSelectChapter: () => void;
   onSelectLesson: (lesson: ILesson) => void;
   onEditChapter: () => void;
+  onDeleteChapter?: () => void;
+  isDeletingChapter?: boolean;
   onAddLesson: () => void;
   // Drag & Drop
   isDragging?: boolean;
@@ -71,6 +74,8 @@ function ChapterTreeItem({
   onSelectChapter,
   onSelectLesson,
   onEditChapter,
+  onDeleteChapter,
+  isDeletingChapter = false,
   onAddLesson,
   isDragging,
   isDragOver,
@@ -180,6 +185,25 @@ function ChapterTreeItem({
           >
             <Icon icon="lucide:pencil" className="size-3.5" />
           </button>
+
+          {/* Nút Xóa chương học (UI Only) */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteChapter?.();
+            }}
+            disabled={isDeletingChapter}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Xóa chương học"
+            aria-label="Xóa chương học"
+          >
+            {isDeletingChapter ? (
+              <Icon icon="lucide:loader-2" className="size-3.5 animate-spin" />
+            ) : (
+              <Icon icon="lucide:trash-2" className="size-3.5" />
+            )}
+          </button>
         </div>
       </div>
 
@@ -278,6 +302,7 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editSectionTarget, setEditSectionTarget] = useState<ISection | null>(null);
+  const [deleteSectionTarget, setDeleteSectionTarget] = useState<ISection | null>(null);
   const [createLessonTarget, setCreateLessonTarget] = useState<{
     sectionId: string;
     sectionTitle: string;
@@ -439,6 +464,7 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
                       })
                     }
                     onEditChapter={() => setEditSectionTarget(section)}
+                    onDeleteChapter={() => setDeleteSectionTarget(section)}
                     onAddLesson={() =>
                       setCreateLessonTarget({
                         sectionId: section.id,
@@ -491,6 +517,15 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
         open={Boolean(editSectionTarget)}
         onOpenChange={(open) => {
           if (!open) setEditSectionTarget(null);
+        }}
+      />
+
+      {/* Modal: Xóa chương học (Mock UI) */}
+      <DeleteSectionDialog
+        section={deleteSectionTarget}
+        open={Boolean(deleteSectionTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteSectionTarget(null);
         }}
       />
 
