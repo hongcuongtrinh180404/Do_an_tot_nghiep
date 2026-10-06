@@ -2,7 +2,12 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { type ISection, LessonContentTypeEnum, decodeUtf8FileName } from 'share-lib';
+import {
+  type ISection,
+  type ILessonMaterial,
+  LessonContentTypeEnum,
+  decodeUtf8FileName,
+} from 'share-lib';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
@@ -11,6 +16,8 @@ import {
   deserializeKeyPoints,
   getKeyPointColor,
 } from '../utils/lesson-key-points.util';
+import { UploadLessonDocDialog } from './upload-lesson-doc-dialog';
+import { DeleteLessonMaterialDialog } from './delete-lesson-material-dialog';
 
 export type ContextSelection =
   | { type: 'chapter'; chapterId: string }
@@ -136,6 +143,166 @@ function DocumentItemWithStatus({
   );
 }
 
+function getMaterialFileConfig(fileName: string, mimeType?: string | null) {
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+
+  if (ext === 'pdf' || mimeType?.includes('pdf')) {
+    return {
+      icon: 'lucide:file-text',
+      colorClass: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+      tagText: 'PDF',
+    };
+  }
+  if (
+    ['zip', 'rar', '7z', 'tar', 'gz'].includes(ext) ||
+    mimeType?.includes('zip') ||
+    mimeType?.includes('rar')
+  ) {
+    return {
+      icon: 'lucide:archive',
+      colorClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+      tagText: ext.toUpperCase() || 'ZIP',
+    };
+  }
+  if (['doc', 'docx'].includes(ext) || mimeType?.includes('word')) {
+    return {
+      icon: 'lucide:file-text',
+      colorClass: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
+      tagText: 'DOCX',
+    };
+  }
+  if (
+    ['xls', 'xlsx', 'csv'].includes(ext) ||
+    mimeType?.includes('excel') ||
+    mimeType?.includes('spreadsheet')
+  ) {
+    return {
+      icon: 'lucide:file-spreadsheet',
+      colorClass: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
+      tagText: 'EXCEL',
+    };
+  }
+  if (
+    ['ppt', 'pptx'].includes(ext) ||
+    mimeType?.includes('presentation') ||
+    mimeType?.includes('powerpoint')
+  ) {
+    return {
+      icon: 'lucide:presentation',
+      colorClass: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
+      tagText: 'PPTX',
+    };
+  }
+
+  return {
+    icon: 'lucide:file',
+    colorClass: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+    tagText: ext.toUpperCase() || 'FILE',
+  };
+}
+
+interface LessonMaterialItemProps {
+  material: ILessonMaterial;
+  isPreview: boolean;
+  onDelete: (material: ILessonMaterial) => void;
+}
+
+function LessonMaterialItem({
+  material,
+  isPreview,
+  onDelete,
+}: LessonMaterialItemProps): React.JSX.Element {
+  const displayTitle = decodeUtf8FileName(material.title || material.fileName);
+  const displayFileName = decodeUtf8FileName(material.fileName);
+  const fileSizeText = formatFileSize(material.fileSize);
+  const fileConfig = getMaterialFileConfig(material.fileName, material.mimeType);
+
+  return (
+    <div className="group flex items-center justify-between p-2.5 bg-muted/30 hover:bg-muted/50 border border-border/40 hover:border-border/60 rounded-xl text-xs transition-all gap-2">
+      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        {/* Biểu tượng file phân màu theo loại tệp */}
+        <div
+          className={`size-8 rounded-lg flex items-center justify-center shrink-0 border ${fileConfig.colorClass}`}
+          title={fileConfig.tagText}
+        >
+          <Icon icon={fileConfig.icon} className="size-4" />
+        </div>
+
+        {/* Thông tin tên và dung lượng tệp */}
+        <div className="min-w-0 flex-1">
+          <p
+            className="text-xs font-medium text-foreground truncate"
+            title={displayTitle}
+          >
+            {displayTitle}
+          </p>
+          <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground">
+            <span
+              className="truncate max-w-[130px] font-mono text-muted-foreground/80"
+              title={displayFileName}
+            >
+              {displayFileName}
+            </span>
+            {fileSizeText && (
+              <>
+                <span>•</span>
+                <span className="font-mono">{fileSizeText}</span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1.5 shrink-0">
+        {/* Kế thừa quyền xem theo video cha */}
+        {isPreview ? (
+          <span
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 shadow-2xs select-none"
+            title="Kế thừa từ bài học: Cho phép học thử"
+          >
+            <Icon icon="lucide:lock-open" className="size-2.5" />
+            <span>Học thử</span>
+          </span>
+        ) : (
+          <span
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-semibold bg-slate-500/10 border border-slate-500/20 text-slate-600 dark:text-slate-400 shadow-2xs select-none"
+            title="Kế thừa từ bài học: Bị khóa theo video"
+          >
+            <Icon icon="lucide:lock" className="size-2.5" />
+            <span>Đã khóa</span>
+          </span>
+        )}
+
+        {/* Nút tải về */}
+        {material.url && (
+          <a
+            href={material.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            download={displayFileName}
+            className="size-7 rounded-lg hover:bg-sky-500/10 text-muted-foreground hover:text-sky-600 dark:hover:text-sky-400 flex items-center justify-center transition-colors cursor-pointer"
+            title="Tải về tài liệu"
+            aria-label="Tải về tài liệu"
+          >
+            <Icon icon="lucide:download" className="size-3.5" />
+          </a>
+        )}
+
+        {/* Nút xóa tài liệu */}
+        <button
+          type="button"
+          onClick={() => onDelete(material)}
+          className="size-7 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex items-center justify-center transition-colors cursor-pointer"
+          title="Xóa tài liệu"
+          aria-label="Xóa tài liệu"
+        >
+          <Icon icon="lucide:trash-2" className="size-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // 1. Chapter Inspector Component
 function ChapterInspectorView({
   section,
@@ -154,13 +321,49 @@ function ChapterInspectorView({
   );
   const durationText = formatMinutes(totalSeconds);
 
-  // Lọc riêng các tài liệu bài đọc / tài liệu chữ của chương (loại trừ video)
-  const chapterDocuments = (lessons ?? []).filter(
-    (l) =>
-      l.content &&
-      l.content.type === LessonContentTypeEnum.DOCUMENT &&
-      Boolean(l.content.fileName),
-  );
+  // Lọc và tổng hợp tài liệu bài đọc & tài liệu đính kèm của chương
+  const chapterDocuments = React.useMemo(() => {
+    const list: Array<{
+      id: string;
+      fileName: string;
+      fileSize?: number | null;
+      url?: string;
+      isPreview: boolean;
+      lessonTitle: string;
+    }> = [];
+
+    (lessons ?? []).forEach((l) => {
+      if (
+        l.content &&
+        l.content.type === LessonContentTypeEnum.DOCUMENT &&
+        Boolean(l.content.fileName)
+      ) {
+        list.push({
+          id: `content-${l.id}`,
+          fileName: l.content.fileName || l.title || 'Tài liệu',
+          fileSize: l.content.fileSize,
+          url: l.content.url,
+          isPreview: l.isPreview,
+          lessonTitle: l.title,
+        });
+      }
+
+      if (l.materials && l.materials.length > 0) {
+        l.materials.forEach((m) => {
+          list.push({
+            id: m.id,
+            fileName: m.fileName || m.title,
+            fileSize: m.fileSize,
+            url: m.url,
+            isPreview: l.isPreview,
+            lessonTitle: l.title,
+          });
+        });
+      }
+    });
+
+    return list;
+  }, [lessons]);
 
   return (
     <div className="space-y-4 animate-in fade-in-50 duration-200">
@@ -227,11 +430,11 @@ function ChapterInspectorView({
             {chapterDocuments.map((doc) => (
               <DocumentItemWithStatus
                 key={doc.id}
-                fileName={doc.content?.fileName || doc.title}
-                fileSize={doc.content?.fileSize}
-                url={doc.content?.url}
+                fileName={doc.fileName}
+                fileSize={doc.fileSize}
+                url={doc.url}
                 isPreview={doc.isPreview}
-                lessonTitle={doc.title}
+                lessonTitle={doc.lessonTitle}
               />
             ))}
           </div>
@@ -283,6 +486,9 @@ function LessonInspectorView({
   const router = useRouter();
   const { data: lesson, isLoading } = useLessonDetailQuery(lessonId);
 
+  const [targetDeleteMaterial, setTargetDeleteMaterial] = React.useState<ILessonMaterial | null>(null);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = React.useState(false);
+
   if (isLoading || !lesson) {
     return (
       <div className="space-y-3 py-6 animate-pulse">
@@ -306,6 +512,9 @@ function LessonInspectorView({
   const lessonViewUrl = `/instructor/courses/${courseId}/lessons/${lesson.id}`;
 
   const keyPoints = deserializeKeyPoints(lesson.description);
+  const materialsList = lesson.materials || [];
+  const hasDocContent = Boolean(isDocLesson && lesson.content?.fileName);
+  const totalMaterialsCount = materialsList.length + (hasDocContent ? 1 : 0);
 
   return (
     <div className="space-y-4 animate-in fade-in-50 duration-200">
@@ -397,25 +606,72 @@ function LessonInspectorView({
 
       {/* Tài liệu riêng của bài (Cấp 4) */}
       <div className="space-y-2 pt-1 border-t border-border/40">
-        <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-          <Icon icon="lucide:file-text" className="size-3.5 text-sky-500" />
-          <span>Tài liệu riêng của bài</span>
-        </h4>
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+            <Icon icon="lucide:file-text" className="size-3.5 text-sky-500" />
+            <span>Tài liệu riêng của bài</span>
+            {totalMaterialsCount > 0 && (
+              <span className="text-[10px] font-mono font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                {totalMaterialsCount} tệp
+              </span>
+            )}
+          </h4>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsUploadDialogOpen(true)}
+            className="h-6 text-[11px] px-2 text-sky-600 dark:text-sky-400 hover:text-sky-700 hover:bg-sky-500/10 gap-1 rounded-lg"
+          >
+            <Icon icon="lucide:plus" className="size-3" />
+            <span>Đính kèm tệp</span>
+          </Button>
+        </div>
+
         <div className="space-y-1.5">
-          {isDocLesson && lesson.content?.fileName ? (
+          {hasDocContent && lesson.content?.fileName && (
             <DocumentItemWithStatus
               fileName={lesson.content.fileName}
               fileSize={lesson.content.fileSize}
               url={lesson.content.url}
               isPreview={lesson.isPreview}
             />
-          ) : (
+          )}
+
+          {materialsList.map((mat) => (
+            <LessonMaterialItem
+              key={mat.id}
+              material={mat}
+              isPreview={lesson.isPreview}
+              onDelete={(m) => setTargetDeleteMaterial(m)}
+            />
+          ))}
+
+          {totalMaterialsCount === 0 && (
             <p className="text-xs text-muted-foreground/80 italic p-3 bg-muted/20 border border-border/40 rounded-xl text-center">
               Không có tài liệu riêng cho bài học này.
             </p>
           )}
         </div>
       </div>
+
+      <UploadLessonDocDialog
+        open={isUploadDialogOpen}
+        onOpenChange={setIsUploadDialogOpen}
+        lesson={lesson}
+        courseId={courseId}
+      />
+
+      <DeleteLessonMaterialDialog
+        open={Boolean(targetDeleteMaterial)}
+        onOpenChange={(open) => {
+          if (!open) setTargetDeleteMaterial(null);
+        }}
+        lessonId={lesson.id}
+        courseId={courseId}
+        material={targetDeleteMaterial}
+      />
     </div>
   );
 }
@@ -461,7 +717,7 @@ export function ContextualInspectorPanel({
             className="size-8 text-muted-foreground/50 mx-auto"
           />
           <p className="text-xs font-medium max-w-[240px] mx-auto leading-relaxed">
-            Chọn một Chương hoặc Bài học ở danh sách bên trái để hiển thị thông tin chi tiết và tài liệu đính kèm.
+            Chọn một chương hoặc bài học để xem chi tiết.
           </p>
         </div>
       )}

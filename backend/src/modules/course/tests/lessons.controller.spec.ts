@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ILesson, LessonContentTypeEnum } from 'share-lib';
+import { ILesson, LessonContentTypeEnum, RoleEnum } from 'share-lib';
 import { ParseObjectIdPipe } from '../../base/index.js';
 import { LessonsController } from '../lessons.controller.js';
 import { LessonService } from '../services/lesson.service.js';
@@ -12,6 +12,8 @@ describe('LessonsController', () => {
   let controller: LessonsController;
   let mockLessonService: {
     getLessonById: ReturnType<typeof vi.fn>;
+    addMaterial: ReturnType<typeof vi.fn>;
+    deleteMaterial: ReturnType<typeof vi.fn>;
   };
 
   const sampleLessonId = '607f1f77bcf86cd799439011';
@@ -44,6 +46,8 @@ describe('LessonsController', () => {
   beforeEach(() => {
     mockLessonService = {
       getLessonById: vi.fn(),
+      addMaterial: vi.fn(),
+      deleteMaterial: vi.fn(),
     };
 
     controller = new LessonsController(mockLessonService as unknown as LessonService);
@@ -106,6 +110,71 @@ describe('LessonsController', () => {
     it('7. should throw BadRequestException for invalid ObjectId string', () => {
       const invalidId = 'not-a-valid-object-id';
       expect(() => pipe.transform(invalidId)).toThrow(BadRequestException);
+    });
+  });
+
+  describe('POST /lessons/:id/materials - uploadMaterial', () => {
+    const mockFile: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: 'slides.pdf',
+      encoding: '7bit',
+      mimetype: 'application/pdf',
+      buffer: Buffer.from('data'),
+      size: 5000,
+      destination: '',
+      filename: '',
+      path: '',
+      stream: null as any,
+    };
+
+    it('8. should upload material and return success ApiResponse', async () => {
+      const updatedLesson = { ...sampleLesson };
+      mockLessonService.addMaterial.mockResolvedValue(updatedLesson);
+
+      const response = await controller.uploadMaterial(
+        sampleLessonId,
+        mockFile,
+        'Tài liệu buổi 1',
+        sampleUserId,
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(mockLessonService.addMaterial).toHaveBeenCalledWith(
+        sampleLessonId,
+        mockFile,
+        'Tài liệu buổi 1',
+        sampleUserId,
+        RoleEnum.INSTRUCTOR,
+      );
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Đính kèm tài liệu thành công');
+      expect(response.data).toEqual(updatedLesson);
+    });
+  });
+
+  describe('DELETE /lessons/:id/materials/:materialId - deleteMaterial', () => {
+    const sampleMaterialId = '607f1f77bcf86cd799439099';
+
+    it('9. should delete material and return success ApiResponse', async () => {
+      const updatedLesson = { ...sampleLesson };
+      mockLessonService.deleteMaterial.mockResolvedValue(updatedLesson);
+
+      const response = await controller.deleteMaterial(
+        sampleLessonId,
+        sampleMaterialId,
+        sampleUserId,
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(mockLessonService.deleteMaterial).toHaveBeenCalledWith(
+        sampleLessonId,
+        sampleMaterialId,
+        sampleUserId,
+        RoleEnum.INSTRUCTOR,
+      );
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Xóa tài liệu thành công');
+      expect(response.data).toEqual(updatedLesson);
     });
   });
 });

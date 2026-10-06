@@ -4,6 +4,7 @@ import {
   Post,
   Put,
   Patch,
+  Delete,
   Body,
   Param,
   HttpCode,
@@ -116,6 +117,18 @@ export class CourseController {
       role,
     );
     return ApiResponse.success(section, 'Cập nhật chương học thành công');
+  }
+
+  @Delete(':courseId/sections/:sectionId')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  async deleteSection(
+    @Param('courseId', ParseObjectIdPipe) courseId: string,
+    @Param('sectionId', ParseObjectIdPipe) sectionId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: RoleEnum,
+  ): Promise<ApiResponse<null>> {
+    await this.courseService.deleteSection(courseId, sectionId, userId, role);
+    return ApiResponse.success(null, 'Xóa chương học thành công');
   }
 
   @Put(':courseId/sections/reorder')

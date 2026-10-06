@@ -20,6 +20,7 @@ import {
 import { BaseService } from '../../base/index.js';
 import { CourseRepository } from '../repositories/course.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
+import { LessonRepository } from '../repositories/lesson.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { CreateSectionDto } from '../dto/create-section.dto.js';
 import { UpdateSectionDto } from '../dto/update-section.dto.js';
@@ -45,6 +46,7 @@ export class CourseService extends BaseService<ICourse, string> {
   constructor(
     protected readonly courseRepository: CourseRepository,
     protected readonly sectionRepository: SectionRepository,
+    protected readonly lessonRepository: LessonRepository,
     protected readonly userRepository: UserRepository,
     protected readonly storageService: StorageService,
     cls: ClsService,
@@ -298,6 +300,85 @@ export class CourseService extends BaseService<ICourse, string> {
     }
 
     return updatedSection;
+  }
+
+  async deleteSection(
+    courseId: string,
+    sectionId: string,
+    userId: string,
+    role: RoleEnum,
+  ): Promise<boolean> {
+    let course: ICourse | null = null;
+    try {
+      course = await this.courseRepository.findById(courseId);
+    } catch {
+      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+    }
+
+    if (!course || course.deletedAt) {
+      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+    }
+
+    if (role !== RoleEnum.ADMIN && course.instructorId !== userId) {
+      throw new ForbiddenException(
+        'Bạn không có quyền xóa chương học của khóa học này',
+      );
+    }
+
+    let section: ISection | null = null;
+    try {
+      section = await this.sectionRepository.findById(sectionId);
+    } catch {
+      throw new NotFoundException(`Không tìm thấy chương học với ID '${sectionId}'`);
+    }
+
+    if (!section || section.deletedAt || section.courseId !== courseId) {
+      throw new NotFoundException(
+        `Không tìm thấy chương học với ID '${sectionId}' trong khóa học này`,
+      );
+    }
+
+    // 1. Lấy danh sách bài học để thu thập các file URLs / publicIds trước khi xóa
+    const lessons = await this.lessonRepository.findBySectionId(sectionId);
+    const filesToDelete: string[] = [];
+    for (const lesson of lessons) {
+      if (lesson.content?.url) {
+        filesToDelete.push(lesson.content.url);
+      }
+      if (lesson.content?.publicId) {
+        filesToDelete.push(lesson.content.publicId);
+      }
+    }
+
+    // 2. Thực hiện xóa toàn bộ trong MongoDB ClientSession Transaction
+    await this.courseRepository.withTransaction(async (session) => {
+      // Xóa mềm Section
+      await this.sectionRepository.softDelete(sectionId, userId, session);
+
+      // Xóa mềm toàn bộ bài học thuộc Section
+      await this.lessonRepository.softDeleteBySectionId(sectionId, userId, session);
+
+      // Đánh lại số thứ tự cho các Section còn lại có order > section.order (order = order - 1)
+      await this.sectionRepository.shiftOrdersAfterDelete(
+        courseId,
+        section.order,
+        userId,
+        session,
+      );
+    });
+
+    // 3. Xóa vật lý các file tài liệu/video trên MinIO sau khi DB transaction đã commit thành công
+    for (const fileKeyOrUrl of filesToDelete) {
+      try {
+        await this.storageService.deleteFile(fileKeyOrUrl);
+      } catch (err) {
+        this.logger.warn(
+          `Lỗi khi dọn dẹp file MinIO '${fileKeyOrUrl}': ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    return true;
   }
 
   async getSectionsByCourseId(

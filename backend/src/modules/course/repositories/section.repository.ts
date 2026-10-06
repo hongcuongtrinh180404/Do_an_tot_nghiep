@@ -94,4 +94,30 @@ export class SectionRepository extends BaseMongoRepository<ISection, SectionEnti
 
     return this.findByCourseId(courseId, session);
   }
+
+  async shiftOrdersAfterDelete(
+    courseId: string,
+    fromOrder: number,
+    userId?: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    const courseObjectId = Types.ObjectId.isValid(courseId)
+      ? new Types.ObjectId(courseId)
+      : courseId;
+
+    const result = await this.model.updateMany(
+      {
+        courseId: courseObjectId,
+        order: { $gt: fromOrder },
+        deletedAt: null,
+      },
+      {
+        $inc: { order: -1 },
+        ...(userId ? { $set: { updatedById: userId } } : {}),
+      },
+      { session: session ?? undefined },
+    );
+
+    return result.modifiedCount;
+  }
 }

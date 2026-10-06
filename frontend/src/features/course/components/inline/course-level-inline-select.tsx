@@ -37,12 +37,11 @@ export function CourseLevelInlineSelect({
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger
         render={
-          <div
-            role="button"
-            tabIndex={0}
+          <button
+            type="button"
             aria-label="Chọn trình độ khóa học"
             className={cn(
-              'p-3 rounded-lg bg-muted/25 border border-border/30 hover:border-border/80 hover:bg-muted/40 transition-all cursor-pointer group outline-none select-none text-left',
+              'w-full p-3 rounded-lg bg-muted/25 border border-border/30 hover:border-border/80 hover:bg-muted/40 transition-all cursor-pointer group outline-none select-none text-left',
               isOpen && 'border-ring ring-2 ring-ring/40 bg-muted/40',
               isPending && 'opacity-70 pointer-events-none',
             )}

@@ -15,11 +15,14 @@ import {
   IUser,
   ICourse,
   ISection,
+  ILesson,
+  LessonContentTypeEnum,
   AuthProviderEnum,
 } from 'share-lib';
 import { CourseService } from '../services/course.service.js';
 import { CourseRepository } from '../repositories/course.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
+import { LessonRepository } from '../repositories/lesson.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { CreateSectionDto } from '../dto/create-section.dto.js';
 import { UpdateSectionDto } from '../dto/update-section.dto.js';
@@ -35,6 +38,7 @@ describe('CourseService', () => {
     findById: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     findConflictingSlugs: ReturnType<typeof vi.fn>;
+    withTransaction: ReturnType<typeof vi.fn>;
   };
   let mockSectionRepository: {
     create: ReturnType<typeof vi.fn>;
@@ -42,6 +46,12 @@ describe('CourseService', () => {
     reorderSections: ReturnType<typeof vi.fn>;
     findById: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+    softDelete: ReturnType<typeof vi.fn>;
+    shiftOrdersAfterDelete: ReturnType<typeof vi.fn>;
+  };
+  let mockLessonRepository: {
+    findBySectionId: ReturnType<typeof vi.fn>;
+    softDeleteBySectionId: ReturnType<typeof vi.fn>;
   };
   let mockUserRepository: {
     findById: ReturnType<typeof vi.fn>;
@@ -87,6 +97,7 @@ describe('CourseService', () => {
       findById: vi.fn(),
       update: vi.fn(),
       findConflictingSlugs: vi.fn(),
+      withTransaction: vi.fn(async (cb) => cb({} as ClientSession)),
     };
 
     mockSectionRepository = {
@@ -95,6 +106,13 @@ describe('CourseService', () => {
       reorderSections: vi.fn(),
       findById: vi.fn(),
       update: vi.fn(),
+      softDelete: vi.fn().mockResolvedValue(true),
+      shiftOrdersAfterDelete: vi.fn().mockResolvedValue(0),
+    };
+
+    mockLessonRepository = {
+      findBySectionId: vi.fn().mockResolvedValue([]),
+      softDeleteBySectionId: vi.fn().mockResolvedValue(0),
     };
 
     mockUserRepository = {
@@ -114,6 +132,7 @@ describe('CourseService', () => {
     service = new CourseService(
       mockCourseRepository as unknown as CourseRepository,
       mockSectionRepository as unknown as SectionRepository,
+      mockLessonRepository as unknown as LessonRepository,
       mockUserRepository as unknown as UserRepository,
       mockStorageService as unknown as StorageService,
       mockCls as unknown as ClsService,
@@ -1284,6 +1303,169 @@ describe('CourseService', () => {
           'course_123',
           'section_123',
           { title: 'New Title' },
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('deleteSection', () => {
+    const existingCourse: ICourse = {
+      id: 'course_123',
+      title: 'Course 1',
+      slug: 'course-1',
+      instructorId: 'instructor_1',
+      price: 0,
+      level: CourseLevelEnum.BEGINNER,
+      status: CourseStatusEnum.DRAFT,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const existingSection: ISection = {
+      id: 'section_123',
+      courseId: 'course_123',
+      title: 'Old Title',
+      order: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    };
+
+    const sampleLessons: ILesson[] = [
+      {
+        id: 'lesson_1',
+        sectionId: 'section_123',
+        title: 'Lesson 1',
+        order: 0,
+        content: {
+          type: LessonContentTypeEnum.VIDEO,
+          url: 'http://localhost:9000/thc-datn-media/videos/lesson1.mp4',
+          publicId: 'videos/lesson1.mp4',
+        },
+        isPreview: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      },
+      {
+        id: 'lesson_2',
+        sectionId: 'section_123',
+        title: 'Lesson 2',
+        order: 1,
+        content: null,
+        isPreview: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      },
+    ];
+
+    it('1. should delete section, soft-delete lessons, shift orders, and cleanup MinIO files successfully', async () => {
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+      mockSectionRepository.findById.mockResolvedValue(existingSection);
+      mockLessonRepository.findBySectionId.mockResolvedValue(sampleLessons);
+      mockSectionRepository.softDelete.mockResolvedValue(true);
+      mockLessonRepository.softDeleteBySectionId.mockResolvedValue(2);
+      mockSectionRepository.shiftOrdersAfterDelete.mockResolvedValue(1);
+
+      const result = await service.deleteSection(
+        'course_123',
+        'section_123',
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(result).toBe(true);
+      expect(mockSectionRepository.softDelete).toHaveBeenCalledWith(
+        'section_123',
+        'instructor_1',
+        expect.anything(),
+      );
+      expect(mockLessonRepository.softDeleteBySectionId).toHaveBeenCalledWith(
+        'section_123',
+        'instructor_1',
+        expect.anything(),
+      );
+      expect(mockSectionRepository.shiftOrdersAfterDelete).toHaveBeenCalledWith(
+        'course_123',
+        1,
+        'instructor_1',
+        expect.anything(),
+      );
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        'http://localhost:9000/thc-datn-media/videos/lesson1.mp4',
+      );
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith('videos/lesson1.mp4');
+    });
+
+    it('2. should allow ADMIN to delete section of any instructor', async () => {
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+      mockSectionRepository.findById.mockResolvedValue(existingSection);
+      mockLessonRepository.findBySectionId.mockResolvedValue([]);
+
+      const result = await service.deleteSection(
+        'course_123',
+        'section_123',
+        'admin_999',
+        RoleEnum.ADMIN,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('3. should throw ForbiddenException if user is not ADMIN and not course instructor', async () => {
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+
+      await expect(
+        service.deleteSection(
+          'course_123',
+          'section_123',
+          'other_instructor',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('4. should throw NotFoundException if course does not exist', async () => {
+      mockCourseRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.deleteSection(
+          'course_non_existent',
+          'section_123',
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('5. should throw NotFoundException if section does not exist', async () => {
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+      mockSectionRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.deleteSection(
+          'course_123',
+          'section_non_existent',
+          'instructor_1',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('6. should throw NotFoundException if section belongs to a different course', async () => {
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+      mockSectionRepository.findById.mockResolvedValue({
+        ...existingSection,
+        courseId: 'other_course_456',
+      });
+
+      await expect(
+        service.deleteSection(
+          'course_123',
+          'section_123',
           'instructor_1',
           RoleEnum.INSTRUCTOR,
         ),

@@ -10,6 +10,17 @@ export interface ILessonContent {
   duration?: number;
 }
 
+export interface ILessonMaterial {
+  id: string;
+  title: string;
+  url: string;
+  fileName: string;
+  fileSize?: number | null;
+  mimeType?: string | null;
+  publicId?: string | null;
+  createdAt?: Date | string;
+}
+
 export interface ILesson {
   id: string;
   sectionId: string;
@@ -17,6 +28,7 @@ export interface ILesson {
   description?: string | null;
   order: number;
   content?: ILessonContent | null;
+  materials?: ILessonMaterial[];
   isPreview: boolean;
   createdAt: Date | string;
   updatedAt: Date | string;

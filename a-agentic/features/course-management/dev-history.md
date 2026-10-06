@@ -1017,11 +1017,95 @@
       - Nút chính [ Xóa vĩnh viễn ]: đỏ rượu `bg-rose-600 hover:bg-rose-700 text-white font-semibold`.
     - Phạm vi nghiêm ngặt: UI Only, không can thiệp logic backend.
   - Triển khai:
-    - Bổ sung `overlayClassName?: string` vào `DialogContent` (`frontend/src/components/ui/dialog.tsx`).
-    - Tái cấu trúc `DeleteSectionDialog` (`frontend/src/features/course/components/delete-section-dialog.tsx`): Tích hợp `useSectionLessonsQuery` lấy số lượng bài học từ React Query cache, render layout AlertDialog theo đúng đặc tả.
+- **Milestone 37 (Logic Xóa Chương Học Toàn Diện 3 Tầng: Database, MinIO Storage, Frontend Inspector Reset & Dồn Thứ Tự)**:
+  - Yêu cầu & Bối cảnh:
+    - Triển khai logic xóa một chương học (`Section`) hoàn chỉnh qua 3 tầng: Database (xóa mềm chương, xóa bài học con, dồn lại thứ tự các chương kế tiếp), MinIO Storage (dọn dẹp vĩnh viễn video và tài liệu đính kèm), và Frontend (kết nối API, dồn cache, reset Inspector Panel về Empty State nếu đang chọn chương/bài học bị xóa).
+    - Quy tắc bắt buộc: Tuyệt đối không can thiệp hay sửa đổi bảng `course_mindmaps` trong database; dữ liệu sơ đồ tư duy chỉ được cập nhật khi giảng viên bấm "Cập nhật / Lưu sơ đồ" trên Canvas.
+  - Triển khai chi tiết:
+    - **Tầng 1 (Database & Transaction)**:
+      - `LessonRepository`: Thêm phương thức `softDeleteBySectionId(sectionId, userId, session)` xóa mềm toàn bộ bài học con của chương trong `ClientSession`.
+      - `SectionRepository`: Thêm phương thức `shiftOrdersAfterDelete(courseId, fromOrder, userId, session)` dồn thứ tự `order` của các chương nằm sau bằng `$inc: { order: -1 }`.
+      - `CourseService.deleteSection(courseId, sectionId, userId, userRole)`: Kiểm tra IDOR quyền sở hữu; chạy MongoDB `withTransaction` thực hiện xóa mềm chương, lấy danh sách video/materials con, xóa mềm toàn bộ bài học con, và dồn lại thứ tự các chương phía sau.
+      - `CourseController`: Thêm endpoint `@Delete(':courseId/sections/:sectionId')` với phân quyền `@Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)` và kiểm tra `ParseObjectIdPipe`.
+    - **Tầng 2 (MinIO Storage Clean-up)**:
+      - Sau khi commit transaction cơ sở dữ liệu thành công, trích xuất tất cả URL video bài học và URL tài liệu đính kèm (`materials`).
+      - Gọi `storageService.deleteFile(url)` dọn dẹp vật lý các tệp tin trên MinIO bucket. Lỗi MinIO được ghi nhận cảnh báo qua `logger.warn`, không làm đổ vỡ thao tác xóa dữ liệu đã hoàn tất trong database.
+    - **Tầng 3 (Giao diện Frontend & Inspector Panel Reset)**:
+      - Thêm `courseApi.deleteSection(courseId, sectionId)` và hook `useDeleteSectionMutation(courseId)` trong `frontend/src/features/course/api/course.api.ts` với cơ chế cập nhật tức thì danh sách chương và dồn `order` trong cache.
+      - Cập nhật `DeleteSectionDialog` (`frontend/src/features/course/components/delete-section-dialog.tsx`): Kết nối mutation, hiển thị spinner và label `"Đang xóa..."` khi đang xử lý, gọi `onSuccess(deletedSectionId)`.
+      - Cập nhật `CourseSectionsList` (`frontend/src/features/course/components/course-sections-list.tsx`): Kiểm tra nếu `selection?.chapterId === deletedSectionId` (hoặc bài học đang chọn thuộc chương vừa xóa), lập tức reset `selection` về `null`.
+      - Cập nhật `ContextualInspectorPanel` (`frontend/src/features/course/components/contextual-inspector-panel.tsx`): Render Empty State mặc định: *"Chọn một chương hoặc bài học để xem chi tiết."*
   - Kiểm tra chất lượng:
-    - `pnpm --filter frontend exec tsc --noEmit` -> 100% clean (0 errors).
-    - `pnpm --filter frontend exec eslint` -> 100% clean (0 errors, 0 warnings).
+    - Backend Unit Tests: 283/283 tests pass 100% (19 test files). Bổ sung 6 unit tests cho `deleteSection` trong `course.service.spec.ts` và 2 tests trong `course.controller.spec.ts`.
+- **Milestone 38 (Biểu Tượng Đính Kèm Tài Liệu Cho Bài Học Video - UI Only)**:
+  - Yêu cầu & Bối cảnh:
+    - Bổ sung nút bấm icon nhỏ gọn ("Đính kèm tài liệu") vào mép ngoài cùng bên phải của mỗi bài học thuộc định dạng Video trong danh sách chương học (`CourseSectionsList` -> `ChapterTreeItem`), ngang hàng với badge "Học thử" và nhãn thời lượng bài học.
+    - Chuẩn bị bước mở đường giao diện cho tính năng đính kèm tài liệu bổ trợ/tệp tin cho video bài học.
+    - Phạm vi nghiêm ngặt: UI Only, hiển thị biểu tượng lên giao diện, không can thiệp backend/database.
+  - Triển khai:
+    - Cập nhật `ChapterTreeItemProps` trong `frontend/src/features/course/components/course-sections-list.tsx`: Thêm optional callback prop `onAttachDocument?: (lesson: ILesson) => void`.
+    - Bố trí nút bấm ở mép phải của bài học:
+      - Điều kiện render: `isVideo && (...)` (`lesson.content?.type === 'video'`).
+      - Thiết kế nút: Icon vuông bo góc mềm `w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-500 hover:text-sky-600 dark:text-slate-400 dark:hover:text-sky-400 flex items-center justify-center transition shadow-2xs shrink-0`.
+      - Icon: Kẹp giấy `lucide:paperclip` (`size-3.5`).
+      - Tooltip: `title="Đính kèm tài liệu cho video này"`, `aria-label="Đính kèm tài liệu cho video này"`.
+      - Sự kiện click: Chặn sự kiện nổi bọt `e.stopPropagation()` để không kích hoạt chọn bài học (`onSelectLesson`), gọi `onAttachDocument?.(lesson)`.
+    - Tối ưu hóa React 19 trong `CourseSectionsList`: Loại bỏ `useEffect` gọi `setState` gây cảnh báo re-render, thay thế bằng derived state qua `useMemo` kết hợp fallback an toàn về chương đầu tiên.
+  - Kiểm tra chất lượng:
+    - Frontend Typecheck: `npx tsc --noEmit` -> 100% clean (0 errors).
+    - Frontend ESLint: `pnpm lint` -> 100% clean (0 errors, 0 warnings).
+    - Tuân thủ quy tắc kiến trúc: Không dùng type `any`, không dùng inline font classes, tuân thủ Purple Ban (sử dụng sky tone đồng bộ với icon bài học video).
+
+- **Milestone 39 (Thiết Kế Modal Upload Tài Liệu Tối Giản 2 Trường Nhập - UI Only)**:
+  - Yêu cầu & Bối cảnh:
+    - Xây dựng hộp thoại Modal (`UploadLessonDocDialog`) tối giản, tập trung đúng 2 trường nhập (Tên tài liệu & Khung tải tệp) mở lên khi nhấn vào icon kẹp ghim của bài học video.
+    - Header: Tiêu đề "Thêm tài liệu đính kèm" (loại bỏ mô tả phụ kèm tên bài học theo yêu cầu).
+    - Body 2 trường:
+      - Trường 1 (Tên tài liệu): Input ngắn, có placeholder ví dụ, bắt buộc nhập.
+      - Trường 2 (Khung tải tệp): Dropzone kéo thả hoặc click chọn file từ máy tính, hỗ trợ lọc `.pdf, .docx, .zip, .rar, .pptx, .xlsx, .txt`, ghi chú `≤ 100MB`. Tự động điền tên file (bỏ extension) vào ô Tên tài liệu nếu ô đó đang để trống. Hiển thị thẻ tệp đã chọn với icon, tên, dung lượng và nút [x] gỡ tệp.
+    - Footer: Nút [ Hủy ] và [ Tải lên ] (Mock UI: kiểm tra hợp lệ, hiển thị toast `sonner` thành công, đóng modal).
+    - Phạm vi nghiêm ngặt: UI Only, không can thiệp backend hay cơ sở dữ liệu.
+  - Triển khai:
+    - Tạo component `frontend/src/features/course/components/upload-lesson-doc-dialog.tsx`.
+    - Export qua `frontend/src/features/course/index.ts`.
+    - Kết nối state `uploadDocTargetLesson` trong `CourseSectionsList` (`course-sections-list.tsx`), truyền `setUploadDocTargetLesson(lesson)` khi click icon kẹp ghim và render `UploadLessonDocDialog`.
+    - Tối ưu hóa React 19: Sử dụng hàm `resetForm` và `handleOpenChange` sạch sẽ, không dùng `useEffect` gọi `setState` đồng bộ.
+  - Kiểm tra chất lượng:
+    - Frontend Typecheck: `npx tsc --noEmit` -> 100% clean (0 errors).
+    - Frontend ESLint: `pnpm lint` -> 100% clean (0 errors, 0 warnings).
+    - Tuân thủ quy tắc kiến trúc: Không dùng type `any`, không dùng inline font classes, tuân thủ Purple Ban.
+
+- **Milestone 40 (Triển Khai Upload Thật Sự & Kế Thừa Quyền Xem Cho Tài Liệu Bài Học Video)**:
+  - Yêu cầu & Bối cảnh:
+    - Triển khai toàn diện luồng tải lên tài liệu đính kèm thật sự (real upload) cho bài học video kết nối giữa Frontend Modal, MinIO Storage, Backend NestJS và MongoDB.
+    - Quy tắc kế thừa quyền xem (Access Inheritance): Không cần lưu `isFree` trên từng tài liệu. Tự động đọc và phản ánh trạng thái của video cha theo thời gian thực: Video bật "Cho phép học thử" (`isPreview = true`) -> Tài liệu mang trạng thái Miễn phí / Học thử (ổ khóa xanh mở `lucide:lock-open`); Video "Bị khóa / Cần mua" (`isPreview = false`) -> Tài liệu tự động bị khóa (ổ khóa xám `lucide:lock`).
+    - Tại Contextual Inspector Panel: Khi có tài liệu đính kèm, thay thế thông báo "Không có tài liệu riêng cho bài học này" bằng danh sách thẻ tài liệu tương tác:
+      - Phân màu icon theo loại file: Đỏ cho `.pdf`, vàng cho `.zip`/`.rar`, xanh cho Word/Excel (`.docx`, `.xlsx`, `.pptx`), trung tính cho file khác.
+      - Hiển thị tên tài liệu, tên file gốc, định dạng, dung lượng (`Slide-Vong-For.pdf • 2.4 MB`).
+      - Badge trạng thái kế thừa quyền xem theo video cha.
+      - Nút tải về (`lucide:download`) tải/mở tệp trực tiếp từ URL MinIO.
+      - Nút xóa (`lucide:trash-2`) có AlertDialog (`DeleteLessonMaterialDialog`) xác nhận an toàn trước khi xóa.
+  - Triển khai:
+    - `share-lib`: Khởi tạo `ILessonMaterial` và thuộc tính `materials?: ILessonMaterial[]` trong `ILesson`. Build `share-lib` thành công.
+    - `backend/src/modules/storage/storage.constants.ts`: Mở rộng `ALLOWED_DOCUMENT_MIME_TYPES` hỗ trợ đầy đủ `.pdf, .docx, .doc, .xlsx, .xls, .pptx, .ppt, .zip, .rar, .txt`.
+    - `backend/src/modules/course/schemas/lesson.schema.ts`: Bổ sung `LessonMaterialEntity`, `LessonMaterialSchema` và trường `materials: LessonMaterialEntity[]` trong `LessonEntity`.
+    - `backend/src/modules/course/repositories/lesson.repository.ts`: Thêm `addMaterial` và `deleteMaterial` (với `ObjectId` riêng cho từng subdocument material), cập nhật mapper `toDomain` ánh xạ `materials`.
+    - `backend/src/modules/course/services/lesson.service.ts`: Triển khai `addMaterial` (upload MinIO + push vào repository) và `deleteMaterial` (gỡ khỏi MongoDB + xóa file trên MinIO) kèm kiểm tra IDOR sở hữu khóa học.
+    - `backend/src/modules/course/lessons.controller.ts`: Khai báo 2 endpoints `POST /lessons/:id/materials` (với `FileInterceptor('file')`, `LessonFileValidationPipe`) và `DELETE /lessons/:id/materials/:materialId`.
+    - Frontend API:
+      - `frontend/src/features/course/api/course.api.ts`: Thêm `uploadLessonMaterial`, `deleteLessonMaterial`, và 2 mutation hooks `useUploadLessonMaterialMutation`, `useDeleteLessonMaterialMutation` tự động invalidate cache chi tiết bài học và danh sách chương.
+    - Frontend Components:
+      - `UploadLessonDocDialog`: Kết nối mutation upload thật, đóng gói `FormData`, vô hiệu hóa form và hiển thị spinner khi đang tải lên.
+      - `DeleteLessonMaterialDialog`: Hộp thoại xác nhận xóa tài liệu an toàn trước khi gọi mutation xóa.
+      - `ContextualInspectorPanel`: Nâng cấp `LessonInspectorView` hiển thị danh sách thẻ tài liệu với icon phân màu theo định dạng tệp, badge kế thừa quyền xem từ `lesson.isPreview`, nút tải về từ MinIO và nút xóa mở dialog xác nhận. Nâng cấp `ChapterInspectorView` tổng hợp tất cả tài liệu trong chương.
+  - Kiểm tra chất lượng:
+    - Backend Unit Tests: 19/19 files pass, 292/292 tests pass 100% (bao gồm unit tests cho service, controller, repository, validation pipe).
+    - Frontend Typecheck: `npx tsc --noEmit` -> 100% clean (0 errors).
+    - Frontend ESLint: `npx eslint src/features/course` -> 100% clean (0 errors, 0 warnings).
+    - Tuân thủ nghiêm ngặt: Clean code, Repository Pattern, không dùng type `any`, không vi phạm Purple Ban, không dùng inline font classes.
+
+
+
 
 
 

@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
-import { ILesson, ISection } from 'share-lib';
+import { ILesson, ISection, ICourse, RoleEnum } from 'share-lib';
 import { LessonService, CreateLessonInput } from '../services/lesson.service.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
+import { CourseRepository } from '../repositories/course.repository.js';
+import { StorageService } from '../../storage/index.js';
 
 describe('LessonService', () => {
   let service: LessonService;
@@ -13,9 +15,18 @@ describe('LessonService', () => {
     create: ReturnType<typeof vi.fn>;
     findBySectionId: ReturnType<typeof vi.fn>;
     findById: ReturnType<typeof vi.fn>;
+    addMaterial: ReturnType<typeof vi.fn>;
+    deleteMaterial: ReturnType<typeof vi.fn>;
   };
   let mockSectionRepository: {
     findById: ReturnType<typeof vi.fn>;
+  };
+  let mockCourseRepository: {
+    findById: ReturnType<typeof vi.fn>;
+  };
+  let mockStorageService: {
+    uploadLessonMedia: ReturnType<typeof vi.fn>;
+    deleteFile: ReturnType<typeof vi.fn>;
   };
   let mockCls: {
     get: ReturnType<typeof vi.fn>;
@@ -40,6 +51,7 @@ describe('LessonService', () => {
     order: 0,
     content: null,
     isPreview: false,
+    materials: [],
     createdAt: new Date(),
     updatedAt: new Date(),
     deletedAt: null,
@@ -52,10 +64,21 @@ describe('LessonService', () => {
       create: vi.fn(),
       findBySectionId: vi.fn(),
       findById: vi.fn(),
+      addMaterial: vi.fn(),
+      deleteMaterial: vi.fn(),
     };
 
     mockSectionRepository = {
       findById: vi.fn(),
+    };
+
+    mockCourseRepository = {
+      findById: vi.fn(),
+    };
+
+    mockStorageService = {
+      uploadLessonMedia: vi.fn(),
+      deleteFile: vi.fn(),
     };
 
     mockCls = {
@@ -66,6 +89,8 @@ describe('LessonService', () => {
       mockLessonRepository as unknown as LessonRepository,
       mockSectionRepository as unknown as SectionRepository,
       mockCls as unknown as ClsService,
+      mockStorageService as unknown as StorageService,
+      mockCourseRepository as unknown as CourseRepository,
     );
   });
 
@@ -368,6 +393,217 @@ describe('LessonService', () => {
 
       expect(mockLessonRepository.findById).toHaveBeenCalledWith('lesson_100', mockSession);
       expect(result).toEqual(sampleLesson);
+    });
+  });
+
+  describe('addMaterial', () => {
+    const mockFile: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: 'document.pdf',
+      encoding: '7bit',
+      mimetype: 'application/pdf',
+      buffer: Buffer.from('dummy content'),
+      size: 1024,
+      destination: '',
+      filename: '',
+      path: '',
+      stream: null as any,
+    };
+
+    const sampleCourse: ICourse = {
+      id: 'course_100',
+      title: 'Khóa học Node.js',
+      description: 'Mô tả',
+      instructorId: 'user_1',
+      level: 'BEGINNER' as any,
+      status: 'DRAFT' as any,
+      price: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    };
+
+    it('1. should successfully upload file and add material to lesson', async () => {
+      mockLessonRepository.findById.mockResolvedValue(sampleLesson);
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockCourseRepository.findById.mockResolvedValue(sampleCourse);
+      mockStorageService.uploadLessonMedia.mockResolvedValue({
+        url: 'http://localhost:9000/media/doc.pdf',
+        fileName: 'doc.pdf',
+        fileSize: 1024,
+        mimeType: 'application/pdf',
+        publicId: 'courses/lessons/materials/doc.pdf',
+      });
+
+      const updatedLesson: ILesson = {
+        ...sampleLesson,
+        materials: [
+          {
+            id: 'mat_1',
+            title: 'Tài liệu bài 1',
+            url: 'http://localhost:9000/media/doc.pdf',
+            fileName: 'doc.pdf',
+            fileSize: 1024,
+            mimeType: 'application/pdf',
+            createdAt: new Date(),
+          },
+        ],
+      };
+      mockLessonRepository.addMaterial.mockResolvedValue(updatedLesson);
+
+      const result = await service.addMaterial(
+        'lesson_100',
+        mockFile,
+        'Tài liệu bài 1',
+        'user_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(mockStorageService.uploadLessonMedia).toHaveBeenCalledWith(
+        mockFile,
+        'courses/lessons/materials',
+      );
+      expect(mockLessonRepository.addMaterial).toHaveBeenCalledWith(
+        'lesson_100',
+        expect.objectContaining({
+          title: 'Tài liệu bài 1',
+          url: 'http://localhost:9000/media/doc.pdf',
+        }),
+        undefined,
+      );
+      expect(result).toEqual(updatedLesson);
+    });
+
+    it('2. should throw ForbiddenException when user is not course instructor nor ADMIN', async () => {
+      mockLessonRepository.findById.mockResolvedValue(sampleLesson);
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockCourseRepository.findById.mockResolvedValue(sampleCourse); // instructorId is user_1
+
+      await expect(
+        service.addMaterial(
+          'lesson_100',
+          mockFile,
+          'Tài liệu',
+          'other_user',
+          RoleEnum.INSTRUCTOR,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('3. should allow ADMIN to add material even if not course instructor', async () => {
+      mockLessonRepository.findById.mockResolvedValue(sampleLesson);
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockCourseRepository.findById.mockResolvedValue(sampleCourse);
+      mockStorageService.uploadLessonMedia.mockResolvedValue({
+        url: 'http://localhost:9000/media/doc.pdf',
+        fileName: 'doc.pdf',
+        fileSize: 1024,
+      });
+      mockLessonRepository.addMaterial.mockResolvedValue(sampleLesson);
+
+      const result = await service.addMaterial(
+        'lesson_100',
+        mockFile,
+        'Admin Upload',
+        'admin_id',
+        RoleEnum.ADMIN,
+      );
+
+      expect(result).toBeDefined();
+    });
+
+    it('4. should fallback title to uploadedMedia fileName or originalname if title not provided', async () => {
+      mockLessonRepository.findById.mockResolvedValue(sampleLesson);
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockCourseRepository.findById.mockResolvedValue(sampleCourse);
+      mockStorageService.uploadLessonMedia.mockResolvedValue({
+        url: 'http://localhost:9000/media/doc.pdf',
+        fileName: 'doc.pdf',
+        fileSize: 1024,
+      });
+      mockLessonRepository.addMaterial.mockResolvedValue(sampleLesson);
+
+      await service.addMaterial('lesson_100', mockFile, '   ', 'user_1', RoleEnum.INSTRUCTOR);
+
+      expect(mockLessonRepository.addMaterial).toHaveBeenCalledWith(
+        'lesson_100',
+        expect.objectContaining({
+          title: 'doc.pdf',
+        }),
+        undefined,
+      );
+    });
+  });
+
+  describe('deleteMaterial', () => {
+    const existingMaterial = {
+      id: 'mat_1',
+      title: 'Slide bài giảng',
+      url: 'http://localhost:9000/media/slide.pdf',
+      fileName: 'slide.pdf',
+      fileSize: 2048,
+      mimeType: 'application/pdf',
+      createdAt: new Date(),
+    };
+
+    const lessonWithMaterial: ILesson = {
+      ...sampleLesson,
+      materials: [existingMaterial],
+    };
+
+    const sampleCourse: ICourse = {
+      id: 'course_100',
+      title: 'Khóa học Node.js',
+      description: 'Mô tả',
+      instructorId: 'user_1',
+      level: 'BEGINNER' as any,
+      status: 'DRAFT' as any,
+      price: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    };
+
+    it('1. should delete material and clean up storage file', async () => {
+      mockLessonRepository.findById.mockResolvedValue(lessonWithMaterial);
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockCourseRepository.findById.mockResolvedValue(sampleCourse);
+      mockLessonRepository.deleteMaterial.mockResolvedValue(sampleLesson);
+
+      const result = await service.deleteMaterial(
+        'lesson_100',
+        'mat_1',
+        'user_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(mockLessonRepository.deleteMaterial).toHaveBeenCalledWith(
+        'lesson_100',
+        'mat_1',
+        undefined,
+      );
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(existingMaterial.url);
+      expect(result).toEqual(sampleLesson);
+    });
+
+    it('2. should throw NotFoundException when material is not in lesson', async () => {
+      mockLessonRepository.findById.mockResolvedValue(lessonWithMaterial);
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockCourseRepository.findById.mockResolvedValue(sampleCourse);
+
+      await expect(
+        service.deleteMaterial('lesson_100', 'mat_999', 'user_1', RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('3. should throw ForbiddenException when user is not instructor nor admin', async () => {
+      mockLessonRepository.findById.mockResolvedValue(lessonWithMaterial);
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockCourseRepository.findById.mockResolvedValue(sampleCourse);
+
+      await expect(
+        service.deleteMaterial('lesson_100', 'mat_1', 'other_user', RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });

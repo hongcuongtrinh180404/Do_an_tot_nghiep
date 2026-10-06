@@ -36,6 +36,7 @@ describe('CourseController', () => {
     getCourseDetailForInstructor: ReturnType<typeof vi.fn>;
     createSection: ReturnType<typeof vi.fn>;
     updateSection: ReturnType<typeof vi.fn>;
+    deleteSection: ReturnType<typeof vi.fn>;
     reorderSections: ReturnType<typeof vi.fn>;
     getSectionsByCourseId: ReturnType<typeof vi.fn>;
   };
@@ -73,6 +74,7 @@ describe('CourseController', () => {
       getCourseDetailForInstructor: vi.fn(),
       createSection: vi.fn(),
       updateSection: vi.fn(),
+      deleteSection: vi.fn(),
       reorderSections: vi.fn(),
       getSectionsByCourseId: vi.fn(),
     };
@@ -1000,6 +1002,41 @@ describe('CourseController', () => {
       const roles = reflector.get<RoleEnum[]>(
         ROLES_KEY,
         CourseController.prototype.updateSection,
+      );
+
+      expect(roles).toBeDefined();
+      expect(roles).toContain(RoleEnum.INSTRUCTOR);
+      expect(roles).toContain(RoleEnum.ADMIN);
+    });
+  });
+
+  describe('DELETE /courses/:courseId/sections/:sectionId - deleteSection', () => {
+    it('1. should delegate to courseService.deleteSection and return ApiResponse.success', async () => {
+      mockCourseService.deleteSection.mockResolvedValue(true);
+
+      const response = await controller.deleteSection(
+        '507f1f77bcf86cd799439011',
+        '507f1f77bcf86cd799439012',
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(mockCourseService.deleteSection).toHaveBeenCalledWith(
+        '507f1f77bcf86cd799439011',
+        '507f1f77bcf86cd799439012',
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Xóa chương học thành công');
+      expect(response.data).toBeNull();
+    });
+
+    it('2. should have @Roles(INSTRUCTOR, ADMIN) decorator configured', () => {
+      const reflector = new Reflector();
+      const roles = reflector.get<RoleEnum[]>(
+        ROLES_KEY,
+        CourseController.prototype.deleteSection,
       );
 
       expect(roles).toBeDefined();

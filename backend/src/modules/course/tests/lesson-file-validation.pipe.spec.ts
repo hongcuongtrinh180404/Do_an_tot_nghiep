@@ -28,10 +28,11 @@ describe('LessonFileValidationPipe', () => {
 
   it('should throw BadRequestException when MIME type is not supported', () => {
     const invalidFiles = [
-      { mimetype: 'application/msword', originalname: 'old_doc.doc' },
       { mimetype: 'image/jpeg', originalname: 'photo.jpg' },
-      { mimetype: 'application/zip', originalname: 'archive.zip' },
-      { mimetype: 'text/plain', originalname: 'notes.txt' },
+      { mimetype: 'image/png', originalname: 'image.png' },
+      { mimetype: 'audio/mpeg', originalname: 'song.mp3' },
+      { mimetype: 'application/x-msdownload', originalname: 'installer.exe' },
+      { mimetype: 'text/html', originalname: 'page.html' },
     ];
 
     for (const file of invalidFiles) {

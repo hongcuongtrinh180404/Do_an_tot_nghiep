@@ -121,10 +121,9 @@ export function CoursePriceInlinePopover({
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger
         render={
-          <div
-            role="button"
-            tabIndex={0}
-            className="p-3 rounded-lg bg-muted/25 border border-border/30 hover:border-border/80 hover:bg-muted/40 transition-all cursor-pointer group text-left outline-none"
+          <button
+            type="button"
+            className="w-full p-3 rounded-lg bg-muted/25 border border-border/30 hover:border-border/80 hover:bg-muted/40 transition-all cursor-pointer group text-left outline-none"
           />
         }
       >

@@ -2,13 +2,17 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
+  Optional,
 } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
-import { ILesson, ISection, ILessonContent } from 'share-lib';
+import { ILesson, ISection, ILessonContent, RoleEnum } from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
+import { CourseRepository } from '../repositories/course.repository.js';
+import { StorageService } from '../../storage/index.js';
 
 export interface CreateLessonInput {
   title: string;
@@ -25,6 +29,8 @@ export class LessonService extends BaseService<ILesson, string> {
     protected readonly lessonRepository: LessonRepository,
     protected readonly sectionRepository: SectionRepository,
     cls: ClsService,
+    @Optional() protected readonly storageService?: StorageService,
+    @Optional() protected readonly courseRepository?: CourseRepository,
   ) {
     super(lessonRepository, cls, LessonService.name);
   }
@@ -97,5 +103,103 @@ export class LessonService extends BaseService<ILesson, string> {
     }
 
     return lesson;
+  }
+
+  async addMaterial(
+    lessonId: string,
+    file: Express.Multer.File,
+    title?: string,
+    userId?: string,
+    userRole?: RoleEnum,
+    session?: ClientSession,
+  ): Promise<ILesson> {
+    const lesson = await this.getLessonById(lessonId, session);
+
+    // Kiểm tra quyền sở hữu (IDOR)
+    if (this.courseRepository && userId && userRole !== RoleEnum.ADMIN) {
+      const section = await this.sectionRepository.findById(lesson.sectionId, session);
+      if (section) {
+        const course = await this.courseRepository.findById(section.courseId, session);
+        if (course && course.instructorId !== userId) {
+          throw new ForbiddenException('Bạn không có quyền thêm tài liệu vào bài học này');
+        }
+      }
+    }
+
+    if (!this.storageService) {
+      throw new BadRequestException('Dịch vụ lưu trữ chưa sẵn sàng');
+    }
+
+    // Tải lên tệp vào thư mục tài liệu bài học trên MinIO
+    const uploadedMedia = await this.storageService.uploadLessonMedia(
+      file,
+      'courses/lessons/materials',
+    );
+
+    const materialTitle = title?.trim() || uploadedMedia.fileName || 'Tài liệu đính kèm';
+
+    const updated = await this.lessonRepository.addMaterial(
+      lesson.id,
+      {
+        title: materialTitle,
+        url: uploadedMedia.url,
+        fileName: uploadedMedia.fileName || file.originalname || 'material',
+        fileSize: uploadedMedia.fileSize ?? file.size,
+        mimeType: uploadedMedia.mimeType ?? file.mimetype,
+        publicId: uploadedMedia.publicId,
+        createdAt: new Date(),
+      },
+      session,
+    );
+
+    if (!updated) {
+      throw new NotFoundException(`Không thể cập nhật bài học với ID '${lessonId}'`);
+    }
+
+    return updated;
+  }
+
+  async deleteMaterial(
+    lessonId: string,
+    materialId: string,
+    userId?: string,
+    userRole?: RoleEnum,
+    session?: ClientSession,
+  ): Promise<ILesson> {
+    const lesson = await this.getLessonById(lessonId, session);
+
+    // Kiểm tra quyền sở hữu (IDOR)
+    if (this.courseRepository && userId && userRole !== RoleEnum.ADMIN) {
+      const section = await this.sectionRepository.findById(lesson.sectionId, session);
+      if (section) {
+        const course = await this.courseRepository.findById(section.courseId, session);
+        if (course && course.instructorId !== userId) {
+          throw new ForbiddenException('Bạn không có quyền xóa tài liệu của bài học này');
+        }
+      }
+    }
+
+    const material = (lesson.materials || []).find((m) => m.id === materialId);
+    if (!material) {
+      throw new NotFoundException(`Không tìm thấy tài liệu với ID '${materialId}' trong bài học`);
+    }
+
+    // Gỡ tài liệu khỏi MongoDB
+    const updated = await this.lessonRepository.deleteMaterial(lesson.id, materialId, session);
+
+    // Dọn dẹp tệp vật lý trên MinIO
+    if (this.storageService && material.url) {
+      try {
+        await this.storageService.deleteFile(material.url);
+      } catch (error) {
+        this.logger.warn(`Lỗi khi dọn dẹp file tài liệu ${material.url} trên MinIO: ${String(error)}`);
+      }
+    }
+
+    if (!updated) {
+      throw new NotFoundException(`Không thể cập nhật bài học với ID '${lessonId}'`);
+    }
+
+    return updated;
   }
 }

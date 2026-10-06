@@ -12,6 +12,7 @@ import {
 import { CourseService } from '../services/course.service.js';
 import { CourseRepository } from '../repositories/course.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
+import { LessonRepository } from '../repositories/lesson.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { StorageService } from '../../storage/index.js';
 import { CourseImageValidationPipe } from '../pipes/course-image-validation.pipe.js';
@@ -91,9 +92,15 @@ describe('Course Media Upload (Thumbnail & Trailer)', () => {
       get: vi.fn().mockReturnValue('instructor_1'),
     };
 
+    const mockLessonRepository = {
+      findBySectionId: vi.fn(),
+      softDeleteBySectionId: vi.fn(),
+    };
+
     service = new CourseService(
       mockCourseRepository as unknown as CourseRepository,
       mockSectionRepository as unknown as SectionRepository,
+      mockLessonRepository as unknown as LessonRepository,
       mockUserRepository as unknown as UserRepository,
       mockStorageService as unknown as StorageService,
       mockCls as unknown as ClsService,

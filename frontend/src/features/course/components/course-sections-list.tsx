@@ -15,6 +15,7 @@ import { CreateSectionDialog } from './create-section-dialog';
 import { EditSectionDialog } from './edit-section-dialog';
 import { DeleteSectionDialog } from './delete-section-dialog';
 import { SectionLessonCreateForm } from './section-lesson-create-form';
+import { UploadLessonDocDialog } from './upload-lesson-doc-dialog';
 import { CourseOverviewMetrics } from './course-overview-metrics';
 import {
   ContextualInspectorPanel,
@@ -50,6 +51,7 @@ interface ChapterTreeItemProps {
   selectedLessonId?: string;
   onSelectChapter: () => void;
   onSelectLesson: (lesson: ILesson) => void;
+  onAttachDocument?: (lesson: ILesson) => void;
   onEditChapter: () => void;
   onDeleteChapter?: () => void;
   isDeletingChapter?: boolean;
@@ -73,6 +75,7 @@ function ChapterTreeItem({
   selectedLessonId,
   onSelectChapter,
   onSelectLesson,
+  onAttachDocument,
   onEditChapter,
   onDeleteChapter,
   isDeletingChapter = false,
@@ -269,6 +272,24 @@ function ChapterTreeItem({
                       {lessonDuration}
                     </span>
                   </div>
+
+                  {/* Nút đính kèm tài liệu cho bài học video (UI Only) */}
+                  {isVideo && (
+                    <div className="flex items-center ml-2.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAttachDocument?.(lesson);
+                        }}
+                        className="w-7 h-7 bg-transparent text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition duration-200 hover:scale-115 shrink-0"
+                        title="Đính kèm tài liệu cho video này"
+                        aria-label="Đính kèm tài liệu cho video này"
+                      >
+                        <Icon icon="lucide:paperclip" className="size-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -307,6 +328,7 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
     sectionId: string;
     sectionTitle: string;
   } | null>(null);
+  const [uploadDocTargetLesson, setUploadDocTargetLesson] = useState<ILesson | null>(null);
 
   // Expanded chapters state: Record<chapterId, boolean> (All collapsed by default!)
   const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({});
@@ -314,8 +336,27 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
   // Context Selection state (type: 'chapter' | 'lesson')
   const [selection, setSelection] = useState<ContextSelection>(null);
 
-  const sectionList = sections ?? [];
+  const sectionList = React.useMemo(() => sections ?? [], [sections]);
   const nextOrder = sectionList.length;
+
+  // Compute effective selection (fallback về chương đầu tiên nếu chưa có selection hoặc chapter bị xóa)
+  const effectiveSelection: ContextSelection = React.useMemo(() => {
+    if (selection) {
+      const exists = sectionList.some((s) => s.id === selection.chapterId);
+      if (exists) return selection;
+    }
+    if (sectionList.length > 0) {
+      return { type: 'chapter', chapterId: sectionList[0].id };
+    }
+    return null;
+  }, [selection, sectionList]);
+
+  const handleDeleteSuccess = (deletedSectionId: string) => {
+    // Nếu Inspector Panel đang mở đúng chương hoặc bài học vừa bị xóa, reset về trạng thái mặc định (null)
+    if (selection?.chapterId === deletedSectionId) {
+      setSelection(null);
+    }
+  };
 
   const {
     draggedIndex,
@@ -331,10 +372,6 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
       void reorderMutation.mutateAsync({ sectionIds: newOrderIds });
     },
   });
-
-  // Compute effective selection (fallback to first chapter if none explicitly chosen)
-  const effectiveSelection: ContextSelection =
-    selection ?? (sectionList.length > 0 ? { type: 'chapter', chapterId: sectionList[0].id } : null);
 
   const toggleChapter = (chapterId: string) => {
     setExpandedChapters((prev) => ({
@@ -463,6 +500,7 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
                         chapterId: section.id,
                       })
                     }
+                    onAttachDocument={(lesson) => setUploadDocTargetLesson(lesson)}
                     onEditChapter={() => setEditSectionTarget(section)}
                     onDeleteChapter={() => setDeleteSectionTarget(section)}
                     onAddLesson={() =>
@@ -520,13 +558,15 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
         }}
       />
 
-      {/* Modal: Xóa chương học (Mock UI) */}
+      {/* Modal: Xóa chương học */}
       <DeleteSectionDialog
+        courseId={courseId}
         section={deleteSectionTarget}
         open={Boolean(deleteSectionTarget)}
         onOpenChange={(open) => {
           if (!open) setDeleteSectionTarget(null);
         }}
+        onSuccess={handleDeleteSuccess}
       />
 
       {/* Modal: Thêm bài học mới */}
@@ -537,6 +577,16 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
         }}
         sectionId={createLessonTarget?.sectionId ?? ''}
         sectionTitle={createLessonTarget?.sectionTitle}
+      />
+
+      {/* Modal: Đính kèm tài liệu cho bài học video */}
+      <UploadLessonDocDialog
+        open={Boolean(uploadDocTargetLesson)}
+        onOpenChange={(open) => {
+          if (!open) setUploadDocTargetLesson(null);
+        }}
+        lesson={uploadDocTargetLesson}
+        courseId={courseId}
       />
     </div>
   );

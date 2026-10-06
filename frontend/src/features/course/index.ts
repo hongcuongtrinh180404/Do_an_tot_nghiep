@@ -35,3 +35,5 @@ export * from './utils/mindmap-layout.util';
 export * from './utils/mindmap-converter.util';
 export * from './components/inline';
 export * from './components/course-level-select';
+export * from './components/upload-lesson-doc-dialog';
+export * from './components/delete-lesson-material-dialog';

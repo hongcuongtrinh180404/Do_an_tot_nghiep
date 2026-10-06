@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
-import { ILessonContent, LessonContentTypeEnum } from 'share-lib';
+import { ILessonContent, ILessonMaterial, LessonContentTypeEnum } from 'share-lib';
 import { BaseAbstractDocument } from '../../base/index.js';
 import { SectionEntity } from './section.schema.js';
 
@@ -36,6 +36,36 @@ export class LessonContentEntity implements ILessonContent {
 
 export const LessonContentSchema = SchemaFactory.createForClass(LessonContentEntity);
 
+@Schema({ _id: true, timestamps: { createdAt: true, updatedAt: false } })
+export class LessonMaterialEntity implements ILessonMaterial {
+  _id: Types.ObjectId;
+
+  id: string;
+
+  @Prop({ type: String, required: true, trim: true })
+  title: string;
+
+  @Prop({ type: String, required: true })
+  url: string;
+
+  @Prop({ type: String, required: true })
+  fileName: string;
+
+  @Prop({ type: Number, required: false, default: null, min: 0 })
+  fileSize?: number;
+
+  @Prop({ type: String, required: false, default: null })
+  mimeType?: string;
+
+  @Prop({ type: String, required: false, default: null })
+  publicId?: string;
+
+  @Prop({ type: Date, default: Date.now })
+  createdAt: Date;
+}
+
+export const LessonMaterialSchema = SchemaFactory.createForClass(LessonMaterialEntity);
+
 @Schema({ timestamps: true, collection: 'lessons' })
 export class LessonEntity extends BaseAbstractDocument {
   @Prop({
@@ -61,6 +91,9 @@ export class LessonEntity extends BaseAbstractDocument {
 
   @Prop({ type: LessonContentSchema, required: false, default: null })
   content?: ILessonContent | null;
+
+  @Prop({ type: [LessonMaterialSchema], default: [] })
+  materials: LessonMaterialEntity[];
 
   @Prop({ type: Boolean, required: true, default: false })
   isPreview: boolean;

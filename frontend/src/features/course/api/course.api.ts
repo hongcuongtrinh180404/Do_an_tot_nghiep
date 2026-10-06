@@ -66,6 +66,12 @@ export const courseApi = {
     );
     return res.data.data;
   },
+  async deleteSection(courseId: string, sectionId: string): Promise<null> {
+    const res = await apiClient.delete<IApiResponse<null>>(
+      `/courses/${courseId}/sections/${sectionId}`,
+    );
+    return res.data.data;
+  },
   async reorderSections(
     courseId: string,
     payload: IReorderSectionsPayload,
@@ -89,6 +95,42 @@ export const courseApi = {
   },
   async getLessonById(id: string): Promise<ILesson> {
     const res = await apiClient.get<IApiResponse<ILesson>>(`/lessons/${id}`);
+    return res.data.data;
+  },
+  async uploadLessonMaterial(
+    lessonId: string,
+    file: File,
+    title?: string,
+    onProgress?: (percent: number) => void,
+  ): Promise<ILesson> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (title && title.trim()) {
+      formData.append('title', title.trim());
+    }
+
+    const res = await apiClient.post<IApiResponse<ILesson>>(
+      `/lessons/${lessonId}/materials`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 0,
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total && onProgress) {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            onProgress(percent);
+          }
+        },
+      },
+    );
+    return res.data.data;
+  },
+  async deleteLessonMaterial(lessonId: string, materialId: string): Promise<ILesson> {
+    const res = await apiClient.delete<IApiResponse<ILesson>>(
+      `/lessons/${lessonId}/materials/${materialId}`,
+    );
     return res.data.data;
   },
   async uploadThumbnail(
@@ -433,6 +475,82 @@ export function useUpdateSectionMutation(courseId: string) {
   });
 }
 
+export function useDeleteSectionMutation(courseId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (sectionId: string) => courseApi.deleteSection(courseId, sectionId),
+    onSuccess: (_, deletedSectionId) => {
+      // 1. Cập nhật tức thì dữ liệu trong query cache: loại bỏ section bị xóa và dồn lại order
+      queryClient.setQueryData<ISection[]>(courseKeys.sections(courseId), (old) => {
+        if (!old) return [];
+        const deletedSection = old.find((s) => s.id === deletedSectionId);
+        const deletedOrder = deletedSection ? deletedSection.order : -1;
+        return old
+          .filter((s) => s.id !== deletedSectionId)
+          .map((s) => {
+            if (deletedOrder >= 0 && s.order > deletedOrder) {
+              return { ...s, order: s.order - 1 };
+            }
+            return s;
+          });
+      });
+
+      // 2. Invalidate query để đồng bộ dữ liệu mới nhất từ server
+      void queryClient.invalidateQueries({ queryKey: courseKeys.sections(courseId) });
+      void queryClient.invalidateQueries({ queryKey: courseKeys.lessons(deletedSectionId) });
+
+      toast.success('Xóa chương học thành công!', {
+        description: 'Chương học và các bài học bên trong đã được xóa.',
+      });
+    },
+    onError: (error: unknown) => {
+      const axiosError = error as {
+        response?: {
+          status?: number;
+          data?: {
+            message?: string | string[];
+            error?: string;
+            statusCode?: number;
+          };
+        };
+      };
+
+      const status = axiosError.response?.status;
+      const responseData = axiosError.response?.data;
+      const rawMessage = responseData?.message;
+      const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage;
+
+      if (status === 401) {
+        toast.error('Phiên làm việc đã hết hạn', {
+          description: 'Vui lòng đăng nhập lại để tiếp tục.',
+        });
+        return;
+      }
+
+      if (status === 403) {
+        toast.error('Không có quyền thực hiện', {
+          description:
+            message || 'Chỉ giảng viên sở hữu khóa học mới có quyền xóa chương học.',
+        });
+        return;
+      }
+
+      if (status === 404) {
+        toast.error('Chương học không tồn tại', {
+          description: message || 'Chương học không tồn tại hoặc đã bị xóa.',
+        });
+        return;
+      }
+
+      toast.error('Lỗi xóa chương học', {
+        description:
+          message || 'Không thể kết nối đến máy chủ hoặc đã xảy ra lỗi. Vui lòng thử lại sau.',
+      });
+    },
+  });
+}
+
 export function useReorderSectionsMutation(courseId: string) {
   const queryClient = useQueryClient();
 
@@ -631,6 +749,123 @@ export function useUploadCourseTrailerMutation(courseId: string) {
       toast.error('Lỗi tải video trailer', {
         description:
           message || 'Không thể tải video trailer lên máy chủ lưu trữ. Vui lòng thử lại sau.',
+      });
+    },
+  });
+}
+
+export function useUploadLessonMaterialMutation(options?: {
+  courseId?: string;
+  sectionId?: string;
+}) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      lessonId,
+      file,
+      title,
+      onProgress,
+    }: {
+      lessonId: string;
+      file: File;
+      title?: string;
+      onProgress?: (percent: number) => void;
+    }) => courseApi.uploadLessonMaterial(lessonId, file, title, onProgress),
+    onSuccess: (updatedLesson: ILesson) => {
+      // Invalidate chi tiết bài học
+      void queryClient.invalidateQueries({
+        queryKey: courseKeys.lessonDetail(updatedLesson.id),
+      });
+
+      // Invalidate danh sách bài học của section
+      const secId = options?.sectionId || updatedLesson.sectionId;
+      if (secId) {
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.lessons(secId),
+        });
+      }
+
+      // Invalidate các sections của course nếu có
+      if (options?.courseId) {
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.sections(options.courseId),
+        });
+      }
+
+      toast.success('Đính kèm tài liệu thành công!', {
+        description: 'Tài liệu đã được lưu trữ an toàn trên MinIO và liên kết vào bài học.',
+      });
+    },
+    onError: (error: unknown) => {
+      const axiosError = error as {
+        response?: {
+          status?: number;
+          data?: { message?: string | string[] };
+        };
+      };
+      const rawMessage = axiosError.response?.data?.message;
+      const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage;
+
+      toast.error('Lỗi tải tài liệu', {
+        description:
+          message || 'Không thể tải tài liệu lên máy chủ lưu trữ. Vui lòng thử lại sau.',
+      });
+    },
+  });
+}
+
+export function useDeleteLessonMaterialMutation(options?: {
+  courseId?: string;
+  sectionId?: string;
+}) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      lessonId,
+      materialId,
+    }: {
+      lessonId: string;
+      materialId: string;
+    }) => courseApi.deleteLessonMaterial(lessonId, materialId),
+    onSuccess: (updatedLesson: ILesson) => {
+      // Invalidate chi tiết bài học
+      void queryClient.invalidateQueries({
+        queryKey: courseKeys.lessonDetail(updatedLesson.id),
+      });
+
+      // Invalidate danh sách bài học của section
+      const secId = options?.sectionId || updatedLesson.sectionId;
+      if (secId) {
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.lessons(secId),
+        });
+      }
+
+      // Invalidate các sections của course nếu có
+      if (options?.courseId) {
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.sections(options.courseId),
+        });
+      }
+
+      toast.success('Xóa tài liệu thành công!', {
+        description: 'Tài liệu đã được gỡ bỏ khỏi bài học và MinIO.',
+      });
+    },
+    onError: (error: unknown) => {
+      const axiosError = error as {
+        response?: {
+          status?: number;
+          data?: { message?: string | string[] };
+        };
+      };
+      const rawMessage = axiosError.response?.data?.message;
+      const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage;
+
+      toast.error('Lỗi khi xóa tài liệu', {
+        description: message || 'Không thể xóa tài liệu. Vui lòng thử lại sau.',
       });
     },
   });
