@@ -11,7 +11,9 @@
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:share": "pnpm --filter share-lib dev",
     "test": "turbo run test",
-    "lint": "turbo run lint"
+    "lint": "turbo run lint",
+    "seed": "pnpm --filter backend seed",
+    "seed:refresh": "pnpm --filter backend seed:refresh"
   },
   "devDependencies": {
     "concurrently": "^10.0.5",

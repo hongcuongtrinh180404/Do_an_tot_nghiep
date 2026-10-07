@@ -4,6 +4,7 @@ packages:
   - 'share-lib'
 allowBuilds:
   bcrypt: true
+  esbuild: true
   unrs-resolver: true
 onlyBuiltDependencies:
   - bcrypt

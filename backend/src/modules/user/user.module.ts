@@ -5,6 +5,7 @@ import { UserRepository } from './repositories/user.repository.js';
 import { UserService } from './services/user.service.js';
 import { StorageModule } from '../storage/storage.module.js';
 import { UserController } from './user.controller.js';
+import { UserSeeder } from './seeds/user.seeder.js';
 
 @Module({
   imports: [
@@ -14,8 +15,8 @@ import { UserController } from './user.controller.js';
     StorageModule,
   ],
   controllers: [UserController],
-  providers: [UserRepository, UserService],
-  exports: [UserRepository, UserService],
+  providers: [UserRepository, UserService, UserSeeder],
+  exports: [UserRepository, UserService, UserSeeder],
 })
 export class UserModule {}
 

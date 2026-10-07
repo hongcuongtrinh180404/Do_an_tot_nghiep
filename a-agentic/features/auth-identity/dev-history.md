@@ -40,17 +40,46 @@
     3. Soft-deleted accounts release their email and username for future registration.
 - **Gotcha 9 (MinIO Avatar Replacement & Old Avatar Garbage Collection)**:
   - When users upload a new avatar, the previous avatar file in MinIO must be cleaned up to prevent uncontrolled storage bloat.
-  - The process must follow a strict safe order:
+  - [x] The process must follow a strict safe order:
     1. Query current user to capture `oldAvatarUrl`.
     2. Upload new avatar image to MinIO (`StorageService.uploadImage`).
     3. Persist new `avatarUrl` in MongoDB.
     4. Call `StorageService.deleteFile(oldAvatarUrl)` to remove the old asset from the bucket.
   - Third-party / OAuth avatar URLs (e.g. Google OAuth `https://lh3.googleusercontent.com/...`) must be detected and skipped without calling MinIO `DeleteObject`.
   - The deletion step must be non-blocking with graceful error handling (`try-catch` + `logger.warn`), ensuring that any transient storage failure never interrupts or fails the user profile update.
+- **Gotcha 10 (NestJS Standalone CLI Context & `tsc` vs `tsx` Decorator Metadata)**:
+  - When executing standalone scripts (e.g., Database Seeders or Migrations) outside the HTTP server, tools using esbuild (like `tsx`) omit TypeScript `emitDecoratorMetadata` (`design:paramtypes`), which causes NestJS dependency injection to fail or pass `undefined` to services with injected dependencies.
+  - **Resolution**: Utilized Nest CLI's native `--entryFile` parameter: `nest start --entryFile database/seeds/seed`. This runs through TypeScript compiler (`tsc`), cleanly preserves decorator metadata, and allows graceful connection shutdown via `app.close()`.
+- **Gotcha 11 (Sub-Package Workspace Isolation with Duplicate `pnpm-workspace.yaml` / `pnpm-lock.yaml`)**:
+  - If `pnpm-workspace.yaml` or `pnpm-lock.yaml` is inadvertently placed inside a sub-project directory (like `backend/`), running pnpm commands inside that directory causes pnpm to treat the subdirectory as an isolated workspace root without access to sibling packages. It throws `[ERR_PNPM_WORKSPACE_PKG_NOT_FOUND]` for `"share-lib@workspace:*"`.
+  - **Resolution**: In a pnpm monorepo, `pnpm-workspace.yaml` and `pnpm-lock.yaml` must ONLY exist at the root repository level. Removed conflicting files from `backend/`.
 
 ---
 
 ## 2. Change Log & Bug Fixes
+
+### [2026-10-07] - Modular User Database Seeding & Idempotency CLI Implementation
+
+- **Domain Seeder Architecture (`backend/src/modules/user/seeds/`)**:
+  - `user.seed.data.ts`: Standardized seed dataset covering all system roles:
+    - 1 Admin (`admin@thc.edu.vn`)
+    - 3 Instructors (`instructor1@thc.edu.vn`, `instructor2@thc.edu.vn`, `instructor3@thc.edu.vn`)
+    - 3 Students (`student1@thc.edu.vn`, `student2@thc.edu.vn`, `student3@thc.edu.vn`)
+    - Shared default password: `Password123@`.
+  - `user.seeder.ts`: Service implementing `ISeeder` interface, injecting `UserRepository` (Repository Pattern compliance).
+    - Idempotency: Checks `findByEmail` before insertion; logs `[SKIP]` if the user already exists.
+    - Soft-delete recovery: Automatically calls `restore` before updating if a seed user was previously soft-deleted.
+    - Support for `--refresh` / `--reset` flag: Resets user profile fields, restores active status, and re-hashes password via `bcrypt`.
+- **Database CLI Runner (`backend/src/database/seeds/`)**:
+  - `seeder.interface.ts`: Standard `ISeeder` contract with `run(options?: ISeederOptions): Promise<void>`.
+  - `seed.module.ts`: Standalone Nest module importing `ConfigModule`, `MongooseModule`, and domain modules (`UserModule`).
+  - `seed.ts`: Standalone CLI runner using `NestFactory.createApplicationContext` with graceful exit.
+- **Single Command Orchestration**:
+  - Root `package.json`: `"seed": "pnpm --filter backend seed"` and `"seed:refresh": "pnpm --filter backend seed:refresh"`.
+  - Backend `package.json`: `"seed": "nest start --entryFile database/seeds/seed"` and `"seed:refresh": "nest start --entryFile database/seeds/seed -- --refresh"`.
+- **Testing & Verification**:
+  - Created unit test suite `user.seeder.spec.ts` covering initial seed, skip on duplicate, refresh mode, and soft-delete restoration (5/5 tests pass).
+  - Whole test suite passed (386/386 tests across 32 files). Lint and type check completely clean.
 
 ### [2026-10-03] - MinIO Old Avatar Deletion & Storage Cleanup Workflow
 
