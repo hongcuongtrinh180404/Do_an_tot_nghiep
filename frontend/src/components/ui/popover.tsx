@@ -34,7 +34,12 @@ function PopoverContent({
 }) {
   return (
     <PopoverPortal>
-      <PopoverPrimitive.Positioner align={align} side={side} sideOffset={sideOffset}>
+      <PopoverPrimitive.Positioner
+        align={align}
+        side={side}
+        sideOffset={sideOffset}
+        className="z-50"
+      >
         <PopoverPrimitive.Popup
           data-slot="popover-content"
           className={cn(

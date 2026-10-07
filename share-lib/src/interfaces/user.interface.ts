@@ -40,6 +40,8 @@ export interface IUserProfile {
   bio?: string | null;
   role: RoleEnum;
   status: UserStatusEnum;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
   /** @deprecated Kept for backward compatibility during migration */
   firstName?: string | null;
   /** @deprecated Kept for backward compatibility during migration */
