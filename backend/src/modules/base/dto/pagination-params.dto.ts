@@ -32,10 +32,17 @@ export class PaginationParamsDto implements PaginationOptions {
       if (!trimmed) return undefined;
       try {
         const parsed = JSON.parse(trimmed) as SortOption[];
-        return Array.isArray(parsed) ? parsed : undefined;
+        if (Array.isArray(parsed)) return parsed;
       } catch {
-        return undefined;
+        // Not JSON, continue to check colon format
       }
+      if (trimmed.includes(':')) {
+        const [orderBy, order] = trimmed.split(':');
+        if (orderBy) {
+          return [{ orderBy, order: order?.toLowerCase() === 'asc' ? 'asc' : 'desc' }];
+        }
+      }
+      return [{ orderBy: trimmed, order: 'desc' }];
     }
     return Array.isArray(value) ? (value as SortOption[]) : undefined;
   })

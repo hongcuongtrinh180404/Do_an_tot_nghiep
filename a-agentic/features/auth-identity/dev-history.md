@@ -58,6 +58,73 @@
 
 ## 2. Change Log & Bug Fixes
 
+### [2026-10-07] - Custom Select UI Component, CreatedAt Column, URL-based Database Sorting & Default Newest
+
+- **Custom Select UI Component (`frontend/src/components/ui/select.tsx`)**:
+  - Implemented modern, accessible Select primitives based on `@base-ui/react/select`: `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, `SelectSeparator`.
+  - Replaced all raw HTML `<select>` occurrences:
+    - Upgraded `FormSelect` and added `FormDropdown` controller supporting both React Hook Form and standalone usage with icons and clean popover styling.
+    - Upgraded `DataTablePagination` page size selector (`10, 20, 50`).
+    - Upgraded `SectionLessonCreateForm` lesson content type picker.
+- **Table CreatedAt Column & Formatting (`frontend/src/features/admin/users/columns.tsx`)**:
+  - Added `createdAt` column with calendar icon, localized date-time formatting (`dd/MM/yyyy HH:mm`).
+- **Database Sorting (`allowSorting`) & Default Newest**:
+  - Added `allowSorting` prop to `DataTableColumnHeader` to enable or disable column sorting.
+  - Upgraded `useDataTableUrlState` to manage sorting state, synchronizing with URL search parameters (`?sort=...`).
+  - Set default sorting to newest first (`createdAt:desc`), sending `{ createdAt: -1 }` to MongoDB.
+  - Enhanced backend `PaginationParamsDto` to support both JSON format and colon format (`createdAt:desc`).
+  - Passed `sortParam` through `useAdminUsersQuery` and `usersAdminApi` down to database query pipeline.
+- **Fix Popover & Filter Dropdown Clipping Under Table Header**:
+  - `PopoverPositioner` was missing `className="z-50"` on its wrapper element, causing popped menus from table toolbar filters to fall behind sticky `TableHeader` (`z-10`).
+  - Added `className="z-50"` to `PopoverPositioner`, lowered `TableHeader` sticky z-index to `z-1`, and gave `DataTableToolbar` a stacking context of `relative z-20`, completely resolving clipping issues.
+- **Quality & Verification**:
+  - 100% test pass rate across 32 test suites (**391/391 tests passed**).
+  - `pnpm --filter frontend exec tsc --noEmit`: 0 errors.
+  - `pnpm --filter frontend lint`: 0 errors, 0 warnings.
+
+
+### [2026-10-07] - Admin User Details, Dirty Form Header Save, ReturnUrl State Preservation & Shared Form Fields
+
+- **Backend API & Service (`backend/src/modules/user/`)**:
+  - Implemented `getUserDetail(userId: string)` and `updateUserAdmin(userId: string, dto: UpdateUserAdminDto)` in `UserService`.
+  - Added endpoints in `UserController` with `@Roles(RoleEnum.ADMIN)`:
+    - `GET /users/:id`: Lấy thông tin chi tiết một tài khoản người dùng theo ID.
+    - `PATCH /users/:id`: Cập nhật vai trò, họ tên, username, bio, trạng thái của người dùng.
+    - `DELETE /users/:id`: Xóa mềm tài khoản người dùng.
+  - Re-mapped `toUserProfile` to include `createdAt` and `updatedAt`.
+  - Added unit test cases for admin operations. 100% test pass rate across 32 test suites (**391/391 unit tests passed**).
+- **Shared Form Field Controllers (`frontend/src/components/shared/form-fields/`)**:
+  - Built unified, consistent form controller components integrating `react-hook-form`:
+    - `FormInput`: Tự động trim whitespace khi blur, hỗ trợ start/end icons, chạy được cả trong React Hook Form (`control`) lẫn standalone mode (`value`, `onChange`).
+    - `FormTextarea`: Tự động trim whitespace, hỗ trợ đếm số lượng ký tự (`maxLength`, `showCount`).
+    - `FormSelect`: Dropdown chọn vai trò, trạng thái với icons đồng bộ.
+    - `FormSwitch` & `FormCheckbox`: Hỗ trợ boolean toggle/checkbox chuẩn hóa.
+    - `FormLabel` & `FormErrorMessage`: Hiển thị nhãn bắt buộc `*` và thông báo lỗi validation.
+- **Shared Dialogs (`frontend/src/components/shared/dialog/`)**:
+  - `DialogLayout`: Header với icon, tiêu đề, mô tả, nội dung cuộn linh hoạt và footer actions.
+  - `DeleteConfirmDialog`: Cảnh báo trực quan cho thao tác xóa người dùng với loading state và xác nhận an toàn.
+- **Admin User Table & Row Actions (`frontend/src/features/admin/users/`)**:
+  - `UsersTableRowActions`:
+    - Xem chi tiết: Tự động mã hóa toàn bộ search params hiện tại (`?page=...&role=...&search=...`) thành `returnUrl` và điều hướng tới `/admin/users/[userId]?returnUrl=...`.
+    - Đổi vai trò: Kích hoạt `UserRoleDialog`.
+    - Đổi trạng thái: Kích hoạt `UserStatusDialog`.
+    - Xóa người dùng: Kích hoạt `DeleteConfirmDialog` kết nối với `useDeleteUserAdminMutation`.
+  - `columns.tsx`: Cột tên người dùng và avatar cũng có thể nhấp để xem chi tiết kèm `returnUrl`.
+- **Admin User Details Page & View (`frontend/src/app/(admin)/admin/users/[userId]/page.tsx`)**:
+  - Route page với React 19 / Next.js 16 async params (`await params`).
+  - `UserDetailsView`:
+    - **Cơ chế giữ params**: Đọc `returnUrl` từ `useSearchParams()` và nút "Quay lại" trên Header điều hướng về `returnUrl` (giữ nguyên vẹn 100% trang, bộ lọc và từ khóa tìm kiếm trước đó).
+    - **Nút Lưu ở phía trên (Header Action Bar)**: Gắn `form="user-detail-form"`, **chỉ able (enabled)** khi `formState.isDirty` (`disabled={!isDirty || isSaving}`).
+    - Badge cảnh báo "Chưa lưu thay đổi" (pulse animation) và nút "Hoàn tác" tự động xuất hiện khi form có thay đổi.
+    - Cột thông tin hồ sơ: Avatar chữ cái, email, ID người dùng (kèm nút copy), ngày tạo, ngày cập nhật.
+    - Form chỉnh sửa: Sử dụng Zod schema `updateUserAdminSchema` validate `fullName`, `username`, `bio`, `role`, `status`. Sau khi submit thành công, `reset()` cập nhật dữ liệu mới và đưa `isDirty` về `false`, tự động disable lại nút Save.
+- **Quality & Verification**:
+  - `pnpm --filter frontend exec tsc --noEmit`: 0 errors.
+  - `pnpm --filter frontend lint`: 0 errors, 0 warnings.
+  - Strictly Zero `any` in TypeScript.
+
+
+
 ### [2026-10-07] - Modular User Database Seeding & Idempotency CLI Implementation
 
 - **Domain Seeder Architecture (`backend/src/modules/user/seeds/`)**:

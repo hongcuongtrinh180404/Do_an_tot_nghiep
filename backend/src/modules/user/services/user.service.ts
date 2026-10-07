@@ -1,11 +1,13 @@
-import { Injectable, ConflictException, Optional } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, Optional } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
 import { IUser, IUserProfile, AuthProviderEnum } from 'share-lib';
-import { BaseService } from '../../base/index.js';
+import { BaseService, PaginationResult } from '../../base/index.js';
 import { UserRepository } from '../repositories/user.repository.js';
 import { StorageService } from '../../storage/storage.service.js';
 import { UpdateProfileDto } from '../dto/update-profile.dto.js';
+import { QueryUsersDto } from '../dto/query-users.dto.js';
+import { UpdateUserAdminDto } from '../dto/update-user-admin.dto.js';
 
 @Injectable()
 export class UserService extends BaseService<IUser, string> {
@@ -136,6 +138,43 @@ export class UserService extends BaseService<IUser, string> {
     };
   }
 
+  async findUsersWithPagination(
+    queryDto: QueryUsersDto,
+    session?: ClientSession,
+  ): Promise<PaginationResult<IUserProfile>> {
+    const result = await this.userRepository.findUsersWithPagination(queryDto, session);
+    return {
+      ...result,
+      items: result.items.map((user) => this.toUserProfile(user)),
+    };
+  }
+
+  async getUserDetail(userId: string, session?: ClientSession): Promise<IUserProfile> {
+    const user = await this.userRepository.findById(userId, session);
+    if (!user || user.deletedAt) {
+      throw new NotFoundException(`Người dùng với ID '${userId}' không tồn tại`);
+    }
+    return this.toUserProfile(user);
+  }
+
+  async updateUserAdmin(
+    userId: string,
+    dto: UpdateUserAdminDto,
+    session?: ClientSession,
+  ): Promise<IUserProfile> {
+    const user = await this.userRepository.findById(userId, session);
+    if (!user || user.deletedAt) {
+      throw new NotFoundException(`Người dùng với ID '${userId}' không tồn tại`);
+    }
+
+    if (dto.username && dto.username !== user.username) {
+      await this.ensureUsernameNotTaken(dto.username, userId, session);
+    }
+
+    const updated = await this.updateOrFail(userId, dto, session);
+    return this.toUserProfile(updated);
+  }
+
   toUserProfile(user: IUser): IUserProfile {
     const fallbackFullName =
       user.fullName ||
@@ -152,6 +191,8 @@ export class UserService extends BaseService<IUser, string> {
       bio: user.bio ?? null,
       role: user.role,
       status: user.status,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
       firstName: user.firstName,
       lastName: user.lastName,
       avatar: user.avatarUrl || user.avatar || null,

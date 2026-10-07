@@ -18,6 +18,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Icon } from '@/components/ui/icon';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/ui/select';
 
 import {
   createLessonSchema,
@@ -349,24 +355,31 @@ export function SectionLessonCreateForm({
                   </span>
                 )}
               </div>
-              <div className="relative">
-                <select
-                  id="lesson-content-type"
-                  disabled={isPending || Boolean(selectedFile)}
-                  {...register('contentType')}
-                  className="h-9 w-full appearance-none rounded-lg border border-input bg-transparent px-3 py-1.5 pr-8 text-xs font-medium text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-muted/40 disabled:opacity-75 dark:bg-input/30"
-                >
-                  <option value="video" className="bg-popover text-popover-foreground">
+              <Select<string>
+                value={contentType}
+                onValueChange={(val) => {
+                  if (val === 'video' || val === 'document') {
+                    setValue('contentType', val, { shouldValidate: true, shouldDirty: true });
+                  }
+                }}
+                disabled={isPending || Boolean(selectedFile)}
+              >
+                <SelectTrigger id="lesson-content-type" className="h-9 text-xs">
+                  <span>
+                    {contentType === 'video'
+                      ? '🎬 Video bài giảng (MP4, WebM, MOV)'
+                      : '📄 Tài liệu tham khảo / Bài đọc (PDF, DOCX)'}
+                  </span>
+                </SelectTrigger>
+                <SelectContent align="start" className="w-[var(--anchor-width)]">
+                  <SelectItem value="video">
                     🎬 Video bài giảng (MP4, WebM, MOV)
-                  </option>
-                  <option value="document" className="bg-popover text-popover-foreground">
+                  </SelectItem>
+                  <SelectItem value="document">
                     📄 Tài liệu tham khảo / Bài đọc (PDF, DOCX)
-                  </option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground">
-                  <Icon icon="lucide:chevron-down" className="size-3.5" />
-                </div>
-              </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Tài liệu / Video bài học */}

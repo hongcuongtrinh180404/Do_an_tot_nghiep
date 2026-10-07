@@ -4,6 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { RoleEnum } from 'share-lib';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,11 +31,23 @@ export function LoginForm(): React.JSX.Element {
   const loginMutation = useLoginMutation();
 
   const onSubmit = (data: LoginFormData) => {
-    loginMutation.mutate(data, {
-      onSuccess: () => {
-        router.push('/');
+    loginMutation.mutate(
+      {
+        email: data.email.trim(),
+        password: data.password,
       },
-    });
+      {
+        onSuccess: (authData) => {
+          if (authData.user.role === RoleEnum.ADMIN) {
+            router.push('/admin/users');
+          } else if (authData.user.role === RoleEnum.INSTRUCTOR) {
+            router.push('/instructor/courses');
+          } else {
+            router.push('/');
+          }
+        },
+      },
+    );
   };
 
   return (
