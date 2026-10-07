@@ -14,6 +14,7 @@ describe('LessonsController', () => {
     getLessonById: ReturnType<typeof vi.fn>;
     addMaterial: ReturnType<typeof vi.fn>;
     deleteMaterial: ReturnType<typeof vi.fn>;
+    deleteLesson: ReturnType<typeof vi.fn>;
   };
 
   const sampleLessonId = '607f1f77bcf86cd799439011';
@@ -48,6 +49,7 @@ describe('LessonsController', () => {
       getLessonById: vi.fn(),
       addMaterial: vi.fn(),
       deleteMaterial: vi.fn(),
+      deleteLesson: vi.fn(),
     };
 
     controller = new LessonsController(mockLessonService as unknown as LessonService);
@@ -175,6 +177,37 @@ describe('LessonsController', () => {
       expect(response.success).toBe(true);
       expect(response.message).toBe('Xóa tài liệu thành công');
       expect(response.data).toEqual(updatedLesson);
+    });
+  });
+
+  describe('DELETE /lessons/:id - deleteLesson', () => {
+    it('10. should delete lesson and return success ApiResponse with null data', async () => {
+      mockLessonService.deleteLesson.mockResolvedValue(true);
+
+      const response = await controller.deleteLesson(
+        sampleLessonId,
+        sampleUserId,
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(mockLessonService.deleteLesson).toHaveBeenCalledWith(
+        sampleLessonId,
+        sampleUserId,
+        RoleEnum.INSTRUCTOR,
+      );
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Xóa bài học thành công');
+      expect(response.data).toBeNull();
+    });
+
+    it('11. should propagate exception when LessonService throws', async () => {
+      mockLessonService.deleteLesson.mockRejectedValue(
+        new NotFoundException(`Không tìm thấy bài học với ID '${sampleLessonId}'`),
+      );
+
+      await expect(
+        controller.deleteLesson(sampleLessonId, sampleUserId, RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

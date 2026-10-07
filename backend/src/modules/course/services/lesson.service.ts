@@ -202,4 +202,62 @@ export class LessonService extends BaseService<ILesson, string> {
 
     return updated;
   }
+
+  async deleteLesson(
+    lessonId: string,
+    userId?: string,
+    userRole?: RoleEnum,
+  ): Promise<boolean> {
+    const lesson = await this.getLessonById(lessonId);
+
+    // Kiểm tra quyền sở hữu khóa học (IDOR)
+    if (this.courseRepository && userId && userRole !== RoleEnum.ADMIN) {
+      const section = await this.sectionRepository.findById(lesson.sectionId);
+      if (section) {
+        const course = await this.courseRepository.findById(section.courseId);
+        if (course && course.instructorId !== userId) {
+          throw new ForbiddenException('Bạn không có quyền xóa bài học này');
+        }
+      }
+    }
+
+    // Thu thập danh sách các tệp trên MinIO cần dọn dẹp vĩnh viễn
+    const filesToDelete: string[] = [];
+    if (lesson.content?.url) {
+      filesToDelete.push(lesson.content.url);
+    }
+    if (lesson.materials && lesson.materials.length > 0) {
+      for (const mat of lesson.materials) {
+        if (mat.url) {
+          filesToDelete.push(mat.url);
+        }
+      }
+    }
+
+    // Thực hiện xóa mềm và dồn thứ tự các bài học còn lại
+    let success = false;
+    try {
+      await this.lessonRepository.withTransaction(async (session) => {
+        success = await this.lessonRepository.softDelete(lesson.id, userId, session);
+        await this.lessonRepository.reorderAfterDelete(lesson.sectionId, lesson.order, session);
+      });
+    } catch {
+      // Fallback nếu database chưa bật Replica Set transaction
+      success = await this.lessonRepository.softDelete(lesson.id, userId);
+      await this.lessonRepository.reorderAfterDelete(lesson.sectionId, lesson.order);
+    }
+
+    // Dọn dẹp tệp vật lý vĩnh viễn trên MinIO
+    if (this.storageService && filesToDelete.length > 0) {
+      for (const fileUrl of filesToDelete) {
+        try {
+          await this.storageService.deleteFile(fileUrl);
+        } catch (error) {
+          this.logger.warn(`Lỗi khi dọn dẹp file ${fileUrl} trên MinIO: ${String(error)}`);
+        }
+      }
+    }
+
+    return success;
+  }
 }

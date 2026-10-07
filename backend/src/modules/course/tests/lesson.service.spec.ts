@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
-import { ILesson, ISection, ICourse, RoleEnum } from 'share-lib';
+import { ILesson, ISection, ICourse, RoleEnum, LessonContentTypeEnum } from 'share-lib';
 import { LessonService, CreateLessonInput } from '../services/lesson.service.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
@@ -17,6 +17,9 @@ describe('LessonService', () => {
     findById: ReturnType<typeof vi.fn>;
     addMaterial: ReturnType<typeof vi.fn>;
     deleteMaterial: ReturnType<typeof vi.fn>;
+    softDelete: ReturnType<typeof vi.fn>;
+    reorderAfterDelete: ReturnType<typeof vi.fn>;
+    withTransaction: ReturnType<typeof vi.fn>;
   };
   let mockSectionRepository: {
     findById: ReturnType<typeof vi.fn>;
@@ -66,6 +69,9 @@ describe('LessonService', () => {
       findById: vi.fn(),
       addMaterial: vi.fn(),
       deleteMaterial: vi.fn(),
+      softDelete: vi.fn().mockResolvedValue(true),
+      reorderAfterDelete: vi.fn().mockResolvedValue(1),
+      withTransaction: vi.fn().mockImplementation(async (cb) => cb(undefined)),
     };
 
     mockSectionRepository = {
@@ -413,6 +419,7 @@ describe('LessonService', () => {
     const sampleCourse: ICourse = {
       id: 'course_100',
       title: 'Khóa học Node.js',
+      slug: 'khoa-hoc-nodejs',
       description: 'Mô tả',
       instructorId: 'user_1',
       level: 'BEGINNER' as any,
@@ -554,6 +561,7 @@ describe('LessonService', () => {
     const sampleCourse: ICourse = {
       id: 'course_100',
       title: 'Khóa học Node.js',
+      slug: 'khoa-hoc-nodejs',
       description: 'Mô tả',
       instructorId: 'user_1',
       level: 'BEGINNER' as any,
@@ -604,6 +612,86 @@ describe('LessonService', () => {
       await expect(
         service.deleteMaterial('lesson_100', 'mat_1', 'other_user', RoleEnum.INSTRUCTOR),
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('deleteLesson', () => {
+    const sampleCourse: ICourse = {
+      id: 'course_100',
+      title: 'Khóa học Node.js',
+      slug: 'khoa-hoc-nodejs',
+      description: 'Mô tả',
+      instructorId: 'user_1',
+      level: 'BEGINNER' as any,
+      status: 'DRAFT' as any,
+      price: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    };
+
+    const lessonWithMedia: ILesson = {
+      ...sampleLesson,
+      content: {
+        type: LessonContentTypeEnum.VIDEO,
+        url: 'https://minio/videos/sample.mp4',
+        duration: 120,
+      },
+      materials: [
+        {
+          id: 'mat_1',
+          title: 'Doc 1',
+          url: 'https://minio/docs/doc1.pdf',
+          fileName: 'doc1.pdf',
+          fileSize: 1024,
+          mimeType: 'application/pdf',
+          publicId: null,
+          createdAt: new Date(),
+        },
+      ],
+    };
+
+    it('1. should soft delete lesson, reorder remaining lessons, and delete physical files on storage', async () => {
+      mockLessonRepository.findById.mockResolvedValue(lessonWithMedia);
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockCourseRepository.findById.mockResolvedValue(sampleCourse);
+
+      const result = await service.deleteLesson('lesson_100', 'user_1', RoleEnum.INSTRUCTOR);
+
+      expect(mockLessonRepository.softDelete).toHaveBeenCalledWith('lesson_100', 'user_1', undefined);
+      expect(mockLessonRepository.reorderAfterDelete).toHaveBeenCalledWith('section_100', 0, undefined);
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith('https://minio/videos/sample.mp4');
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith('https://minio/docs/doc1.pdf');
+      expect(result).toBe(true);
+    });
+
+    it('2. should throw NotFoundException when lesson does not exist', async () => {
+      mockLessonRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.deleteLesson('non_existent', 'user_1', RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('3. should throw ForbiddenException when caller is neither course owner nor admin', async () => {
+      mockLessonRepository.findById.mockResolvedValue(lessonWithMedia);
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockCourseRepository.findById.mockResolvedValue(sampleCourse);
+
+      await expect(
+        service.deleteLesson('lesson_100', 'hacker_user', RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('4. should allow ADMIN to delete lesson even if not instructor', async () => {
+      mockLessonRepository.findById.mockResolvedValue(lessonWithMedia);
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockCourseRepository.findById.mockResolvedValue(sampleCourse);
+
+      const result = await service.deleteLesson('lesson_100', 'admin_user', RoleEnum.ADMIN);
+
+      expect(result).toBe(true);
+      expect(mockLessonRepository.softDelete).toHaveBeenCalledWith('lesson_100', 'admin_user', undefined);
     });
   });
 });

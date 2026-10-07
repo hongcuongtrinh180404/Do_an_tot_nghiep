@@ -133,6 +133,10 @@ export const courseApi = {
     );
     return res.data.data;
   },
+  async deleteLesson(lessonId: string): Promise<null> {
+    const res = await apiClient.delete<IApiResponse<null>>(`/lessons/${lessonId}`);
+    return res.data.data;
+  },
   async uploadThumbnail(
     courseId: string,
     file: File,
@@ -544,6 +548,85 @@ export function useDeleteSectionMutation(courseId: string) {
       }
 
       toast.error('Lỗi xóa chương học', {
+        description:
+          message || 'Không thể kết nối đến máy chủ hoặc đã xảy ra lỗi. Vui lòng thử lại sau.',
+      });
+    },
+  });
+}
+
+export function useDeleteLessonMutation(sectionId: string, courseId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (lessonId: string) => courseApi.deleteLesson(lessonId),
+    onSuccess: (_, deletedLessonId) => {
+      // 1. Cập nhật tức thì dữ liệu trong query cache: loại bỏ bài học bị xóa và dồn lại order
+      queryClient.setQueryData<ILesson[]>(courseKeys.lessons(sectionId), (old) => {
+        if (!old) return [];
+        const deletedLesson = old.find((l) => l.id === deletedLessonId);
+        const deletedOrder = deletedLesson ? deletedLesson.order : -1;
+        return old
+          .filter((l) => l.id !== deletedLessonId)
+          .map((l) => {
+            if (deletedOrder >= 0 && l.order > deletedOrder) {
+              return { ...l, order: l.order - 1 };
+            }
+            return l;
+          });
+      });
+
+      // 2. Invalidate query để đồng bộ dữ liệu mới nhất từ server
+      void queryClient.invalidateQueries({ queryKey: courseKeys.lessons(sectionId) });
+      if (courseId) {
+        void queryClient.invalidateQueries({ queryKey: courseKeys.sections(courseId) });
+      }
+      void queryClient.invalidateQueries({ queryKey: courseKeys.lessonDetail(deletedLessonId) });
+
+      toast.success('Xóa bài học thành công!', {
+        description: 'Bài học đã được xóa khỏi giáo trình.',
+      });
+    },
+    onError: (error: unknown) => {
+      const axiosError = error as {
+        response?: {
+          status?: number;
+          data?: {
+            message?: string | string[];
+            error?: string;
+            statusCode?: number;
+          };
+        };
+      };
+
+      const status = axiosError.response?.status;
+      const responseData = axiosError.response?.data;
+      const rawMessage = responseData?.message;
+      const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage;
+
+      if (status === 401) {
+        toast.error('Phiên làm việc đã hết hạn', {
+          description: 'Vui lòng đăng nhập lại để tiếp tục.',
+        });
+        return;
+      }
+
+      if (status === 403) {
+        toast.error('Không có quyền thực hiện', {
+          description:
+            message || 'Chỉ giảng viên sở hữu khóa học mới có quyền xóa bài học.',
+        });
+        return;
+      }
+
+      if (status === 404) {
+        toast.error('Bài học không tồn tại', {
+          description: message || 'Bài học này có thể đã bị xóa trước đó.',
+        });
+        return;
+      }
+
+      toast.error('Lỗi xóa bài học', {
         description:
           message || 'Không thể kết nối đến máy chủ hoặc đã xảy ra lỗi. Vui lòng thử lại sau.',
       });

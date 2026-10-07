@@ -37,5 +37,8 @@ export const envValidationSchema = Joi.object({
   MINIO_ROOT_PASSWORD: Joi.string().default('minioadmin123'),
   MINIO_BUCKET_NAME: Joi.string().default('thc-datn-media'),
   MINIO_PUBLIC_URL: Joi.string().default('http://localhost:9000'),
+
+  // AssemblyAI Configuration
+  ASSEMBLYAI_API_KEY: Joi.string().allow('').default(''),
 });
 

@@ -11,12 +11,13 @@ import { SessionModule } from './modules/session/session.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CourseModule } from './modules/course/course.module.js';
 import { StorageModule } from './modules/storage/storage.module.js';
+import { AssemblyAiModule } from './modules/assemblyai/assemblyai.module.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true,
       envFilePath: process.env.NODE_ENV === 'test' ? ['.env.test', '.env'] : '.env',
+      isGlobal: true,
       validationSchema: envValidationSchema,
     }),
     MongooseModule.forRootAsync({
@@ -33,6 +34,7 @@ import { StorageModule } from './modules/storage/storage.module.js';
     }),
     BaseModule,
     StorageModule,
+    AssemblyAiModule,
     UserModule,
     SessionModule,
     AuthModule,

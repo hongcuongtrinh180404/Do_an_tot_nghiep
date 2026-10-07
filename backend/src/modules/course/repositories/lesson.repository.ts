@@ -156,4 +156,28 @@ export class LessonRepository extends BaseMongoRepository<ILesson, LessonEntity>
 
     return doc ? this.toDomain(doc) : null;
   }
+
+  async reorderAfterDelete(
+    sectionId: string,
+    deletedOrder: number,
+    session?: ClientSession,
+  ): Promise<number> {
+    const sectionObjectId = Types.ObjectId.isValid(sectionId)
+      ? new Types.ObjectId(sectionId)
+      : sectionId;
+
+    const result = await this.model.updateMany(
+      {
+        sectionId: sectionObjectId,
+        deletedAt: null,
+        order: { $gt: deletedOrder },
+      },
+      {
+        $inc: { order: -1 },
+      },
+      { session: session ?? undefined },
+    );
+
+    return result.modifiedCount;
+  }
 }

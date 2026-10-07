@@ -1104,6 +1104,47 @@
     - Frontend ESLint: `npx eslint src/features/course` -> 100% clean (0 errors, 0 warnings).
     - Tuân thủ nghiêm ngặt: Clean code, Repository Pattern, không dùng type `any`, không vi phạm Purple Ban, không dùng inline font classes.
 
+- **Milestone 41 (Thiết Kế Nút Thùng Rác Xóa Bài Học / Tài Liệu Trên Giáo Trình - UI Only)**:
+  - Yêu cầu & Bối cảnh:
+    - Bổ sung nút bấm thùng rác tinh giản (`lucide:trash-2`) vào mép ngoài cùng bên phải của mỗi dòng bài học trong cây giáo trình (`CourseSectionsList` -> `ChapterTreeItem` tại `course-sections-list.tsx`).
+    - Dòng bài học video: Nằm ngay sau nút kẹp ghim đính kèm tài liệu (`[ 🎥 ] ... [ 0p ] [ 📎 ] [ 🗑️ ]`).
+    - Dòng tài liệu: Nằm ở mép ngoài cùng bên phải sau thời lượng/dung lượng (`[ 📄 ] ... [ 0p ] [ 🗑️ ]`).
+    - Thiết kế & styling: Trong suốt không viền (`bg-transparent border-0 outline-none text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 transition-transform duration-150 hover:scale-115 cursor-pointer`), kích thước `w-7 h-7`, icon `size-3.5 sm:size-4`.
+    - Tooltip động: Video hiển thị `"Xóa bài học"`, Document hiển thị `"Xóa tài liệu"`.
+    - An toàn UX: Bắt buộc có `e.stopPropagation()` khi bấm icon thùng rác để không kích hoạt sự kiện chọn xem chi tiết (`onSelectLesson`) lên Contextual Inspector Panel bên phải.
+    - Phạm vi: Dừng lại ở tầng giao diện (UI Only), chưa xử lý API hay logic xóa dữ liệu.
+  - Triển khai:
+    - Cập nhật `ChapterTreeItemProps` bổ sung `onDeleteLesson?: (lesson: ILesson) => void`.
+    - Tái cấu trúc cụm nút hành động bên phải bài học gom trong container `flex items-center gap-0.5 ml-2.5 shrink-0` có `onClick={(e) => e.stopPropagation()}`.
+    - Render nút thùng rác với đầy đủ styling, hover scale, tooltip và `e.stopPropagation()`.
+  - Kiểm tra chất lượng:
+    - TypeScript Typecheck: `npx tsc --noEmit` -> 100% clean (0 errors).
+    - ESLint: `pnpm --filter frontend lint` -> 100% clean (0 errors, 0 warnings).
+    - Tuân thủ quy tắc kiến trúc: Không dùng type `any`, không dùng inline font classes, tuân thủ Purple Ban.
+
+- **Milestone 42 (Triển Khai Nghiệp Vụ & API Xóa Bài Học / Tài Liệu Trong Giáo Trình)**:
+  - Yêu cầu & Bối cảnh:
+    - Triển khai toàn diện tính năng xóa bài học (video hoặc tài liệu) trong từng chương học của khóa học từ Frontend tới Backend.
+    - Xóa vĩnh viễn tệp lưu trữ trên MinIO (video URL, tài liệu đính kèm bên trong bài học).
+    - Tự động dồn lại thứ tự (`order - 1`) cho tất cả các bài học đứng phía sau bài vừa bị xóa trong cùng một chương.
+    - Bảo vệ IDOR: Chỉ giảng viên sở hữu khóa học hoặc ADMIN mới có quyền xóa.
+    - Xóa mềm bản ghi trong MongoDB (`deletedAt: new Date()`, `updatedById: userId`).
+    - Modal xác nhận `DeleteLessonDialog` theo chuẩn UI/UX của hệ thống.
+    - Đồng bộ Inspector Panel bên phải: Nếu đang mở bài học bị xóa, tự động chuyển về hiển thị thông tin chương cha.
+  - Triển khai:
+    - `backend/src/modules/course/repositories/lesson.repository.ts`: Bổ sung method `reorderAfterDelete(sectionId, deletedOrder, session)` sử dụng MongoDB `$inc: { order: -1 }`.
+    - `backend/src/modules/course/services/lesson.service.ts`: Triển khai `deleteLesson(lessonId, userId, userRole)` với IDOR check, softDelete, reorderAfterDelete và dọn dẹp file vật lý MinIO.
+    - `backend/src/modules/course/lessons.controller.ts`: Khai báo endpoint `DELETE /lessons/:id` có `@Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)`.
+    - Unit Tests Backend: Bổ sung 4 test cases cho `deleteLesson` trong `lesson.service.spec.ts` và 2 test cases trong `lessons.controller.spec.ts` (100% pass).
+    - Frontend API: Thêm `courseApi.deleteLesson` và mutation hook `useDeleteLessonMutation` trong `frontend/src/features/course/api/course.api.ts` (cập nhật cache, dồn order, invalidate queries, sonner toast).
+    - Frontend UI: Tạo `DeleteLessonDialog` (`delete-lesson-dialog.tsx`), export qua `index.ts`, và kết nối với nút Thùng rác trong `CourseSectionsList` (`course-sections-list.tsx`).
+  - Kiểm tra chất lượng:
+    - Backend Unit Tests: 43/43 tests pass (100%).
+    - Backend Type-check: `npx tsc --noEmit` -> 100% clean (0 errors).
+    - Frontend Type-check: `npx tsc --noEmit` -> 100% clean (0 errors).
+    - Frontend ESLint: `npx eslint src/features/course` -> 100% clean (0 errors, 0 warnings).
+    - Tuân thủ nghiêm ngặt: Repository pattern, Clean code, không dùng type `any`, không vi phạm Purple Ban.
+
 
 
 

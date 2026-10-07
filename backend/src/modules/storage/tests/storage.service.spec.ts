@@ -120,9 +120,9 @@ describe('StorageService', () => {
 
     it('should reject unsupported file MIME types', async () => {
       const invalidFile = {
-        buffer: Buffer.from('text_bytes'),
-        mimetype: 'text/plain',
-        originalname: 'invalid.txt',
+        buffer: Buffer.from('binary_bytes'),
+        mimetype: 'application/x-msdownload',
+        originalname: 'invalid.exe',
         size: 100,
       } as Express.Multer.File;
 

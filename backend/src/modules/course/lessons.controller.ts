@@ -70,4 +70,16 @@ export class LessonsController {
     );
     return ApiResponse.success(updatedLesson, 'Xóa tài liệu thành công');
   }
+
+  @Delete(':id')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async deleteLesson(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser('id') userId?: string,
+    @CurrentUser('role') userRole?: RoleEnum,
+  ): Promise<ApiResponse<null>> {
+    await this.lessonService.deleteLesson(id, userId, userRole);
+    return ApiResponse.success(null, 'Xóa bài học thành công');
+  }
 }

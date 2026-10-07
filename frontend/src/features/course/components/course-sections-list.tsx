@@ -14,6 +14,7 @@ import { useChapterDnd } from '../hooks/use-chapter-dnd';
 import { CreateSectionDialog } from './create-section-dialog';
 import { EditSectionDialog } from './edit-section-dialog';
 import { DeleteSectionDialog } from './delete-section-dialog';
+import { DeleteLessonDialog } from './delete-lesson-dialog';
 import { SectionLessonCreateForm } from './section-lesson-create-form';
 import { UploadLessonDocDialog } from './upload-lesson-doc-dialog';
 import { CourseOverviewMetrics } from './course-overview-metrics';
@@ -52,6 +53,7 @@ interface ChapterTreeItemProps {
   onSelectChapter: () => void;
   onSelectLesson: (lesson: ILesson) => void;
   onAttachDocument?: (lesson: ILesson) => void;
+  onDeleteLesson?: (lesson: ILesson) => void;
   onEditChapter: () => void;
   onDeleteChapter?: () => void;
   isDeletingChapter?: boolean;
@@ -76,6 +78,7 @@ function ChapterTreeItem({
   onSelectChapter,
   onSelectLesson,
   onAttachDocument,
+  onDeleteLesson,
   onEditChapter,
   onDeleteChapter,
   isDeletingChapter = false,
@@ -273,23 +276,41 @@ function ChapterTreeItem({
                     </span>
                   </div>
 
-                  {/* Nút đính kèm tài liệu cho bài học video (UI Only) */}
-                  {isVideo && (
-                    <div className="flex items-center ml-2.5 shrink-0">
+                  {/* Cụm nút thao tác bên phải (Đính kèm tài liệu & Thùng rác) */}
+                  <div
+                    className="flex items-center gap-0.5 ml-2.5 shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Nút đính kèm tài liệu cho bài học video (UI Only) */}
+                    {isVideo && (
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onAttachDocument?.(lesson);
                         }}
-                        className="w-7 h-7 bg-transparent text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition duration-200 hover:scale-115 shrink-0"
+                        className="w-7 h-7 bg-transparent border-0 outline-none text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors duration-150 shrink-0"
                         title="Đính kèm tài liệu cho video này"
                         aria-label="Đính kèm tài liệu cho video này"
                       >
                         <Icon icon="lucide:paperclip" className="size-3.5" />
                       </button>
-                    </div>
-                  )}
+                    )}
+
+                    {/* Nút thùng rác xóa bài học / tài liệu (UI Only) */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteLesson?.(lesson);
+                      }}
+                      className="w-7 h-7 bg-transparent border-0 outline-none text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 flex items-center justify-center cursor-pointer transition-colors duration-150 shrink-0"
+                      title={isVideo ? 'Xóa bài học' : 'Xóa tài liệu'}
+                      aria-label={isVideo ? 'Xóa bài học' : 'Xóa tài liệu'}
+                    >
+                      <Icon icon="lucide:trash-2" className="size-3.5 sm:size-4" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -329,6 +350,10 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
     sectionTitle: string;
   } | null>(null);
   const [uploadDocTargetLesson, setUploadDocTargetLesson] = useState<ILesson | null>(null);
+  const [deleteLessonTarget, setDeleteLessonTarget] = useState<{
+    lesson: ILesson;
+    sectionId: string;
+  } | null>(null);
 
   // Expanded chapters state: Record<chapterId, boolean> (All collapsed by default!)
   const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({});
@@ -355,6 +380,17 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
     // Nếu Inspector Panel đang mở đúng chương hoặc bài học vừa bị xóa, reset về trạng thái mặc định (null)
     if (selection?.chapterId === deletedSectionId) {
       setSelection(null);
+    }
+  };
+
+  const handleDeleteLessonSuccess = (deletedLessonId: string) => {
+    // Nếu Inspector Panel đang mở đúng bài học vừa bị xóa, chuyển về hiển thị chương cha
+    if (selection?.type === 'lesson' && selection.lessonId === deletedLessonId) {
+      if (deleteLessonTarget?.sectionId) {
+        setSelection({ type: 'chapter', chapterId: deleteLessonTarget.sectionId });
+      } else {
+        setSelection(null);
+      }
     }
   };
 
@@ -501,6 +537,9 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
                       })
                     }
                     onAttachDocument={(lesson) => setUploadDocTargetLesson(lesson)}
+                    onDeleteLesson={(lesson) =>
+                      setDeleteLessonTarget({ lesson, sectionId: section.id })
+                    }
                     onEditChapter={() => setEditSectionTarget(section)}
                     onDeleteChapter={() => setDeleteSectionTarget(section)}
                     onAddLesson={() =>
@@ -587,6 +626,18 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
         }}
         lesson={uploadDocTargetLesson}
         courseId={courseId}
+      />
+
+      {/* Modal: Xóa bài học / tài liệu */}
+      <DeleteLessonDialog
+        courseId={courseId}
+        sectionId={deleteLessonTarget?.sectionId}
+        lesson={deleteLessonTarget?.lesson ?? null}
+        open={Boolean(deleteLessonTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteLessonTarget(null);
+        }}
+        onSuccess={handleDeleteLessonSuccess}
       />
     </div>
   );

@@ -37,3 +37,4 @@ export * from './components/inline';
 export * from './components/course-level-select';
 export * from './components/upload-lesson-doc-dialog';
 export * from './components/delete-lesson-material-dialog';
+export * from './components/delete-lesson-dialog';
