@@ -5,6 +5,7 @@ export * from './enums/user-status.enum.js';
 export * from './enums/course-status.enum.js';
 export * from './enums/course-level.enum.js';
 export * from './enums/lesson-content-type.enum.js';
+export * from './enums/lesson-transcription-status.enum.js';
 
 // Interfaces
 export * from './interfaces/user.interface.js';
@@ -14,6 +15,7 @@ export * from './interfaces/api-response.interface.js';
 export * from './interfaces/course.interface.js';
 export * from './interfaces/section.interface.js';
 export * from './interfaces/lesson.interface.js';
+export * from './interfaces/lesson-transcript.interface.js';
 export * from './interfaces/course-mindmap.interface.js';
 
 // Constants

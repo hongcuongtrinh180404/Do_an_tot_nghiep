@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
-import { ILessonContent, ILessonMaterial, LessonContentTypeEnum } from 'share-lib';
+import { ILessonContent, ILessonMaterial, LessonContentTypeEnum, LessonTranscriptionStatusEnum } from 'share-lib';
 import { BaseAbstractDocument } from '../../base/index.js';
 import { SectionEntity } from './section.schema.js';
 
@@ -97,6 +97,14 @@ export class LessonEntity extends BaseAbstractDocument {
 
   @Prop({ type: Boolean, required: true, default: false })
   isPreview: boolean;
+
+  @Prop({
+    type: String,
+    enum: Object.values(LessonTranscriptionStatusEnum),
+    default: LessonTranscriptionStatusEnum.IDLE,
+    required: true,
+  })
+  transcriptionStatus: LessonTranscriptionStatusEnum;
 }
 
 export const LessonSchema = SchemaFactory.createForClass(LessonEntity);

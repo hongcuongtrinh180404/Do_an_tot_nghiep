@@ -59,9 +59,19 @@
 ---
 
 ## 3. Data Storage & Schema Modifications
-- Cập nhật trực tiếp vào document `Lesson` hoặc lưu chi tiết transcript vào bảng `LessonTranscript`:
-  - `lessonId`: Types.ObjectId
-  - `rawTranscript`: string
-  - `words`: Array<{ word: string, start: number, end: number }>
-  - `status`: Enum (`QUEUED`, `TRANSCRIBING`, `GENERATING_AI`, `READY`, `FAILED`)
-  - `failureReason`: string (nếu có lỗi)
+
+- **`Lesson` Document** (`lessons` collection):
+  - Bổ sung trường `transcriptionStatus`: `LessonTranscriptionStatusEnum` (`IDLE`, `QUEUED`, `TRANSCRIBING`, `READY`, `FAILED`).
+- **`LessonTranscript` Document** (`lesson_transcripts` collection) — Kế thừa `BaseAbstractDocument`:
+  - `lessonId`: `Types.ObjectId` (Indexed, Unique, Ref: `LessonEntity`)
+  - `rawTranscript`: `string` (Verbatim transcript text)
+  - `sentences`: `Array<{ text: string, start: number, end: number }>` (Sentence-level timestamps, đã làm sạch whitespace, **không lưu confidence**)
+  - `durationSeconds`: `number` (Thời lượng tính bằng giây)
+  - `languageCode`: `string` (Default: `vi`)
+  - `externalTranscriptId`: `string | null` (AssemblyAI Transcript ID)
+  - `status`: `LessonTranscriptionStatusEnum`
+  - `failureReason`: `string | null` (Lý do thất bại nếu status = FAILED)
+- **API Endpoints**:
+  - `GET /api/v1/lessons/:id/transcript`: Lấy transcript chi tiết của bài học.
+  - `POST /api/v1/lessons/:id/transcript/retry`: Yêu cầu thực hiện lại tác vụ trích xuất transcript khi bài học bị `FAILED`.
+

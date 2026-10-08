@@ -123,6 +123,7 @@ describe('LessonService', () => {
           order: 0,
           content: null,
           isPreview: false,
+          transcriptionStatus: 'IDLE',
           createdById: 'user_1',
           updatedById: 'user_1',
         },

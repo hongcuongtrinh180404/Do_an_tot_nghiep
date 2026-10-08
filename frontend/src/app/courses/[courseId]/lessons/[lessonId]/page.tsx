@@ -20,7 +20,7 @@ export default async function CourseLessonDetailPage({
   const { courseId, lessonId } = await params;
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
+    <main className="min-h-screen w-full bg-background text-foreground overflow-y-auto">
       <LessonDetailContent
         courseId={courseId}
         lessonId={lessonId}

@@ -2,10 +2,11 @@ import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ILesson, LessonContentTypeEnum, RoleEnum } from 'share-lib';
+import { ILesson, ILessonTranscript, LessonContentTypeEnum, LessonTranscriptionStatusEnum, RoleEnum } from 'share-lib';
 import { ParseObjectIdPipe } from '../../base/index.js';
 import { LessonsController } from '../lessons.controller.js';
 import { LessonService } from '../services/lesson.service.js';
+import { LessonTranscriptService } from '../services/lesson-transcript.service.js';
 import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator.js';
 
 describe('LessonsController', () => {
@@ -15,6 +16,10 @@ describe('LessonsController', () => {
     addMaterial: ReturnType<typeof vi.fn>;
     deleteMaterial: ReturnType<typeof vi.fn>;
     deleteLesson: ReturnType<typeof vi.fn>;
+  };
+  let mockLessonTranscriptService: {
+    getTranscriptByLessonId: ReturnType<typeof vi.fn>;
+    retryTranscription: ReturnType<typeof vi.fn>;
   };
 
   const sampleLessonId = '607f1f77bcf86cd799439011';
@@ -52,7 +57,15 @@ describe('LessonsController', () => {
       deleteLesson: vi.fn(),
     };
 
-    controller = new LessonsController(mockLessonService as unknown as LessonService);
+    mockLessonTranscriptService = {
+      getTranscriptByLessonId: vi.fn(),
+      retryTranscription: vi.fn(),
+    };
+
+    controller = new LessonsController(
+      mockLessonService as unknown as LessonService,
+      mockLessonTranscriptService as unknown as LessonTranscriptService,
+    );
   });
 
   describe('GET /lessons/:id - getLessonDetail', () => {
@@ -208,6 +221,42 @@ describe('LessonsController', () => {
       await expect(
         controller.deleteLesson(sampleLessonId, sampleUserId, RoleEnum.INSTRUCTOR),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('GET /lessons/:id/transcript - getLessonTranscript', () => {
+    it('12. should return lesson transcript wrapped in standard ApiResponse', async () => {
+      const sampleTranscript: ILessonTranscript = {
+        id: 'trans_123',
+        lessonId: sampleLessonId,
+        rawTranscript: 'Chào mừng các bạn',
+        words: [],
+        durationSeconds: 120,
+        languageCode: 'vi',
+        status: LessonTranscriptionStatusEnum.READY,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      mockLessonTranscriptService.getTranscriptByLessonId.mockResolvedValue(sampleTranscript);
+
+      const response = await controller.getLessonTranscript(sampleLessonId);
+
+      expect(mockLessonTranscriptService.getTranscriptByLessonId).toHaveBeenCalledWith(sampleLessonId);
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual(sampleTranscript);
+      expect(response.message).toBe('Lấy transcript bài học thành công');
+    });
+  });
+
+  describe('POST /lessons/:id/transcript/retry - retryTranscription', () => {
+    it('13. should trigger retry transcription and return success message', async () => {
+      mockLessonTranscriptService.retryTranscription.mockResolvedValue(undefined);
+
+      const response = await controller.retryTranscription(sampleLessonId);
+
+      expect(mockLessonTranscriptService.retryTranscription).toHaveBeenCalledWith(sampleLessonId);
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Đã kích hoạt lại tiến trình trích xuất transcript');
     });
   });
 });

@@ -10,7 +10,7 @@ import {
   IAssemblyAiService,
   AssemblyAiTranscribeOptions,
   AssemblyAiTranscriptionResult,
-  TranscribedWord,
+  TranscribedSentence,
 } from './interfaces/assemblyai.interface.js';
 
 @Injectable()
@@ -46,24 +46,19 @@ export class AssemblyAiService implements IAssemblyAiService {
     return this.client;
   }
 
-  async transcribe(
-    audioUrl: string,
+  private async executeTranscription(
+    audioSource: string,
     options?: Partial<AssemblyAiTranscribeOptions>,
   ): Promise<AssemblyAiTranscriptionResult> {
-    const trimmedUrl = audioUrl?.trim();
-    if (!trimmedUrl) {
-      throw new BadRequestException('Audio/Video URL is required for transcription.');
-    }
-
     const client = this.getClient();
     const languageCode = options?.languageCode ?? this.defaultLanguageCode;
 
     this.logger.log(
-      `Starting AssemblyAI transcription for URL: ${trimmedUrl} with language: ${languageCode}`,
+      `Starting AssemblyAI transcription for audio source with language: ${languageCode}`,
     );
 
     const params: TranscribeParams = {
-      audio: trimmedUrl,
+      audio: audioSource,
       language_code: languageCode,
       punctuate: options?.punctuate ?? true,
       format_text: options?.formatText ?? true,
@@ -79,26 +74,25 @@ export class AssemblyAiService implements IAssemblyAiService {
         throw new InternalServerErrorException(`AssemblyAI transcription failed: ${errorMsg}`);
       }
 
-      const words: TranscribedWord[] = (transcript.words ?? []).map((w) => ({
-        word: w.text,
-        start: w.start,
-        end: w.end,
-        confidence: w.confidence,
+      const { sentences = [] } = await client.transcripts.sentences(transcript.id);
+      const cleanedSentences: TranscribedSentence[] = (sentences ?? []).map(({ text, start, end }) => ({
+        text: (text ?? '').trim(),
+        start,
+        end,
       }));
 
       const durationSeconds = Math.round(transcript.audio_duration ?? 0);
 
       this.logger.log(
-        `Transcription finished successfully for ID: ${transcript.id}. Total words: ${words.length}, duration: ${durationSeconds}s`,
+        `Transcription finished successfully for ID: ${transcript.id}. Total sentences: ${cleanedSentences.length}, duration: ${durationSeconds}s`,
       );
 
       return {
         transcriptId: transcript.id,
-        rawTranscript: transcript.text ?? '',
-        words,
+        rawTranscript: (transcript.text ?? '').trim(),
+        sentences: cleanedSentences,
         durationSeconds,
         languageCode: transcript.language_code ?? languageCode,
-        confidence: transcript.confidence ?? undefined,
       };
     } catch (error: unknown) {
       if (error instanceof BadRequestException || error instanceof InternalServerErrorException) {
@@ -107,6 +101,41 @@ export class AssemblyAiService implements IAssemblyAiService {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to transcribe audio with AssemblyAI: ${message}`);
       throw new InternalServerErrorException(`Failed to transcribe audio with AssemblyAI: ${message}`);
+    }
+  }
+
+  async transcribe(
+    audioUrl: string,
+    options?: Partial<AssemblyAiTranscribeOptions>,
+  ): Promise<AssemblyAiTranscriptionResult> {
+    const trimmedUrl = audioUrl?.trim();
+    if (!trimmedUrl) {
+      throw new BadRequestException('Audio/Video URL is required for transcription.');
+    }
+    return this.executeTranscription(trimmedUrl, options);
+  }
+
+  async transcribeStream(
+    audioStream: NodeJS.ReadableStream | ReadableStream,
+    options?: Partial<AssemblyAiTranscribeOptions>,
+  ): Promise<AssemblyAiTranscriptionResult> {
+    if (!audioStream) {
+      throw new BadRequestException('Audio stream is required for transcription.');
+    }
+
+    const client = this.getClient();
+    this.logger.log('Uploading audio stream to AssemblyAI staging storage...');
+    try {
+      const uploadUrl = await client.files.upload(audioStream as never);
+      this.logger.log('Audio stream uploaded to AssemblyAI successfully. Starting transcription...');
+      return await this.executeTranscription(uploadUrl, options);
+    } catch (error: unknown) {
+      if (error instanceof BadRequestException || error instanceof InternalServerErrorException) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to upload audio stream to AssemblyAI: ${message}`);
+      throw new InternalServerErrorException(`Failed to upload audio stream to AssemblyAI: ${message}`);
     }
   }
 

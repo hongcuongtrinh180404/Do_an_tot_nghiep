@@ -1,5 +1,6 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Readable } from 'stream';
 import {
   S3Client,
   PutObjectCommand,
@@ -214,6 +215,46 @@ export class StorageService implements IStorageService {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Lỗi tạo presigned URL từ MinIO: ${message}`, error);
       throw new BadRequestException(`Không thể tạo đường dẫn phát video: ${message}`);
+    }
+  }
+
+  /**
+   * Lấy Stream đọc file từ MinIO để xử lý ngầm (ví dụ: chuyển âm thanh sang AssemblyAI)
+   */
+  async getObjectStream(fileKeyOrUrl: string): Promise<Readable> {
+    if (!fileKeyOrUrl || typeof fileKeyOrUrl !== 'string') {
+      throw new BadRequestException('Khóa file (fileKey) không hợp lệ');
+    }
+
+    let key = fileKeyOrUrl.trim();
+    const publicUrlPrefix = `${this.publicUrl}/${this.bucketName}/`;
+    if (key.startsWith(publicUrlPrefix)) {
+      key = key.slice(publicUrlPrefix.length);
+    } else if (key.includes(`/${this.bucketName}/`)) {
+      key = key.slice(key.indexOf(`/${this.bucketName}/`) + `/${this.bucketName}/`.length);
+    }
+    key = key.replace(/^\/+/, '');
+    if (!key) {
+      throw new BadRequestException('Khóa file (fileKey) không được để trống');
+    }
+
+    try {
+      const command = new GetObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+      });
+      const response = await this.s3Client.send(command);
+      if (!response.Body) {
+        throw new NotFoundException(`Không tìm thấy file ${key} trên MinIO`);
+      }
+      return response.Body as Readable;
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Lỗi khi lấy stream file ${key} từ MinIO: ${message}`, error);
+      throw new BadRequestException(`Không thể đọc file từ MinIO: ${message}`);
     }
   }
 

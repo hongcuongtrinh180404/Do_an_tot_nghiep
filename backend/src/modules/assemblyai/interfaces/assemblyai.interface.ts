@@ -1,10 +1,9 @@
 import type { Transcript } from 'assemblyai';
 
-export interface TranscribedWord {
-  word: string;
+export interface TranscribedSentence {
+  text: string;
   start: number;
   end: number;
-  confidence: number;
 }
 
 export interface AssemblyAiTranscribeOptions {
@@ -18,15 +17,18 @@ export interface AssemblyAiTranscribeOptions {
 export interface AssemblyAiTranscriptionResult {
   transcriptId: string;
   rawTranscript: string;
-  words: TranscribedWord[];
+  sentences: TranscribedSentence[];
   durationSeconds: number;
   languageCode: string;
-  confidence?: number;
 }
 
 export interface IAssemblyAiService {
   transcribe(
     audioUrl: string,
+    options?: Partial<AssemblyAiTranscribeOptions>,
+  ): Promise<AssemblyAiTranscriptionResult>;
+  transcribeStream(
+    audioStream: NodeJS.ReadableStream | ReadableStream,
     options?: Partial<AssemblyAiTranscribeOptions>,
   ): Promise<AssemblyAiTranscriptionResult>;
   getSubtitles(transcriptId: string, format?: 'srt' | 'vtt'): Promise<string>;

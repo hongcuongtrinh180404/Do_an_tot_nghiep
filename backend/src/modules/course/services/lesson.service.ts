@@ -7,12 +7,13 @@ import {
 } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
-import { ILesson, ISection, ILessonContent, RoleEnum } from 'share-lib';
+import { ILesson, ISection, ILessonContent, RoleEnum, LessonContentTypeEnum, LessonTranscriptionStatusEnum } from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
 import { CourseRepository } from '../repositories/course.repository.js';
 import { StorageService } from '../../storage/index.js';
+import { LessonTranscriptService } from './lesson-transcript.service.js';
 
 export interface CreateLessonInput {
   title: string;
@@ -31,6 +32,7 @@ export class LessonService extends BaseService<ILesson, string> {
     cls: ClsService,
     @Optional() protected readonly storageService?: StorageService,
     @Optional() protected readonly courseRepository?: CourseRepository,
+    @Optional() protected readonly lessonTranscriptService?: LessonTranscriptService,
   ) {
     super(lessonRepository, cls, LessonService.name);
   }
@@ -57,7 +59,9 @@ export class LessonService extends BaseService<ILesson, string> {
 
     const userId = input.userId ?? this.getCurrentUserId();
 
-    return this.lessonRepository.create(
+    const isVideo = input.content?.type === LessonContentTypeEnum.VIDEO;
+
+    const createdLesson = await this.lessonRepository.create(
       {
         sectionId: section.id,
         title: input.title.trim(),
@@ -65,11 +69,26 @@ export class LessonService extends BaseService<ILesson, string> {
         order: input.order,
         content: input.content ?? null,
         isPreview: Boolean(input.isPreview),
+        transcriptionStatus: isVideo
+          ? LessonTranscriptionStatusEnum.QUEUED
+          : LessonTranscriptionStatusEnum.IDLE,
         createdById: userId,
         updatedById: userId,
       },
       session,
     );
+
+    // Kích hoạt trích xuất transcript bất đồng bộ nếu bài học có nội dung video
+    if (
+      isVideo &&
+      (createdLesson.content?.publicId || createdLesson.content?.url) &&
+      this.lessonTranscriptService
+    ) {
+      const fileKey = createdLesson.content.publicId || createdLesson.content.url;
+      this.lessonTranscriptService.triggerTranscription(createdLesson.id, fileKey);
+    }
+
+    return createdLesson;
   }
 
   async getLessonsBySectionId(

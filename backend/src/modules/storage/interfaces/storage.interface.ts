@@ -1,3 +1,4 @@
+import type { Readable } from 'stream';
 import { ILessonContent } from 'share-lib';
 
 export interface ImageUploadOptions {
@@ -22,6 +23,8 @@ export interface IStorageService {
     fileKey: string,
     expiresInSeconds?: number,
   ): Promise<string>;
+
+  getObjectStream(fileKey: string): Promise<Readable>;
 
   deleteFile(fileKey: string): Promise<boolean>;
 }

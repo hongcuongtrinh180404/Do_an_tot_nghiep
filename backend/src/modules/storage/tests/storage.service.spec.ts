@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { Readable } from 'stream';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { StorageService } from '../storage.service.js';
 import { LessonContentTypeEnum } from 'share-lib';
 
@@ -185,6 +186,36 @@ describe('StorageService', () => {
       sendSpy.mockRejectedValue(new Error('S3 connection failed'));
       const deleted = await service.deleteFile('avatars/failing-avatar.webp');
       expect(deleted).toBe(false);
+    });
+  });
+
+  describe('getObjectStream', () => {
+    it('should throw BadRequestException if file key is empty or whitespace', async () => {
+      await expect(service.getObjectStream('   ')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should send GetObjectCommand and return stream', async () => {
+      const mockStream = Readable.from(['test content chunk']);
+      sendSpy.mockResolvedValue({ Body: mockStream } as never);
+
+      const stream = await service.getObjectStream('courses/lessons/test-video.mp4');
+      expect(sendSpy).toHaveBeenCalledTimes(1);
+      const command = sendSpy.mock.calls[0][0];
+      expect(command).toBeInstanceOf(GetObjectCommand);
+      expect((command as GetObjectCommand).input.Key).toBe('courses/lessons/test-video.mp4');
+      expect(stream).toBe(mockStream);
+    });
+
+    it('should extract key properly when full MinIO URL is passed', async () => {
+      const mockStream = Readable.from(['test content chunk']);
+      sendSpy.mockResolvedValue({ Body: mockStream } as never);
+
+      const fullUrl = 'http://localhost:9000/thc-datn-media/courses/lessons/test-video.mp4';
+      const stream = await service.getObjectStream(fullUrl);
+      expect(sendSpy).toHaveBeenCalledTimes(1);
+      const command = sendSpy.mock.calls[0][0];
+      expect((command as GetObjectCommand).input.Key).toBe('courses/lessons/test-video.mp4');
+      expect(stream).toBe(mockStream);
     });
   });
 });

@@ -1,4 +1,5 @@
 import { LessonContentTypeEnum } from '../enums/lesson-content-type.enum.js';
+import { LessonTranscriptionStatusEnum } from '../enums/lesson-transcription-status.enum.js';
 
 export interface ILessonContent {
   type: LessonContentTypeEnum;
@@ -30,6 +31,7 @@ export interface ILesson {
   content?: ILessonContent | null;
   materials?: ILessonMaterial[];
   isPreview: boolean;
+  transcriptionStatus?: LessonTranscriptionStatusEnum;
   createdAt: Date | string;
   updatedAt: Date | string;
   deletedAt?: Date | string | null;
