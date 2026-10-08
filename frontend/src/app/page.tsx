@@ -46,6 +46,15 @@ export default function Home(): React.JSX.Element {
           <div className="flex items-center gap-2">
             {isMounted && user ? (
               <>
+                {user.role === RoleEnum.ADMIN && (
+                  <Link
+                    href="/admin/users"
+                    className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                  >
+                    <Icon icon="lucide:shield" className="size-3.5 mr-1.5 text-primary" />
+                    Trang Quản Trị
+                  </Link>
+                )}
                 {(user.role === RoleEnum.INSTRUCTOR || user.role === RoleEnum.ADMIN) && (
                   <Link
                     href="/instructor/courses"
