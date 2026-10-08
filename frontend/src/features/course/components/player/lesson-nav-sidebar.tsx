@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Icon } from '@/components/ui/icon';
-import { ISection } from 'share-lib';
+import { ISection, ITranscribedSentence, LessonTranscriptionStatusEnum } from 'share-lib';
 import { TimelineMarker } from './lesson-video-screen';
 import { LessonTimelineTab } from './lesson-timeline-tab';
 import { LessonCurriculumTab } from './lesson-curriculum-tab';
@@ -13,6 +13,11 @@ interface LessonNavSidebarProps {
   courseId: string;
   currentLessonId: string;
   timelineMarkers: TimelineMarker[];
+  sentences?: ITranscribedSentence[];
+  isTranscriptLoading?: boolean;
+  transcriptionStatus?: LessonTranscriptionStatusEnum;
+  onRetryTranscription?: () => void;
+  isRetryingTranscription?: boolean;
   currentTime: number;
   duration: number;
   sections?: ISection[];
@@ -25,6 +30,11 @@ export function LessonNavSidebar({
   courseId,
   currentLessonId,
   timelineMarkers,
+  sentences = [],
+  isTranscriptLoading = false,
+  transcriptionStatus,
+  onRetryTranscription,
+  isRetryingTranscription = false,
   currentTime,
   duration,
   sections,
@@ -33,6 +43,8 @@ export function LessonNavSidebar({
   onSelectLesson,
 }: LessonNavSidebarProps): React.JSX.Element {
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>('timeline');
+
+  const totalTimelineItems = sentences.length > 0 ? sentences.length : timelineMarkers.length;
 
   return (
     <div className="w-full h-full flex flex-col bg-card min-h-0 overflow-hidden">
@@ -50,7 +62,7 @@ export function LessonNavSidebar({
         >
           <Icon icon="lucide:clock" className="size-3.5" />
           <span>Timeline</span>
-          {timelineMarkers.length > 0 && (
+          {totalTimelineItems > 0 && (
             <span
               className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
                 activeSubTab === 'timeline'
@@ -58,7 +70,7 @@ export function LessonNavSidebar({
                   : 'bg-muted text-muted-foreground'
               }`}
             >
-              {timelineMarkers.length}
+              {totalTimelineItems}
             </span>
           )}
         </button>
@@ -82,11 +94,16 @@ export function LessonNavSidebar({
       <div className="flex-1 min-h-0 overflow-hidden">
         {activeSubTab === 'timeline' ? (
           <LessonTimelineTab
-            markers={timelineMarkers}
+            sentences={sentences}
+            fallbackMarkers={timelineMarkers}
             currentTime={currentTime}
             duration={duration}
+            isLoading={isTranscriptLoading}
+            transcriptionStatus={transcriptionStatus}
             onSeek={onSeek}
             formatTime={formatTime}
+            onRetryTranscription={onRetryTranscription}
+            isRetrying={isRetryingTranscription}
           />
         ) : (
           <LessonCurriculumTab

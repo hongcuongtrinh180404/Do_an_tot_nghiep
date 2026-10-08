@@ -1,6 +1,7 @@
 export * from './use-video-player';
 export * from './lesson-video-screen';
 export * from './lesson-timeline-tab';
+export * from './lesson-timeline-skeleton';
 export * from './lesson-curriculum-tab';
 export * from './lesson-nav-sidebar';
 export * from './lesson-tabs-container';

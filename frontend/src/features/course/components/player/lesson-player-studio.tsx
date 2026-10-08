@@ -5,6 +5,8 @@ import { ILesson, LessonContentTypeEnum } from 'share-lib';
 import {
   useCourseDetailQuery,
   useCourseSectionsQuery,
+  useLessonTranscriptQuery,
+  useRetryLessonTranscriptionMutation,
 } from '../../api/course.api';
 import { deserializeKeyPoints } from '../../utils/lesson-key-points.util';
 import { useVideoPlayer } from './use-video-player';
@@ -29,6 +31,18 @@ export function LessonPlayerStudio({
   // Fetch Course details and Sections for curriculum navigation
   const { data: course } = useCourseDetailQuery(courseId);
   const { data: sections } = useCourseSectionsQuery(courseId);
+
+  // Fetch Transcript from Database (MongoDB collection: lesson_transcripts)
+  const {
+    data: transcript,
+    isLoading: isTranscriptLoading,
+  } = useLessonTranscriptQuery(lesson.id);
+
+  // Mutation to retry transcription when not found or failed
+  const {
+    mutate: retryTranscription,
+    isPending: isRetryingTranscription,
+  } = useRetryLessonTranscriptionMutation(lesson.id);
 
   // Video Player custom controller hook
   const player = useVideoPlayer();
@@ -68,10 +82,16 @@ export function LessonPlayerStudio({
     };
   }, []);
 
-  // Generate Timeline markers from Lesson Key Points or default milestones
+  // Ensure viewport starts at the top when entering or switching lessons
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [lesson.id]);
+
+  // Generate Timeline markers for Video Seekbar (Keeping main milestones on the seekbar)
   const timelineMarkers: TimelineMarker[] = useMemo(() => {
     const keyPoints = deserializeKeyPoints(lesson.description);
-    const totalDuration = lesson.content?.duration || player.duration || 900;
+    const totalDuration =
+      lesson.content?.duration || transcript?.durationSeconds || player.duration || 900;
 
     if (keyPoints.length > 0) {
       const step = Math.max(30, Math.floor(totalDuration / (keyPoints.length + 1)));
@@ -89,9 +109,11 @@ export function LessonPlayerStudio({
       { time: 730, label: '12:10 - Demo thực hành bài tập' },
       { time: 960, label: '16:00 - Tổng kết & Hướng dẫn mở rộng' },
     ];
-  }, [lesson.description, lesson.content?.duration, player.duration]);
+  }, [lesson.description, lesson.content?.duration, transcript?.durationSeconds, player.duration]);
 
   const isDocument = lesson.content?.type === LessonContentTypeEnum.DOCUMENT;
+  const sentences = transcript?.sentences || [];
+  const currentTranscriptionStatus = transcript?.status || lesson.transcriptionStatus;
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-background text-foreground select-none">
@@ -108,8 +130,8 @@ export function LessonPlayerStudio({
       {/* Main Layout Container: Ergonomic Laptop Width Max-bounds */}
       <div className="flex-1 w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* 2. Top Tier: 16:9 Video + Dynamically Synchronized Sidebar Height */}
-        <div className="w-full flex flex-col lg:flex-row items-stretch gap-6 xl:gap-[40px]">
-          {/* Left Block: 16:9 Video Player Standalone Card (~70% width, ~540px-562px height on FHD, ~480px-495px on smaller laptop) */}
+        <div className="w-full flex flex-col lg:flex-row items-start gap-6 xl:gap-[40px]">
+          {/* Left Block: 16:9 Video Player Standalone Card (~70% width) */}
           <section
             ref={videoCardRef}
             aria-label="Khung phát video chính"
@@ -126,16 +148,21 @@ export function LessonPlayerStudio({
             />
           </section>
 
-          {/* Right Block: Navigation Sidebar Card (~30% width: 360px-420px, height synced to video with internal overflow-y-auto) */}
+          {/* Right Block: Navigation Sidebar Card (~30% width) */}
           <aside
             aria-label="Bảng điều hướng bài học"
             style={sidebarHeight ? { height: `${sidebarHeight}px` } : undefined}
-            className="w-full lg:w-[360px] min-[1440px]:w-[400px] 2xl:w-[420px] shrink-0 h-[420px] lg:h-auto bg-card border border-border rounded-2xl shadow-xs flex flex-col min-h-0 overflow-hidden"
+            className="w-full lg:w-[360px] min-[1440px]:w-[400px] 2xl:w-[420px] shrink-0 h-[420px] lg:h-[540px] bg-card border border-border rounded-2xl shadow-xs flex flex-col min-h-0 overflow-hidden"
           >
             <LessonNavSidebar
               courseId={courseId}
               currentLessonId={lesson.id}
               timelineMarkers={timelineMarkers}
+              sentences={sentences}
+              isTranscriptLoading={isTranscriptLoading}
+              transcriptionStatus={currentTranscriptionStatus}
+              onRetryTranscription={() => retryTranscription()}
+              isRetryingTranscription={isRetryingTranscription}
               currentTime={player.currentTime}
               duration={player.duration}
               sections={sections}

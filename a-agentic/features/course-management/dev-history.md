@@ -1144,14 +1144,16 @@
     - Frontend Type-check: `npx tsc --noEmit` -> 100% clean (0 errors).
     - Frontend ESLint: `npx eslint src/features/course` -> 100% clean (0 errors, 0 warnings).
     - Tuân thủ nghiêm ngặt: Repository pattern, Clean code, không dùng type `any`, không vi phạm Purple Ban.
-
-
-
-
-
-
-
-
-
-
+- **Milestone 18 (Container Width Standardization Across All Views)**:
+  - Bối cảnh: Trước đây trang Chi tiết khóa học và các trang quản trị dùng `max-w-5xl` (1024px), tạo cảm giác chênh lệch và bó hẹp khi đối chiếu với không gian thoáng đãng của trang Chi tiết bài học (`max-w-[1440px] 2xl:max-w-[1536px]`).
+  - Chuẩn hóa: Toàn bộ vùng chứa (container) ứng dụng được đồng bộ sang quy chuẩn công thái học thống nhất:
+    `w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6`
+  - Các trang được cập nhật:
+    - `frontend/src/features/course/components/course-detail-content.tsx` (Chi tiết khóa học - cả error và main view).
+    - `frontend/src/features/course/components/course-detail-skeleton.tsx` (Khung skeleton chi tiết khóa học).
+    - `frontend/src/features/course/components/course-management-content.tsx` (Danh sách khóa học giảng viên).
+    - `frontend/src/app/instructor/courses/new/page.tsx` (Tạo khóa học mới).
+    - `frontend/src/features/profile/components/profile-page-content.tsx` (Hồ sơ cá nhân).
+    - `frontend/src/app/page.tsx` (Trang chủ Landing Page - Header, Content Grid, Footer).
+  - Kết quả kiểm tra: TypeScript 0 lỗi, ESLint 0 lỗi, toàn bộ hệ thống thẳng hàng tuyệt đối.
 

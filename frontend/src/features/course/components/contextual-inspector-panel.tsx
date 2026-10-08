@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   type ISection,
   type ILessonMaterial,
@@ -483,7 +483,6 @@ function LessonInspectorView({
   chapterTitle: string;
   courseId: string;
 }): React.JSX.Element {
-  const router = useRouter();
   const { data: lesson, isLoading } = useLessonDetailQuery(lessonId);
 
   const [targetDeleteMaterial, setTargetDeleteMaterial] = React.useState<ILessonMaterial | null>(null);
@@ -582,26 +581,18 @@ function LessonInspectorView({
           </span>
         </div>
 
-        <div
-          onClick={() => router.push(lessonViewUrl)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              router.push(lessonViewUrl);
-            }
-          }}
-          className="flex items-center justify-center py-4 bg-zinc-900 rounded-lg cursor-pointer hover:bg-zinc-800 transition group"
+        <Link
+          href={lessonViewUrl}
+          className="flex items-center justify-center py-4 bg-zinc-900 rounded-lg cursor-pointer hover:bg-zinc-800 transition group text-white hover:text-white"
         >
           <Icon
             icon={isDocLesson ? 'lucide:file-text' : 'lucide:play-circle'}
             className="size-6 text-sky-400 mr-2 group-hover:scale-110 transition-transform"
           />
-          <span className="text-xs font-bold">
+          <span className="text-xs font-bold text-white">
             {isDocLesson ? 'Xem chi tiết tài liệu' : 'Xem trước bài giảng'}
           </span>
-        </div>
+        </Link>
       </div>
 
       {/* Tài liệu riêng của bài (Cấp 4) */}

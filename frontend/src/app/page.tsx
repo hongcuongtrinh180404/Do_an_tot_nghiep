@@ -26,7 +26,7 @@ export default function Home(): React.JSX.Element {
   return (
     <main className="min-h-screen flex flex-col items-center justify-between p-6 sm:p-12 md:p-16 bg-gradient-to-b from-background via-background to-muted/30">
       {/* Header Bar */}
-      <header className="w-full max-w-5xl flex items-center justify-between py-4 border-b border-border/40">
+      <header className="w-full max-w-[1440px] 2xl:max-w-[1536px] flex items-center justify-between py-4 border-b border-border/40">
         <div className="flex items-center gap-3">
           <div className="size-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg shadow">
             ĐA
@@ -96,7 +96,7 @@ export default function Home(): React.JSX.Element {
       </header>
 
       {/* Main Content Area */}
-      <div className="w-full max-w-5xl my-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center py-12">
+      <div className="w-full max-w-[1440px] 2xl:max-w-[1536px] my-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center py-12">
         {/* Left Side: Information & Architecture Badges */}
         <div className="lg:col-span-7 space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold tracking-wide uppercase">
@@ -232,7 +232,7 @@ export default function Home(): React.JSX.Element {
       </div>
 
       {/* Footer */}
-      <footer className="w-full max-w-5xl py-6 border-t border-border/40 text-center text-xs text-muted-foreground">
+      <footer className="w-full max-w-[1440px] 2xl:max-w-[1536px] py-6 border-t border-border/40 text-center text-xs text-muted-foreground">
         © 2026 Đồ Án Tốt Nghiệp — Kiến trúc Monorepo NestJS + Next.js App Router
       </footer>
     </main>

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 export function CourseDetailSkeleton(): React.JSX.Element {
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6 animate-pulse">
+    <div className="w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 animate-pulse">
       {/* Top Navigation / Breadcrumb Skeleton */}
       <div className="flex items-center gap-3">
         <div className="h-8 w-24 bg-muted rounded-md" />

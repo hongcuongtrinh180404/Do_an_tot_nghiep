@@ -22,5 +22,16 @@
   - Màn hình FHD (1440px - 1536px): Video 16:9 rộng ~960px - 1000px, cao ~540px - 562px. Sidebar rộng ~380px - 420px, khoảng cách giữa 2 khối 40px (`xl:gap-[40px]`).
   - Màn hình Laptop nhỏ (1280px - 1366px): Video rộng ~850px - 880px, cao ~480px - 495px. Sidebar rộng ~360px.
   - Chiều cao cột bên phải được đồng bộ chính xác theo chiều cao video 16:9 bằng `ResizeObserver`, giúp thanh cuộn dọc (`overflow-y-auto`) bên trong tab Timeline/Curriculum hoạt động mượt mà không làm trồi sụt khung hình layout.
+- **Sentence-Level Timeline & Realtime Outline từ Database (MongoDB)**:
+  - Tích hợp hook `useLessonTranscriptQuery` nạp dữ liệu trực tiếp từ collection `lesson_transcripts` trong MongoDB thông qua API `GET /lessons/:id/transcript`.
+  - Hiển thị danh sách các câu nói (`sentences: [{ text, start, end }]` tính bằng milliseconds) trong tab Timeline của thanh điều hướng bên phải.
+  - Tự động outline sáng rõ (`ring-2 ring-sky-500 border-sky-500 bg-sky-50 dark:bg-sky-950/40`) câu đang phát dựa trên `currentTime` của video player kèm icon âm thanh động.
+  - Tự động cuộn thông minh (`scrollIntoView({ behavior: 'smooth', block: 'nearest' })`) theo câu đang nói, đồng thời phát hiện sự kiện lăn chuột thủ công của người dùng (`wheel`, `touchmove`) để tạm dừng cuộn, cung cấp nút nổi bật "Theo video" để tiếp tục cuộn.
+  - Giữ nguyên các mốc chương/nội dung quan trọng trên thanh tua video của `LessonVideoScreen` để tránh phân mảnh thanh seekbar.
+- **Khắc phục Vỡ Layout Khi Chuyển Trang Client-Side (Circular Flexbox Stretch)**:
+  - *Root Cause:* Khi chuyển trang từ Chi tiết khóa học sang Xem trước bài giảng, dữ liệu bài học đã được cache trong React Query nên danh sách render ngay. Do Sidebar ban đầu có `lg:h-auto` và thẻ cha dùng `items-stretch`, Sidebar bung dài làm kéo dãn Video Card qua `items-stretch`, khiến `ResizeObserver` đo nhầm chiều cao dãn nở `>1000px` và khóa cứng `sidebarHeight` ở mức quá khổ.
+  - *Giải pháp:* Đổi thẻ cha từ `items-stretch` sang `items-start` để Video Card luôn 100% độc lập giữ chuẩn 16:9 (`~540px`). Cột Sidebar đặt fallback cố định `lg:h-[540px]` khi chưa có `sidebarHeight`.
+  - *Scroll Restoration:* Tự động reset `window.scrollTo({ top: 0, left: 0, behavior: 'instant' })` khi mount trang bài học để ngăn hiện tượng trôi vị trí cuộn trang.
+  - *Semantic Link:* Chuẩn hóa nút xem trước từ `div router.push` sang thẻ `<Link href={...}>` của Next.js.
 
 

@@ -89,7 +89,7 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
         : 'Đã xảy ra sự cố khi tải dữ liệu từ máy chủ. Vui lòng thử lại sau.';
 
     return (
-      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <div className="w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         <Link
           href="/instructor/courses"
           className={buttonVariants({ variant: 'outline', size: 'sm' })}
@@ -141,7 +141,7 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
   const createdDate = formatDate(course.createdAt);
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <div className="w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
       {/* Navigation & Breadcrumb */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/40">
         <Link

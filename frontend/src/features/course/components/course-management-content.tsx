@@ -14,7 +14,7 @@ export function CourseManagementContent(): React.JSX.Element {
   const { data: courses, isLoading, isError, refetch } = useMyCoursesQuery();
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <div className="w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
       <CourseHeader />
 
       {isLoading ? (

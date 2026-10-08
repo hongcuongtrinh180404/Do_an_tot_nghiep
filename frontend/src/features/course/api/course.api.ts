@@ -14,6 +14,7 @@ import type {
   ICreateLessonPayload,
   ISection,
   ILesson,
+  ILessonTranscript,
 } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 
@@ -25,6 +26,7 @@ export const courseKeys = {
   sections: (courseId: string) => [...courseKeys.detail(courseId), 'sections'] as const,
   lessons: (sectionId: string) => ['sections', sectionId, 'lessons'] as const,
   lessonDetail: (lessonId: string) => ['lessons', 'detail', lessonId] as const,
+  lessonTranscript: (lessonId: string) => ['lessons', 'transcript', lessonId] as const,
 };
 
 export const courseApi = {
@@ -95,6 +97,18 @@ export const courseApi = {
   },
   async getLessonById(id: string): Promise<ILesson> {
     const res = await apiClient.get<IApiResponse<ILesson>>(`/lessons/${id}`);
+    return res.data.data;
+  },
+  async getLessonTranscript(lessonId: string): Promise<ILessonTranscript> {
+    const res = await apiClient.get<IApiResponse<ILessonTranscript>>(
+      `/lessons/${lessonId}/transcript`,
+    );
+    return res.data.data;
+  },
+  async retryLessonTranscription(lessonId: string): Promise<null> {
+    const res = await apiClient.post<IApiResponse<null>>(
+      `/lessons/${lessonId}/transcript/retry`,
+    );
     return res.data.data;
   },
   async uploadLessonMaterial(
@@ -227,6 +241,49 @@ export function useLessonDetailQuery(id: string) {
     queryKey: courseKeys.lessonDetail(id),
     queryFn: () => courseApi.getLessonById(id),
     enabled: Boolean(id),
+  });
+}
+
+export function useLessonTranscriptQuery(lessonId?: string) {
+  return useQuery({
+    queryKey: courseKeys.lessonTranscript(lessonId || ''),
+    queryFn: () => courseApi.getLessonTranscript(lessonId || ''),
+    enabled: Boolean(lessonId),
+    staleTime: 60 * 1000,
+    retry: (failureCount, error) => {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 404) return false;
+      return failureCount < 2;
+    },
+  });
+}
+
+export function useRetryLessonTranscriptionMutation(lessonId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => courseApi.retryLessonTranscription(lessonId || ''),
+    onSuccess: () => {
+      if (lessonId) {
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.lessonTranscript(lessonId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.lessonDetail(lessonId),
+        });
+      }
+      toast.success('Đã gửi yêu cầu trích xuất lại transcript!');
+    },
+    onError: (error: unknown) => {
+      const axiosError = error as {
+        response?: { data?: { message?: string | string[] } };
+      };
+      const raw = axiosError.response?.data?.message;
+      const msg = Array.isArray(raw) ? raw.join(', ') : raw;
+      toast.error('Lỗi yêu cầu trích xuất transcript', {
+        description: msg || 'Không thể gửi yêu cầu trích xuất lúc này. Vui lòng thử lại sau.',
+      });
+    },
   });
 }
 
