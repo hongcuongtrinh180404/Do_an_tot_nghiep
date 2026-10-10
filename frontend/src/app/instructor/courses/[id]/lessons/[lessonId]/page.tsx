@@ -25,6 +25,7 @@ export default async function InstructorLessonDetailPage({
         courseId={id}
         lessonId={lessonId}
         backUrl={`/instructor/courses/${id}`}
+        isInstructor={true}
       />
     </main>
   );

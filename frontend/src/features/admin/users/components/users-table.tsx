@@ -8,7 +8,7 @@ import {
   type PaginationState,
 } from '@tanstack/react-table';
 import { BaseDataTable, useDataTableUrlState } from '@/components/shared/data-table';
-import { userColumns } from '../columns';
+import { userColumns } from './user-columns';
 import { UsersTableToolbar } from './users-table-toolbar';
 import { useAdminUsersQuery } from '../api/users-admin.api';
 

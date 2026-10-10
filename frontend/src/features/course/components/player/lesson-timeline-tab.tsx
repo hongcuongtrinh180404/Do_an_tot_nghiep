@@ -237,7 +237,7 @@ export function LessonTimelineTab({
         ref={containerRef}
         onWheel={handleUserManualScroll}
         onTouchMove={handleUserManualScroll}
-        className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2 select-text"
+        className="flex-1 min-h-0 overflow-y-auto px-2 py-2.5 space-y-1.5 select-text"
       >
         {/* Render Database Sentences */}
         {hasSentences ? (
@@ -263,44 +263,34 @@ export function LessonTimelineTab({
                   }}
                   type="button"
                   onClick={() => handleSentenceClick(item.start, originalIndex)}
-                  className={`w-full text-left p-2.5 rounded-xl border transition-all duration-150 flex items-start gap-2.5 cursor-pointer group ${
+                  className={`w-full text-left py-2 px-2.5 rounded-xl border transition-all duration-150 flex items-center gap-2.5 cursor-pointer group ${
                     isActive
-                      ? 'bg-sky-50 dark:bg-sky-950/40 border-sky-400 dark:border-sky-500 text-sky-950 dark:text-sky-100 shadow-2xs ring-2 ring-sky-500/40 dark:ring-sky-400/30'
+                      ? 'bg-indigo-50/40 dark:bg-indigo-950/20 border-[#c7d2fe] dark:border-indigo-400 text-foreground shadow-[0_4px_14px_0_rgba(99,102,241,0.25)]'
                       : isPassed
                         ? 'bg-card hover:bg-muted/40 border-border/60 text-muted-foreground hover:text-foreground'
                         : 'bg-card hover:bg-muted/60 border-border/80 text-foreground'
                   }`}
                 >
-                  {/* Timestamp Badge */}
-                  <div
-                    className={`shrink-0 px-2 py-0.5 rounded-md font-mono text-[11px] font-bold flex items-center gap-1 border transition-colors ${
+                  {/* Timestamp Pill Badge */}
+                  <span
+                    className={`shrink-0 px-2.5 py-0.5 rounded-full font-mono text-[11px] font-semibold border transition-colors ${
                       isActive
-                        ? 'bg-sky-500 text-white border-sky-600 shadow-2xs'
+                        ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 font-bold'
                         : isPassed
                           ? 'bg-muted/50 border-border/70 text-muted-foreground group-hover:text-foreground'
-                          : 'bg-muted border-border text-muted-foreground group-hover:text-foreground'
+                          : 'bg-muted/80 border-border text-muted-foreground group-hover:text-foreground'
                     }`}
                   >
-                    <Icon
-                      icon={
-                        isActive
-                          ? 'lucide:volume-2'
-                          : isPassed
-                            ? 'lucide:check'
-                            : 'lucide:play'
-                      }
-                      className={`size-3 ${isActive ? 'animate-pulse text-white' : 'text-muted-foreground'}`}
-                    />
-                    <span>{formatTime(item.start / 1000)}</span>
-                  </div>
+                    {formatTime(item.start / 1000)}
+                  </span>
 
                   {/* Sentence Content */}
-                  <div className="flex-1 min-w-0 pt-0.5">
+                  <div className="flex-1 min-w-0">
                     <p
                       title={item.text}
                       className={`text-xs leading-relaxed line-clamp-2 ${
                         isActive
-                          ? 'font-semibold text-sky-950 dark:text-sky-100'
+                          ? 'font-medium text-indigo-950 dark:text-indigo-100'
                           : isPassed
                             ? 'font-normal text-muted-foreground group-hover:text-foreground'
                             : 'font-normal text-foreground'
@@ -308,13 +298,6 @@ export function LessonTimelineTab({
                     >
                       {item.text}
                     </p>
-
-                    {isActive && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-sky-600 dark:text-sky-400 mt-1">
-                        <span className="size-1.5 rounded-full bg-sky-500 animate-ping" />
-                        Đang nói câu này
-                      </span>
-                    )}
                   </div>
                 </button>
               );
@@ -324,36 +307,31 @@ export function LessonTimelineTab({
           /* Fallback: Render Markers when no sentences available */
           fallbackMarkers.map((marker, index) => {
             const isActive = activeIndex === index;
-            const isPassed = currentTime > marker.time;
 
             return (
               <button
                 key={index}
                 type="button"
                 onClick={() => onSeek(marker.time)}
-                className={`w-full text-left p-2.5 rounded-xl border transition-all duration-150 flex items-start gap-3 cursor-pointer group ${
+                className={`w-full text-left py-2 px-2.5 rounded-xl border transition-all duration-150 flex items-center gap-2.5 cursor-pointer group ${
                   isActive
-                    ? 'bg-sky-50 dark:bg-sky-950/40 border-sky-300 dark:border-sky-800 text-sky-950 dark:text-sky-100 shadow-2xs ring-1 ring-sky-500/20'
+                    ? 'bg-indigo-50/40 dark:bg-indigo-950/20 border-[#c7d2fe] dark:border-indigo-400 text-foreground shadow-[0_4px_14px_0_rgba(99,102,241,0.25)]'
                     : 'bg-card hover:bg-muted/50 border-border/80 text-foreground'
                 }`}
               >
-                <div
-                  className={`shrink-0 px-2 py-1 rounded-md font-mono text-[11px] font-bold flex items-center gap-1 border transition-colors ${
+                <span
+                  className={`shrink-0 px-2.5 py-0.5 rounded-full font-mono text-[11px] font-semibold border transition-colors ${
                     isActive
-                      ? 'bg-sky-500/20 border-sky-500/40 text-sky-700 dark:text-sky-300'
-                      : 'bg-muted border-border text-muted-foreground group-hover:text-foreground'
+                      ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 font-bold'
+                      : 'bg-muted/80 border-border text-muted-foreground group-hover:text-foreground'
                   }`}
                 >
-                  <Icon
-                    icon={isActive ? 'lucide:play' : isPassed ? 'lucide:check' : 'lucide:clock'}
-                    className={`size-3 ${isActive ? 'text-sky-600 fill-current' : 'text-muted-foreground'}`}
-                  />
-                  <span>{formatTime(marker.time)}</span>
-                </div>
-                <div className="flex-1 min-w-0 pt-0.5">
+                  {formatTime(marker.time)}
+                </span>
+                <div className="flex-1 min-w-0">
                   <p
                     className={`text-xs leading-relaxed line-clamp-2 ${
-                      isActive ? 'font-semibold text-sky-900 dark:text-sky-200' : 'font-medium text-foreground'
+                      isActive ? 'font-medium text-indigo-950 dark:text-indigo-100' : 'font-normal text-foreground'
                     }`}
                   >
                     {marker.label}

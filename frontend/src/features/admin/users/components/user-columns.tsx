@@ -6,8 +6,8 @@ import type { ColumnDef } from '@tanstack/react-table';
 import type { IUserProfile } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { DataTableColumnHeader } from '@/components/shared/data-table';
-import { UserRoleBadge, UserStatusBadge } from './components/users-status-badge';
-import { UsersTableRowActions } from './components/users-row-actions';
+import { UserRoleBadge, UserStatusBadge } from './users-status-badge';
+import { UsersTableRowActions } from './users-row-actions';
 
 function UserNameCell({ user }: { user: IUserProfile }): React.JSX.Element {
   const router = useRouter();

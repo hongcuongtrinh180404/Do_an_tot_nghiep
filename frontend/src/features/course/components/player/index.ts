@@ -6,4 +6,8 @@ export * from './lesson-curriculum-tab';
 export * from './lesson-nav-sidebar';
 export * from './lesson-tabs-container';
 export * from './lesson-player-top-bar';
+export * from './lesson-timeline-pin-marker';
+export * from './create-quiz-marker-modal';
+export * from './in-video-quiz-prompt-overlay';
+export * from './student-in-video-quiz-modal';
 export * from './lesson-player-studio';

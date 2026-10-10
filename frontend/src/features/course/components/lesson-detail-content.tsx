@@ -13,12 +13,14 @@ interface LessonDetailContentProps {
   courseId: string;
   lessonId: string;
   backUrl?: string;
+  isInstructor?: boolean;
 }
 
 export function LessonDetailContent({
   courseId,
   lessonId,
   backUrl,
+  isInstructor = true,
 }: LessonDetailContentProps): React.JSX.Element {
   const defaultBackUrl = backUrl || `/instructor/courses/${courseId}`;
   const { data: lesson, isLoading, isError, error, refetch } = useLessonDetailQuery(lessonId);
@@ -88,6 +90,7 @@ export function LessonDetailContent({
       courseId={courseId}
       lesson={lesson}
       backUrl={defaultBackUrl}
+      isInstructor={isInstructor}
     />
   );
 }

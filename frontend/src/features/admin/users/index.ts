@@ -1,6 +1,6 @@
 export * from './constants/user-filter-options';
 export * from './schemas/user-admin.schema';
-export * from './columns';
+export * from './components/user-columns';
 export * from './components/users-table';
 export * from './components/users-table-toolbar';
 export * from './components/users-status-badge';

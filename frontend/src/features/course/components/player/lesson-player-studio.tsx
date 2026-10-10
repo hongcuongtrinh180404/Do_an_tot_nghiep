@@ -19,12 +19,14 @@ interface LessonPlayerStudioProps {
   courseId: string;
   lesson: ILesson;
   backUrl?: string;
+  isInstructor?: boolean;
 }
 
 export function LessonPlayerStudio({
   courseId,
   lesson,
   backUrl,
+  isInstructor = true,
 }: LessonPlayerStudioProps): React.JSX.Element {
   const defaultBackUrl = backUrl || `/instructor/courses/${courseId}`;
 
@@ -141,10 +143,12 @@ export function LessonPlayerStudio({
               player={player}
               videoUrl={lesson.content?.url}
               lessonTitle={lesson.title}
+              lessonId={lesson.id || (lesson as unknown as { _id?: string })._id}
               isDocument={isDocument}
               documentUrl={lesson.content?.url}
               documentFileName={lesson.content?.fileName}
               timelineMarkers={timelineMarkers}
+              isInstructor={isInstructor}
             />
           </section>
 
@@ -172,9 +176,9 @@ export function LessonPlayerStudio({
           </aside>
         </div>
 
-        {/* 3. Bottom Tier: Full-width 3 Tabs Standalone Card */}
+        {/* 3. Bottom Tier: Full-width 4 Tabs Standalone Card (Summary, Mindmap, Quizz, Chatbot) */}
         <section
-          aria-label="Bảng chuyển đổi Tab mở rộng"
+          aria-label="Bảng chuyển đổi 4 Tab chi tiết bài học"
           className="w-full bg-card border border-border rounded-2xl shadow-xs overflow-hidden flex flex-col min-h-[360px]"
         >
           <LessonTabsContainer />
