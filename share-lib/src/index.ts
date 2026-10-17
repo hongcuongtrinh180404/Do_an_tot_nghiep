@@ -18,7 +18,9 @@ export * from './interfaces/section.interface.js';
 export * from './interfaces/lesson.interface.js';
 export * from './interfaces/lesson-transcript.interface.js';
 export * from './interfaces/course-mindmap.interface.js';
+export * from './interfaces/lesson-mindmap.interface.js';
 export * from './interfaces/lesson-quiz.interface.js';
+export * from './interfaces/lesson-summary.interface.js';
 
 // Constants
 export * from './constants/auth.constants.js';

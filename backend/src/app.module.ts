@@ -12,6 +12,8 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { CourseModule } from './modules/course/course.module.js';
 import { StorageModule } from './modules/storage/storage.module.js';
 import { AssemblyAiModule } from './modules/assemblyai/assemblyai.module.js';
+import { GeminiModule } from './modules/gemini/gemini.module.js';
+import { TranscriptAnalysisModule } from './modules/transcript-analysis/transcript-analysis.module.js';
 
 @Module({
   imports: [
@@ -35,10 +37,12 @@ import { AssemblyAiModule } from './modules/assemblyai/assemblyai.module.js';
     BaseModule,
     StorageModule,
     AssemblyAiModule,
+    GeminiModule,
     UserModule,
     SessionModule,
     AuthModule,
     CourseModule,
+    TranscriptAnalysisModule,
   ],
   controllers: [AppController],
   providers: [AppService],

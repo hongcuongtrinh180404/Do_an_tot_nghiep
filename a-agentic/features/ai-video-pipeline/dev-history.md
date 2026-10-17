@@ -100,3 +100,118 @@
   - **Sentences API Format**: AssemblyAI trả về `SentencesResponse` chứa mảng `TranscriptSentence[]`. Mỗi phần tử có `text`, `start` và `end` tính bằng mili-giây, rất thuận tiện để frontend hiển thị highlight đồng bộ với video player theo từng câu.
   - **Data Sanitization**: Luôn áp dụng `.trim()` cho `text` của từng câu để đảm bảo không bị thừa khoảng trắng ở đầu/cuối chuỗi câu do AssemblyAI trả về.
 
+---
+
+## 6. Dev History: Core Gemini AI Infrastructure & Key Rotation Manager (2026-10-11)
+
+- **Bối cảnh & Động lực**:
+  - Chuẩn bị nền tảng AI phân tích transcript video bài giảng sang Mindmap, In-video Quiz và Summary.
+  - Quản lý 6 API key thuộc 6 Google AI Studio project riêng biệt trên backend mà không làm lộ key ra frontend hoặc console log.
+  - Xử lý thông minh các trường hợp Rate Limit (429), Dead Key (400/403) và Fail-fast đối với lỗi request tham số sai (400 Invalid Argument) hoặc model không tồn tại (404).
+- **Các thay đổi cốt lõi**:
+  - **`backend/src/config/env.validation.ts` & `.env.example`**:
+    - Bổ sung validation schema cho `GEMINI_MODEL` (mặc định: `gemini-2.5-flash`), `GEMINI_API_KEY`, và `GEMINI_API_KEY_1` đến `GEMINI_API_KEY_6`.
+  - **`backend/src/modules/gemini/`**:
+    - `gemini.errors.ts`: Hệ thống phân cấp exception kế thừa `HttpException`: `GeminiRateLimitException` (429), `GeminiAuthException` (401), `GeminiInvalidRequestException` (400), `GeminiModelNotFoundException` (404), `GeminiServiceUnavailableException` (503), `GeminiResponseParsingException` (422), `GeminiAllKeysExhaustedException` (429).
+    - `gemini-key.manager.ts` (`GeminiKeyManager`): Quản lý 6 key bằng thuật toán Round-Robin có kiểm tra sức khỏe; hỗ trợ Cooldown tăng dần theo cấp số nhân (30s -> 60s -> 120s -> max 5 phút) khi gặp 429; tự động phục hồi key khi hết hạn cooldown; đánh dấu `DEAD` khi key sai/bị thu hồi; mask key `AIzaSy...4aB2` an toàn cho logging.
+    - `gemini.service.ts` (`GeminiService`): Gọi SDK `@google/genai` với cache client per key; hỗ trợ `generateContent` và `generateJson<T>`; làm sạch markdown code fence ````json ... ````; retry tối đa 3 lần xoay vòng key khi gặp rate limit/service unavailable; fail-fast ngay lập tức đối với lỗi prompt/model.
+    - `gemini.module.ts`: Đăng ký provider và export vào `AppModule`.
+  - **Testing**:
+    - Viết 19 unit tests bao phủ 100% case cho `GeminiKeyManager` và `GeminiService`. Toàn bộ 36 test files (441 tests) của backend pass thành công.
+- **Technical Notes & Gotchas**:
+  - **Vitest Mocking Constructor**: Giống như AssemblyAI SDK, mock class `GoogleGenAI` trong Vitest bắt buộc phải dùng syntax `class MockGoogleGenAI {}` hoặc `function MockGoogleGenAI() {}` thay vì arrow function để tương thích với toán tử `new GoogleGenAI({ apiKey })`.
+  - **Fail-Fast vs Rotate Key**: Không phải lỗi nào cũng được đổi key. Lỗi 400 `INVALID_ARGUMENT` (prompt quá dài hoặc schema lỗi) và 404 (sai tên model) là lỗi do request/cấu hình, đổi key khác cũng sẽ gặp lỗi tương tự nên bắt buộc phải dừng ngay lập tức (fail-fast) để tránh lãng phí quota của các key còn lại.
+
+---
+
+## 7. Dev History: Lesson Mindmap Analysis via Gemini & Draft Management (2026-10-11)
+
+- **Bối cảnh & Động lực**:
+  - Triển khai thí điểm tính năng sinh sơ đồ tư duy (Mindmap) bài giảng từ transcript video có sẵn trong MongoDB.
+  - Cấu trúc cây JSON tối đa 3 cấp từ root, mỗi node bắt buộc có `id`, `title`, và `timestamp` (giây) bám sát timeline transcript để người học click vào node thì video nhảy đến thời điểm tương ứng.
+  - Hỗ trợ lưu bản nháp (`draftMindmap`) để giảng viên thử nghiệm prompt mà không ghi đè dữ liệu chính thức của học viên.
+- **Các thay đổi cốt lõi**:
+  - **`share-lib`**:
+    - Định nghĩa `ILessonMindmapNode`, `ILessonMindmapData`, `ILessonMindmap`.
+    - Build thành công `share-lib` distribution.
+  - **`backend/src/modules/course/`**:
+    - `LessonMindmapEntity` (`lesson_mindmaps` collection), kế thừa `BaseAbstractDocument`, index unique `{ lessonId: 1 }`.
+    - `LessonMindmapRepository` (`BaseMongoRepository`): `findByLessonId`, `saveDraftByLessonId`, `applyDraftByLessonId`, `upsertOfficialByLessonId`.
+    - Đăng ký và export qua `CourseModule`.
+  - **`backend/src/modules/transcript-analysis/`**:
+    - `MindmapValidator`: Kiểm tra đệ quy cấu trúc cây (đúng node root, không vượt quá 3 cấp, timestamp trong `[0, durationSeconds]`).
+    - `MindmapAnalysisService`: Đổi timestamp mili-giây từ transcript thành `[mm:ss - Xs]`, dựng prompt tiếng Việt chuyên biệt, gọi `geminiService.generateJson<ILessonMindmapData>`, validate và lưu nháp.
+    - `TranscriptAnalysisController`:
+      - `POST /api/v1/lessons/:id/analysis/mindmap` (`INSTRUCTOR`, `ADMIN`): Sinh Mindmap mới.
+      - `GET /api/v1/lessons/:id/analysis/mindmap` (`Public`): Xem sơ đồ bài học.
+      - `POST /api/v1/lessons/:id/analysis/mindmap/apply` (`INSTRUCTOR`, `ADMIN`): Áp dụng bản nháp thành chính thức.
+    - Đăng ký `TranscriptAnalysisModule` vào `AppModule`.
+  - **Testing**:
+    - Viết 21 unit tests bao phủ `MindmapValidator`, `MindmapAnalysisService` và `TranscriptAnalysisController`.
+    - Toàn bộ 39 test files (462 tests) của backend pass 100%. Linter hoàn tất với 0 errors.
+- **Technical Notes & Gotchas**:
+  - **AssemblyAI Milliseconds vs Video Player Seconds**: Dữ liệu sentences trong MongoDB lưu theo mili-giây (`start: 75000`), cần convert sang giây (`75s`) khi đưa vào prompt để Gemini trả về số nguyên `timestamp: 75` đồng bộ với video player `currentTime`.
+  - **Depth Boundary Enforcement**: Node tại Level 3 (nhánh lá cuối cùng) tuyệt đối không được chứa mảng `children` có phần tử, đảm bảo sơ đồ không bị phình to làm vỡ layout giao diện.
+
+---
+
+## 8. Dev History: In-Video Quiz & Lesson Summary Integration via Gemini (2026-10-11)
+
+- **Bối cảnh & Động lực**:
+  - Hoàn thiện Giai đoạn 3 trong pipeline phân tích transcript bài học: Sinh 10 câu trắc nghiệm (Quiz) và Bản tóm tắt bài giảng (Summary) từ transcript video trong MongoDB.
+  - Mỗi câu hỏi trắc nghiệm có đúng 4 lựa chọn (A, B, C, D), đúng 1 đáp án `isCorrect: true`, có mốc `timestamp` dừng video và phần `explanation` sư phạm.
+  - Bản tóm tắt gồm `title`, `overview`, `keyPoints` (mỗi ý chính gắn mốc giây tương ứng) và `conclusion`.
+  - Cơ chế Lưu nháp (`draft`) và Xem trước (`preview`) độc lập, cho phép giảng viên test prompt thoải mái mà không ghi đè dữ liệu đang phục vụ học viên cho đến khi bấm "Áp dụng".
+- **Các thay đổi cốt lõi**:
+  - **`share-lib`**:
+    - Mở rộng `lesson-quiz.interface.ts`: `IGeneratedQuizOption`, `IGeneratedQuizItem`, `ILessonQuizDraft`.
+    - Tạo mới `lesson-summary.interface.ts`: `ILessonSummaryKeyPoint`, `ILessonSummaryData`, `ILessonSummary`.
+    - Re-export và build thành công `pnpm --filter share-lib build`.
+  - **Database & Persistence**:
+    - `LessonSummaryEntity` (`lesson_summaries`) & `LessonSummaryRepository` (`findByLessonId`, `saveDraftByLessonId`, `applyDraftByLessonId`, `upsertOfficialByLessonId`).
+    - `LessonQuizDraftEntity` (`lesson_quiz_drafts`) & `LessonQuizDraftRepository` (`findByLessonId`, `saveDraftByLessonId`, `clearDraftByLessonId`).
+    - Bổ sung `replaceAllQuizzesForLesson` vào `LessonQuizRepository` phục vụ thao tác Apply ghi đè toàn bộ quiz của bài học theo MongoDB atomic session.
+    - Đăng ký đầy đủ các Schemas và Repositories vào `CourseModule`.
+  - **Validation & Business Logic**:
+    - `QuizValidator`: Xác thực nghiêm ngặt đúng 10 câu hỏi, mỗi câu 4 options, đúng 1 option `isCorrect = true`, timestamp trong `[0, durationSeconds + 5]`.
+    - `SummaryValidator`: Xác thực đầy đủ `title`, `overview`, `keyPoints` (mỗi ý có title, content, timestamp), `conclusion`.
+    - `QuizGenerationService`: Dựng prompt sinh 10 câu trắc nghiệm bám sát timeline, gọi `geminiService.generateJson<{ quizzes: IGeneratedQuizItem[] }>`, validate và lưu nháp.
+    - `SummaryGenerationService`: Dựng prompt tóm tắt sư phạm, gọi `geminiService.generateJson<ILessonSummaryData>`, validate và lưu nháp.
+  - **Endpoints API**:
+    - `POST /api/v1/lessons/:id/analysis/quiz` & `GET /api/v1/lessons/:id/analysis/quiz` (lấy draft) & `POST /api/v1/lessons/:id/analysis/quiz/apply`.
+    - `POST /api/v1/lessons/:id/analysis/summary` & `GET /api/v1/lessons/:id/analysis/summary` (Public) & `POST /api/v1/lessons/:id/analysis/summary/apply`.
+    - Đăng ký vào `TranscriptAnalysisController` và `TranscriptAnalysisModule`.
+  - **Testing & Quality Assurance**:
+    - Viết 37 unit tests mới cho `quiz.validator.spec.ts`, `summary.validator.spec.ts`, `quiz-generation.service.spec.ts`, `summary-generation.service.spec.ts`, và mở rộng `transcript-analysis.controller.spec.ts`.
+    - Toàn bộ backend test suite: **43 test files, 499 tests pass 100%**. Linter sạch 0 errors.
+- **Technical Notes & Gotchas**:
+  - **Quiz Draft Isolation**: Lưu bản nháp quiz tại collection riêng `lesson_quiz_drafts` thay vì chèn trực tiếp vào `lesson_quizzes` với cờ draft để tránh xung đột với API lấy bài tập video của học viên (`GET /lessons/:id/quizzes`). Khi bấm Apply, hệ thống thực hiện soft-delete các quiz cũ và chèn mới trong 1 lượt ghi để đảm bảo tính nhất quán.
+  - **Summary KeyPoints Timestamps**: Các ý chính của tóm tắt cũng được gắn mốc giây tương ứng, cho phép học viên click vào từng ý chính trên tab tóm tắt để tua video tới phân đoạn kiến thức đó.
+
+---
+
+## 9. Dev History: Frontend Studio UI Integration for Mindmap, Quiz & Summary Tabs (2026-10-11)
+
+- **Bối cảnh & Động lực**:
+  - Triển khai Giai đoạn 4: Hoàn thiện giao diện người dùng tương tác trong Video Player Studio (`LessonTabsContainer`) cho cả 3 chế độ: Sơ đồ tư duy (Mindmap), Câu hỏi trắc nghiệm (Quizz), và Tóm tắt bài học (Summary).
+  - Tích hợp 3 nút "Test AI" độc lập trên tab bar để Giảng viên có thể thử nghiệm từng prompt phân tích riêng biệt theo nhu cầu.
+  - Hỗ trợ cơ chế "Xem trước bản nháp" (Draft Preview Banner) và nút "Áp dụng vào bài học" (Apply) để chỉ cập nhật kết quả chính thức cho học viên khi giảng viên xác nhận hài lòng.
+  - Đồng bộ mốc giây tương tác: người học nhấp vào bất kỳ node sơ đồ, câu trắc nghiệm hay ý chính nào, video player sẽ tua ngay tới thời điểm tương ứng (`currentTime`).
+- **Các thay đổi cốt lõi**:
+  - **`frontend/src/features/course/api/transcript-analysis.api.ts`**:
+    - Xây dựng React Query queries & mutations: `useLessonMindmapAnalysisQuery`, `useGenerateMindmapMutation`, `useApplyMindmapDraftMutation`, `useLessonQuizDraftQuery`, `useGenerateQuizMutation`, `useApplyQuizDraftMutation`, `useLessonSummaryQuery`, `useGenerateSummaryMutation`, `useApplySummaryDraftMutation`.
+    - Tự động invalidate query keys và hiển thị toasts thông báo thành công hoặc lỗi chi tiết.
+  - **`frontend/src/features/course/components/player/tabs/`**:
+    - `lesson-mindmap-tab.tsx`: Hiển thị cây phân cấp tương tác (Root, Chủ đề cấp 1, Ý chi tiết cấp 2, Từ khóa cấp 3), nút tua video `[mm:ss]`, banner bản nháp màu hổ phách, nút chuyển đổi xem bản chính thức / bản nháp, nút "Áp dụng vào bài học", và nút "Sinh Mindmap bằng AI".
+    - `lesson-quiz-tab.tsx`: Hiển thị danh sách 10 câu hỏi trắc nghiệm bám sát timeline video, thẻ câu hỏi, 4 lựa chọn (A/B/C/D) với icon check và border xanh lục (emerald) cho đáp án đúng, khung giải thích chi tiết (explanation), banner bản nháp, và nút "Áp dụng làm chính thức".
+    - `lesson-summary-tab.tsx`: Hiển thị tổng quan (Overview), danh sách các ý chính (Key Points) kèm thẻ tua video `[mm:ss]`, khung kết luận sư phạm (Conclusion), banner bản nháp, và nút "Áp dụng làm chính thức".
+    - `index.ts`: Re-export toàn bộ components tabs.
+  - **`frontend/src/features/course/components/player/lesson-tabs-container.tsx`**:
+    - Nhúng 3 tab con hoàn chỉnh vào horizontal tab bar.
+    - Gắn sự kiện `handleTestAi` cho 3 nút "Test AI" trên tab bar, tự động kích hoạt mutation tương ứng và chuyển tab.
+  - **`frontend/src/features/course/components/player/lesson-player-studio.tsx`**:
+    - Kết nối `LessonTabsContainer` với `player.currentTime`, `player.duration`, và `player.seek` để đồng bộ thời gian thực khi người dùng click vào các timestamp.
+- **Testing & Quality Assurance**:
+  - `pnpm --filter frontend exec tsc --noEmit`: 100% Type-check thành công (0 errors).
+  - `pnpm --filter frontend lint`: 100% Lint passed (0 errors, 0 warnings).
+

@@ -175,5 +175,61 @@ export class LessonQuizRepository extends BaseMongoRepository<
 
     return res.modifiedCount || 0;
   }
+
+  /**
+   * Thay thế toàn bộ danh sách câu hỏi của bài học (thường dùng khi Apply từ bản nháp)
+   */
+  async replaceAllQuizzesForLesson(
+    lessonId: string,
+    quizzes: Array<{
+      timestamp: number;
+      order: number;
+      question: string;
+      questionType: QuizQuestionTypeEnum;
+      options: ILessonQuiz['options'];
+      explanation?: string | null;
+    }>,
+    session?: ClientSession,
+  ): Promise<ILessonQuiz[]> {
+    const lessonObjectId = Types.ObjectId.isValid(lessonId)
+      ? new Types.ObjectId(lessonId)
+      : lessonId;
+
+    // 1. Soft-delete tất cả câu hỏi cũ của bài học
+    await this.model
+      .updateMany(
+        {
+          lessonId: lessonObjectId,
+          deletedAt: null,
+        } as Record<string, unknown>,
+        {
+          $set: { deletedAt: new Date() },
+        },
+      )
+      .session(session ?? null)
+      .exec();
+
+    if (quizzes.length === 0) {
+      return [];
+    }
+
+    // 2. Chèn danh sách câu hỏi mới
+    const documentsToInsert = quizzes.map((q) => ({
+      lessonId: lessonObjectId,
+      timestamp: q.timestamp,
+      order: q.order,
+      question: q.question,
+      questionType: q.questionType,
+      options: q.options,
+      explanation: q.explanation || null,
+      deletedAt: null,
+    }));
+
+    const insertedDocs = await this.model.insertMany(documentsToInsert, {
+      session: session ?? undefined,
+    });
+
+    return insertedDocs.map((d) => this.toDomain(d as unknown as LessonQuizEntity));
+  }
 }
 

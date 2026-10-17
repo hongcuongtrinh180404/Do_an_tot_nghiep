@@ -126,4 +126,14 @@
     - Tab 3 (Quizz): Icon `lucide:help-circle`, sẵn sàng kết nối danh sách câu hỏi trắc nghiệm của bài học.
     - Tab 4 (Chatbot): Icon `lucide:bot`, layout khung hội thoại AI với badge sẵn sàng kết nối trợ lý AI Gemini.
   - *Code Quality & Strict Rules:* Tuân thủ Purple Ban (chỉ dùng Sky Blue / Neutral Slate), không dùng type `any`, `npx tsc --noEmit` pass 100%.
-
+- **Bổ Sung Nút "Test AI (Gemini)" Bên Cạnh Mỗi Tab Bài Học Cho Giảng Viên**:
+  - *Mục tiêu:* Tạo giao diện nút tác vụ trực tiếp trên thanh điều hướng Tab Bar bên cạnh từng tab (`1 Summary`, `2 Mindmap`, `3 Quizz`, `4 Chatbot`) để chuẩn bị cho việc kiểm thử gọi API Gemini độc lập cho từng tính năng.
+  - *Thiết kế Giao diện & Tương tác:*
+    - Nút tác vụ dạng pill bo góc tinh tế với icon `lucide:sparkles` và nhãn `Test AI`.
+    - Màu sắc tuân thủ Purple Ban: Sử dụng token Sky Blue (`bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/25 hover:bg-sky-500 hover:text-white`).
+    - Ngăn chặn xung đột sự kiện: Thao tác click được bọc `e.stopPropagation()` để không kích hoạt nhầm thao tác chuyển tab.
+    - Responsive: Tự động thu gọn hiển thị icon `✨` trên màn hình nhỏ (< 640px) và hiển thị đầy đủ `✨ Test AI` trên màn hình rộng để thanh điều hướng 4 cột luôn thẳng hàng, không bị tràn mép.
+- **Tinh Chỉnh Tinh Gọn: Loại Bỏ Tab Chatbot, Chuyển Sang Bố Cục 3 Tab Cốt Lõi (Summary, Mindmap, Quizz)**:
+  - *Thay đổi:* Loại bỏ cấu hình tab `chatbot` khỏi mảng `TABS`, chuyển thanh điều hướng từ `grid-cols-4` sang `grid-cols-3`.
+  - *Mục tiêu:* Tập trung vào 3 tính năng cốt lõi được trích xuất trực tiếp từ video (`1 Summary`, `2 Mindmap`, `3 Quizz`) kèm theo 3 nút `✨ Test AI` tương ứng.
+  - *Kiểm tra:* TypeScript strict, responsive đều 3 cột trên cả mobile và desktop.

@@ -3,8 +3,10 @@ packages:
   - 'frontend'
   - 'share-lib'
 allowBuilds:
+  '@google/genai': false
   bcrypt: true
   esbuild: true
+  protobufjs: false
   unrs-resolver: true
 onlyBuiltDependencies:
   - bcrypt

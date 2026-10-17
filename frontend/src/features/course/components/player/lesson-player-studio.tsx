@@ -176,12 +176,18 @@ export function LessonPlayerStudio({
           </aside>
         </div>
 
-        {/* 3. Bottom Tier: Full-width 4 Tabs Standalone Card (Summary, Mindmap, Quizz, Chatbot) */}
+        {/* 3. Bottom Tier: Full-width 3 Tabs Standalone Card (Summary, Mindmap, Quizz) */}
         <section
-          aria-label="Bảng chuyển đổi 4 Tab chi tiết bài học"
+          aria-label="Bảng chuyển đổi 3 Tab chi tiết bài học"
           className="w-full bg-card border border-border rounded-2xl shadow-xs overflow-hidden flex flex-col min-h-[360px]"
         >
-          <LessonTabsContainer />
+          <LessonTabsContainer
+            lessonId={lesson.id}
+            isInstructor={isInstructor}
+            currentTime={player.currentTime}
+            duration={player.duration}
+            onSeek={player.seek}
+          />
         </section>
       </div>
     </div>
