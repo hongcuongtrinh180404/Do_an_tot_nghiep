@@ -93,7 +93,7 @@ QUY TẮC CÂU HỎI TRẮC NGHIỆM BẮT BUỘC:
    - "order": Số nguyên từ 1 đến ${count}.
    - "timestamp": Mốc thời gian (tính bằng GIÂY, số nguyên từ 0 đến ${durationSeconds}) trong video xuất hiện kiến thức của câu hỏi đó để người học có thể dừng lại kiểm tra hoặc xem lại.
    - "question": Câu hỏi rõ ràng, bám sát nội dung bài giảng bằng tiếng Việt.
-   - "questionType": "SINGLE" (chỉ có 1 đáp án đúng).
+   - "questionType": "single" (chỉ có 1 đáp án đúng).
    - "options": Mảng đúng 4 lựa chọn (A, B, C, D).
      Mỗi lựa chọn gồm:
      + "id": Chuỗi định danh (ví dụ: "opt-1-A", "opt-1-B", ...)
@@ -110,7 +110,7 @@ QUY TẮC CÂU HỎI TRẮC NGHIỆM BẮT BUỘC:
       "order": 1,
       "timestamp": 25,
       "question": "Nội dung câu hỏi trắc nghiệm số 1?",
-      "questionType": "SINGLE",
+      "questionType": "single",
       "options": [
         { "id": "opt-1-A", "label": "A", "text": "Nội dung lựa chọn A", "isCorrect": true },
         { "id": "opt-1-B", "label": "B", "text": "Nội dung lựa chọn B", "isCorrect": false },
@@ -124,6 +124,85 @@ QUY TẮC CÂU HỎI TRẮC NGHIỆM BẮT BUỘC:
 
 TRANSCRIPT BÀI GIẢNG CÓ MỐC THỜI GIAN:
 ${formattedTranscript}`;
+  }
+
+  /**
+   * Chuẩn hóa và làm sạch dữ liệu câu hỏi AI trả về trước khi validate và lưu trữ
+   */
+  public sanitizeAndNormalizeQuizzes(
+    rawInput: unknown,
+    durationSeconds: number,
+    expectedCount = 10,
+  ): IGeneratedQuizItem[] {
+    let list: Array<Record<string, unknown>> = [];
+    if (Array.isArray(rawInput)) {
+      list = rawInput as Array<Record<string, unknown>>;
+    } else if (rawInput && typeof rawInput === 'object') {
+      const obj = rawInput as Record<string, unknown>;
+      if (Array.isArray(obj.quizzes)) {
+        list = obj.quizzes as Array<Record<string, unknown>>;
+      } else if (Array.isArray(obj.data)) {
+        list = obj.data as Array<Record<string, unknown>>;
+      } else if (Array.isArray(obj.questions)) {
+        list = obj.questions as Array<Record<string, unknown>>;
+      }
+    }
+
+    if (list.length > expectedCount) {
+      list = list.slice(0, expectedCount);
+    }
+
+    return list.map((item, index) => {
+      const order = Number(item.order) || index + 1;
+      let timestamp = Number(item.timestamp);
+      if (isNaN(timestamp)) {
+        timestamp = Math.floor((durationSeconds / (expectedCount + 1)) * (index + 1));
+      } else {
+        timestamp = Math.round(timestamp);
+        if (durationSeconds > 0 && timestamp > durationSeconds) {
+          timestamp = Math.min(durationSeconds, timestamp);
+        }
+        if (timestamp < 0) timestamp = 0;
+      }
+
+      const rawQType = (item.questionType || '').toString().toLowerCase();
+      const questionType =
+        rawQType === 'single' || !rawQType
+          ? QuizQuestionTypeEnum.SINGLE
+          : (item.questionType as QuizQuestionTypeEnum);
+
+      const options = Array.isArray(item.options)
+        ? (item.options as Array<Record<string, unknown>>).map((opt, optIdx) => {
+            const labels = ['A', 'B', 'C', 'D'];
+            const defaultLabel = labels[optIdx] || String.fromCharCode(65 + optIdx);
+            const label = (opt.label || defaultLabel).toString().trim().toUpperCase();
+            const id = opt.id
+              ? String(opt.id).trim()
+              : `opt-${order}-${label}`;
+            const text = (opt.text || '').toString().trim();
+            const isCorrect =
+              opt.isCorrect === true ||
+              opt.isCorrect === 'true' ||
+              opt.isCorrect === 1;
+
+            return {
+              id,
+              label,
+              text,
+              isCorrect,
+            };
+          })
+        : [];
+
+      return {
+        order,
+        timestamp,
+        question: (item.question || '').toString().trim(),
+        questionType,
+        options,
+        explanation: (item.explanation || '').toString().trim(),
+      };
+    });
   }
 
   /**
@@ -192,12 +271,17 @@ ${formattedTranscript}`;
       temperature: 0.25,
     });
 
-    const quizzes = geminiResult.data?.quizzes || [];
+    // 5. Chuẩn hóa và làm sạch dữ liệu AI trả về
+    const quizzes = this.sanitizeAndNormalizeQuizzes(
+      geminiResult.data,
+      durationSeconds,
+      count,
+    );
 
-    // 5. Kiểm tra chặt chẽ tính hợp lệ (10 câu, 4 options, 1 đúng, timestamp hợp lệ)
+    // 6. Kiểm tra tính hợp lệ
     QuizValidator.validateOrFail(quizzes, durationSeconds, count);
 
-    // 6. Lưu bản nháp (Draft) nếu được yêu cầu
+    // 7. Lưu bản nháp (Draft) nếu được yêu cầu
     const shouldSaveDraft = dto?.saveAsDraft ?? true;
     if (shouldSaveDraft) {
       await this.lessonQuizDraftRepo.saveDraftByLessonId(

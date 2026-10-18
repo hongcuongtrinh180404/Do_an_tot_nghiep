@@ -215,3 +215,83 @@
   - `pnpm --filter frontend exec tsc --noEmit`: 100% Type-check thành công (0 errors).
   - `pnpm --filter frontend lint`: 100% Lint passed (0 errors, 0 warnings).
 
+---
+
+## 10. Dev History: Fix Mindmap Prompt Template String Syntax Errors (2026-10-17)
+
+- **Bối cảnh & Triệu chứng**:
+  - Backend gặp lỗi biên dịch TypeScript (`nest build` thất bại với 25 lỗi cú pháp `TS1005: ';' expected`, `TS2304: Cannot find name 'start'`, `TS1443`).
+- **Nguyên nhân gốc rễ (Root Cause)**:
+  - Trong phương thức `buildMindmapPrompt` của [mindmap-analysis.service.ts](file:///d:/Download/hk1_2027/project_do_an/backend/src/modules/transcript-analysis/services/mindmap-analysis.service.ts), chuỗi prompt sử dụng template literal (bọc bằng dấu backtick \`...\`). Bên trong nội dung prompt tại các dòng mô tả quy tắc cấu trúc cây (mục III, IV) lại chứa các ký tự backtick không được escape (\`start\`, \`end\`, \`sentences\`, \`title\`, \`startTime\`).
+  - Dấu backtick này làm đóng chuỗi template literal sớm, khiến trình biên dịch TypeScript hiểu nhầm phần văn bản phía sau là mã TypeScript dẫn đến hàng loạt lỗi cú pháp.
+- **Giải pháp**:
+  - Chuyển toàn bộ các ký tự backtick bên trong chuỗi template literal sang dấu nháy kép chuẩn (`"start"`, `"end"`, `"sentences"`, `"title"`, `"timestamp"`).
+  - Chuẩn hóa tên trường trong quy tắc IV thành `"timestamp"` (đơn vị: giây) để đồng bộ hoàn toàn với cấu trúc dữ liệu `ILessonMindmapNode.timestamp` và `MindmapValidator`.
+- **Kiểm thử & Xác minh**:
+  - `pnpm --filter backend build`: Thành công 100% (0 errors).
+  - `pnpm --filter backend test`: 43 test files (499 unit/integration tests) pass 100%.
+
+---
+
+## 11. Dev History: Fix In-Video Quiz Generation Schema Case Sensitivity & Robust Sanitization (2026-10-17)
+
+- **Bối cảnh & Triệu chứng**:
+  - Khi người dùng/giảng viên bấm sinh câu hỏi Quiz bằng AI (`POST /api/v1/lessons/:id/analysis/quiz`), hệ thống phản hồi lỗi `422 Unprocessable Entity`:
+    `"Danh sách câu hỏi trắc nghiệm không hợp lệ: Câu hỏi số 1 có questionType không hợp lệ (yêu cầu "single").; ..."`
+  - Toàn bộ 10 câu hỏi sinh ra đều bị reject khiến bản nháp Quiz không được lưu và hiển thị trên giao diện.
+- **Nguyên nhân gốc rễ (Root Cause)**:
+  - Trong `buildQuizPrompt` ([quiz-generation.service.ts](file:///d:/Download/hk1_2027/project_do_an/backend/src/modules/transcript-analysis/services/quiz-generation.service.ts)), prompt hướng dẫn và mẫu JSON yêu cầu Gemini trả về `"questionType": "SINGLE"` (viết hoa).
+  - Tuy nhiên, trong `share-lib` định nghĩa `QuizQuestionTypeEnum.SINGLE = 'single'` (viết thường).
+  - Trong `QuizValidator` ([quiz.validator.ts](file:///d:/Download/hk1_2027/project_do_an/backend/src/modules/transcript-analysis/validators/quiz.validator.ts)), logic kiểm tra so sánh nghiêm ngặt `item.questionType !== QuizQuestionTypeEnum.SINGLE`, dẫn đến `'SINGLE' !== 'single'` và từ chối toàn bộ danh sách câu hỏi.
+- **Giải pháp**:
+  - **Prompt Fix**: Cập nhật `buildQuizPrompt` yêu cầu rõ ràng `"questionType": "single"` khớp chính xác với `QuizQuestionTypeEnum.SINGLE`.
+  - **Case-Insensitive Validation**: Cập nhật `QuizValidator.validate` chuẩn hóa `(item.questionType || '').toLowerCase()` để chấp nhận linh hoạt cả `'SINGLE'`, `'single'`, đồng thời hỗ trợ `isCorrect` dạng chuỗi boolean (`'true'`).
+  - **Dữ liệu AI Robust Sanitizer**: Bổ sung hàm `sanitizeAndNormalizeQuizzes` trong `QuizGenerationService`:
+    - Xử lý các biến thể đầu ra của Gemini: dạng mảng thuần `[...]` hoặc bọc trong `{ quizzes: [...] }`, `{ data: [...] }`, `{ questions: [...] }`.
+    - Tự động chuẩn hóa `timestamp` thành số nguyên làm tròn, clamp trong khoảng `[0, durationSeconds]`.
+    - Sinh fallback `id` cho từng option nếu thiếu: `opt-${order}-${label}`.
+    - Cắt gọn về đúng số lượng câu hỏi yêu cầu (`count`) nếu Gemini sinh thừa.
+- **Kiểm thử & Xác minh**:
+  - Mở rộng unit tests trong `quiz.validator.spec.ts` và `quiz-generation.service.spec.ts` bao phủ các trường hợp chữ hoa `'SINGLE'`, chuỗi boolean `'true'`, và hàm sanitizer.
+  - Chạy `pnpm --filter backend test`: 43 test files (**502 tests**) pass 100%.
+  - Gửi request thực tế tới backend live server: `POST /api/v1/lessons/6ad3918c7126d0485865d90b/analysis/quiz` phản hồi thành công `200 OK`, sinh đủ 10 câu hỏi chuẩn xác bám sát timeline bài học lịch sử.
+
+---
+
+## 12. Dev History: Lesson Summary Flow Redesign & Direct Inline Editing (2026-10-18)
+
+- **Bối cảnh & Động lực**:
+  - Chuyển đổi luồng hoạt động của tab Tóm tắt bài học (Summary): Bỏ bước trung gian "Chờ áp dụng" (loại bỏ banner màu hổ phách `Bản tóm tắt bài học mới từ AI đang chờ áp dụng` kèm 2 nút áp dụng / xem bản nháp).
+  - Khi AI sinh dữ liệu hoặc khi tải trang, tóm tắt tự động trở thành bản chính thức của bài học.
+  - Loại bỏ hoàn toàn khu vực "Kết luận & điểm ghi nhớ cốt lõi" (`conclusion`).
+  - Hỗ trợ Giảng viên chỉnh sửa trực tiếp (Inline Editing):
+    - Biểu tượng cây bút chì (`lucide:pencil`) trên từng card để sửa tiêu đề, mốc thời gian, nội dung.
+    - Biểu tượng dấu `+` (`lucide:plus`) trên thanh tiêu đề ý chính để thêm card mới (mặc định mốc `00:00`).
+    - Nút xóa (`lucide:trash-2`) trên từng card ý chính.
+- **Các thay đổi cốt lõi**:
+  - **`share-lib`**:
+    - `lesson-summary.interface.ts`: Chuyển `conclusion?: string` thành optional. Thêm interface `IUpdateLessonSummaryPayload`. Re-build `share-lib`.
+  - **`backend`**:
+    - `generate-summary.dto.ts`: Chuyển default `saveAsDraft` từ `true` sang `false` để tự động lưu chính thức.
+    - `update-summary.dto.ts`: Tạo mới `UpdateLessonSummaryDto` & `LessonSummaryKeyPointDto` với validation `class-validator` và whitespace trim.
+    - `summary.validator.ts`: Đổi kiểm tra `conclusion` thành optional (chỉ kiểm tra nếu có giá trị).
+    - `summary-generation.service.ts`:
+      - `buildSummaryPrompt`: Bỏ yêu cầu sinh `conclusion` để tập trung chất lượng trích xuất các ý chính then chốt.
+      - `generateSummary`: Mặc định lưu trực tiếp bản chính thức qua `lessonSummaryRepo.upsertOfficialByLessonId`.
+      - `updateSummary`: Cung cấp hàm cập nhật tóm tắt chính thức trực tiếp từ DTO của giảng viên.
+    - `transcript-analysis.controller.ts`: Bổ sung `@Put(':id/analysis/summary')` phân quyền `@Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)`.
+  - **`frontend`**:
+    - `transcript-analysis.api.ts`: Thêm method `updateSummary` và React Query hook `useUpdateSummaryMutation`. Đổi mặc định `generateSummary` thành `{ saveAsDraft: false }`.
+    - `lesson-summary-tab.tsx`:
+      - Loại bỏ banner hổ phách chờ áp dụng, nút chuyển đổi draft/official, và box kết luận.
+      - Chế độ Inline Edit cho Card Tổng quan (Title & Overview) với nút Lưu/Hủy riêng biệt.
+      - Nút `+ Thêm ý chính` trên header Key Points, khởi tạo mốc 00:00 và mở form nhập liệu ngay.
+      - Chế độ Inline Edit cho từng card ý chính với các trường Tiêu đề, Mốc thời gian (có nút tiện ích "Hiện tại" lấy timestamp video), Nội dung chi tiết.
+      - Nút xóa ý chính với validation giữ lại ít nhất 1 ý.
+      - Thêm tùy chọn "Soạn thủ công" ở trạng thái chưa có dữ liệu.
+- **Kiểm thử & Xác minh**:
+  - Backend tests: Toàn bộ unit tests cho `summary.validator.spec.ts` (9 tests), `summary-generation.service.spec.ts` (11 tests), `transcript-analysis.controller.spec.ts` (10 tests) pass 100%.
+  - Backend compile: `nest build` thành công 100% (0 errors).
+  - Frontend compile: `next build` thành công 100% (0 errors).
+
+

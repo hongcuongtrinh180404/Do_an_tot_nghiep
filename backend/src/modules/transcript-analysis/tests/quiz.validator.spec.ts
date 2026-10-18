@@ -27,6 +27,16 @@ describe('QuizValidator', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('should pass validation when questionType is uppercase SINGLE or isCorrect is string true', () => {
+    const validQuizzes = generateValidQuizzes(10);
+    (validQuizzes[0] as any).questionType = 'SINGLE';
+    (validQuizzes[0].options[0] as any).isCorrect = 'true';
+    (validQuizzes[0].options[1] as any).isCorrect = 'false';
+    const result = QuizValidator.validate(validQuizzes, 300, 10);
+    expect(result.isValid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
   it('should fail if quiz list count is not equal to expectedCount (e.g. 9 instead of 10)', () => {
     const invalidQuizzes = generateValidQuizzes(9);
     const result = QuizValidator.validate(invalidQuizzes, 300, 10);

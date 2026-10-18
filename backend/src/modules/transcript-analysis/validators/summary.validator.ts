@@ -33,9 +33,11 @@ export class SummaryValidator {
       errors.push('Bản tóm tắt thiếu tổng quan "overview" hoặc nội dung rỗng.');
     }
 
-    // 3. Kiểm tra conclusion
-    if (!data.conclusion || typeof data.conclusion !== 'string' || !data.conclusion.trim()) {
-      errors.push('Bản tóm tắt thiếu kết luận "conclusion" hoặc nội dung rỗng.');
+    // 3. Kiểm tra conclusion (tùy chọn)
+    if (data.conclusion !== undefined && data.conclusion !== null) {
+      if (typeof data.conclusion !== 'string' || !data.conclusion.trim()) {
+        errors.push('Bản tóm tắt có trường "conclusion" không hợp lệ.');
+      }
     }
 
     // 4. Kiểm tra keyPoints

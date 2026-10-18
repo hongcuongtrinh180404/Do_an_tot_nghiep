@@ -42,11 +42,18 @@ describe('SummaryValidator', () => {
     expect(result.errors.some((e) => e.includes('thiếu tổng quan "overview"'))).toBe(true);
   });
 
-  it('should fail if conclusion is missing or empty', () => {
-    const invalid = { ...validSummary, conclusion: ' ' };
+  it('should pass even if conclusion is omitted', () => {
+    const withoutConclusion = { ...validSummary, conclusion: undefined };
+    const result = SummaryValidator.validate(withoutConclusion, 300);
+    expect(result.isValid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('should fail if conclusion is provided as an empty string', () => {
+    const invalid = { ...validSummary, conclusion: '   ' };
     const result = SummaryValidator.validate(invalid, 300);
     expect(result.isValid).toBe(false);
-    expect(result.errors.some((e) => e.includes('thiếu kết luận "conclusion"'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('"conclusion" không hợp lệ'))).toBe(true);
   });
 
   it('should fail if keyPoints is empty', () => {

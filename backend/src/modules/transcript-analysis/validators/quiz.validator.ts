@@ -53,8 +53,9 @@ export class QuizValidator {
         }
       }
 
-      // 3. Kiểm tra questionType
-      if (item.questionType && item.questionType !== QuizQuestionTypeEnum.SINGLE) {
+      // 3. Kiểm tra questionType (chấp nhận cả 'single' và 'SINGLE')
+      const qType = (item.questionType || '').toString().toLowerCase();
+      if (qType && qType !== QuizQuestionTypeEnum.SINGLE) {
         errors.push(
           `Câu hỏi số ${qIndex} có questionType không hợp lệ (yêu cầu "${QuizQuestionTypeEnum.SINGLE}").`,
         );
@@ -73,7 +74,11 @@ export class QuizValidator {
               `Câu hỏi số ${qIndex}, lựa chọn thứ ${optIdx + 1} (${opt.label || 'unknown'}) thiếu nội dung "text".`,
             );
           }
-          if (opt.isCorrect === true) {
+          const isCorrect =
+            opt.isCorrect === true ||
+            (opt.isCorrect as unknown) === 'true' ||
+            (opt.isCorrect as unknown) === 1;
+          if (isCorrect) {
             correctCount++;
           }
         });

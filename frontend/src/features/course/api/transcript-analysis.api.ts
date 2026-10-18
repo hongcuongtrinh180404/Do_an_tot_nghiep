@@ -11,6 +11,7 @@ import type {
   IGeneratedQuizItem,
   ILessonSummary,
   ILessonSummaryData,
+  IUpdateLessonSummaryPayload,
 } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 import { lessonQuizKeys } from './lesson-quiz.api';
@@ -143,12 +144,23 @@ export const transcriptAnalysisApi = {
 
   async generateSummary(
     lessonId: string,
-    payload: { saveAsDraft?: boolean } = { saveAsDraft: true },
+    payload: { saveAsDraft?: boolean } = { saveAsDraft: false },
   ): Promise<ISummaryGenerationResponse> {
     const res = await apiClient.post<IApiResponse<ISummaryGenerationResponse>>(
       `/lessons/${lessonId}/analysis/summary`,
       payload,
       { timeout: 120000 },
+    );
+    return res.data.data;
+  },
+
+  async updateSummary(
+    lessonId: string,
+    payload: IUpdateLessonSummaryPayload,
+  ): Promise<ILessonSummary> {
+    const res = await apiClient.put<IApiResponse<ILessonSummary>>(
+      `/lessons/${lessonId}/analysis/summary`,
+      payload,
     );
     return res.data.data;
   },
@@ -299,6 +311,26 @@ export function useGenerateSummaryMutation(lessonId: string) {
     onError: (error: unknown) => {
       toast.error('Không thể tạo bản tóm tắt', {
         description: extractErrorMessage(error, 'Vui lòng kiểm tra lại transcript của video.'),
+      });
+    },
+  });
+}
+
+export function useUpdateSummaryMutation(lessonId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: IUpdateLessonSummaryPayload) =>
+      transcriptAnalysisApi.updateSummary(lessonId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: transcriptAnalysisKeys.summary(lessonId),
+      });
+      toast.success('Cập nhật bản tóm tắt bài học thành công!');
+    },
+    onError: (error: unknown) => {
+      toast.error('Lỗi khi cập nhật bản tóm tắt', {
+        description: extractErrorMessage(error, 'Vui lòng kiểm tra lại dữ liệu và thử lại.'),
       });
     },
   });

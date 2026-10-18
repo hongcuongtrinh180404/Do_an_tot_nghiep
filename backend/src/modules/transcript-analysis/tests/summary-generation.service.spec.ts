@@ -16,6 +16,7 @@ describe('SummaryGenerationService', () => {
     findByLessonId: ReturnType<typeof vi.fn>;
     saveDraftByLessonId: ReturnType<typeof vi.fn>;
     applyDraftByLessonId: ReturnType<typeof vi.fn>;
+    upsertOfficialByLessonId: ReturnType<typeof vi.fn>;
   };
 
   const sampleSummary: ILessonSummaryData = {
@@ -46,10 +47,11 @@ describe('SummaryGenerationService', () => {
     mockLessonTranscriptRepo = {
       findByLessonId: vi.fn(),
     };
-    mockLessonSummaryRepo = {
+      mockLessonSummaryRepo = {
       findByLessonId: vi.fn(),
       saveDraftByLessonId: vi.fn(),
       applyDraftByLessonId: vi.fn(),
+      upsertOfficialByLessonId: vi.fn(),
     };
 
     service = new SummaryGenerationService(
@@ -79,7 +81,42 @@ describe('SummaryGenerationService', () => {
       await expect(service.generateSummary('lesson-123')).rejects.toThrow(BadRequestException);
     });
 
-    it('should generate summary, validate, save draft and return response', async () => {
+    it('should generate summary and save directly to official by default', async () => {
+      mockLessonRepo.findById.mockResolvedValueOnce({
+        id: 'lesson-123',
+        title: 'TypeScript',
+        content: { duration: 300 },
+      });
+
+      mockLessonTranscriptRepo.findByLessonId.mockResolvedValueOnce({
+        status: LessonTranscriptionStatusEnum.READY,
+        durationSeconds: 300,
+        sentences: [{ text: 'Nội dung bài giảng TS', start: 0, end: 5000 }],
+        rawTranscript: 'Nội dung bài giảng TS',
+      });
+
+      mockGeminiService.generateJson.mockResolvedValueOnce({
+        data: sampleSummary,
+        model: 'gemini-2.5-flash',
+        keyIndex: 0,
+        maskedKey: 'AIzaSy...1111',
+        executionTimeMs: 1100,
+        usage: { promptTokens: 200, completionTokens: 150, totalTokens: 350 },
+      });
+
+      const response = await service.generateSummary('lesson-123', undefined, 'instructor-1');
+
+      expect(response.lessonId).toBe('lesson-123');
+      expect(response.summary.title).toBe(sampleSummary.title);
+      expect(mockLessonSummaryRepo.upsertOfficialByLessonId).toHaveBeenCalledWith(
+        'lesson-123',
+        sampleSummary,
+        'instructor-1',
+      );
+      expect(mockLessonSummaryRepo.saveDraftByLessonId).not.toHaveBeenCalled();
+    });
+
+    it('should save draft if saveAsDraft is explicitly true', async () => {
       mockLessonRepo.findById.mockResolvedValueOnce({
         id: 'lesson-123',
         title: 'TypeScript',
@@ -105,14 +142,55 @@ describe('SummaryGenerationService', () => {
       const response = await service.generateSummary('lesson-123', { saveAsDraft: true }, 'instructor-1');
 
       expect(response.lessonId).toBe('lesson-123');
-      expect(response.summary.title).toBe(sampleSummary.title);
-      expect(response.metadata.model).toBe('gemini-2.5-flash');
-
       expect(mockLessonSummaryRepo.saveDraftByLessonId).toHaveBeenCalledWith(
         'lesson-123',
         sampleSummary,
         'instructor-1',
       );
+    });
+  });
+
+  describe('updateSummary', () => {
+    it('should throw BadRequestException if lessonId is empty', async () => {
+      await expect(
+        service.updateSummary('', { title: 'T', overview: 'O', keyPoints: [] }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException if lesson not found', async () => {
+      mockLessonRepo.findById.mockResolvedValueOnce(null);
+      await expect(
+        service.updateSummary('lesson-404', { title: 'T', overview: 'O', keyPoints: [] }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should update official summary and return updated doc', async () => {
+      mockLessonRepo.findById.mockResolvedValueOnce({ id: 'lesson-123' });
+      mockLessonSummaryRepo.upsertOfficialByLessonId.mockResolvedValueOnce({
+        lessonId: 'lesson-123',
+        summary: sampleSummary,
+      });
+
+      const result = await service.updateSummary(
+        'lesson-123',
+        {
+          title: 'Tiêu đề mới',
+          overview: 'Tổng quan mới',
+          keyPoints: [{ title: 'Ý 1', content: 'Chi tiết 1', timestamp: 20 }],
+        },
+        'instructor-1',
+      );
+
+      expect(mockLessonSummaryRepo.upsertOfficialByLessonId).toHaveBeenCalledWith(
+        'lesson-123',
+        {
+          title: 'Tiêu đề mới',
+          overview: 'Tổng quan mới',
+          keyPoints: [{ title: 'Ý 1', content: 'Chi tiết 1', timestamp: 20 }],
+        },
+        'instructor-1',
+      );
+      expect(result.lessonId).toBe('lesson-123');
     });
   });
 

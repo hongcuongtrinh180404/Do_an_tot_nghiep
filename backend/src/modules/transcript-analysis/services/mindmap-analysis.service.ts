@@ -83,13 +83,24 @@ THÔNG TIN BÀI GIẢNG:
 - Thời lượng video: ${durationSeconds} giây
 
 QUY TẮC CẤU TRÚC CÂY BẮT BUỘC:
-Phân tích dữ liệu transcript bài giảng (gồm các đoạn/câu kèm mốc thời gian `start`, `end` tính bằng mili-giây) để trích xuất thành cây sơ đồ tư duy phân cấp ngữ nghĩa.
+Phân tích dữ liệu transcript bài giảng (gồm các đoạn/câu kèm mốc thời gian "start", "end" tính bằng giây) để trích xuất thành cây sơ đồ tư duy phân cấp ngữ nghĩa.
 
-I. XỬ LÝ VĂN BẢN & SỬA LỖI NHẬN DIỆN GIỌNG NÓI (ASR CORRECTION):
-1. Tự động phát hiện và sửa các lỗi chính tả âm học hoặc thuật ngữ chuyên ngành bị phiên âm sai dựa theo ngữ cảnh bài học 
-2. Tự động ngắt ý theo ngữ nghĩa thực tế ngay cả khi dữ liệu đầu vào bị thiếu dấu chấm câu hoặc gộp nhiều đoạn dài vào chung một phần tử `sentences`.
+I. RÀNG BUỘC ĐỘ SÂU LEVEL (TỐI ĐA 4 LEVEL):
+1. Cấu trúc cây có TỐI ĐA 4 LEVEL tính từ node gốc "root":
+   - Level 1 (Node Root duy nhất): Đại diện cho toàn bộ bài học, tiêu đề BẮT BUỘC là tên video bài giảng ("${lessonTitle}"), "id": "root", mốc thời gian "timestamp": 0.
+   - Level 2: Các chủ đề / phân đoạn kiến thức chính của bài học (các nhánh con trực tiếp của root).
+   - Level 3: Các ý chi tiết, cơ chế, phương pháp, quy trình triển khai cho từng chủ đề (các nhánh con của Level 2).
+   - Level 4: Các chi tiết cụ thể, từ khóa cốt lõi hoặc ví dụ minh họa điển hình (các nhánh con của Level 3). Đây là LEVEL TỐI ĐA của cây, TUYỆT ĐỐI KHÔNG ĐƯỢC có thêm node con ("children").
+2. KHÔNG CÓ MỨC TỐI THIỂU CHO MỖI NODE:
+   - Độ sâu của từng nhánh hoàn toàn linh hoạt theo độ phong phú của nội dung bài giảng thực tế.
+   - KHÔNG bắt buộc một node phải có node con. Một nhánh có thể kết thúc ở Level 2, Level 3 hoặc Level 4 (không ép buộc mọi nhánh phải đạt đủ 4 level).
+   - Chỉ tạo thêm nhánh con khi thực sự cần phân tách làm rõ nội dung; nếu ý kiến thức đã rõ ràng thì dừng lại mà không cần đào sâu thêm.
 
-II. QUY TẮC CHỌN LỌC & PHÂN TÁCH NODE:
+II. XỬ LÝ VĂN BẢN & SỬA LỖI NHẬN DIỆN GIỌNG NÓI (ASR CORRECTION):
+1. Tự động phát hiện và sửa các lỗi chính tả âm học hoặc thuật ngữ chuyên ngành bị phiên âm sai dựa theo ngữ cảnh bài học.
+2. Tự động ngắt ý theo ngữ nghĩa thực tế ngay cả khi dữ liệu đầu vào bị thiếu dấu chấm câu hoặc gộp nhiều đoạn dài vào chung một phần tử "sentences".
+
+III. QUY TẮC CHỌN LỌC & PHÂN TÁCH NODE:
 1. BẮT BUỘC TÁCH thành node riêng đối với các thông tin mang giá trị cốt lõi:
    - Chủ đề chính, khái niệm hoặc thuật ngữ chuyên môn.
    - Cơ chế hoạt động, bản chất khoa học hoặc mối quan hệ nguyên nhân - kết quả.
@@ -101,13 +112,12 @@ II. QUY TẮC CHỌN LỌC & PHÂN TÁCH NODE:
    - Câu chuyển tiếp giữa các phần, từ đệm trong văn nói, câu cảm thán.
    - Lời giải thích dài dòng lặp lại ý đã nêu ở node trước đó.
 
-III. QUY TẮC PHÂN CẤP & ĐẶT TIÊU ĐỀ (`title`):
-1. Độ sâu linh hoạt: Phân nhánh tự nhiên theo độ sâu kiến thức của từng mục (Chủ đề lớn -> Ý chính/Cơ chế/Ứng dụng -> Chi tiết cụ thể). Không ép buộc mọi nhánh phải có cùng số tầng.
-2. Tiêu đề (`title`) phải cô đọng, súc tích (ưu tiên dưới 12 từ), truyền tải trực tiếp nội dung kiến thức (ví dụ: thay vì viết "Điều kiện thực hiện", hãy viết rõ "Điều kiện: Lửa lớn và nguyên liệu phải khô").
+IV. QUY TẮC ĐẶT TIÊU ĐỀ ("title"):
+1. Tiêu đề ("title") phải cô đọng, súc tích (ưu tiên dưới 12 từ), truyền tải trực tiếp nội dung kiến thức (ví dụ: thay vì viết "Điều kiện thực hiện", hãy viết rõ "Điều kiện: Lửa lớn và nguyên liệu phải khô").
 
-IV. QUY TẮC TÍNH MỐC THỜI GIAN (`startTime` - Đơn vị: mili-giây):
-1. Trường hợp câu ngắn bình thường: Lấy mốc `start` của phần tử `sentences` bắt đầu đề cập đến ý của node đó.
-2. Trường hợp câu bị dính dài (Run-on sentence): Khi một phần tử trong mảng `sentences` kéo dài hàng chục giây và chứa nhiều ý hoặc nhiều chủ đề nối tiếp nhau, TUYỆT ĐỐI KHÔNG gán cùng một mốc `start` đầu câu cho mọi node bên trong. Hãy ước lượng nội suy (interpolate) giá trị `startTime` trong khoảng `[start, end]` của câu đó dựa theo vị trí tương đối của từ khóa bắt đầu ý mới.
+V. QUY TẮC TÍNH MỐC THỜI GIAN ("timestamp" - Đơn vị: giây):
+1. Trường hợp câu ngắn bình thường: Lấy mốc "start" của phần tử "sentences" bắt đầu đề cập đến ý của node đó.
+2. Trường hợp câu bị dính dài (Run-on sentence): Khi một phần tử trong mảng "sentences" kéo dài hàng chục giây và chứa nhiều ý hoặc nhiều chủ đề nối tiếp nhau, TUYỆT ĐỐI KHÔNG gán cùng một mốc "start" đầu câu cho mọi node bên trong. Hãy ước lượng nội suy (interpolate) giá trị "timestamp" trong khoảng [start, end] của câu đó dựa theo vị trí tương đối của từ khóa bắt đầu ý mới.
 
 ĐỊNH DẠNG ĐẦU RA (BẮT BUỘC LÀ JSON THUẦN HỢP LỆ):
 {

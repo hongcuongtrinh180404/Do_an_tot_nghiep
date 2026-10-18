@@ -8,7 +8,13 @@ export interface ILessonSummaryData {
   title: string;
   overview: string;
   keyPoints: ILessonSummaryKeyPoint[];
-  conclusion: string;
+  conclusion?: string;
+}
+
+export interface IUpdateLessonSummaryPayload {
+  title: string;
+  overview: string;
+  keyPoints: ILessonSummaryKeyPoint[];
 }
 
 export interface ILessonSummary {

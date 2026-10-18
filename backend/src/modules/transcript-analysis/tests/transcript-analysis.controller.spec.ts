@@ -41,6 +41,7 @@ describe('TranscriptAnalysisController', () => {
     mockSummaryService = {
       generateSummary: vi.fn(),
       getSummary: vi.fn(),
+      updateSummary: vi.fn(),
       applyDraft: vi.fn(),
     };
 
@@ -148,6 +149,28 @@ describe('TranscriptAnalysisController', () => {
       mockSummaryService.getSummary.mockResolvedValueOnce({ lessonId: 'lesson-123' });
       const res = await controller.getSummary('lesson-123');
       expect(res.success).toBe(true);
+    });
+
+    it('should update summary and require INSTRUCTOR / ADMIN', async () => {
+      const reflector = new Reflector();
+      const roles = reflector.get<RoleEnum[]>(
+        ROLES_KEY,
+        TranscriptAnalysisController.prototype.updateSummary,
+      );
+      expect(roles).toEqual([RoleEnum.INSTRUCTOR, RoleEnum.ADMIN]);
+
+      mockSummaryService.updateSummary.mockResolvedValueOnce({ lessonId: 'lesson-123' });
+      const res = await controller.updateSummary(
+        'lesson-123',
+        { title: 'T', overview: 'O', keyPoints: [] },
+        'user-1',
+      );
+      expect(res.success).toBe(true);
+      expect(mockSummaryService.updateSummary).toHaveBeenCalledWith(
+        'lesson-123',
+        { title: 'T', overview: 'O', keyPoints: [] },
+        'user-1',
+      );
     });
 
     it('should apply summary draft to official', async () => {

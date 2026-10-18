@@ -11,3 +11,4 @@ export * from './create-quiz-marker-modal';
 export * from './in-video-quiz-prompt-overlay';
 export * from './student-in-video-quiz-modal';
 export * from './lesson-player-studio';
+export * from './timestamp-picker-input';

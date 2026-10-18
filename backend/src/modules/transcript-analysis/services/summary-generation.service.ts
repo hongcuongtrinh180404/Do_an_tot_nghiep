@@ -15,6 +15,7 @@ import { LessonTranscriptRepository } from '../../course/repositories/lesson-tra
 import { LessonSummaryRepository } from '../../course/repositories/lesson-summary.repository.js';
 import { SummaryValidator } from '../validators/summary.validator.js';
 import { GenerateSummaryDto } from '../dto/generate-summary.dto.js';
+import { UpdateLessonSummaryDto } from '../dto/update-summary.dto.js';
 
 export interface SummaryGenerationResponse {
   lessonId: string;
@@ -82,15 +83,14 @@ THÔNG TIN BÀI GIẢNG:
 - Thời lượng video: ${durationSeconds} giây
 
 QUY TẮC CẤU TRÚC BẢN TÓM TẮT BẮT BUỘC:
-1. "title": Tiêu đề súc tích của bản tóm tắt (thường là hoặc liên quan đến tiêu đề bài học).
+1. "title": Tiêu đề súc tích của bản tóm tắt bài học (thường là hoặc liên quan đến tiêu đề bài học).
 2. "overview": Đoạn văn tổng quan súc tích từ 2 đến 4 câu, giới thiệu mục tiêu và giá trị cốt lõi bài học mang lại.
 3. "keyPoints": Mảng từ 3 đến 8 ý chính then chốt được truyền tải trong bài học. Mỗi ý chính gồm:
    - "title": Tiêu đề ngắn gọn của ý chính (dưới 10 từ).
    - "content": Diễn giải chi tiết nội dung ý chính (từ 1 đến 3 câu hoàn chỉnh).
    - "timestamp": Mốc thời gian (tính bằng GIÂY, số nguyên từ 0 đến ${durationSeconds}) trong video bắt đầu đề cập đến ý đó để người học tiện tua lại.
-4. "conclusion": Đoạn đúc kết tổng kết ngắn gọn, nhấn mạnh bài học cần ghi nhớ hoặc định hướng hành động cho người học.
 
-ĐỊNH DẠNG ĐẦU RA (BẮT BUỘC LÀ JSON THUẦN HỢP LỆ):
+ĐỊNH DẠNG ĐẦU RA (BẮT BUỘC LÀ JSON THUẦN HỢP LỆ, KHÔNG CÓ TRƯỜNG CONCLUSION):
 {
   "title": "${lessonTitle}",
   "overview": "Đoạn văn tổng quan bài học...",
@@ -105,8 +105,7 @@ QUY TẮC CẤU TRÚC BẢN TÓM TẮT BẮT BUỘC:
       "content": "Nội dung diễn giải ý chính 2...",
       "timestamp": 60
     }
-  ],
-  "conclusion": "Đoạn kết luận tổng kết bài học..."
+  ]
 }
 
 TRANSCRIPT BÀI GIẢNG CÓ MỐC THỜI GIAN:
@@ -180,8 +179,8 @@ ${formattedTranscript}`;
     // 5. Kiểm tra tính hợp lệ
     SummaryValidator.validateOrFail(geminiResult.data, durationSeconds);
 
-    // 6. Lưu nháp
-    const shouldSaveDraft = dto?.saveAsDraft ?? true;
+    // 6. Lưu vào cơ sở dữ liệu (mặc định lưu trực tiếp thành bản chính thức)
+    const shouldSaveDraft = dto?.saveAsDraft ?? false;
     if (shouldSaveDraft) {
       await this.lessonSummaryRepo.saveDraftByLessonId(
         trimmedLessonId,
@@ -189,6 +188,13 @@ ${formattedTranscript}`;
         userId,
       );
       this.logger.log(`Đã lưu bản nháp Summary cho bài học ${trimmedLessonId}`);
+    } else {
+      await this.lessonSummaryRepo.upsertOfficialByLessonId(
+        trimmedLessonId,
+        geminiResult.data,
+        userId,
+      );
+      this.logger.log(`Đã lưu bản tóm tắt chính thức cho bài học ${trimmedLessonId}`);
     }
 
     return {
@@ -202,6 +208,49 @@ ${formattedTranscript}`;
         usage: geminiResult.usage,
       },
     };
+  }
+
+  /**
+   * Cập nhật trực tiếp bản tóm tắt bài học chính thức do giảng viên chỉnh sửa
+   */
+  async updateSummary(
+    lessonId: string,
+    dto: UpdateLessonSummaryDto,
+    userId?: string,
+  ): Promise<ILessonSummary> {
+    const trimmedLessonId = lessonId?.trim();
+    if (!trimmedLessonId) {
+      throw new BadRequestException('ID bài học không được để trống.');
+    }
+
+    const lesson = await this.lessonRepo.findById(trimmedLessonId);
+    if (!lesson) {
+      throw new NotFoundException(`Không tìm thấy bài học với ID: ${trimmedLessonId}`);
+    }
+
+    const summaryData: ILessonSummaryData = {
+      title: dto.title.trim(),
+      overview: dto.overview.trim(),
+      keyPoints: dto.keyPoints.map((point) => ({
+        title: point.title.trim(),
+        content: point.content.trim(),
+        timestamp:
+          point.timestamp !== undefined && point.timestamp !== null
+            ? Math.max(0, Math.floor(point.timestamp))
+            : undefined,
+      })),
+    };
+
+    const updated = await this.lessonSummaryRepo.upsertOfficialByLessonId(
+      trimmedLessonId,
+      summaryData,
+      userId,
+    );
+
+    this.logger.log(
+      `Giảng viên đã cập nhật trực tiếp bản tóm tắt bài học ${trimmedLessonId}`,
+    );
+    return updated;
   }
 
   /**

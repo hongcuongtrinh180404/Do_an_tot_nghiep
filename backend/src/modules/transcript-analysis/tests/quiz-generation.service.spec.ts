@@ -170,4 +170,48 @@ describe('QuizGenerationService', () => {
       expect(result).toHaveLength(10);
     });
   });
+
+  describe('sanitizeAndNormalizeQuizzes', () => {
+    it('should normalize uppercase SINGLE questionType, missing ids, and string isCorrect', () => {
+      const rawInput = {
+        quizzes: [
+          {
+            order: '1',
+            timestamp: '45.8',
+            question: 'Câu hỏi test?',
+            questionType: 'SINGLE',
+            options: [
+              { label: 'A', text: 'Đáp án A', isCorrect: 'true' },
+              { label: 'B', text: 'Đáp án B', isCorrect: 'false' },
+              { label: 'C', text: 'Đáp án C', isCorrect: false },
+              { label: 'D', text: 'Đáp án D', isCorrect: false },
+            ],
+            explanation: 'Giải thích A đúng',
+          },
+        ],
+      };
+
+      const normalized = service.sanitizeAndNormalizeQuizzes(rawInput, 300, 1);
+      expect(normalized).toHaveLength(1);
+      expect(normalized[0].questionType).toBe(QuizQuestionTypeEnum.SINGLE);
+      expect(normalized[0].timestamp).toBe(46);
+      expect(normalized[0].options[0].id).toBe('opt-1-A');
+      expect(normalized[0].options[0].isCorrect).toBe(true);
+      expect(normalized[0].options[1].isCorrect).toBe(false);
+    });
+
+    it('should clamp timestamp if it exceeds video duration', () => {
+      const rawInput = [
+        {
+          order: 1,
+          timestamp: 350,
+          question: 'Test',
+          options: [],
+        },
+      ];
+
+      const normalized = service.sanitizeAndNormalizeQuizzes(rawInput, 300, 1);
+      expect(normalized[0].timestamp).toBe(300);
+    });
+  });
 });

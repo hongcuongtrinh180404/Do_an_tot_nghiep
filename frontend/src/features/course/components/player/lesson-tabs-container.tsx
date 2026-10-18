@@ -170,6 +170,7 @@ export function LessonTabsContainer({
             lessonId={lessonId}
             isInstructor={isInstructor}
             currentTime={currentTime}
+            duration={duration}
             onSeek={onSeek}
           />
         )}

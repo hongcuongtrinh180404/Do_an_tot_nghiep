@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Put,
   Param,
   Body,
   HttpCode,
@@ -33,6 +34,7 @@ import {
 import { GenerateMindmapDto } from './dto/generate-mindmap.dto.js';
 import { GenerateQuizDto } from './dto/generate-quiz.dto.js';
 import { GenerateSummaryDto } from './dto/generate-summary.dto.js';
+import { UpdateLessonSummaryDto } from './dto/update-summary.dto.js';
 
 @Controller('lessons')
 export class TranscriptAnalysisController {
@@ -179,6 +181,28 @@ export class TranscriptAnalysisController {
   ): Promise<ApiResponse<ILessonSummary | null>> {
     const summary = await this.summaryGenerationService.getSummary(id);
     return ApiResponse.success(summary, 'Lấy bản tóm tắt bài học thành công');
+  }
+
+  /**
+   * Cập nhật trực tiếp bản tóm tắt bài học chính thức do giảng viên chỉnh sửa
+   */
+  @Put(':id/analysis/summary')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async updateSummary(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() dto: UpdateLessonSummaryDto,
+    @CurrentUser('id') userId?: string,
+  ): Promise<ApiResponse<ILessonSummary>> {
+    const updated = await this.summaryGenerationService.updateSummary(
+      id,
+      dto,
+      userId,
+    );
+    return ApiResponse.success(
+      updated,
+      'Cập nhật bản tóm tắt bài học thành công',
+    );
   }
 
   /**
