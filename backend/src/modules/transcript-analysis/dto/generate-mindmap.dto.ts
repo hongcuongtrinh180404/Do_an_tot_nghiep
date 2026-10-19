@@ -9,7 +9,7 @@ export class GenerateMindmapDto {
     if (value === 'false' || value === false) return false;
     return value;
   })
-  saveAsDraft?: boolean = true;
+  saveAsDraft?: boolean = false;
 
   @IsOptional()
   @IsString()

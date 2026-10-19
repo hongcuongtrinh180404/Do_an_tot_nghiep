@@ -137,3 +137,24 @@
   - *Thay đổi:* Loại bỏ cấu hình tab `chatbot` khỏi mảng `TABS`, chuyển thanh điều hướng từ `grid-cols-4` sang `grid-cols-3`.
   - *Mục tiêu:* Tập trung vào 3 tính năng cốt lõi được trích xuất trực tiếp từ video (`1 Summary`, `2 Mindmap`, `3 Quizz`) kèm theo 3 nút `✨ Test AI` tương ứng.
   - *Kiểm tra:* TypeScript strict, responsive đều 3 cột trên cả mobile và desktop.
+- **Tái Cấu Trúc Luồng Sơ Đồ Tư Duy Bài Học (Mindmap Workflow & Direct Tree Editing)**:
+  - *Mục tiêu:* Đồng bộ cơ chế tự động áp dụng bản chính thức của Mindmap và cung cấp bộ công cụ cho giảng viên biên tập trực tiếp từng node trên cây phân cấp.
+  - *Bỏ bước duyệt trung gian:* Xóa bỏ hoàn toàn thanh thông báo vàng cam ("Bản nháp thử nghiệm AI mới đang chờ áp dụng" kèm 2 nút "Xem bản chính thức" và "Áp dụng vào bài học"). Dữ liệu AI sinh ra hoặc khi load trang được lưu và hiển thị trực tiếp là bản chính thức của bài học.
+  - *Cụm công cụ thao tác nhanh trên từng node:*
+    - Biểu tượng cây bút (`lucide:pencil`): Bật inline edit sửa Tiêu đề và Mốc thời gian (`TimestampPickerInput`), hỗ trợ phím tắt `Enter` để lưu, `Esc` để hủy.
+    - Biểu tượng dấu cộng (`lucide:plus`): Thêm node con với timestamp mặc định `00:00`, tự động mở rộng nhánh cha và kích hoạt edit mode. Khống chế tối đa 4 cấp độ sâu (ẩn/disabled ở cấp 4).
+    - Biểu tượng thùng rác (`lucide:trash-2`): Ẩn ở Node Root; hiển thị dialog xác nhận an toàn khi xóa node có nhánh con bên trong.
+  - *Cơ chế lưu ngầm (Silent Auto-Save):* Mọi thao tác biên tập cập nhật trực tiếp lên Server qua API `PUT /lessons/:id/analysis/mindmap` mà không hiển thị toast thông báo thành công làm ngắt quãng trải nghiệm.
+  - *Backend & Contract:* Tạo `UpdateLessonMindmapDto`, `IUpdateLessonMindmapPayload`, cập nhật `MindmapAnalysisService` và `TranscriptAnalysisController` với đầy đủ unit tests (100% pass).
+- **Sửa Lỗi Toast "Lỗi khi cập nhật sơ đồ tư duy" Khi Bấm Lưu (Mindmap Save Bug Fix & Hardening)**:
+  - *Root Cause:*
+    1. Khi giảng viên tạo node con từ cấp 4 (node trở thành cấp 5), backend trước đó khống chế `maxDepth = 3` (tối đa 4 cấp) trong `MindmapValidator.validateOrFail(dto.mindmap, durationSeconds, 3)` khiến server ném `422 UnprocessableEntityException: "Cây mindmap vượt quá độ sâu tối đa cho phép"`.
+    2. Trong `lesson-mindmap-tab.tsx`, khi bấm nút `+`, hệ thống gửi ngay request `updateMindmap` lưu node thô "Nhánh mới", dẫn đến tình trạng gọi 2 request PUT liên tiếp trong khoảng thời gian ngắn khi người dùng sửa xong và bấm Lưu (gây race condition và đè state `localTree` từ query cache).
+    3. Thiếu cơ chế giới hạn trên (clamp) cho mốc `editTimestamp` theo `duration` của bài học và thiếu bộ lọc `!isNaN` khi cập nhật timestamp.
+  - *Giải pháp:*
+    1. Backend: Nâng trần độ sâu biên tập thủ công của giảng viên lên 20 cấp (`maxDepth = 20`) trong `MindmapAnalysisService.updateMindmap`. Bổ sung `@Transform` chuẩn hóa `timestamp` và chuyển `children: null` thành `undefined` an toàn trong `UpdateLessonMindmapDto`.
+    2. Frontend: Tối ưu hóa chu trình `handleAddChild` — chỉ cập nhật cây cục bộ và đưa node vào inline edit mode, CHỈ gửi API lưu lên server khi giảng viên chủ động bấm nút "Lưu" (dấu tích) hoặc nhấn phím `Enter`.
+    3. Hủy bỏ an toàn (`handleCancelEdit`): Nếu hủy khi đang thêm nhánh mới (`addingNodeId`), tự động dọn dẹp node tạm khỏi `localTree` mà không sinh request thừa.
+    4. Bảo vệ state: Ngăn chặn `useEffect` ghi đè `localTree` từ `currentMindmapData` khi người dùng đang trong phiên chỉnh sửa (`editingNodeId !== null`).
+    5. Khống chế thời lượng an toàn: Tự động giới hạn `safeTimestamp` không vượt quá `duration` của video trước khi gửi request.
+  - *Kiểm thử:* Toàn bộ 43 test suites / 513 unit tests pass 100%, frontend `tsc --noEmit` pass 0 lỗi. Build `backend` và `share-lib` thành công.

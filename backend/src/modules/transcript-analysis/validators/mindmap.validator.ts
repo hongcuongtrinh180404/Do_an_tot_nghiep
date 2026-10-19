@@ -90,7 +90,7 @@ export class MindmapValidator {
     // 4. Kiểm tra độ sâu tối đa (maxDepth tính từ root = cấp 0)
     if (currentDepth > maxDepth) {
       errors.push(
-        `Cây mindmap vượt quá độ sâu tối đa cho phép (tối đa 4 level). Node vi phạm: "${node.title}" tại level ${currentDepth + 1}.`,
+        `Cây mindmap vượt quá độ sâu tối đa cho phép (tối đa ${maxDepth + 1} level). Node vi phạm: "${node.title}" tại level ${currentDepth + 1}.`,
       );
     }
 
@@ -99,10 +99,10 @@ export class MindmapValidator {
       if (!Array.isArray(node.children)) {
         errors.push(`Trường "children" của node "${node.title}" phải là một mảng.`);
       } else {
-        // Nếu đã ở cấp tối đa (Level 3) thì không được phép có node con nữa
+        // Nếu đã ở cấp tối đa thì không được phép có node con thêm
         if (currentDepth >= maxDepth && node.children.length > 0) {
           errors.push(
-            `Node "${node.title}" ở level ${currentDepth + 1} (level tối đa: 4) không được có node con thêm.`,
+            `Node "${node.title}" ở level ${currentDepth + 1} (level tối đa: ${maxDepth + 1}) không được có node con thêm.`,
           );
         }
 

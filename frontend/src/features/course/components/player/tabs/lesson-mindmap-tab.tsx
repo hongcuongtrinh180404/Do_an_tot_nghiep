@@ -1,14 +1,29 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { ILessonMindmapNode, ILessonMindmapData } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { TimestampPickerInput } from '@/features/course/components/player/timestamp-picker-input';
+import {
   useLessonMindmapAnalysisQuery,
   useGenerateMindmapMutation,
-  useApplyMindmapDraftMutation,
+  useUpdateLessonMindmapMutation,
 } from '@/features/course/api/transcript-analysis.api';
+import {
+  updateNodeInTree,
+  addChildNodeToTree,
+  deleteNodeFromTree,
+  countDescendants,
+} from '@/features/course/utils/lesson-mindmap-tree.util';
 
 interface LessonMindmapTabProps {
   lessonId: string;
@@ -25,27 +40,71 @@ function formatTime(seconds: number): string {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
+function collectAllNodeIds(node: ILessonMindmapNode): string[] {
+  let ids = [node.id];
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) {
+      ids = ids.concat(collectAllNodeIds(child));
+    }
+  }
+  return ids;
+}
+
 interface TreeNodeProps {
   node: ILessonMindmapNode;
   level: number;
   currentTime?: number;
+  duration?: number;
   onSeek?: (timestamp: number) => void;
   isExpanded: boolean;
   onToggleExpand: (id: string) => void;
   expandedMap: Record<string, boolean>;
+  isInstructor?: boolean;
+  editingNodeId: string | null;
+  editTitle: string;
+  setEditTitle: (val: string) => void;
+  editTimestamp: number;
+  setEditTimestamp: (val: number) => void;
+  onStartEdit: (node: ILessonMindmapNode) => void;
+  onSaveEdit: (nodeId: string) => void;
+  onCancelEdit: () => void;
+  onAddChild: (parentId: string) => void;
+  onRequestDelete: (node: ILessonMindmapNode) => void;
 }
 
 function TreeNode({
   node,
   level,
   currentTime = 0,
+  duration = 0,
   onSeek,
   isExpanded,
   onToggleExpand,
   expandedMap,
+  isInstructor = false,
+  editingNodeId,
+  editTitle,
+  setEditTitle,
+  editTimestamp,
+  setEditTimestamp,
+  onStartEdit,
+  onSaveEdit,
+  onCancelEdit,
+  onAddChild,
+  onRequestDelete,
 }: TreeNodeProps): React.JSX.Element {
   const hasChildren = Array.isArray(node.children) && node.children.length > 0;
   const isNearCurrentTime = Math.abs(currentTime - node.timestamp) < 5;
+  const isEditing = editingNodeId === node.id;
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus title input when entering edit mode
+  useEffect(() => {
+    if (isEditing) {
+      titleInputRef.current?.focus();
+      titleInputRef.current?.select();
+    }
+  }, [isEditing]);
 
   // Level styles
   const levelStyles = [
@@ -63,46 +122,147 @@ function TreeNode({
 
   return (
     <div className="flex flex-col space-y-2">
-      <div
-        className={`group relative flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl border transition-all ${currentStyle} ${
-          isNearCurrentTime
-            ? 'ring-2 ring-sky-500 ring-offset-1 ring-offset-background'
-            : 'hover:border-sky-500/40'
-        }`}
-      >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          {hasChildren ? (
+      {isEditing ? (
+        /* Edit Mode Card */
+        <div className="relative flex flex-wrap items-center justify-between gap-2.5 px-3 py-2.5 rounded-xl border-2 border-sky-500 bg-card shadow-sm transition-all">
+          <div className="flex flex-1 min-w-[200px] items-center gap-2">
+            <span className="text-xs font-semibold text-sky-600 dark:text-sky-400 shrink-0">
+              Cấp {level + 1}:
+            </span>
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (editTitle.trim()) {
+                    onSaveEdit(node.id);
+                  }
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  onCancelEdit();
+                }
+              }}
+              placeholder="Nhập tiêu đề nhánh..."
+              className="flex-1 min-w-0 bg-transparent text-xs sm:text-sm font-semibold text-foreground border-b border-sky-500/50 focus:border-sky-500 focus:outline-none px-1 py-0.5"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Timestamp input */}
+            <div className="shrink-0">
+              <TimestampPickerInput
+                valueSeconds={editTimestamp}
+                onChange={setEditTimestamp}
+                maxDuration={duration}
+                currentTime={currentTime}
+              />
+            </div>
+
+            {/* Action buttons */}
             <button
               type="button"
-              onClick={() => onToggleExpand(node.id)}
-              aria-label={isExpanded ? 'Thu gọn' : 'Mở rộng'}
-              className="size-5 rounded-md flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 transition-colors cursor-pointer"
+              onClick={() => onSaveEdit(node.id)}
+              disabled={!editTitle.trim()}
+              title="Lưu thay đổi (Enter)"
+              className="size-7 rounded-lg bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
             >
-              <Icon
-                icon={isExpanded ? 'lucide:chevron-down' : 'lucide:chevron-right'}
-                className="size-3.5"
-              />
+              <Icon icon="lucide:check" className="size-4" />
             </button>
-          ) : (
-            <span className="size-5 flex items-center justify-center shrink-0 text-muted-foreground/50">
-              <span className="size-1.5 rounded-full bg-current" />
-            </span>
-          )}
-
-          <span className="truncate leading-snug">{node.title}</span>
+            <button
+              type="button"
+              onClick={onCancelEdit}
+              title="Hủy bỏ (Escape)"
+              className="size-7 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <Icon icon="lucide:x" className="size-4" />
+            </button>
+          </div>
         </div>
-
-        {/* Timestamp seek badge */}
-        <button
-          type="button"
-          onClick={() => onSeek?.(node.timestamp)}
-          title={`Tua video tới ${formatTime(node.timestamp)}`}
-          className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-background/80 hover:bg-sky-500 hover:text-white border border-border/80 text-muted-foreground transition-all cursor-pointer shadow-2xs group-hover:border-sky-500/40"
+      ) : (
+        /* Normal View Card */
+        <div
+          className={`group relative flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl border transition-all ${currentStyle} ${
+            isNearCurrentTime
+              ? 'ring-2 ring-sky-500 ring-offset-1 ring-offset-background'
+              : 'hover:border-sky-500/40'
+          }`}
         >
-          <Icon icon="lucide:play" className="size-2.5" />
-          <span>{formatTime(node.timestamp)}</span>
-        </button>
-      </div>
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {hasChildren ? (
+              <button
+                type="button"
+                onClick={() => onToggleExpand(node.id)}
+                aria-label={isExpanded ? 'Thu gọn' : 'Mở rộng'}
+                className="size-5 rounded-md flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 transition-colors cursor-pointer"
+              >
+                <Icon
+                  icon={isExpanded ? 'lucide:chevron-down' : 'lucide:chevron-right'}
+                  className="size-3.5"
+                />
+              </button>
+            ) : (
+              <span className="size-5 flex items-center justify-center shrink-0 text-muted-foreground/50">
+                <span className="size-1.5 rounded-full bg-current" />
+              </span>
+            )}
+
+            <span className="truncate leading-snug">{node.title}</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Timestamp seek badge */}
+            <button
+              type="button"
+              onClick={() => onSeek?.(node.timestamp)}
+              title={`Tua video tới ${formatTime(node.timestamp)}`}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-background/80 hover:bg-sky-500 hover:text-white border border-border/80 text-muted-foreground transition-all cursor-pointer shadow-2xs group-hover:border-sky-500/40"
+            >
+              <Icon icon="lucide:play" className="size-2.5" />
+              <span>{formatTime(node.timestamp)}</span>
+            </button>
+
+            {/* Instructor Quick Actions Toolbar */}
+            {isInstructor && (
+              <div className="flex items-center gap-0.5 pl-1 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 transition-opacity">
+                {/* Inline Edit Button */}
+                <button
+                  type="button"
+                  onClick={() => onStartEdit(node)}
+                  title="Chỉnh sửa nhánh"
+                  className="size-6.5 rounded-md flex items-center justify-center text-muted-foreground hover:text-sky-600 hover:bg-sky-500/10 transition-colors cursor-pointer"
+                >
+                  <Icon icon="lucide:pencil" className="size-3.5" />
+                </button>
+
+                {/* Add Child Node Button (Cho phép thêm nhánh con ở mọi cấp theo mong muốn giảng viên) */}
+                <button
+                  type="button"
+                  onClick={() => onAddChild(node.id)}
+                  title="Thêm nhánh con"
+                  className="size-6.5 rounded-md flex items-center justify-center text-muted-foreground hover:text-emerald-600 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                >
+                  <Icon icon="lucide:plus" className="size-3.5" />
+                </button>
+
+                {/* Delete Button (Hidden for Root node / level === 0) */}
+                {level > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onRequestDelete(node)}
+                    title="Xóa nhánh"
+                    className="size-6.5 rounded-md flex items-center justify-center text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  >
+                    <Icon icon="lucide:trash-2" className="size-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Children branches */}
       {hasChildren && isExpanded && (
@@ -113,10 +273,22 @@ function TreeNode({
               node={child}
               level={level + 1}
               currentTime={currentTime}
+              duration={duration}
               onSeek={onSeek}
               isExpanded={expandedMap[child.id] !== false}
               onToggleExpand={onToggleExpand}
               expandedMap={expandedMap}
+              isInstructor={isInstructor}
+              editingNodeId={editingNodeId}
+              editTitle={editTitle}
+              setEditTitle={setEditTitle}
+              editTimestamp={editTimestamp}
+              setEditTimestamp={setEditTimestamp}
+              onStartEdit={onStartEdit}
+              onSaveEdit={onSaveEdit}
+              onCancelEdit={onCancelEdit}
+              onAddChild={onAddChild}
+              onRequestDelete={onRequestDelete}
             />
           ))}
         </div>
@@ -128,24 +300,34 @@ function TreeNode({
 export function LessonMindmapTab({
   lessonId,
   isInstructor = false,
-  currentTime,
+  currentTime = 0,
+  duration = 0,
   onSeek,
 }: LessonMindmapTabProps): React.JSX.Element {
   const { data: mindmapDoc, isLoading } = useLessonMindmapAnalysisQuery(lessonId);
   const { mutate: generateMindmap, isPending: isGenerating } = useGenerateMindmapMutation(lessonId);
-  const { mutate: applyDraft, isPending: isApplying } = useApplyMindmapDraftMutation(lessonId);
+  const { mutate: updateMindmap } = useUpdateLessonMindmapMutation(lessonId);
 
-  // View state: ưu tiên hiển thị draft nếu có, cho phép chuyển đổi
-  const hasDraft = Boolean(mindmapDoc?.draftMindmap);
-  const [viewMode, setViewMode] = useState<'draft' | 'official'>('draft');
-
+  // Active data from DB
   const currentMindmapData: ILessonMindmapData | null = useMemo(() => {
     if (!mindmapDoc) return null;
-    if (viewMode === 'draft' && mindmapDoc.draftMindmap) {
-      return mindmapDoc.draftMindmap;
-    }
     return mindmapDoc.mindmap || mindmapDoc.draftMindmap || null;
-  }, [mindmapDoc, viewMode]);
+  }, [mindmapDoc]);
+
+  // Node Editing state
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [addingNodeId, setAddingNodeId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState<string>('');
+  const [editTimestamp, setEditTimestamp] = useState<number>(0);
+
+  // Local optimistic tree state
+  const [localTree, setLocalTree] = useState<ILessonMindmapData | null>(null);
+
+  useEffect(() => {
+    if (currentMindmapData && !editingNodeId) {
+      setLocalTree(currentMindmapData);
+    }
+  }, [currentMindmapData, editingNodeId]);
 
   // Expansion state
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
@@ -157,8 +339,136 @@ export function LessonMindmapTab({
     }));
   };
 
-  const handleExpandAll = () => {
-    setExpandedMap({});
+  const isAllExpanded = useMemo(() => {
+    if (!localTree?.root) return true;
+    const allIds = collectAllNodeIds(localTree.root);
+    return allIds.every((id) => expandedMap[id] !== false);
+  }, [localTree, expandedMap]);
+
+  const handleToggleExpandAll = () => {
+    if (!localTree?.root) return;
+    const allIds = collectAllNodeIds(localTree.root);
+    if (isAllExpanded) {
+      // Collapse all except root
+      const newMap: Record<string, boolean> = {};
+      allIds.forEach((id) => {
+        if (id !== localTree.root.id) {
+          newMap[id] = false;
+        }
+      });
+      setExpandedMap(newMap);
+    } else {
+      // Expand all
+      setExpandedMap({});
+    }
+  };
+
+  const handleStartEdit = (node: ILessonMindmapNode) => {
+    setAddingNodeId(null);
+    setEditingNodeId(node.id);
+    setEditTitle(node.title);
+    setEditTimestamp(node.timestamp ?? 0);
+  };
+
+  const handleSaveEdit = (nodeId: string) => {
+    if (!localTree || !editTitle.trim()) return;
+
+    // Khống chế timestamp an toàn không bao giờ vượt quá thời lượng video
+    const safeTimestamp =
+      duration && duration > 0
+        ? Math.min(Math.max(0, Math.floor(editTimestamp || 0)), Math.floor(duration))
+        : Math.max(0, Math.floor(editTimestamp || 0));
+
+    const newRoot = updateNodeInTree(localTree.root, nodeId, {
+      title: editTitle.trim(),
+      timestamp: safeTimestamp,
+    });
+
+    const updatedData: ILessonMindmapData = { root: newRoot };
+    setLocalTree(updatedData);
+    setEditingNodeId(null);
+    setAddingNodeId(null);
+
+    // Lưu trực tiếp lên server
+    updateMindmap({ mindmap: updatedData });
+  };
+
+  const handleCancelEdit = () => {
+    if (addingNodeId && localTree) {
+      // Hoàn tác nhánh mới vừa tạo chưa được lưu
+      const revertedRoot = deleteNodeFromTree(localTree.root, addingNodeId);
+      setLocalTree({ root: revertedRoot });
+      setAddingNodeId(null);
+    }
+    setEditingNodeId(null);
+  };
+
+  // Node Adding state (Default timestamp = 0 per Socratic Gate)
+  const handleAddChild = (parentId: string) => {
+    if (!localTree) return;
+
+    const newId = `node-${Date.now()}`;
+    const newNode: ILessonMindmapNode = {
+      id: newId,
+      title: 'Nhánh mới',
+      timestamp: 0,
+    };
+
+    const newRoot = addChildNodeToTree(localTree.root, parentId, newNode);
+    const updatedData: ILessonMindmapData = { root: newRoot };
+    setLocalTree(updatedData);
+
+    // Auto expand parent node
+    setExpandedMap((prev) => ({ ...prev, [parentId]: true }));
+
+    // Switch new node into inline edit mode (chỉ lưu server khi người dùng bấm Lưu/Enter)
+    setAddingNodeId(newId);
+    setEditingNodeId(newId);
+    setEditTitle('Nhánh mới');
+    setEditTimestamp(0);
+  };
+
+  // Node Deletion state & Confirmation
+  const [deletingNode, setDeletingNode] = useState<{
+    id: string;
+    title: string;
+    childCount: number;
+  } | null>(null);
+
+  const handleRequestDelete = (node: ILessonMindmapNode) => {
+    const childCount = countDescendants(node);
+    if (childCount > 0) {
+      // Node has children -> require confirmation dialog
+      setDeletingNode({
+        id: node.id,
+        title: node.title,
+        childCount,
+      });
+    } else {
+      // Leaf node without children -> delete directly
+      executeDelete(node.id);
+    }
+  };
+
+  const executeDelete = (nodeId: string) => {
+    if (!localTree) return;
+
+    const newRoot = deleteNodeFromTree(localTree.root, nodeId);
+    const updatedData: ILessonMindmapData = { root: newRoot };
+    setLocalTree(updatedData);
+
+    if (editingNodeId === nodeId) {
+      setEditingNodeId(null);
+    }
+
+    // Silent auto-save to server
+    updateMindmap({ mindmap: updatedData });
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deletingNode) return;
+    executeDelete(deletingNode.id);
+    setDeletingNode(null);
   };
 
   return (
@@ -176,22 +486,25 @@ export function LessonMindmapTab({
         </div>
 
         <div className="flex items-center gap-2">
-          {currentMindmapData && (
+          {localTree && (
             <Button
               variant="outline"
               size="sm"
-              onClick={handleExpandAll}
+              onClick={handleToggleExpandAll}
               className="text-xs h-8 cursor-pointer"
             >
-              <Icon icon="lucide:maximize-2" className="size-3.5 mr-1" />
-              Mở rộng tất cả
+              <Icon
+                icon={isAllExpanded ? 'lucide:minimize-2' : 'lucide:maximize-2'}
+                className="size-3.5 mr-1"
+              />
+              {isAllExpanded ? 'Thu gọn tất cả' : 'Mở rộng tất cả'}
             </Button>
           )}
 
           {isInstructor && (
             <Button
               size="sm"
-              onClick={() => generateMindmap({ saveAsDraft: true })}
+              onClick={() => generateMindmap({ saveAsDraft: false })}
               disabled={isGenerating}
               className="h-8 text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white cursor-pointer shadow-2xs"
             >
@@ -203,7 +516,7 @@ export function LessonMindmapTab({
               ) : (
                 <>
                   <Icon icon="lucide:sparkles" className="size-3.5 mr-1.5" />
-                  {currentMindmapData ? 'Sinh lại Mindmap AI' : 'Tạo Mindmap bằng AI'}
+                  {localTree ? 'Sinh lại Mindmap AI' : 'Tạo Mindmap bằng AI'}
                 </>
               )}
             </Button>
@@ -211,72 +524,34 @@ export function LessonMindmapTab({
         </div>
       </div>
 
-      {/* Instructor Draft Banner */}
-      {isInstructor && hasDraft && (
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-200">
-          <div className="flex items-center gap-2.5">
-            <div className="size-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
-              <Icon icon="lucide:sparkles" className="size-4 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div>
-              <p className="text-xs font-bold leading-tight">
-                Bản nháp thử nghiệm AI mới đang chờ áp dụng
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {viewMode === 'draft'
-                  ? 'Đang xem trước bản nháp từ Gemini.'
-                  : 'Đang xem bản chính thức hiện hành.'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setViewMode((prev) => (prev === 'draft' ? 'official' : 'draft'))}
-              className="text-xs h-7.5 px-2.5 cursor-pointer text-amber-800 dark:text-amber-300 hover:bg-amber-500/20"
-            >
-              {viewMode === 'draft' ? 'Xem bản chính thức' : 'Xem bản nháp'}
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => applyDraft()}
-              disabled={isApplying}
-              className="text-xs h-7.5 px-3 font-semibold bg-amber-600 hover:bg-amber-700 text-white cursor-pointer shadow-2xs"
-            >
-              {isApplying ? (
-                <>
-                  <Icon icon="lucide:loader-2" className="size-3 mr-1 animate-spin" />
-                  Đang áp dụng...
-                </>
-              ) : (
-                <>
-                  <Icon icon="lucide:check" className="size-3 mr-1" />
-                  Áp dụng vào bài học
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Mindmap Content Display */}
       {isLoading ? (
         <div className="py-16 flex flex-col items-center justify-center space-y-3">
           <Icon icon="lucide:loader-2" className="size-8 text-sky-500 animate-spin" />
           <p className="text-xs text-muted-foreground">Đang tải sơ đồ tư duy...</p>
         </div>
-      ) : currentMindmapData?.root ? (
+      ) : localTree?.root ? (
         <div className="w-full max-w-3xl mx-auto py-2">
           <TreeNode
-            node={currentMindmapData.root}
+            node={localTree.root}
             level={0}
             currentTime={currentTime}
+            duration={duration}
             onSeek={onSeek}
-            isExpanded={expandedMap[currentMindmapData.root.id] !== false}
+            isExpanded={expandedMap[localTree.root.id] !== false}
             onToggleExpand={handleToggleExpand}
             expandedMap={expandedMap}
+            isInstructor={isInstructor}
+            editingNodeId={editingNodeId}
+            editTitle={editTitle}
+            setEditTitle={setEditTitle}
+            editTimestamp={editTimestamp}
+            setEditTimestamp={setEditTimestamp}
+            onStartEdit={handleStartEdit}
+            onSaveEdit={handleSaveEdit}
+            onCancelEdit={handleCancelEdit}
+            onAddChild={handleAddChild}
+            onRequestDelete={handleRequestDelete}
           />
         </div>
       ) : (
@@ -296,7 +571,7 @@ export function LessonMindmapTab({
             <div className="pt-2">
               <Button
                 size="sm"
-                onClick={() => generateMindmap({ saveAsDraft: true })}
+                onClick={() => generateMindmap({ saveAsDraft: false })}
                 disabled={isGenerating}
                 className="text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white cursor-pointer shadow-2xs"
               >
@@ -307,6 +582,55 @@ export function LessonMindmapTab({
           )}
         </div>
       )}
+
+      {/* Delete Branch Confirmation Dialog */}
+      <Dialog
+        open={Boolean(deletingNode)}
+        onOpenChange={(open) => {
+          if (!open) setDeletingNode(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+              <Icon icon="lucide:alert-triangle" className="size-5" />
+              <span>Xác nhận xóa nhánh sơ đồ</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Nhánh <span className="font-semibold text-foreground">&quot;{deletingNode?.title}&quot;</span> đang chứa{' '}
+              <span className="font-semibold text-rose-600 dark:text-rose-400">
+                {deletingNode?.childCount}
+              </span>{' '}
+              nhánh con bên trong.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 text-xs text-muted-foreground leading-relaxed">
+            Bạn có chắc chắn muốn xóa nhánh này cùng tất cả các nhánh con bên trong không? Sơ đồ tư duy bài học sẽ được cập nhật ngay lập tức.
+          </div>
+
+          <DialogFooter className="mt-4 flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setDeletingNode(null)}
+              className="text-xs h-8 cursor-pointer"
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleConfirmDelete}
+              className="text-xs h-8 bg-rose-600 hover:bg-rose-700 text-white font-medium cursor-pointer shadow-2xs"
+            >
+              <Icon icon="lucide:trash-2" className="size-3.5 mr-1" />
+              Xác nhận xóa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

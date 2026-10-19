@@ -32,6 +32,7 @@ import {
   SummaryGenerationResponse,
 } from './services/summary-generation.service.js';
 import { GenerateMindmapDto } from './dto/generate-mindmap.dto.js';
+import { UpdateLessonMindmapDto } from './dto/update-mindmap.dto.js';
 import { GenerateQuizDto } from './dto/generate-quiz.dto.js';
 import { GenerateSummaryDto } from './dto/generate-summary.dto.js';
 import { UpdateLessonSummaryDto } from './dto/update-summary.dto.js';
@@ -77,6 +78,28 @@ export class TranscriptAnalysisController {
   ): Promise<ApiResponse<ILessonMindmap | null>> {
     const mindmap = await this.mindmapAnalysisService.getMindmap(id);
     return ApiResponse.success(mindmap, 'Lấy sơ đồ tư duy bài học thành công');
+  }
+
+  /**
+   * Cập nhật trực tiếp sơ đồ tư duy bài học chính thức do giảng viên chỉnh sửa
+   */
+  @Put(':id/analysis/mindmap')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async updateMindmap(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() dto: UpdateLessonMindmapDto,
+    @CurrentUser('id') userId?: string,
+  ): Promise<ApiResponse<ILessonMindmap>> {
+    const updated = await this.mindmapAnalysisService.updateMindmap(
+      id,
+      dto,
+      userId,
+    );
+    return ApiResponse.success(
+      updated,
+      'Cập nhật sơ đồ tư duy bài học thành công',
+    );
   }
 
   /**

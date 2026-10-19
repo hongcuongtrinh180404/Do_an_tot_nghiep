@@ -15,6 +15,7 @@ import { LessonTranscriptRepository } from '../../course/repositories/lesson-tra
 import { LessonMindmapRepository } from '../../course/repositories/lesson-mindmap.repository.js';
 import { MindmapValidator } from '../validators/mindmap.validator.js';
 import { GenerateMindmapDto } from '../dto/generate-mindmap.dto.js';
+import { UpdateLessonMindmapDto } from '../dto/update-mindmap.dto.js';
 
 export interface MindmapGenerationResponse {
   lessonId: string;
@@ -220,8 +221,8 @@ ${formattedTranscript}`;
     // 5. Kiểm tra chặt chẽ cấu trúc cây và mốc timestamp (MindmapValidator)
     MindmapValidator.validateOrFail(geminiResult.data, durationSeconds, 3);
 
-    // 6. Lưu bản nháp (Draft) nếu được yêu cầu (mặc định: true)
-    const shouldSaveDraft = dto?.saveAsDraft ?? true;
+    // 6. Lưu trực tiếp làm bản chính thức (mặc định: false) hoặc lưu bản nháp nếu yêu cầu
+    const shouldSaveDraft = dto?.saveAsDraft ?? false;
     if (shouldSaveDraft) {
       await this.lessonMindmapRepo.saveDraftByLessonId(
         trimmedLessonId,
@@ -229,6 +230,13 @@ ${formattedTranscript}`;
         userId,
       );
       this.logger.log(`Đã lưu bản nháp Mindmap cho bài học ${trimmedLessonId}`);
+    } else {
+      await this.lessonMindmapRepo.upsertOfficialByLessonId(
+        trimmedLessonId,
+        geminiResult.data,
+        userId,
+      );
+      this.logger.log(`Đã lưu bản sơ đồ tư duy chính thức cho bài học ${trimmedLessonId}`);
     }
 
     return {
@@ -278,5 +286,43 @@ ${formattedTranscript}`;
 
     this.logger.log(`Đã áp dụng bản nháp Mindmap thành chính thức cho bài học ${trimmedId}`);
     return applied;
+  }
+
+  /**
+   * Cập nhật trực tiếp sơ đồ tư duy chính thức của bài học do giảng viên biên tập
+   */
+  async updateMindmap(
+    lessonId: string,
+    dto: UpdateLessonMindmapDto,
+    userId?: string,
+  ): Promise<ILessonMindmap> {
+    const trimmedLessonId = lessonId?.trim();
+    if (!trimmedLessonId) {
+      throw new BadRequestException('ID bài học không được để trống.');
+    }
+
+    const lesson = await this.lessonRepo.findById(trimmedLessonId);
+    if (!lesson) {
+      throw new NotFoundException(`Không tìm thấy bài học với ID: ${trimmedLessonId}`);
+    }
+
+    const transcript = await this.lessonTranscriptRepo.findByLessonId(trimmedLessonId);
+    const durationSeconds =
+      transcript?.durationSeconds || lesson.content?.duration || 0;
+
+    // Validate cấu trúc cây Mindmap (khi giảng viên biên tập thủ công cho phép mở rộng đến 20 cấp độ sâu)
+    MindmapValidator.validateOrFail(dto.mindmap, durationSeconds, 20);
+
+    const updated = await this.lessonMindmapRepo.upsertOfficialByLessonId(
+      trimmedLessonId,
+      dto.mindmap,
+      userId,
+    );
+
+    this.logger.log(
+      `Đã cập nhật trực tiếp sơ đồ tư duy chính thức cho bài học ${trimmedLessonId} bởi user ${userId || 'SYSTEM'}`,
+    );
+
+    return updated;
   }
 }

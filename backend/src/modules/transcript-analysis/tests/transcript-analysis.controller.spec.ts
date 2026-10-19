@@ -14,6 +14,7 @@ describe('TranscriptAnalysisController', () => {
   let mockMindmapService: {
     generateMindmap: ReturnType<typeof vi.fn>;
     getMindmap: ReturnType<typeof vi.fn>;
+    updateMindmap: ReturnType<typeof vi.fn>;
     applyDraft: ReturnType<typeof vi.fn>;
   };
   let mockQuizService: {
@@ -31,6 +32,7 @@ describe('TranscriptAnalysisController', () => {
     mockMindmapService = {
       generateMindmap: vi.fn(),
       getMindmap: vi.fn(),
+      updateMindmap: vi.fn(),
       applyDraft: vi.fn(),
     };
     mockQuizService = {
@@ -78,6 +80,30 @@ describe('TranscriptAnalysisController', () => {
       mockMindmapService.getMindmap.mockResolvedValueOnce({ lessonId: 'lesson-123' });
       const res = await controller.getMindmap('lesson-123');
       expect(res.success).toBe(true);
+    });
+
+    it('should update mindmap and require INSTRUCTOR / ADMIN', async () => {
+      const reflector = new Reflector();
+      const roles = reflector.get<RoleEnum[]>(
+        ROLES_KEY,
+        TranscriptAnalysisController.prototype.updateMindmap,
+      );
+      expect(roles).toEqual([RoleEnum.INSTRUCTOR, RoleEnum.ADMIN]);
+
+      const mockPayload = {
+        mindmap: {
+          root: { id: 'root', title: 'Test', timestamp: 0 },
+        },
+      };
+
+      mockMindmapService.updateMindmap.mockResolvedValueOnce({ lessonId: 'lesson-123' });
+      const res = await controller.updateMindmap('lesson-123', mockPayload, 'user-1');
+      expect(res.success).toBe(true);
+      expect(mockMindmapService.updateMindmap).toHaveBeenCalledWith(
+        'lesson-123',
+        mockPayload,
+        'user-1',
+      );
     });
 
     it('should apply draft mindmap', async () => {

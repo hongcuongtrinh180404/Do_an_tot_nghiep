@@ -20,3 +20,8 @@ export interface ILessonMindmap {
   createdById?: string | null;
   updatedById?: string | null;
 }
+
+export interface IUpdateLessonMindmapPayload {
+  mindmap: ILessonMindmapData;
+}
+

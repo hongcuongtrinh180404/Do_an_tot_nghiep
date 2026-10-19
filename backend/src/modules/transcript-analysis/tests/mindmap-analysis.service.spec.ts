@@ -16,6 +16,7 @@ describe('MindmapAnalysisService', () => {
     findByLessonId: ReturnType<typeof vi.fn>;
     saveDraftByLessonId: ReturnType<typeof vi.fn>;
     applyDraftByLessonId: ReturnType<typeof vi.fn>;
+    upsertOfficialByLessonId: ReturnType<typeof vi.fn>;
   };
 
   const sampleMindmapData: ILessonMindmapData = {
@@ -47,6 +48,7 @@ describe('MindmapAnalysisService', () => {
       findByLessonId: vi.fn(),
       saveDraftByLessonId: vi.fn(),
       applyDraftByLessonId: vi.fn(),
+      upsertOfficialByLessonId: vi.fn(),
     };
 
     service = new MindmapAnalysisService(
@@ -139,6 +141,39 @@ describe('MindmapAnalysisService', () => {
         'instructor-1',
       );
     });
+
+    it('should save directly as official mindmap when saveAsDraft is false', async () => {
+      mockLessonRepo.findById.mockResolvedValueOnce({
+        id: 'lesson-123',
+        title: 'Bài học React',
+        content: { duration: 300 },
+      });
+
+      mockLessonTranscriptRepo.findByLessonId.mockResolvedValueOnce({
+        status: LessonTranscriptionStatusEnum.READY,
+        durationSeconds: 300,
+        sentences: [{ text: 'Bài học React', start: 0, end: 5000 }],
+        rawTranscript: 'Bài học React',
+      });
+
+      mockGeminiService.generateJson.mockResolvedValueOnce({
+        data: sampleMindmapData,
+        rawText: JSON.stringify(sampleMindmapData),
+        model: 'gemini-2.5-flash',
+        keyIndex: 0,
+        maskedKey: 'AIzaSy...1111',
+        executionTimeMs: 1200,
+      });
+
+      const response = await service.generateMindmap('lesson-123', { saveAsDraft: false }, 'instructor-1');
+
+      expect(response.mindmap).toEqual(sampleMindmapData);
+      expect(mockLessonMindmapRepo.upsertOfficialByLessonId).toHaveBeenCalledWith(
+        'lesson-123',
+        sampleMindmapData,
+        'instructor-1',
+      );
+    });
   });
 
   describe('getMindmap & applyDraft', () => {
@@ -167,6 +202,52 @@ describe('MindmapAnalysisService', () => {
       mockLessonMindmapRepo.applyDraftByLessonId.mockResolvedValueOnce(null);
 
       await expect(service.applyDraft('lesson-123')).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('updateMindmap', () => {
+    it('should throw BadRequestException if lessonId is empty', async () => {
+      await expect(
+        service.updateMindmap('', { mindmap: sampleMindmapData }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException if lesson does not exist', async () => {
+      mockLessonRepo.findById.mockResolvedValueOnce(null);
+
+      await expect(
+        service.updateMindmap('lesson-999', { mindmap: sampleMindmapData }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should validate and update official mindmap directly', async () => {
+      mockLessonRepo.findById.mockResolvedValueOnce({
+        id: 'lesson-123',
+        title: 'Bài học React',
+        content: { duration: 300 },
+      });
+
+      mockLessonTranscriptRepo.findByLessonId.mockResolvedValueOnce({
+        durationSeconds: 300,
+      });
+
+      mockLessonMindmapRepo.upsertOfficialByLessonId.mockResolvedValueOnce({
+        lessonId: 'lesson-123',
+        mindmap: sampleMindmapData,
+      });
+
+      const result = await service.updateMindmap(
+        'lesson-123',
+        { mindmap: sampleMindmapData },
+        'instructor-1',
+      );
+
+      expect(result.lessonId).toBe('lesson-123');
+      expect(mockLessonMindmapRepo.upsertOfficialByLessonId).toHaveBeenCalledWith(
+        'lesson-123',
+        sampleMindmapData,
+        'instructor-1',
+      );
     });
   });
 });

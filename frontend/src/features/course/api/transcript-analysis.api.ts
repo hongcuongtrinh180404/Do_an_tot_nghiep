@@ -12,6 +12,7 @@ import type {
   ILessonSummary,
   ILessonSummaryData,
   IUpdateLessonSummaryPayload,
+  IUpdateLessonMindmapPayload,
 } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 import { lessonQuizKeys } from './lesson-quiz.api';
@@ -88,12 +89,23 @@ export const transcriptAnalysisApi = {
 
   async generateMindmap(
     lessonId: string,
-    payload: { saveAsDraft?: boolean } = { saveAsDraft: true },
+    payload: { saveAsDraft?: boolean } = { saveAsDraft: false },
   ): Promise<IMindmapGenerationResponse> {
     const res = await apiClient.post<IApiResponse<IMindmapGenerationResponse>>(
       `/lessons/${lessonId}/analysis/mindmap`,
       payload,
       { timeout: 120000 },
+    );
+    return res.data.data;
+  },
+
+  async updateMindmap(
+    lessonId: string,
+    payload: IUpdateLessonMindmapPayload,
+  ): Promise<ILessonMindmap> {
+    const res = await apiClient.put<IApiResponse<ILessonMindmap>>(
+      `/lessons/${lessonId}/analysis/mindmap`,
+      payload,
     );
     return res.data.data;
   },
@@ -225,6 +237,26 @@ export function useApplyMindmapDraftMutation(lessonId: string) {
     onError: (error: unknown) => {
       toast.error('Lỗi khi áp dụng sơ đồ tư duy', {
         description: extractErrorMessage(error, 'Vui lòng thử lại sau.'),
+      });
+    },
+  });
+}
+
+export function useUpdateLessonMindmapMutation(lessonId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: IUpdateLessonMindmapPayload) =>
+      transcriptAnalysisApi.updateMindmap(lessonId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: transcriptAnalysisKeys.mindmap(lessonId),
+      });
+      // Silent auto-save per Socratic Gate decision (no success toast)
+    },
+    onError: (error: unknown) => {
+      toast.error('Lỗi khi cập nhật sơ đồ tư duy', {
+        description: extractErrorMessage(error, 'Vui lòng kiểm tra lại dữ liệu và thử lại.'),
       });
     },
   });
