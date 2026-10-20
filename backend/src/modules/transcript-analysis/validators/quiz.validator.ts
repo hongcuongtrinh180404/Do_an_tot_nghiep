@@ -11,12 +11,12 @@ export class QuizValidator {
    * Kiểm tra toàn diện tính hợp lệ của danh sách câu hỏi trắc nghiệm do AI sinh ra
    * @param quizzes Danh sách câu hỏi
    * @param maxDurationSeconds Thời lượng tối đa của video (giây) để chặn trên timestamp
-   * @param expectedCount Số lượng câu hỏi yêu cầu (mặc định 10 câu)
+   * @param maxCount Số lượng câu hỏi tối đa cho phép (mặc định 10 câu)
    */
   static validate(
     quizzes: IGeneratedQuizItem[],
     maxDurationSeconds: number,
-    expectedCount = 10,
+    maxCount = 10,
   ): QuizValidationResult {
     const errors: string[] = [];
 
@@ -25,9 +25,9 @@ export class QuizValidator {
       return { isValid: false, errors };
     }
 
-    if (quizzes.length !== expectedCount) {
+    if (quizzes.length > maxCount) {
       errors.push(
-        `Số lượng câu hỏi không đúng yêu cầu: nhận được ${quizzes.length} câu, yêu cầu ${expectedCount} câu.`,
+        `Số lượng câu hỏi (${quizzes.length}) vượt quá giới hạn tối đa cho phép (${maxCount} câu).`,
       );
     }
 
@@ -108,9 +108,9 @@ export class QuizValidator {
   static validateOrFail(
     quizzes: IGeneratedQuizItem[],
     maxDurationSeconds: number,
-    expectedCount = 10,
+    maxCount = 10,
   ): void {
-    const result = this.validate(quizzes, maxDurationSeconds, expectedCount);
+    const result = this.validate(quizzes, maxDurationSeconds, maxCount);
     if (!result.isValid) {
       throw new UnprocessableEntityException(
         `Danh sách câu hỏi trắc nghiệm không hợp lệ: ${result.errors.join('; ')}`,

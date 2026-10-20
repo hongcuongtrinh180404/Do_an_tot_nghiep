@@ -15,6 +15,7 @@ import { LessonTranscriptRepository } from '../repositories/lesson-transcript.re
 import { LessonRepository } from '../repositories/lesson.repository.js';
 import { StorageService } from '../../storage/index.js';
 import { AssemblyAiService } from '../../assemblyai/index.js';
+import { AudioExtractorService } from './audio-extractor.service.js';
 
 @Injectable()
 export class LessonTranscriptService extends BaseService<ILessonTranscript, string> {
@@ -25,6 +26,7 @@ export class LessonTranscriptService extends BaseService<ILessonTranscript, stri
     private readonly lessonRepo: LessonRepository,
     private readonly storageService: StorageService,
     private readonly assemblyAiService: AssemblyAiService,
+    private readonly audioExtractorService: AudioExtractorService,
     cls: ClsService,
   ) {
     super(lessonTranscriptRepo, cls, LessonTranscriptService.name);
@@ -95,46 +97,70 @@ export class LessonTranscriptService extends BaseService<ILessonTranscript, stri
   }
 
   /**
-   * Xử lý trích xuất: MinIO Stream -> AssemblyAI -> MongoDB
+   * Xử lý trích xuất: MinIO Video -> FFmpeg tách MP3 (16kHz mono) -> AssemblyAI -> MongoDB -> Dọn dẹp file tạm
    */
   async processTranscriptionTask(lessonId: string, videoKeyOrUrl: string): Promise<void> {
-    this.logger.log(`[Task] Đang lấy stream video từ MinIO cho bài học ${lessonId} (key: ${videoKeyOrUrl})...`);
-    const audioStream = await this.storageService.getObjectStream(videoKeyOrUrl);
-
-    this.logger.log(`[Task] Đang gửi stream tới AssemblyAI để trích xuất transcript bài giảng...`);
-    const result = await this.assemblyAiService.transcribeStream(audioStream, {
-      languageCode: 'vi',
-    });
-
     this.logger.log(
-      `[Task] AssemblyAI hoàn thành cho bài học ${lessonId}. Số câu: ${result.sentences.length}, độ dài: ${result.durationSeconds}s`,
+      `[Task] Bắt đầu chuẩn bị nguồn video từ MinIO cho bài học ${lessonId} (key: ${videoKeyOrUrl})...`,
+    );
+    const presignedVideoUrl = await this.storageService.getPresignedStreamUrl(
+      videoKeyOrUrl,
+      3600,
     );
 
-    // Lưu transcript hoàn chỉnh vào collection lesson_transcripts
-    await this.lessonTranscriptRepo.upsertByLessonId(lessonId, {
-      rawTranscript: result.rawTranscript,
-      sentences: result.sentences,
-      durationSeconds: result.durationSeconds,
-      languageCode: result.languageCode,
-      externalTranscriptId: result.transcriptId,
-      status: LessonTranscriptionStatusEnum.READY,
-      failureReason: null,
-    });
+    let tempAudioPath: string | null = null;
+    try {
+      this.logger.log(
+        `[Task] Đang trích xuất audio MP3 tối ưu (16kHz, mono, 64kbps) qua FFmpeg cho bài học ${lessonId}...`,
+      );
+      tempAudioPath = await this.audioExtractorService.extractMp3FromVideo(
+        presignedVideoUrl,
+        lessonId,
+      );
 
-    // Cập nhật trạng thái bài học và thời lượng video nếu có
-    const lesson = await this.lessonRepo.findById(lessonId);
-    if (lesson) {
-      const updatedContent = lesson.content
-        ? { ...lesson.content, duration: result.durationSeconds }
-        : null;
-
-      await this.lessonRepo.update(lessonId, {
-        transcriptionStatus: LessonTranscriptionStatusEnum.READY,
-        content: updatedContent,
+      this.logger.log(
+        `[Task] Đang gửi tệp MP3 tới AssemblyAI để trích xuất transcript bài giảng...`,
+      );
+      const result = await this.assemblyAiService.transcribeFile(tempAudioPath, {
+        languageCode: 'vi',
       });
-    }
 
-    this.logger.log(`[Task] Đã lưu transcript thành công và chuyển trạng thái bài học ${lessonId} sang READY.`);
+      this.logger.log(
+        `[Task] AssemblyAI hoàn thành cho bài học ${lessonId}. Số câu: ${result.sentences.length}, độ dài: ${result.durationSeconds}s`,
+      );
+
+      // Lưu transcript hoàn chỉnh vào collection lesson_transcripts
+      await this.lessonTranscriptRepo.upsertByLessonId(lessonId, {
+        rawTranscript: result.rawTranscript,
+        sentences: result.sentences,
+        durationSeconds: result.durationSeconds,
+        languageCode: result.languageCode,
+        externalTranscriptId: result.transcriptId,
+        status: LessonTranscriptionStatusEnum.READY,
+        failureReason: null,
+      });
+
+      // Cập nhật trạng thái bài học và thời lượng video nếu có
+      const lesson = await this.lessonRepo.findById(lessonId);
+      if (lesson) {
+        const updatedContent = lesson.content
+          ? { ...lesson.content, duration: result.durationSeconds }
+          : null;
+
+        await this.lessonRepo.update(lessonId, {
+          transcriptionStatus: LessonTranscriptionStatusEnum.READY,
+          content: updatedContent,
+        });
+      }
+
+      this.logger.log(
+        `[Task] Đã lưu transcript thành công và chuyển trạng thái bài học ${lessonId} sang READY.`,
+      );
+    } finally {
+      if (tempAudioPath) {
+        await this.audioExtractorService.cleanupTempFile(tempAudioPath);
+      }
+    }
   }
 
   /**

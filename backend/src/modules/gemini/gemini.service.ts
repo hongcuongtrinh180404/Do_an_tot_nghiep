@@ -12,6 +12,7 @@ import {
   GeminiBaseException,
   GeminiInvalidRequestException,
   GeminiModelNotFoundException,
+  GeminiModelUnavailableException,
   GeminiRateLimitException,
   GeminiResponseParsingException,
   GeminiServiceUnavailableException,
@@ -21,6 +22,7 @@ import {
 export class GeminiService implements IGeminiService {
   private readonly logger = new Logger(GeminiService.name);
   private readonly configuredModel: string;
+  private readonly fallbackModel: string;
   private readonly clientCache = new Map<string, GoogleGenAI>();
 
   constructor(
@@ -28,10 +30,16 @@ export class GeminiService implements IGeminiService {
     private readonly keyManager: GeminiKeyManager,
   ) {
     this.configuredModel = this.configService
-      .get<string>('GEMINI_MODEL', 'gemini-2.5-flash')
+      .get<string>('GEMINI_MODEL', 'gemini-3.8-flash')
       .trim();
 
-    this.logger.log(`GeminiService đã khởi tạo với model mặc định: ${this.configuredModel}`);
+    this.fallbackModel = this.configService
+      .get<string>('GEMINI_FALLBACK_MODEL', 'gemini-3.5-flash-lite')
+      .trim();
+
+    this.logger.log(
+      `GeminiService đã khởi tạo với model chính: ${this.configuredModel}, model dự phòng: ${this.fallbackModel}`,
+    );
   }
 
   /**
@@ -47,7 +55,7 @@ export class GeminiService implements IGeminiService {
   }
 
   /**
-   * Gọi Gemini API sinh nội dung text với cơ chế xoay vòng key và retry thông minh
+   * Gọi Gemini API sinh nội dung text với cơ chế xoay vòng key và chuyển đổi tạm thời sang fallback model khi 503
    */
   async generateContent(
     prompt: string,
@@ -87,15 +95,46 @@ export class GeminiService implements IGeminiService {
           config.responseSchema = options.responseSchema as GenerateContentConfig['responseSchema'];
         }
 
-        this.logger.debug(
-          `[Lần ${attempt}/${maxAttempts}] Gửi request tới Gemini model ${this.configuredModel} bằng key [${activeKey.name} (${activeKey.maskedKey})]...`,
-        );
+        let usedModel = this.configuredModel;
+        let isFallback = false;
+        let response;
 
-        const response = await client.models.generateContent({
-          model: this.configuredModel,
-          contents: trimmedPrompt,
-          config,
-        });
+        try {
+          this.logger.debug(
+            `[Lần ${attempt}/${maxAttempts}] Gửi request tới Gemini model ${usedModel} bằng key [${activeKey.name} (${activeKey.maskedKey})]...`,
+          );
+
+          response = await client.models.generateContent({
+            model: usedModel,
+            contents: trimmedPrompt,
+            config,
+          });
+        } catch (callErr: unknown) {
+          const classifiedCallErr = this.classifySdkException(callErr);
+
+          // Nếu model 3.8 bị 503 UNAVAILABLE (quá tải), chuyển tạm thời request sang model dự phòng 3.5
+          if (
+            usedModel === this.configuredModel &&
+            classifiedCallErr instanceof GeminiModelUnavailableException
+          ) {
+            this.logger.warn(
+              `Model chính [${this.configuredModel}] trả về 503 UNAVAILABLE qua key [${activeKey.name} (${activeKey.maskedKey})]. Tạm thời chuyển request sang model dự phòng [${this.fallbackModel}]...`,
+            );
+            usedModel = this.fallbackModel;
+            isFallback = true;
+
+            this.logger.debug(
+              `Thử lại ngay với model dự phòng ${usedModel} trên key [${activeKey.name} (${activeKey.maskedKey})]...`,
+            );
+            response = await client.models.generateContent({
+              model: usedModel,
+              contents: trimmedPrompt,
+              config,
+            });
+          } else {
+            throw callErr;
+          }
+        }
 
         const executionTimeMs = Date.now() - startTime;
         const rawText = response.text?.trim() || '';
@@ -112,17 +151,18 @@ export class GeminiService implements IGeminiService {
           : undefined;
 
         this.logger.log(
-          `Gemini hoàn thành thành công trong ${executionTimeMs}ms qua key [${activeKey.name} (${activeKey.maskedKey})]. Tokens: ${usage?.totalTokens ?? 'N/A'}`,
+          `Gemini [${usedModel}] hoàn thành thành công trong ${executionTimeMs}ms qua key [${activeKey.name} (${activeKey.maskedKey})]. Tokens: ${usage?.totalTokens ?? 'N/A'}${isFallback ? ' (Fallback)' : ''}`,
         );
 
         return {
           data: rawText,
           rawText,
-          model: this.configuredModel,
+          model: usedModel,
           keyIndex: activeKey.index,
           maskedKey: activeKey.maskedKey,
           executionTimeMs,
           usage,
+          isFallback,
         };
       } catch (err: unknown) {
         lastError = err;
@@ -151,7 +191,19 @@ export class GeminiService implements IGeminiService {
           throw classified;
         }
 
-        // 3. Lỗi 503 / 500 Service Unavailable: Cooldown nhẹ và thử key khác
+        // 3. Lỗi 503 Model Unavailable (Quá tải model cụm máy chủ Google): Không phạt cooldown key
+        if (classified instanceof GeminiModelUnavailableException) {
+          this.logger.warn(
+            `Cụm model Google tạm thời quá tải qua key [${activeKey.name} (${activeKey.maskedKey})], thử lại lượt tiếp theo...`,
+          );
+          if (attempt < maxAttempts) {
+            await new Promise((res) => setTimeout(res, 200));
+            continue;
+          }
+          throw classified;
+        }
+
+        // 4. Lỗi 500 / 503 Service Unavailable khác (lỗi mạng, server nội bộ): Cooldown nhẹ và thử key khác
         if (classified instanceof GeminiServiceUnavailableException) {
           this.keyManager.markCooldown(activeKey.index, classified.message);
           this.logger.warn(
@@ -283,11 +335,21 @@ export class GeminiService implements IGeminiService {
       return new GeminiInvalidRequestException(`Gemini Invalid Request Argument: ${message}`, err);
     }
 
-    // 5. Kiểm tra Service Unavailable
+    // 5. Kiểm tra 503 UNAVAILABLE / Model Overloaded (Quá tải cụm model Google)
+    if (
+      status === 503 ||
+      message.includes('503') ||
+      message.includes('UNAVAILABLE') ||
+      message.includes('model is overloaded') ||
+      message.includes('The model is overloaded') ||
+      message.includes('overloaded')
+    ) {
+      return new GeminiModelUnavailableException(`Gemini Model Overloaded / Unavailable (503): ${message}`, err);
+    }
+
+    // 6. Kiểm tra Service Unavailable (500 / Internal error / Network failure)
     if (
       status === 500 ||
-      status === 503 ||
-      message.includes('UNAVAILABLE') ||
       message.includes('Internal error') ||
       message.includes('fetch failed')
     ) {

@@ -6,6 +6,7 @@ allowBuilds:
   '@google/genai': false
   bcrypt: true
   esbuild: true
+  ffmpeg-static: true
   protobufjs: false
   unrs-resolver: true
 onlyBuiltDependencies:
@@ -13,3 +14,4 @@ onlyBuiltDependencies:
   - unrs-resolver
   - esbuild
   - '@nestjs/core'
+  - ffmpeg-static

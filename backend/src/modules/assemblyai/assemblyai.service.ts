@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as fs from 'node:fs';
 import { AssemblyAI, type Transcript, type TranscribeParams } from 'assemblyai';
 import {
   IAssemblyAiService,
@@ -136,6 +137,36 @@ export class AssemblyAiService implements IAssemblyAiService {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to upload audio stream to AssemblyAI: ${message}`);
       throw new InternalServerErrorException(`Failed to upload audio stream to AssemblyAI: ${message}`);
+    }
+  }
+
+  async transcribeFile(
+    filePath: string,
+    options?: Partial<AssemblyAiTranscribeOptions>,
+  ): Promise<AssemblyAiTranscriptionResult> {
+    const trimmedPath = filePath?.trim();
+    if (!trimmedPath) {
+      throw new BadRequestException('Đường dẫn tệp âm thanh (filePath) không được để trống.');
+    }
+
+    if (!fs.existsSync(trimmedPath)) {
+      throw new BadRequestException(`Không tìm thấy tệp âm thanh tại đường dẫn: ${trimmedPath}`);
+    }
+
+    const client = this.getClient();
+    this.logger.log(`Uploading audio file ${trimmedPath} to AssemblyAI staging storage...`);
+    try {
+      const fileStream = fs.createReadStream(trimmedPath);
+      const uploadUrl = await client.files.upload(fileStream as never);
+      this.logger.log('Audio file uploaded to AssemblyAI successfully. Starting transcription...');
+      return await this.executeTranscription(uploadUrl, options);
+    } catch (error: unknown) {
+      if (error instanceof BadRequestException || error instanceof InternalServerErrorException) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to upload audio file to AssemblyAI: ${message}`);
+      throw new InternalServerErrorException(`Failed to upload audio file to AssemblyAI: ${message}`);
     }
   }
 

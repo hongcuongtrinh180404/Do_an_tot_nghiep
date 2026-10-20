@@ -37,11 +37,23 @@ describe('QuizValidator', () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it('should fail if quiz list count is not equal to expectedCount (e.g. 9 instead of 10)', () => {
-    const invalidQuizzes = generateValidQuizzes(9);
+  it('should pass validation when quiz count is less than maxCount (e.g. 4 or 6 questions or empty)', () => {
+    const quizzes4 = generateValidQuizzes(4);
+    const result4 = QuizValidator.validate(quizzes4, 300, 10);
+    expect(result4.isValid).toBe(true);
+    expect(result4.errors).toHaveLength(0);
+
+    const emptyQuizzes: IGeneratedQuizItem[] = [];
+    const result0 = QuizValidator.validate(emptyQuizzes, 300, 10);
+    expect(result0.isValid).toBe(true);
+    expect(result0.errors).toHaveLength(0);
+  });
+
+  it('should fail if quiz list count exceeds maxCount (e.g. 11 instead of max 10)', () => {
+    const invalidQuizzes = generateValidQuizzes(11);
     const result = QuizValidator.validate(invalidQuizzes, 300, 10);
     expect(result.isValid).toBe(false);
-    expect(result.errors.some((e) => e.includes('Số lượng câu hỏi không đúng'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('vượt quá giới hạn tối đa cho phép'))).toBe(true);
   });
 
   it('should fail if a question has empty text', () => {
@@ -93,7 +105,7 @@ describe('QuizValidator', () => {
   });
 
   it('should throw UnprocessableEntityException in validateOrFail when invalid', () => {
-    const invalid = generateValidQuizzes(5);
+    const invalid = generateValidQuizzes(12);
     expect(() => QuizValidator.validateOrFail(invalid, 300, 10)).toThrow(
       UnprocessableEntityException,
     );

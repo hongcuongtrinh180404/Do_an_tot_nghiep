@@ -31,6 +31,10 @@ export interface IAssemblyAiService {
     audioStream: NodeJS.ReadableStream | ReadableStream,
     options?: Partial<AssemblyAiTranscribeOptions>,
   ): Promise<AssemblyAiTranscriptionResult>;
+  transcribeFile(
+    filePath: string,
+    options?: Partial<AssemblyAiTranscribeOptions>,
+  ): Promise<AssemblyAiTranscriptionResult>;
   getSubtitles(transcriptId: string, format?: 'srt' | 'vtt'): Promise<string>;
   getTranscript(transcriptId: string): Promise<Transcript>;
 }

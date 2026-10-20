@@ -35,6 +35,7 @@ export interface GeminiExecutionResult<T = string> {
   maskedKey: string;
   executionTimeMs: number;
   usage?: GeminiUsageMetadata;
+  isFallback?: boolean;
 }
 
 export interface GenerateContentOptions {

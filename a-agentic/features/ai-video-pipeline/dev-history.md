@@ -294,4 +294,141 @@
   - Backend compile: `nest build` thành công 100% (0 errors).
   - Frontend compile: `next build` thành công 100% (0 errors).
 
+---
+
+## 13. Dev History: In-Video Quiz Quality Prompt & Flexible Ceiling Generation (2026-10-19)
+
+- **Bối cảnh & Động lực**:
+  - Trước đây, prompt AI và validator ép cứng sinh **ĐÚNG** 10 câu hỏi (`quizzes.length !== 10` sẽ bị lỗi 422). Điều này dẫn đến việc Gemini phải chia nhỏ gượng ép các ý vụn vặt hoặc lặp lại kiến thức để cho đủ 10 câu khi bài giảng ngắn.
+  - Người dùng yêu cầu chuyển đổi tư duy sư phạm: **"Chất lượng hơn số lượng"** - Đặt trần tối đa 10 câu hỏi (hoặc theo mức trần giảng viên chọn), AI tự đánh giá nội dung transcript để quyết định số lượng câu hỏi phù hợp (ví dụ 4, 6, 8 câu). Nếu transcript quá ngắn hoặc không đủ kiến thức chất lượng thì sinh ít hơn, thậm chí trả về 0 câu (`[]`).
+- **Các thay đổi cốt lõi**:
+  - **`backend`**:
+    - `quiz.validator.ts`:
+      - Đổi kiểm tra số lượng từ ép cứng `quizzes.length !== expectedCount` sang giới hạn trần `quizzes.length > maxCount`.
+      - Hỗ trợ linh hoạt từ 0 đến `maxCount` (mặc định 10 câu). Cho phép `quizzes.length === 0` hợp lệ mà không báo lỗi.
+    - `quiz-generation.service.ts`:
+      - `buildQuizPrompt`: Cập nhật prompt sư phạm chuyên sâu với các nguyên tắc: "Đánh giá trước - Quyết định sau", chỉ tạo câu hỏi khi có kiến thức quan trọng/giá trị học tập, không chia nhỏ gượng ép, không tạo câu hỏi vụn vặt/chào hỏi, không bịa ngoài transcript, trả về `{ quizzes: [] }` nếu không đủ dữ kiện.
+      - `sanitizeAndNormalizeQuizzes`: Tự động cắt gọn về trần `maxCount`, tính fallback timestamp theo số lượng câu hỏi thực tế (`list.length`).
+      - `generateQuiz`: Ghi log linh hoạt số lượng câu hỏi được tạo và lưu draft rỗng an toàn khi AI trả về 0 câu.
+    - Unit tests:
+      - Cập nhật `quiz.validator.spec.ts` và `quiz-generation.service.spec.ts` bổ sung test case cho 0 câu, 4 câu, 10 câu, và vượt quá 10 câu. Toàn bộ 74 tests pass 100%.
+  - **`frontend`**:
+    - `transcript-analysis.api.ts`:
+      - Trong `useGenerateQuizMutation`: Thêm nhánh kiểm tra `res.quizzes.length === 0` để hiển thị `toast.info` nhẹ nhàng thay vì nhầm lẫn là lỗi.
+    - `lesson-quiz-tab.tsx`:
+      - Bổ sung bộ chọn trần số lượng câu hỏi `Select` (3, 5, 8, 10, 15, 20 câu, mặc định 10 câu).
+      - Đổi nhãn nút từ `"Sinh 10 câu hỏi bằng AI"` thành `"Sinh câu hỏi bằng AI"` / `"Sinh lại câu hỏi AI"`.
+      - Trạng thái loading: `"Đang phân tích & tạo câu hỏi..."`.
+      - Hiển thị banner thông tin màu xanh dịu khi AI phân tích và trả về 0 câu hỏi do transcript quá ngắn.
+      - Đồng bộ nút bấm và mô tả trong empty state với mốc trần `maxQuestions`.
+- **Kiểm thử & Xác minh**:
+  - Backend tests: `pnpm --filter backend test src/modules/transcript-analysis` chạy 7 files, 74 tests pass 100%.
+  - Frontend TypeScript: `pnpm --filter frontend exec tsc --noEmit` pass 100% (0 errors).
+  - Web preview: Trang chi tiết bài học `http://localhost:3000/instructor/courses/.../lessons/...` phản hồi 200 OK mượt mà.
+
+---
+
+## 14. Dev History: Streamlined Quiz Flow — Direct Official Persistence & Ceiling Fixed to 10 (2026-10-19)
+
+- **Bối cảnh & Động lực**:
+  - Sau khi trải nghiệm, người dùng nhận thấy việc có dropdown chọn trần câu hỏi và banner màu vàng chờ phê duyệt ("Bộ câu hỏi từ AI đang chờ duyệt") gây rườm rà không cần thiết.
+  - Người dùng yêu cầu:
+    1. Cố định mặc định trần là 10 câu hỏi (bỏ dropdown chọn trần).
+    2. Loại bỏ hoàn toàn banner màu vàng chờ duyệt và các nút chuyển đổi bản nháp/chính thức.
+    3. Khi AI sinh câu hỏi, kết quả tự động được lưu và áp dụng trực tiếp thành câu hỏi chính thức của bài học (tương tự như luồng Tóm tắt Summary).
+- **Các thay đổi cốt lõi**:
+  - **`backend`**:
+    - `generate-quiz.dto.ts`: Cập nhật `saveAsDraft?: boolean = false` làm mặc định, `count?: number = 10`.
+    - `quiz-generation.service.ts`:
+      - Khi `saveAsDraft: false` (mặc định): Tự động chuyển đổi `IGeneratedQuizItem` sang format thực thể và gọi `lessonQuizRepo.replaceAllQuizzesForLesson`, đồng thời gọi `lessonQuizDraftRepo.clearDraftByLessonId` dọn sạch bản nháp cũ.
+      - Bảo vệ dữ liệu: Nếu AI sinh ra 0 câu do transcript quá ngắn, không ghi đè danh sách rỗng lên câu hỏi chính thức hiện có.
+    - `quiz-generation.service.spec.ts`: Bổ sung unit test xác nhận luồng lưu trực tiếp `replaceAllQuizzesForLesson` khi `saveAsDraft: false`. 12 tests pass 100%.
+  - **`frontend`**:
+    - `transcript-analysis.api.ts`:
+      - Cập nhật mặc định `generateQuiz` với payload `{ count: 10, saveAsDraft: false }`.
+      - Invalidate cache `lessonQuizKeys.byLesson(lessonId)` trong `useGenerateQuizMutation` để cập nhật bảng câu hỏi chính thức tức thì.
+    - `lesson-quiz-tab.tsx`:
+      - Loại bỏ component `Select`, state `maxQuestions`, state `viewMode`.
+      - Loại bỏ hoàn toàn banner màu vàng chờ duyệt (`Instructor Draft Banner`) và các hook liên quan đến draft.
+      - Danh sách hiển thị trực tiếp lấy từ `officialQuizzes`.
+      - Nút hành động đơn giản, tinh tế: `[Sinh câu hỏi bằng AI]` / `[Sinh lại câu hỏi AI]`.
+- **Kiểm thử & Xác minh**:
+  - Backend tests: `pnpm --filter backend test src/modules/transcript-analysis` chạy 7 files, 75 tests pass 100%.
+  - Frontend TypeScript: `pnpm --filter frontend exec tsc --noEmit` pass 100% (0 errors).
+  - Web preview: Trang chi tiết bài học phản hồi HTTP 200, giao diện sạch sẽ, liền mạch.
+
+---
+
+## 15. Dev History: Instant Temporary Fallback Model on 503 UNAVAILABLE (2026-10-20)
+
+- **Bối cảnh & Động lực**:
+  - Khi gửi yêu cầu phân tích video (Summary, Mindmap, Quiz) lên Google Gemini API trong giờ cao điểm, hạ tầng Google đôi khi phản hồi `503 UNAVAILABLE: The model is overloaded. Please try again later.`.
+  - Bản chất lỗi 503 là sự quá tải cụm máy chủ tạm thời của model cụ thể trên hạ tầng Google, hoàn toàn không phải do hết hạn mức quota API key (429 RESOURCE_EXHAUSTED).
+  - Trước đây, `GeminiService` đưa key vào cooldown và thử key khác với cùng model `gemini-3.8-flash`, khiến các key khác cũng bị 503 và bị phạt cooldown oan.
+  - Người dùng yêu cầu: Luôn ưu tiên dùng model 3.8 trước, nhưng khi một request gặp lỗi 503 UNAVAILABLE thì chuyển tạm thời ngay request đó sang model dự phòng `gemini-3.5-flash-lite`.
+- **Các thay đổi cốt lõi**:
+  - **`Config & Environment`**:
+    - `env.validation.ts`: Bổ sung `GEMINI_FALLBACK_MODEL: Joi.string().default('gemini-3.5-flash-lite')`.
+    - `.env` & `.env.example`: Cấu hình `GEMINI_MODEL=gemini-3.8-flash` và `GEMINI_FALLBACK_MODEL=gemini-3.5-flash-lite`.
+  - **`Gemini Interfaces & Errors`**:
+    - `gemini.interface.ts`: Bổ sung `isFallback?: boolean` vào `GeminiExecutionResult<T>`.
+    - `gemini.errors.ts`: Thêm `GeminiModelUnavailableException` (kế thừa `GeminiServiceUnavailableException` với `requiresKeyRotation = false` và `isOverloaded = true`).
+  - **`GeminiService`**:
+    - Constructor nạp cả `configuredModel` (`gemini-3.8-flash`) và `fallbackModel` (`gemini-3.5-flash-lite`).
+    - Trong `generateContent`:
+      - Mỗi request bắt đầu bằng `usedModel = this.configuredModel` (luôn ưu tiên 3.8 trước).
+      - Bắt lỗi SDK: nếu `usedModel === this.configuredModel` và gặp `GeminiModelUnavailableException` (503 UNAVAILABLE / model overloaded):
+        - Ghi log WARN cảnh báo quá tải model.
+        - Không phạt cooldown hay dead cho API key hiện tại.
+        - Ngay lập tức chuyển tạm thời `usedModel = this.fallbackModel`, `isFallback = true` và thử lại ngay trên chính key hiện tại.
+      - Trả về `model: usedModel` và `isFallback: boolean`.
+      - Request mới tiếp theo tự động thử lại với `gemini-3.8-flash` trước (tính tạm thời).
+  - **`Testing`**:
+    - Cập nhật `gemini.service.spec.ts` với 12 test cases bao phủ toàn diện:
+      1. Happy path với model chính 3.8 (`isFallback: false`).
+      2. 503 UNAVAILABLE tự động chuyển tạm thời sang 3.5 (`isFallback: true`) mà không phạt cooldown key.
+      3. Request tiếp theo tự động thử lại 3.8 trước.
+      4. Rate limit 429 vẫn cooldown key và xoay key đúng chuẩn.
+      5. Dual outage (cả 3.8 và 3.5 đều lỗi) ném ra `GeminiServiceUnavailableException`.
+    - Toàn bộ 22 tests của `src/modules/gemini` và 75 tests của `src/modules/transcript-analysis` đều PASS 100%.
+- **Technical Notes & Gotchas**:
+---
+
+## 16. Dev History: FFmpeg Audio Extraction & Speech-to-Text MP3 Optimization (2026-10-20)
+
+- **Bối cảnh & Động lực**:
+  - Ban đầu, `LessonTranscriptService.processTranscriptionTask` lấy stream video MP4 gốc trực tiếp từ MinIO qua `getObjectStream` và tải toàn bộ stream này lên AssemblyAI.
+  - Video MP4 thường có kích thước rất lớn (vài trăm MB đến hơn 1GB) vì chứa luồng hình ảnh 1080p/720p, gây lãng phí băng thông nghiêm trọng, độ trễ upload cao và dễ timeout mạng.
+  - Người dùng yêu cầu tối ưu hóa luồng: Dùng FFmpeg tách luồng âm thanh từ video MinIO sang file MP3 tạm với các tham số tối ưu chuyên biệt cho AI Speech-to-Text (`-vn`, `-ac 1`, `-ar 16000`, `-c:a libmp3lame`, `-b:a 64k`, `-y`), gửi file MP3 lên AssemblyAI, và tự động dọn dẹp xóa file tạm sau khi nhận transcript (hoặc khi gặp lỗi).
+- **Các thay đổi cốt lõi**:
+  - **`Package & Dynamic Binary Resolution`**:
+    - Cài đặt `ffmpeg-static` và `@types/ffmpeg-static`, đồng thời cấu hình `allowBuilds` và `onlyBuiltDependencies` trong `pnpm-workspace.yaml`.
+    - Bổ sung cấu hình `FFMPEG_PATH` trong `.env`, `.env.example` và `env.validation.ts`.
+    - Thứ tự ưu tiên phân giải binary: `FFMPEG_PATH` -> `ffmpeg-static` -> `ffmpeg` hệ thống.
+  - **`AudioExtractorService`**:
+    - Tạo `backend/src/modules/course/services/audio-extractor.service.ts` chịu trách nhiệm duy nhất là điều phối FFmpeg.
+    - Thực thi FFmpeg thông qua `promisify(execFile)` với timeout 10 phút và đầy đủ tham số tối ưu cho ASR.
+    - Cung cấp method `cleanupTempFile` dọn dẹp file tạm an toàn tại `os.tmpdir()`.
+  - **`AssemblyAiService`**:
+    - Mở rộng interface `IAssemblyAiService` và `AssemblyAiService` với phương thức `transcribeFile(filePath, options)`.
+    - Đọc file qua `fs.createReadStream` và upload trực tiếp lên AssemblyAI staging storage.
+  - **`LessonTranscriptService`**:
+    - Cập nhật `processTranscriptionTask`:
+      1. Tạo presigned download URL từ MinIO qua `storageService.getPresignedStreamUrl(videoKeyOrUrl, 3600)`.
+      2. Kích hoạt `audioExtractorService.extractMp3FromVideo` trích xuất file tạm MP3.
+      3. Gọi `assemblyAiService.transcribeFile(tempAudioPath, { languageCode: 'vi' })`.
+      4. Bọc toàn bộ trong khối `try ... finally` để luôn gọi `audioExtractorService.cleanupTempFile(tempAudioPath)` bảo đảm không rò rỉ dung lượng ổ đĩa máy chủ.
+  - **`Testing & Quality Assurance`**:
+    - Viết unit tests mới trong `audio-extractor.service.spec.ts` (10 tests).
+    - Cập nhật unit tests trong `lesson-transcript.service.spec.ts` (12 tests).
+    - Cập nhật unit tests trong `assemblyai.service.spec.ts` (16 tests).
+    - Toàn bộ 534 tests của backend đều PASS 100%. Linter và `nest build` hoàn toàn sạch lỗi.
+- **Technical Notes & Gotchas**:
+  - **Range Request Streaming**: Truyền presigned URL trực tiếp vào FFmpeg `-i <url>` giúp FFmpeg chỉ đọc phần audio metadata và audio packets qua HTTP Range Requests, hoàn toàn không phải tốn I/O tải hàng trăm MB video MP4 về đĩa local.
+  - **Guaranteed Cleanup**: Luôn đặt việc xóa file tạm trong khối `finally` để tránh rủi ro đĩa bị đầy khi AssemblyAI gặp sự cố mạng hoặc MongoDB ném ngoại lệ.
+
+
+
+
+
 

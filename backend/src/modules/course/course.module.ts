@@ -29,6 +29,7 @@ import { LessonService } from './services/lesson.service.js';
 import { CourseMindmapService } from './services/course-mindmap.service.js';
 import { LessonTranscriptService } from './services/lesson-transcript.service.js';
 import { LessonQuizService } from './services/lesson-quiz.service.js';
+import { AudioExtractorService } from './services/audio-extractor.service.js';
 import { UserModule } from '../user/user.module.js';
 import { StorageModule } from '../storage/storage.module.js';
 import { AssemblyAiModule } from '../assemblyai/assemblyai.module.js';
@@ -73,6 +74,7 @@ import { AssemblyAiModule } from '../assemblyai/assemblyai.module.js';
     CourseMindmapService,
     LessonTranscriptService,
     LessonQuizService,
+    AudioExtractorService,
   ],
   exports: [
     CourseRepository,
@@ -89,6 +91,7 @@ import { AssemblyAiModule } from '../assemblyai/assemblyai.module.js';
     CourseMindmapService,
     LessonTranscriptService,
     LessonQuizService,
+    AudioExtractorService,
   ],
 })
 export class CourseModule {}

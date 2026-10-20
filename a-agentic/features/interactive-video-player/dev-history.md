@@ -157,4 +157,24 @@
     3. Hủy bỏ an toàn (`handleCancelEdit`): Nếu hủy khi đang thêm nhánh mới (`addingNodeId`), tự động dọn dẹp node tạm khỏi `localTree` mà không sinh request thừa.
     4. Bảo vệ state: Ngăn chặn `useEffect` ghi đè `localTree` từ `currentMindmapData` khi người dùng đang trong phiên chỉnh sửa (`editingNodeId !== null`).
     5. Khống chế thời lượng an toàn: Tự động giới hạn `safeTimestamp` không vượt quá `duration` của video trước khi gửi request.
-  - *Kiểm thử:* Toàn bộ 43 test suites / 513 unit tests pass 100%, frontend `tsc --noEmit` pass 0 lỗi. Build `backend` và `share-lib` thành công.
+- **Bổ Sung Chế Độ Xem Sơ Đồ Tư Duy Dạng Canvas Đồ Họa (Lesson Mindmap Canvas View)**:
+  - *Mục tiêu:* Bổ sung chế độ xem sơ đồ tư duy dạng Canvas đồ họa trực quan (Interactive Mindmap Canvas) bên cạnh chế độ xem dạng cây thư mục (Tree View) trong tab **Sơ đồ tư duy (Mindmap)** của bài học.
+  - *Kiến trúc & Công nghệ:*
+    1. Tái sử dụng engine đồ họa `@xyflow/react` + thuật toán dàn layout tự động `@dagrejs/dagre` (hướng ngang `LR` không đè chữ) và đường nối uốn lượn mềm mại `SmoothBezierEdge`.
+    2. Utility `convertLessonMindmapToFlowElements` chuyển đổi đệ quy từ cây `ILessonMindmapNode` sang ReactFlow nodes/edges, tích hợp `collapsedIds: Set<string>` để thu gọn/mở rộng từng nhánh và đếm số node con cháu (`countDescendantNodes`).
+    3. Custom Node `LessonMindmapCanvasNode`: Thiết kế chuẩn Design System, phân biệt cấp bậc rõ ràng (Root màu Sky, nhánh con Indigo/Card), tuân thủ nghiêm ngặt **Purple Ban**. Tích hợp badge mốc thời gian click-to-seek (`onSeek`) có icon play và pill badge thu gọn/mở rộng `+{childCount}`.
+    4. Toolbar điều khiển `LessonMindmapCanvasToolbar`: Phóng to (Zoom In), Thu nhỏ (Zoom Out), Căn vừa khung nhìn (Fit View), Mở rộng/Thu gọn tất cả (Expand/Collapse All), Toàn màn hình (Fullscreen toggle).
+    5. Segmented Control Switcher trên header của `LessonMindmapTab`: Cho phép chuyển đổi linh hoạt giữa `[ 🌲 Dạng cây ]` và `[ 🗺️ Sơ đồ Mindmap ]`.
+- **Thu Gọn Mặc Định 2 Cấp Độ Cho Chế Độ Xem Canvas Sơ Đồ Tư Duy (Default 2-Level Depth on Canvas Mindmap)**:
+  - *Mục tiêu:* Khi người dùng bấm chuyển sang chế độ "Sơ đồ Mindmap" (Canvas 2D), giao diện mặc định chỉ mở 2 cấp độ đầu tiên (Cấp 0: Node gốc tiêu đề bài học và Cấp 1: Các nhánh chính trực tiếp) để sơ đồ trực quan, gọn gàng, không bị choáng ngợp bởi hàng loạt node con cháu.
+  - *Thuật toán Progressive Disclosure:*
+    1. Xây dựng utility `generateLessonMindmapDefaultCollapsedIds(root, maxVisibleLevel = 1)` duyệt cây đệ quy và đưa tất cả các node ở `level >= 1` có con vào danh sách `collapsedIds`.
+    2. Nhờ đó, ở trạng thái mặc định chỉ có Cấp 0 và Cấp 1 hiển thị. Khi click vào badge `+{childCount}` trên node Cấp 1, các node Cấp 2 bung ra nhưng các node con Cấp 3+ bên dưới Cấp 2 vẫn tiếp tục được thu gọn cho đến khi người dùng chủ động mở tiếp.
+  - *Bảo Toàn Trạng Thái Tương Tác Giữa Các Lần Chuyển Tab (State Preservation):*
+    1. Đưa `canvasCollapsedIds` lên quản lý tại component cha `LessonMindmapTab` để khi người dùng chuyển đổi qua lại giữa `[ 🌲 Dạng cây ]` và `[ 🗺️ Sơ đồ Mindmap ]`, trạng thái mở rộng/thu gọn đã thao tác trước đó trên Canvas không bị mất đi (tránh unmount state loss).
+    2. Sử dụng `lastLessonRootIdRef` để chỉ khởi tạo lại `canvasCollapsedIds` về mặc định 2 cấp độ khi bài học đổi sang bài học khác hoặc khi AI sinh lại toàn bộ mindmap mới.
+  - *Thanh Công Cụ Toolbar:* Nút "Mở rộng tất cả / Thu gọn tất cả" (`handleToggleCollapseAll`) chuyển đổi nhịp nhàng giữa mở bung toàn bộ cây (`new Set()`) và trở về trạng thái gọn gàng 2 cấp độ (`generateLessonMindmapDefaultCollapsedIds(root, 1)`).
+  - *Kiểm Thử & Tuân Thủ:*
+    - `tsc --noEmit` đạt 0 lỗi TypeScript strict.
+    - Toàn bộ 43 test suites / 513 unit tests backend pass 100%.
+    - Tuân thủ tuyệt đối quy tắc Purple Ban và Clean Code.

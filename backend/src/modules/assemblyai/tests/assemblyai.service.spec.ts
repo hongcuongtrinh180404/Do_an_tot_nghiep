@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as fs from 'node:fs';
 import { AssemblyAiService } from '../assemblyai.service.js';
 
 const mockTranscripts = {
@@ -22,6 +23,15 @@ vi.mock('assemblyai', () => {
     };
   });
   return { AssemblyAI: MockAssemblyAI };
+});
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return {
+    ...actual,
+    existsSync: vi.fn(),
+    createReadStream: vi.fn(),
+  };
 });
 
 describe('AssemblyAiService', () => {
@@ -249,6 +259,68 @@ describe('AssemblyAiService', () => {
 
       // Act & Assert
       await expect(service.transcribeStream(mockStream)).rejects.toThrow(
+        InternalServerErrorException,
+      );
+    });
+  });
+
+  describe('transcribeFile', () => {
+    const sampleFilePath = '/tmp/audio-lesson-123.mp3';
+
+    it('should throw BadRequestException if filePath is empty or whitespace', async () => {
+      await expect(service.transcribeFile('   ')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException if file does not exist on disk', async () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      await expect(service.transcribeFile('/non/existent/file.mp3')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should upload file stream and execute transcription successfully', async () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      const mockReadStream = {} as fs.ReadStream;
+      vi.mocked(fs.createReadStream).mockReturnValue(mockReadStream);
+
+      const uploadedUrl = 'https://cdn.assemblyai.com/staging/test-file.mp3';
+      mockFiles.upload.mockResolvedValue(uploadedUrl);
+
+      const mockResult = {
+        id: 'transcript-from-file',
+        status: 'completed',
+        text: 'Nội dung tệp âm thanh trích xuất từ video',
+        language_code: 'vi',
+        audio_duration: 90,
+      };
+      mockTranscripts.transcribe.mockResolvedValue(mockResult);
+      mockTranscripts.sentences.mockResolvedValue({
+        sentences: [
+          { text: 'Nội dung tệp âm thanh trích xuất từ video.', start: 0, end: 1500 },
+        ],
+      });
+
+      const result = await service.transcribeFile(sampleFilePath);
+
+      expect(fs.createReadStream).toHaveBeenCalledWith(sampleFilePath);
+      expect(mockFiles.upload).toHaveBeenCalledWith(mockReadStream);
+      expect(mockTranscripts.transcribe).toHaveBeenCalledWith(
+        expect.objectContaining({
+          audio: uploadedUrl,
+          language_code: 'vi',
+        }),
+      );
+      expect(result.transcriptId).toBe('transcript-from-file');
+      expect(result.rawTranscript).toBe('Nội dung tệp âm thanh trích xuất từ video');
+      expect(result.sentences).toHaveLength(1);
+    });
+
+    it('should throw InternalServerErrorException if upload of file fails', async () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.createReadStream).mockReturnValue({} as fs.ReadStream);
+      mockFiles.upload.mockRejectedValue(new Error('S3 staging upload rejected'));
+
+      await expect(service.transcribeFile(sampleFilePath)).rejects.toThrow(
         InternalServerErrorException,
       );
     });

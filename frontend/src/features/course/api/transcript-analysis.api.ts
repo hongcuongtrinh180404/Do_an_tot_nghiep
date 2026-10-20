@@ -128,7 +128,7 @@ export const transcriptAnalysisApi = {
 
   async generateQuiz(
     lessonId: string,
-    payload: { count?: number; saveAsDraft?: boolean } = { count: 10, saveAsDraft: true },
+    payload: { count?: number; saveAsDraft?: boolean } = { count: 10, saveAsDraft: false },
   ): Promise<IQuizGenerationResponse> {
     const res = await apiClient.post<IApiResponse<IQuizGenerationResponse>>(
       `/lessons/${lessonId}/analysis/quiz`,
@@ -281,9 +281,19 @@ export function useGenerateQuizMutation(lessonId: string) {
       void queryClient.invalidateQueries({
         queryKey: transcriptAnalysisKeys.quizDraft(lessonId),
       });
-      toast.success('Sinh bộ câu hỏi trắc nghiệm thành công!', {
-        description: `Đã tạo ${res.quizzes.length} câu hỏi trắc nghiệm bằng Gemini AI (${(res.metadata.executionTimeMs / 1000).toFixed(1)}s)`,
+      void queryClient.invalidateQueries({
+        queryKey: lessonQuizKeys.byLesson(lessonId),
       });
+      if (res.quizzes.length === 0) {
+        toast.info('Đã phân tích transcript', {
+          description:
+            'Nội dung bài học chưa đủ dữ kiện để tạo câu hỏi trắc nghiệm chất lượng cao.',
+        });
+      } else {
+        toast.success('Sinh bộ câu hỏi trắc nghiệm thành công!', {
+          description: `Đã tạo và cập nhật ${res.quizzes.length} câu hỏi trắc nghiệm chính thức cho bài học! (${(res.metadata.executionTimeMs / 1000).toFixed(1)}s)`,
+        });
+      }
     },
     onError: (error: unknown) => {
       toast.error('Không thể tạo câu hỏi trắc nghiệm', {

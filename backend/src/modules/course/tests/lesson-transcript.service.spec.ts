@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
-import { Readable } from 'stream';
 import {
   ILesson,
   ILessonTranscript,
@@ -13,6 +12,7 @@ import { LessonTranscriptRepository } from '../repositories/lesson-transcript.re
 import { LessonRepository } from '../repositories/lesson.repository.js';
 import { StorageService } from '../../storage/index.js';
 import { AssemblyAiService } from '../../assemblyai/index.js';
+import { AudioExtractorService } from '../services/audio-extractor.service.js';
 
 describe('LessonTranscriptService', () => {
   let service: LessonTranscriptService;
@@ -26,15 +26,21 @@ describe('LessonTranscriptService', () => {
     update: ReturnType<typeof vi.fn>;
   };
   let mockStorageService: {
-    getObjectStream: ReturnType<typeof vi.fn>;
+    getPresignedStreamUrl: ReturnType<typeof vi.fn>;
   };
   let mockAssemblyAiService: {
-    transcribeStream: ReturnType<typeof vi.fn>;
+    transcribeFile: ReturnType<typeof vi.fn>;
+  };
+  let mockAudioExtractorService: {
+    extractMp3FromVideo: ReturnType<typeof vi.fn>;
+    cleanupTempFile: ReturnType<typeof vi.fn>;
   };
   let mockCls: { get: ReturnType<typeof vi.fn> };
 
   const sampleLessonId = 'lesson_123456';
   const sampleVideoKey = 'courses/lessons/video-1.mp4';
+  const samplePresignedUrl = 'http://localhost:9000/thc-datn-media/courses/lessons/video-1.mp4?token=signed';
+  const sampleTempMp3Path = '/tmp/audio-lesson_123456-123456789.mp3';
 
   const sampleTranscript: ILessonTranscript = {
     id: 'trans_123',
@@ -82,11 +88,16 @@ describe('LessonTranscriptService', () => {
     };
 
     mockStorageService = {
-      getObjectStream: vi.fn(),
+      getPresignedStreamUrl: vi.fn().mockResolvedValue(samplePresignedUrl),
     };
 
     mockAssemblyAiService = {
-      transcribeStream: vi.fn(),
+      transcribeFile: vi.fn(),
+    };
+
+    mockAudioExtractorService = {
+      extractMp3FromVideo: vi.fn().mockResolvedValue(sampleTempMp3Path),
+      cleanupTempFile: vi.fn().mockResolvedValue(undefined),
     };
 
     mockCls = {
@@ -98,6 +109,7 @@ describe('LessonTranscriptService', () => {
       mockLessonRepo as unknown as LessonRepository,
       mockStorageService as unknown as StorageService,
       mockAssemblyAiService as unknown as AssemblyAiService,
+      mockAudioExtractorService as unknown as AudioExtractorService,
       mockCls as unknown as ClsService,
     );
   });
@@ -121,12 +133,9 @@ describe('LessonTranscriptService', () => {
   });
 
   describe('processTranscriptionTask', () => {
-    it('should stream video from MinIO, transcribe with AssemblyAI and update DB to READY', async () => {
+    it('should obtain presigned URL, extract MP3 via FFmpeg, transcribe via AssemblyAI, update DB and cleanup temp file', async () => {
       // Arrange
-      const mockStream = Readable.from(['audio data']);
-      mockStorageService.getObjectStream.mockResolvedValue(mockStream);
-
-      mockAssemblyAiService.transcribeStream.mockResolvedValue({
+      mockAssemblyAiService.transcribeFile.mockResolvedValue({
         transcriptId: 'aai_trans_999',
         rawTranscript: 'Chào mừng các bạn',
         sentences: [{ text: 'Chào mừng các bạn.', start: 0, end: 200 }],
@@ -140,8 +149,12 @@ describe('LessonTranscriptService', () => {
       await service.processTranscriptionTask(sampleLessonId, sampleVideoKey);
 
       // Assert
-      expect(mockStorageService.getObjectStream).toHaveBeenCalledWith(sampleVideoKey);
-      expect(mockAssemblyAiService.transcribeStream).toHaveBeenCalledWith(mockStream, {
+      expect(mockStorageService.getPresignedStreamUrl).toHaveBeenCalledWith(sampleVideoKey, 3600);
+      expect(mockAudioExtractorService.extractMp3FromVideo).toHaveBeenCalledWith(
+        samplePresignedUrl,
+        sampleLessonId,
+      );
+      expect(mockAssemblyAiService.transcribeFile).toHaveBeenCalledWith(sampleTempMp3Path, {
         languageCode: 'vi',
       });
       expect(mockLessonTranscriptRepo.upsertByLessonId).toHaveBeenCalledWith(
@@ -163,6 +176,19 @@ describe('LessonTranscriptService', () => {
           }),
         }),
       );
+      expect(mockAudioExtractorService.cleanupTempFile).toHaveBeenCalledWith(sampleTempMp3Path);
+    });
+
+    it('should always clean up temp audio file even if AssemblyAI transcribeFile throws', async () => {
+      mockAssemblyAiService.transcribeFile.mockRejectedValue(
+        new Error('AssemblyAI Network Timeout'),
+      );
+
+      await expect(
+        service.processTranscriptionTask(sampleLessonId, sampleVideoKey),
+      ).rejects.toThrow('AssemblyAI Network Timeout');
+
+      expect(mockAudioExtractorService.cleanupTempFile).toHaveBeenCalledWith(sampleTempMp3Path);
     });
   });
 

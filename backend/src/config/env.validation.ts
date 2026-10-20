@@ -41,8 +41,12 @@ export const envValidationSchema = Joi.object({
   // AssemblyAI Configuration
   ASSEMBLYAI_API_KEY: Joi.string().allow('').default(''),
 
+  // FFmpeg Configuration
+  FFMPEG_PATH: Joi.string().allow('').default(''),
+
   // Gemini AI Configuration
   GEMINI_MODEL: Joi.string().default('gemini-3.8-flash'),
+  GEMINI_FALLBACK_MODEL: Joi.string().default('gemini-3.5-flash-lite'),
   GEMINI_API_KEY: Joi.string().allow('').default(''),
   GEMINI_API_KEY_1: Joi.string().allow('').default(''),
   GEMINI_API_KEY_2: Joi.string().allow('').default(''),

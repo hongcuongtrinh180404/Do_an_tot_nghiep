@@ -132,6 +132,76 @@ describe('QuizGenerationService', () => {
         'instructor-1',
       );
     });
+
+    it('should handle flexible question count when Gemini generates fewer questions (e.g. 4 questions)', async () => {
+      mockLessonRepo.findById.mockResolvedValueOnce({
+        id: 'lesson-123',
+        title: 'JS Async',
+        content: { duration: 300 },
+      });
+
+      mockLessonTranscriptRepo.findByLessonId.mockResolvedValueOnce({
+        status: LessonTranscriptionStatusEnum.READY,
+        durationSeconds: 300,
+        sentences: [{ text: 'Nội dung ngắn', start: 0, end: 5000 }],
+        rawTranscript: 'Nội dung ngắn',
+      });
+
+      const fourQuizzes = sampleQuizzes.slice(0, 4);
+      mockGeminiService.generateJson.mockResolvedValueOnce({
+        data: { quizzes: fourQuizzes },
+        model: 'gemini-2.5-flash',
+        keyIndex: 1,
+        maskedKey: 'AIzaSy...2222',
+        executionTimeMs: 900,
+      });
+
+      const response = await service.generateQuiz(
+        'lesson-123',
+        { count: 10, saveAsDraft: true },
+        'instructor-1',
+      );
+
+      expect(response.quizzes).toHaveLength(4);
+      expect(mockLessonQuizDraftRepo.saveDraftByLessonId).toHaveBeenCalledWith(
+        'lesson-123',
+        fourQuizzes,
+        'instructor-1',
+      );
+    });
+
+    it('should save directly as official quizzes and clear draft when saveAsDraft is false (default)', async () => {
+      mockLessonRepo.findById.mockResolvedValueOnce({
+        id: 'lesson-123',
+        title: 'JS Async',
+        content: { duration: 300 },
+      });
+
+      mockLessonTranscriptRepo.findByLessonId.mockResolvedValueOnce({
+        status: LessonTranscriptionStatusEnum.READY,
+        durationSeconds: 300,
+        sentences: [{ text: 'Nội dung bài học', start: 0, end: 5000 }],
+        rawTranscript: 'Nội dung bài học',
+      });
+
+      mockGeminiService.generateJson.mockResolvedValueOnce({
+        data: { quizzes: sampleQuizzes },
+        model: 'gemini-2.5-flash',
+        keyIndex: 1,
+        maskedKey: 'AIzaSy...2222',
+        executionTimeMs: 1200,
+      });
+
+      const response = await service.generateQuiz('lesson-123', {}, 'instructor-1');
+
+      expect(response.lessonId).toBe('lesson-123');
+      expect(response.quizzes).toHaveLength(10);
+      expect(mockLessonQuizRepo.replaceAllQuizzesForLesson).toHaveBeenCalledWith(
+        'lesson-123',
+        expect.any(Array),
+      );
+      expect(mockLessonQuizDraftRepo.clearDraftByLessonId).toHaveBeenCalledWith('lesson-123');
+    });
   });
 
   describe('getQuizDraft & applyDraft', () => {

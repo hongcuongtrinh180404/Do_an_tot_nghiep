@@ -24,6 +24,9 @@ import {
   deleteNodeFromTree,
   countDescendants,
 } from '@/features/course/utils/lesson-mindmap-tree.util';
+import { cn } from '@/lib/utils';
+import { generateLessonMindmapDefaultCollapsedIds } from '@/features/course/utils/lesson-mindmap-flow.util';
+import { LessonMindmapCanvasView } from './mindmap/lesson-mindmap-canvas-view';
 
 interface LessonMindmapTabProps {
   lessonId: string;
@@ -320,8 +323,25 @@ export function LessonMindmapTab({
   const [editTitle, setEditTitle] = useState<string>('');
   const [editTimestamp, setEditTimestamp] = useState<number>(0);
 
+  // View mode switcher: 'tree' | 'canvas'
+  const [viewMode, setViewMode] = useState<'tree' | 'canvas'>('tree');
+
   // Local optimistic tree state
   const [localTree, setLocalTree] = useState<ILessonMindmapData | null>(null);
+
+  // Canvas Collapsed IDs (khởi tạo mặc định thu gọn 2 cấp độ)
+  const [canvasCollapsedIds, setCanvasCollapsedIds] = useState<Set<string>>(() =>
+    localTree?.root ? generateLessonMindmapDefaultCollapsedIds(localTree.root, 1) : new Set(),
+  );
+
+  // Khi dữ liệu bài học gốc thay đổi (chuyển bài học hoặc AI sinh lại) -> khởi tạo lại mức 2 cấp
+  const lastLessonRootIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (localTree?.root && localTree.root.id !== lastLessonRootIdRef.current) {
+      lastLessonRootIdRef.current = localTree.root.id;
+      setCanvasCollapsedIds(generateLessonMindmapDefaultCollapsedIds(localTree.root, 1));
+    }
+  }, [localTree?.root]);
 
   useEffect(() => {
     if (currentMindmapData && !editingNodeId) {
@@ -485,8 +505,40 @@ export function LessonMindmapTab({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Segmented Control Chuyển đổi Dạng cây / Sơ đồ Canvas */}
           {localTree && (
+            <div className="flex items-center p-0.5 rounded-lg border border-border/80 bg-muted/50 text-muted-foreground shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setViewMode('tree')}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer',
+                  viewMode === 'tree'
+                    ? 'bg-background text-foreground shadow-2xs font-semibold'
+                    : 'hover:text-foreground',
+                )}
+              >
+                <Icon icon="lucide:list-tree" className="size-3.5" />
+                <span>Dạng cây</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('canvas')}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer',
+                  viewMode === 'canvas'
+                    ? 'bg-background text-sky-600 dark:text-sky-400 shadow-2xs font-semibold'
+                    : 'hover:text-foreground',
+                )}
+              >
+                <Icon icon="lucide:network" className="size-3.5" />
+                <span>Sơ đồ Mindmap</span>
+              </button>
+            </div>
+          )}
+
+          {localTree && viewMode === 'tree' && (
             <Button
               variant="outline"
               size="sm"
@@ -531,29 +583,42 @@ export function LessonMindmapTab({
           <p className="text-xs text-muted-foreground">Đang tải sơ đồ tư duy...</p>
         </div>
       ) : localTree?.root ? (
-        <div className="w-full max-w-3xl mx-auto py-2">
-          <TreeNode
-            node={localTree.root}
-            level={0}
-            currentTime={currentTime}
-            duration={duration}
-            onSeek={onSeek}
-            isExpanded={expandedMap[localTree.root.id] !== false}
-            onToggleExpand={handleToggleExpand}
-            expandedMap={expandedMap}
-            isInstructor={isInstructor}
-            editingNodeId={editingNodeId}
-            editTitle={editTitle}
-            setEditTitle={setEditTitle}
-            editTimestamp={editTimestamp}
-            setEditTimestamp={setEditTimestamp}
-            onStartEdit={handleStartEdit}
-            onSaveEdit={handleSaveEdit}
-            onCancelEdit={handleCancelEdit}
-            onAddChild={handleAddChild}
-            onRequestDelete={handleRequestDelete}
-          />
-        </div>
+        viewMode === 'canvas' ? (
+          <div className="w-full py-1">
+            <LessonMindmapCanvasView
+              root={localTree.root}
+              currentTime={currentTime}
+              duration={duration}
+              onSeek={onSeek}
+              collapsedIds={canvasCollapsedIds}
+              onCollapsedIdsChange={setCanvasCollapsedIds}
+            />
+          </div>
+        ) : (
+          <div className="w-full max-w-3xl mx-auto py-2">
+            <TreeNode
+              node={localTree.root}
+              level={0}
+              currentTime={currentTime}
+              duration={duration}
+              onSeek={onSeek}
+              isExpanded={expandedMap[localTree.root.id] !== false}
+              onToggleExpand={handleToggleExpand}
+              expandedMap={expandedMap}
+              isInstructor={isInstructor}
+              editingNodeId={editingNodeId}
+              editTitle={editTitle}
+              setEditTitle={setEditTitle}
+              editTimestamp={editTimestamp}
+              setEditTimestamp={setEditTimestamp}
+              onStartEdit={handleStartEdit}
+              onSaveEdit={handleSaveEdit}
+              onCancelEdit={handleCancelEdit}
+              onAddChild={handleAddChild}
+              onRequestDelete={handleRequestDelete}
+            />
+          </div>
+        )
       ) : (
         <div className="py-16 text-center space-y-3 max-w-md mx-auto">
           <div className="size-12 rounded-2xl bg-muted/60 border border-border flex items-center justify-center mx-auto text-muted-foreground">

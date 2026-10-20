@@ -74,11 +74,23 @@ export class GeminiModelNotFoundException extends GeminiBaseException {
  * 500 / 503 INTERNAL / UNAVAILABLE: Dịch vụ Google gặp sự cố tạm thời
  */
 export class GeminiServiceUnavailableException extends GeminiBaseException {
-  public readonly retryable = true;
-  public readonly requiresKeyRotation = true;
+  public readonly retryable: boolean = true;
+  public readonly requiresKeyRotation: boolean = true;
 
   constructor(message = 'Gemini service temporarily unavailable', originalError?: unknown) {
     super(message, HttpStatus.SERVICE_UNAVAILABLE, originalError);
+  }
+}
+
+/**
+ * 503 UNAVAILABLE / Model Overloaded: Cụm model trên hạ tầng Google bị quá tải tạm thời (không phải lỗi key)
+ */
+export class GeminiModelUnavailableException extends GeminiServiceUnavailableException {
+  public override readonly requiresKeyRotation: boolean = false;
+  public readonly isOverloaded: boolean = true;
+
+  constructor(message = 'Gemini model temporarily unavailable or overloaded (503)', originalError?: unknown) {
+    super(message, originalError);
   }
 }
 
