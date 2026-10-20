@@ -9,16 +9,16 @@
 
 ---
 
-## 📑 Mục lục tài liệu
+## 📖 Tổng quan dự án
 
-| Tài liệu | Mô tả |
-| :--- | :--- |
-| 🎯 **[Định hướng Đề tài & Master Brief](./a-agentic/project-brief.md)** | Bản định hướng cốt lõi cho AI Agent & thành viên dự án: 5 trụ cột chức năng, kiến trúc RabbitMQ, AI Pipeline |
-| 🗺️ **[Sơ đồ Kiến trúc & Code Boundaries](./a-agentic/project-shape.md)** | Sơ đồ tương tác luồng dữ liệu kiến trúc (Mermaid), ranh giới chỉnh sửa code an toàn |
-| 🚀 **[Hướng dẫn triển khai Local (Getting Started)](./docs/GETTING_STARTED.md)** | Hướng dẫn cài đặt môi trường, biến môi trường `.env`, MongoDB, RabbitMQ và khởi động dự án |
-| 🏗️ **[Cấu trúc & Kiến trúc dự án (Project Structure)](./docs/PROJECT_STRUCTURE.md)** | Phân tích chi tiết kiến trúc Monorepo, Base Module, Feature-Driven Design, RabbitMQ & AI Pipeline |
-| 📅 **[Kế hoạch Triển khai 3 Tháng (Master Roadmap)](./docs/PLAN-interactive-video-elearning.md)** | Lộ trình phân rã công việc từ 28/9 đến 22/12/2026 |
-| 📐 **[Quy chuẩn kiến trúc hệ thống (Rule Guide)](./.agent/rules/project-architecture.md)** | Các nguyên tắc bắt buộc: Clean Code, Repository Pattern, RabbitMQ ACK/DLQ, Idempotency SePay, No `any` |
+Hệ thống học trực tuyến hiện đại tích hợp **video đa tương tác**, ứng dụng **AI** tự động hóa biên soạn nội dung học tập và cổng thanh toán tự động qua **VietQR**. Nền tảng khắc phục sự tiếp thu thụ động của phương pháp học video truyền thống, mang lại trải nghiệm học tập chủ động, trực quan và cá nhân hóa theo thời gian thực.
+
+## 🎯 Mục tiêu dự án
+
+* **Tăng cường tương tác bài giảng**: Tích hợp **In-video Quiz** (tự động tạm dừng video tại các điểm mốc tri thức để trả lời câu hỏi củng cố) và **AImindmap Viewer** (sơ đồ tư duy dạng cây hiển thị song song cùng video).
+* **Tự động hóa bài giảng bằng AI**: Kết hợp **AssemblyAI** (chuyển đổi giọng nói sang văn bản có timestamp) và **Google Gemini API** (phân tích transcript, sinh sơ đồ tư duy Markdown và ngân hàng câu hỏi kiểm tra).
+* **Kiến trúc xử lý bất đồng bộ tin cậy**: Vận hành hàng đợi **RabbitMQ (AMQP)** điều phối các tác vụ nặng (xử lý video, gọi AI pipeline), đảm bảo chống nghẽn và duy trì độ sẵn sàng cao.
+* **Thanh toán & kích hoạt tức thì**: Tích hợp cổng thanh toán **SePay** quét mã VietQR động, tự động xác thực và kích hoạt khóa học tức thời qua Webhook an toàn (Idempotency & Transaction).
 
 ---
 
@@ -123,6 +123,3 @@ pnpm dev
 
 ---
 
-## 👥 Bản quyền & Giấy phép
-Dự án được xây dựng phục vụ Đồ Án Tốt Nghiệp Đại Học (DATN).  
-Mọi quyền được bảo lưu © 2026.
