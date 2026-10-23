@@ -119,9 +119,23 @@ describe('LessonTranscriptService', () => {
       await expect(service.getTranscriptByLessonId('   ')).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw NotFoundException if transcript not found', async () => {
+    it('should throw NotFoundException if transcript not found and lesson is not transcribing', async () => {
       mockLessonTranscriptRepo.findByLessonId.mockResolvedValue(null);
+      mockLessonRepo.findById.mockResolvedValue(null);
       await expect(service.getTranscriptByLessonId(sampleLessonId)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return transient transcript status if transcript doc not created yet but lesson is TRANSCRIBING', async () => {
+      mockLessonTranscriptRepo.findByLessonId.mockResolvedValue(null);
+      mockLessonRepo.findById.mockResolvedValue({
+        ...sampleLesson,
+        transcriptionStatus: LessonTranscriptionStatusEnum.TRANSCRIBING,
+      });
+
+      const result = await service.getTranscriptByLessonId(sampleLessonId);
+      expect(result.status).toBe(LessonTranscriptionStatusEnum.TRANSCRIBING);
+      expect(result.lessonId).toBe(sampleLessonId);
+      expect(result.sentences).toEqual([]);
     });
 
     it('should return transcript when found', async () => {

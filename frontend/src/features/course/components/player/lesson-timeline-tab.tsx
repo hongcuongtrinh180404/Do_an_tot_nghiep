@@ -19,6 +19,7 @@ interface LessonTimelineTabProps {
   formatTime: (seconds: number) => string;
   onRetryTranscription?: () => void;
   isRetrying?: boolean;
+  onRefresh?: () => void;
 }
 
 export function LessonTimelineTab({
@@ -31,6 +32,7 @@ export function LessonTimelineTab({
   formatTime,
   onRetryTranscription,
   isRetrying = false,
+  onRefresh,
 }: LessonTimelineTabProps): React.JSX.Element {
   // Search query filter state
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -139,21 +141,42 @@ export function LessonTimelineTab({
     return <LessonTimelineSkeleton />;
   }
 
-  // --- STATE 2: AI TRANSCRIBING STATE ---
-  if (transcriptionStatus === LessonTranscriptionStatusEnum.TRANSCRIBING) {
+  // --- STATE 2: AI TRANSCRIBING / QUEUED STATE ---
+  if (
+    transcriptionStatus === LessonTranscriptionStatusEnum.TRANSCRIBING ||
+    transcriptionStatus === LessonTranscriptionStatusEnum.QUEUED
+  ) {
     return (
-      <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-4 text-muted-foreground">
+      <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-3.5 text-muted-foreground">
         <div className="size-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-600 dark:text-sky-400 shadow-2xs">
           <Icon icon="lucide:loader-2" className="size-6 animate-spin" />
         </div>
         <div className="space-y-1.5 max-w-[240px]">
           <h4 className="text-xs font-bold text-foreground">
-            Đang trích xuất phụ đề bài học
+            {transcriptionStatus === LessonTranscriptionStatusEnum.QUEUED
+              ? 'Đang xếp hàng trích xuất phụ đề'
+              : 'Đang trích xuất phụ đề bài học'}
           </h4>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Hệ thống AI đang phân tích âm thanh và tạo danh sách các câu nói theo dòng thời gian.
+            Hệ thống AI đang phân tích âm thanh và tạo danh sách câu nói theo dòng thời gian.
           </p>
         </div>
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-[10px] font-medium text-sky-600 dark:text-sky-400">
+          <span className="size-1.5 rounded-full bg-sky-500 animate-pulse" />
+          <span>Tự động cập nhật</span>
+        </div>
+        {onRefresh && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={onRefresh}
+            className="text-xs h-7 gap-1 text-muted-foreground hover:text-foreground cursor-pointer"
+          >
+            <Icon icon="lucide:refresh-cw" className="size-3" />
+            <span>Kiểm tra lại</span>
+          </Button>
+        )}
       </div>
     );
   }

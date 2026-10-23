@@ -230,7 +230,7 @@ describe('LessonsController', () => {
         id: 'trans_123',
         lessonId: sampleLessonId,
         rawTranscript: 'Chào mừng các bạn',
-        words: [],
+        sentences: [],
         durationSeconds: 120,
         languageCode: 'vi',
         status: LessonTranscriptionStatusEnum.READY,

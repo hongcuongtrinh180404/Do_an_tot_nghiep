@@ -66,6 +66,8 @@ export function convertCurriculumToFlowElements(
   const edges: Edge[] = [];
 
   const { course, sections, lessonsBySection } = data;
+  // Thứ tự hiển thị trên canvas phải theo tiến trình giáo trình tăng dần.
+  const orderedSections = [...sections].sort((a, b) => a.order - b.order);
 
   let totalLessons = 0;
   Object.values(lessonsBySection).forEach((list) => {
@@ -87,9 +89,11 @@ export function convertCurriculumToFlowElements(
   });
 
   // 2. Sections (Level 1)
-  sections.forEach((section, sIdx) => {
+  orderedSections.forEach((section, sIdx) => {
     const secNodeId = `sec-${section.id}`;
-    const lessons = lessonsBySection[section.id] ?? [];
+    const lessons = [...(lessonsBySection[section.id] ?? [])].sort(
+      (a, b) => a.order - b.order,
+    );
     const isSecCollapsed = collapsedIds.has(section.id);
 
     nodes.push({

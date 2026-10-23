@@ -35,6 +35,9 @@ export class LessonTranscriptService extends BaseService<ILessonTranscript, stri
   /**
    * Lấy transcript chi tiết của bài học theo lessonId
    */
+  /**
+   * Lấy transcript chi tiết của bài học theo lessonId
+   */
   async getTranscriptByLessonId(lessonId: string): Promise<ILessonTranscript> {
     const trimmedLessonId = lessonId?.trim();
     if (!trimmedLessonId) {
@@ -43,6 +46,26 @@ export class LessonTranscriptService extends BaseService<ILessonTranscript, stri
 
     const transcript = await this.lessonTranscriptRepo.findByLessonId(trimmedLessonId);
     if (!transcript) {
+      // Trường hợp video vừa upload: bản ghi transcript chưa kịp tạo nhưng bài học đang TRANSCRIBING/QUEUED
+      const lesson = await this.lessonRepo.findById(trimmedLessonId);
+      if (
+        lesson &&
+        (lesson.transcriptionStatus === LessonTranscriptionStatusEnum.TRANSCRIBING ||
+          lesson.transcriptionStatus === LessonTranscriptionStatusEnum.QUEUED)
+      ) {
+        return {
+          id: '',
+          lessonId: trimmedLessonId,
+          rawTranscript: '',
+          sentences: [],
+          durationSeconds: lesson.content?.duration || 0,
+          languageCode: 'vi',
+          externalTranscriptId: null,
+          status: lesson.transcriptionStatus,
+          failureReason: null,
+        } as unknown as ILessonTranscript;
+      }
+
       throw new NotFoundException(`Không tìm thấy bản ghi transcript cho bài học ${trimmedLessonId}`);
     }
 

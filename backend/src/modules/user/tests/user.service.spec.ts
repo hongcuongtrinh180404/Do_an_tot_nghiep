@@ -13,6 +13,7 @@ describe('UserService', () => {
     create: ReturnType<typeof vi.fn>;
     findById: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+    findUsersWithPagination: ReturnType<typeof vi.fn>;
   };
   let mockCls: { get: ReturnType<typeof vi.fn> };
 

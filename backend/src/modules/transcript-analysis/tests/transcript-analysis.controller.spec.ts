@@ -25,6 +25,7 @@ describe('TranscriptAnalysisController', () => {
   let mockSummaryService: {
     generateSummary: ReturnType<typeof vi.fn>;
     getSummary: ReturnType<typeof vi.fn>;
+    updateSummary: ReturnType<typeof vi.fn>;
     applyDraft: ReturnType<typeof vi.fn>;
   };
 

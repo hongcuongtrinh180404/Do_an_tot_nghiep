@@ -8,19 +8,19 @@ export function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-export interface TransitionState {
-  nodes: Node[];
-  edges: Edge[];
+export interface TransitionState<TNode extends Node = Node, TEdge extends Edge = Edge> {
+  nodes: TNode[];
+  edges: TEdge[];
 }
 
-export interface AnimateLayoutOptions {
-  currentNodes: Node[];
-  currentEdges: Edge[];
-  targetNodes: Node[];
-  targetEdges: Edge[];
+export interface AnimateLayoutOptions<TNode extends Node = Node, TEdge extends Edge = Edge> {
+  currentNodes: TNode[];
+  currentEdges: TEdge[];
+  targetNodes: TNode[];
+  targetEdges: TEdge[];
   /** Thời lượng chuyển động (ms). Mặc định 180ms. */
   duration?: number;
-  onFrame: (state: TransitionState) => void;
+  onFrame: (state: TransitionState<TNode, TEdge>) => void;
   onComplete?: () => void;
 }
 
@@ -34,7 +34,7 @@ const STATIC_THRESHOLD = 0.5;
  * - Skip static nodes không di chuyển (reuse object reference)
  * - Pre-compute delta (dX, dY) thay vì tính trong mỗi frame
  */
-export function startLayoutAnimation({
+export function startLayoutAnimation<TNode extends Node = Node, TEdge extends Edge = Edge>({
   currentNodes,
   currentEdges,
   targetNodes,
@@ -42,7 +42,7 @@ export function startLayoutAnimation({
   duration = 180,
   onFrame,
   onComplete,
-}: AnimateLayoutOptions): () => void {
+}: AnimateLayoutOptions<TNode, TEdge>): () => void {
   // ── Pre-compute phase (1 lần duy nhất) ──────────────────────────────────
 
   const currentPosMap = new Map<string, { x: number; y: number }>();
@@ -79,7 +79,7 @@ export function startLayoutAnimation({
   // ── Phân loại nodes ──────────────────────────────────────────────────────
 
   interface AnimNode {
-    node: Node;
+    node: TNode;
     startX: number;
     startY: number;
     dX: number;
@@ -127,7 +127,7 @@ export function startLayoutAnimation({
   });
 
   interface ClosingNode {
-    node: Node;
+    node: TNode;
     startX: number;
     startY: number;
     dX: number;
@@ -152,17 +152,19 @@ export function startLayoutAnimation({
     });
   }
 
-  const closingEdges: Edge[] = [];
+  const closingEdges: TEdge[] = [];
   for (const edge of currentEdges) {
     if (targetEdgeIdSet.has(edge.id)) continue;
     if (!targetPosMap.has(edge.target)) closingEdges.push(edge);
   }
 
   // Pool arrays: tái sử dụng giữa các frame để giảm GC pressure
-  const pooledFrameNodes: Node[] = new Array<Node>(
+  const pooledFrameNodes: TNode[] = new Array<TNode>(
     animatingTargetNodes.length + closingNodes.length,
   );
-  const pooledFrameEdges: Edge[] = new Array<Edge>(targetEdges.length + closingEdges.length);
+  const pooledFrameEdges: TEdge[] = new Array<TEdge>(
+    targetEdges.length + closingEdges.length,
+  );
 
   // ── Tick loop ─────────────────────────────────────────────────────────────
 
@@ -224,7 +226,9 @@ export function startLayoutAnimation({
     pooledFrameNodes.length = ni;
     pooledFrameEdges.length = ei;
 
-    onFrame({ nodes: pooledFrameNodes, edges: pooledFrameEdges });
+    // Sao chép mảng trước khi đưa vào React state: pool được tái sử dụng giữa các frame,
+    // nếu truyền cùng một reference React sẽ bail-out và animation bị đứng hình.
+    onFrame({ nodes: pooledFrameNodes.slice(), edges: pooledFrameEdges.slice() });
 
     if (progress < 1) {
       animationFrameId = requestAnimationFrame(tick);

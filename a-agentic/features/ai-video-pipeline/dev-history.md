@@ -427,6 +427,93 @@
   - **Range Request Streaming**: Truyền presigned URL trực tiếp vào FFmpeg `-i <url>` giúp FFmpeg chỉ đọc phần audio metadata và audio packets qua HTTP Range Requests, hoàn toàn không phải tốn I/O tải hàng trăm MB video MP4 về đĩa local.
   - **Guaranteed Cleanup**: Luôn đặt việc xóa file tạm trong khối `finally` để tránh rủi ro đĩa bị đầy khi AssemblyAI gặp sự cố mạng hoặc MongoDB ném ngoại lệ.
 
+---
+
+## 19. Dev History: River AI Integration as Level 3 Fallback Provider via OpenAI SDK (2026-10-23)
+
+- **Bối cảnh & Động lực**:
+  - Hệ thống hiện dùng Google Gemini (6 rotating API keys + fallback 3.5-flash-lite khi 503).
+  - Để đảm bảo tính sẵn sàng cao (High Availability), người dùng yêu cầu tích hợp thêm nhà cung cấp dự phòng bên ngoài: **River AI** (`river.ai`) với giao thức tương thích OpenAI chuẩn (`https://api.river.ai/v1`).
+  - Định hướng: Tận dụng 100% luồng nghiệp vụ hiện có của Gemini (`GeminiService`), không sửa đổi các service nghiệp vụ (`SummaryGenerationService`, `MindmapAnalysisService`, `QuizGenerationService`), không viết lại logic parse JSON / Markdown fences.
+- **Các thay đổi cốt lõi**:
+  - **`Package & Dependencies`**:
+    - Cài đặt package `openai` (`^7.41.0`) cho `backend`.
+  - **`Environment Configuration`**:
+    - Cập nhật `.env.example` và `backend/src/config/env.validation.ts`: `RIVER_API_KEY`, `RIVER_BASE_URL` (default: `https://api.river.ai/v1`), `RIVER_MODEL` (default: `deepseek-ai/DeepSeek-V3`), `RIVER_TIMEOUT_MS` (default: `60000`).
+  - **`GeminiService`**:
+    - Khởi tạo client `OpenAI` với `baseURL: this.riverBaseUrl`.
+    - Tách luồng `generateContent`: bọc lời gọi `executeGeminiWithRetry` trong khối `try ... catch`.
+    - Khi cụm Gemini cạn quota (429) hoặc sập toàn bộ (503/network) sau 3 lần thử, nếu có cấu hình `RIVER_API_KEY`, tự động kích hoạt `callRiverAiFallback`.
+    - Chuẩn hóa kết quả trả về tương thích `GeminiExecutionResult<string>` với `model: 'riverai:deepseek-ai/DeepSeek-V3'`, `isFallback: true`.
+    - Hàm `generateJson<T>` tự động tái sử dụng bóc tách Markdown code fences và parse JSON an toàn từ River AI mà không cần viết lại.
+  - **`Testing & Quality Assurance`**:
+    - Bổ sung mock `openai` và 4 test cases cho River AI Fallback trong `gemini.service.spec.ts`.
+    - 16/16 test cases của `gemini` và 75/75 test cases của `transcript-analysis` đều PASS 100%. Linter 0 lỗi.
+- **Cập nhật Điều phối Ưu tiên (Provider Priority Switching)**:
+  - Bổ sung cấu hình `AI_PRIMARY_PROVIDER` (`'RIVER' | 'GEMINI'`, mặc định `'RIVER'`).
+  - Cập nhật model mặc định sang `deepseek-ai/DeepSeek-V4.1-Flash`.
+
+---
+
+## 20. Dev History: Auto-Sync Transcript Timeline & Smart Polling Backoff (2026-10-23)
+
+- **Bối cảnh & Động lực**:
+  - Khi tải video bài giảng lên MinIO, hệ thống kích hoạt trích xuất AssemblyAI ngầm (Asynchronous background task) theo Rule 7.
+  - Tuy nhiên, trên giao diện người dùng (`LessonPlayerStudio`), tab Timeline bị kẹt ở trạng thái xoay vòng (`lucide:loader-2 animate-spin`) vô thời hạn, chỉ khi F5 / reload lại toàn bộ trang thì danh sách câu nói mới xuất hiện.
+- **Nguyên nhân gốc rễ (Root Cause)**:
+  - **Missing Polling**: Hook `useLessonTranscriptQuery` trong `frontend/src/features/course/api/course.api.ts` chỉ fetch 1 lần lúc component mount, có `staleTime: 60s` và hoàn toàn không cấu hình `refetchInterval`.
+  - **404 Stoppage**: Khi vào bài học ngay tức thì khi record DB chưa tạo xong, backend trả về 404 và frontend có logic `if (status === 404) return false;` khiến query dừng retry vĩnh viễn.
+  - **Unsynchronized Duration & Status**: Khi transcript hoàn tất (`READY`), thời lượng video và trạng thái bài học cập nhật trong MongoDB nhưng player frontend không nhận được tín hiệu invalidate cache.
+- **Các thay đổi cốt lõi**:
+  - **`Backend (LessonTranscriptService)`**:
+    - Trong `getTranscriptByLessonId(lessonId)`: Nếu bản ghi transcript chưa tạo kịp trong `lesson_transcripts`, service kiểm tra `lessonRepo`. Nếu bài học tồn tại và đang có `transcriptionStatus` là `TRANSCRIBING` hoặc `QUEUED`, trả về đối tượng transcript tiến trình (transient status: `{ status: lesson.transcriptionStatus, sentences: [] }`) thay vì ném ngoại lệ 404 làm ngắt mạch client.
+    - Bổ sung unit tests kiểm thử trường hợp transient status và case 404 thực sự khi không tìm thấy bài học (13/13 unit tests PASS).
+  - **`Frontend API (course.api.ts)`**:
+    - Nâng cấp `useLessonTranscriptQuery(lessonId, currentLessonStatus)` tích hợp **Smart Polling với Exponential Backoff**:
+      - 5 lần thăm dò đầu tiên (~15s): Thăm dò mỗi 3 giây (`3000ms`).
+      - 5 lần thăm dò tiếp theo (~25s): Thăm dò mỗi 5 giây (`5000ms`).
+      - Các lần thăm dò sau đó (tối đa 5 phút): Thăm dò mỗi 10 giây (`10000ms`).
+      - Dừng polling tự động ngay khi `status === READY` hoặc `FAILED` hoặc quá 5 phút timeout.
+      - Cho phép retry nếu gặp 404 tạm thời trong khi lesson đang `TRANSCRIBING`.
+  - **`Frontend UI & State Sync (LessonPlayerStudio & LessonTimelineTab)`**:
+    - `LessonPlayerStudio`: Nhận diện sự kiện chuyển giao trạng thái từ `TRANSCRIBING/QUEUED` sang `READY`, âm thầm invalidate `useLessonDetailQuery` và `courseKeys.sections` để cập nhật thời lượng video chuẩn và danh sách bài học mà không bật popup phiền toái.
+    - `LessonTimelineTab`: Hỗ trợ hiển thị cả trạng thái `QUEUED` và `TRANSCRIBING` kèm badge "Tự động cập nhật" (pulsing animation) và nút "Kiểm tra lại" thủ công (`onRefreshTranscription`).
+- **Technical Notes & Gotchas**:
+  - **React Query Dynamic staleTime**: Cần đặt `staleTime: 0` khi query đang ở trạng thái `TRANSCRIBING` để React Query luôn chấp nhận phản hồi mới nhất từ server thay vì giữ dữ liệu cũ trong 60 giây.
+
+---
+
+## 21. Dev History: River AI Multi-Key Rotation & Dual Model Fallback Pipeline (2026-10-23)
+
+- **Bối cảnh & Động lực**:
+  - Người dùng bổ sung thêm 2 API key của River AI (tổng 3 key) và yêu cầu cơ chế xoay API key tự động tương tự Google Gemini (`ACTIVE`, `COOLDOWN`, `DEAD`, Round-Robin).
+  - Bổ sung cơ chế xoay Model tức thời: Nếu model chính (`RIVER_MODEL_1`, ví dụ: DeepSeek V4.1 Flash) không phản hồi, bị timeout mạng hoặc lỗi máy chủ 500/503, hệ thống sẽ tự động chuyển sang model dự phòng (`RIVER_MODEL_2`, ví dụ: DeepSeek V3) với key tiếp theo ngay lập tức.
+- **Các thay đổi cốt lõi**:
+  - **`Environment Configuration`**:
+    - `backend/.env.example`: Cung cấp cấu hình mẫu cho `RIVER_MODEL_1`, `RIVER_MODEL_2`, `RIVER_API_KEY_1`, `RIVER_API_KEY_2`, `RIVER_API_KEY_3` (vẫn duy trì biến đơn `RIVER_MODEL`, `RIVER_API_KEY` để tương thích ngược).
+    - `backend/src/config/env.validation.ts`: Bổ sung Joi schema validation cho các biến River AI mới.
+  - **`RiverKeyManager` (`src/modules/gemini/river-key.manager.ts`)**:
+    - Quản lý 3 API key River theo thuật toán Round-Robin.
+    - Che giấu API key an toàn trong logs theo chuẩn PII (`maskKey`).
+    - Xử lý trạng thái sức khỏe: Phục hồi sau Cooldown, Cooldown 30s với Exponential Backoff khi gặp 429, đánh dấu Dead khi gặp 401/403.
+    - Caching OpenAI client SDK instance theo từng key và base URL.
+  - **`GeminiService` (`src/modules/gemini/gemini.service.ts`)**:
+    - Inject `RiverKeyManager` (hỗ trợ `@Optional()` để tương thích ngược tuyệt đối).
+    - Tích hợp vòng lặp retry 3 lần: khi `RIVER_MODEL_1` gặp sự cố (timeout, 5xx, không phản hồi), tự động đổi sang `RIVER_MODEL_2` với key tiếp theo.
+    - Nếu toàn bộ các key và model của River AI đều cạn kiệt, tự động chuyển tiếp sang cụm Google Gemini 6 key.
+  - **`Testing & CLI Tool`**:
+    - `backend/scripts/test-river.ts`: Script CLI độc lập kiểm tra kết nối, độ trễ và tính sẵn sàng của từng key cũng như model River AI (`pnpm test:river`).
+    - `backend/src/modules/gemini/tests/river-key.manager.spec.ts`: 12 test cases cho `RiverKeyManager`.
+    - `backend/src/modules/gemini/tests/gemini.service.spec.ts`: Bổ sung test cases cho xoay key và xoay model của River AI.
+    - 555/555 backend tests PASS 100%, linter 0 lỗi.
+- **Technical Notes & Gotchas**:
+  - **Phân biệt loại lỗi cho Cooldown**: Timeout mạng hoặc lỗi server 500/503 tạm thời không phạt Cooldown cho key (để có thể tái sử dụng ngay cho Model 2 hoặc request tiếp theo); chỉ đưa key vào Cooldown khi nhận đúng mã lỗi 429 Rate Limit.
+  - **Constructor Backward Compatibility**: Khi thêm dependency mới vào Service, sử dụng `@Optional()` và fallback `riverKeyManager ?? new RiverKeyManager(configService)` trong constructor để không làm hỏng các test suite khởi tạo thủ công trước đó.
+
+
+
+
+
 
 
 

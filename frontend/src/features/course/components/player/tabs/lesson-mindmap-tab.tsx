@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { ILessonMindmapNode, ILessonMindmapData } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
@@ -329,25 +329,41 @@ export function LessonMindmapTab({
   // Local optimistic tree state
   const [localTree, setLocalTree] = useState<ILessonMindmapData | null>(null);
 
-  // Canvas Collapsed IDs (khởi tạo mặc định thu gọn 2 cấp độ)
-  const [canvasCollapsedIds, setCanvasCollapsedIds] = useState<Set<string>>(() =>
-    localTree?.root ? generateLessonMindmapDefaultCollapsedIds(localTree.root, 1) : new Set(),
-  );
-
-  // Khi dữ liệu bài học gốc thay đổi (chuyển bài học hoặc AI sinh lại) -> khởi tạo lại mức 2 cấp
-  const lastLessonRootIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (localTree?.root && localTree.root.id !== lastLessonRootIdRef.current) {
-      lastLessonRootIdRef.current = localTree.root.id;
-      setCanvasCollapsedIds(generateLessonMindmapDefaultCollapsedIds(localTree.root, 1));
-    }
-  }, [localTree?.root]);
+  // Canvas Collapsed IDs: null = chưa có override, dùng mặc định 2 cấp độ.
+  // Lưu kèm structureKey để tự reset khi cấu trúc cây thay đổi (AI sinh lại, thêm/xóa nhánh).
+  const [canvasCollapsedOverride, setCanvasCollapsedOverride] = useState<{
+    structureKey: string;
+    ids: Set<string>;
+  } | null>(null);
 
   useEffect(() => {
     if (currentMindmapData && !editingNodeId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLocalTree(currentMindmapData);
     }
   }, [currentMindmapData, editingNodeId]);
+
+  // Chỉ reset trạng thái thu gọn khi cấu trúc cây thay đổi (load lần đầu,
+  // AI sinh lại, thêm/xóa nhánh). Sửa title không làm reset.
+  const mindmapStructureKey = useMemo(() => {
+    if (!currentMindmapData?.root) return '';
+    return collectAllNodeIds(currentMindmapData.root).sort().join('|');
+  }, [currentMindmapData]);
+
+  const canvasCollapsedIds = useMemo(() => {
+    if (!localTree?.root) return null;
+    if (canvasCollapsedOverride?.structureKey === mindmapStructureKey) {
+      return canvasCollapsedOverride.ids;
+    }
+    return generateLessonMindmapDefaultCollapsedIds(localTree.root, 1);
+  }, [localTree, mindmapStructureKey, canvasCollapsedOverride]);
+
+  const handleCanvasCollapsedIdsChange = useCallback(
+    (next: Set<string>) => {
+      setCanvasCollapsedOverride({ structureKey: mindmapStructureKey, ids: next });
+    },
+    [mindmapStructureKey],
+  );
 
   // Expansion state
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
@@ -590,8 +606,8 @@ export function LessonMindmapTab({
               currentTime={currentTime}
               duration={duration}
               onSeek={onSeek}
-              collapsedIds={canvasCollapsedIds}
-              onCollapsedIdsChange={setCanvasCollapsedIds}
+              collapsedIds={canvasCollapsedIds ?? undefined}
+              onCollapsedIdsChange={handleCanvasCollapsedIdsChange}
             />
           </div>
         ) : (

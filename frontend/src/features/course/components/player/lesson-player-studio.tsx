@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { ILesson, LessonContentTypeEnum } from 'share-lib';
+import { useQueryClient } from '@tanstack/react-query';
+import { ILesson, LessonContentTypeEnum, LessonTranscriptionStatusEnum } from 'share-lib';
 import {
+  courseKeys,
   useCourseDetailQuery,
   useCourseSectionsQuery,
   useLessonTranscriptQuery,
@@ -28,6 +30,7 @@ export function LessonPlayerStudio({
   backUrl,
   isInstructor = true,
 }: LessonPlayerStudioProps): React.JSX.Element {
+  const queryClient = useQueryClient();
   const defaultBackUrl = backUrl || `/instructor/courses/${courseId}`;
 
   // Fetch Course details and Sections for curriculum navigation
@@ -38,7 +41,33 @@ export function LessonPlayerStudio({
   const {
     data: transcript,
     isLoading: isTranscriptLoading,
-  } = useLessonTranscriptQuery(lesson.id);
+    refetch: refetchTranscript,
+  } = useLessonTranscriptQuery(lesson.id, lesson.transcriptionStatus);
+
+  // Theo dõi sự chuyển giao trạng thái để âm thầm đồng bộ lại lesson duration & sections
+  const prevTranscriptStatusRef = useRef<LessonTranscriptionStatusEnum | undefined>(
+    transcript?.status || lesson.transcriptionStatus,
+  );
+
+  useEffect(() => {
+    const currentStatus = transcript?.status;
+    const prevStatus = prevTranscriptStatusRef.current;
+
+    if (
+      currentStatus === LessonTranscriptionStatusEnum.READY &&
+      prevStatus !== LessonTranscriptionStatusEnum.READY
+    ) {
+      // Âm thầm đồng bộ lại chi tiết bài học và danh sách chương học
+      void queryClient.invalidateQueries({
+        queryKey: courseKeys.lessonDetail(lesson.id),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: courseKeys.sections(courseId),
+      });
+    }
+
+    prevTranscriptStatusRef.current = currentStatus;
+  }, [transcript?.status, lesson.id, courseId, queryClient]);
 
   // Mutation to retry transcription when not found or failed
   const {
@@ -172,6 +201,7 @@ export function LessonPlayerStudio({
               sections={sections}
               onSeek={player.seek}
               formatTime={player.formatTime}
+              onRefreshTranscription={() => void refetchTranscript()}
             />
           </aside>
         </div>

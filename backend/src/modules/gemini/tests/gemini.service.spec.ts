@@ -11,12 +11,27 @@ import {
 
 // Hoisted mock for @google/genai generateContent
 const mockGenerateContent = vi.fn();
+// Hoisted mock for openai chat completions
+const mockCreateChatCompletion = vi.fn();
 
 vi.mock('@google/genai', () => {
   return {
     GoogleGenAI: class MockGoogleGenAI {
       public models = {
         generateContent: mockGenerateContent,
+      };
+      constructor(_options?: unknown) {}
+    },
+  };
+});
+
+vi.mock('openai', () => {
+  return {
+    default: class MockOpenAI {
+      public chat = {
+        completions: {
+          create: mockCreateChatCompletion,
+        },
       };
       constructor(_options?: unknown) {}
     },
@@ -293,6 +308,250 @@ describe('GeminiService', () => {
       await expect(
         geminiService.generateJson('Test malformed JSON'),
       ).rejects.toThrow(GeminiResponseParsingException);
+    });
+  });
+
+  describe('River AI Integration (Primary & Fallback)', () => {
+    let riverPrimaryService: GeminiService;
+    let geminiPrimaryService: GeminiService;
+
+    beforeEach(() => {
+      // Service 1: Ưu tiên River AI (Primary)
+      const riverPrimaryConfig = {
+        get: vi.fn().mockImplementation((key: string, defaultVal?: unknown) => {
+          if (key === 'AI_PRIMARY_PROVIDER') return 'RIVER';
+          if (key === 'GEMINI_MODEL') return 'gemini-3.8-flash';
+          if (key === 'GEMINI_FALLBACK_MODEL') return 'gemini-3.5-flash-lite';
+          if (key === 'GEMINI_API_KEY_1') return 'AIzaSyKey111111111111111';
+          if (key === 'RIVER_API_KEY') return 'rv_test_api_key_12345';
+          if (key === 'RIVER_BASE_URL') return 'https://api.river.ai/v1';
+          if (key === 'RIVER_MODEL') return 'deepseek-ai/DeepSeek-V4.1-Flash';
+          if (key === 'RIVER_TIMEOUT_MS') return 60000;
+          return defaultVal ?? '';
+        }),
+      };
+
+      riverPrimaryService = new GeminiService(
+        riverPrimaryConfig as unknown as ConfigService,
+        new GeminiKeyManager(riverPrimaryConfig as unknown as ConfigService),
+      );
+
+      // Service 2: Ưu tiên Gemini, River AI làm dự phòng (Fallback)
+      const geminiPrimaryConfig = {
+        get: vi.fn().mockImplementation((key: string, defaultVal?: unknown) => {
+          if (key === 'AI_PRIMARY_PROVIDER') return 'GEMINI';
+          if (key === 'GEMINI_MODEL') return 'gemini-3.8-flash';
+          if (key === 'GEMINI_FALLBACK_MODEL') return 'gemini-3.5-flash-lite';
+          if (key === 'GEMINI_API_KEY_1') return 'AIzaSyKey111111111111111';
+          if (key === 'RIVER_API_KEY') return 'rv_test_api_key_12345';
+          if (key === 'RIVER_BASE_URL') return 'https://api.river.ai/v1';
+          if (key === 'RIVER_MODEL') return 'deepseek-ai/DeepSeek-V4.1-Flash';
+          if (key === 'RIVER_TIMEOUT_MS') return 60000;
+          return defaultVal ?? '';
+        }),
+      };
+
+      geminiPrimaryService = new GeminiService(
+        geminiPrimaryConfig as unknown as ConfigService,
+        new GeminiKeyManager(geminiPrimaryConfig as unknown as ConfigService),
+      );
+    });
+
+    it('should confirm River AI status and primary role correctly', () => {
+      expect(riverPrimaryService.isRiverAiEnabled()).toBe(true);
+      expect(riverPrimaryService.isRiverAiPrimary()).toBe(true);
+
+      expect(geminiPrimaryService.isRiverAiEnabled()).toBe(true);
+      expect(geminiPrimaryService.isRiverAiPrimary()).toBe(false);
+
+      expect(geminiService.isRiverAiEnabled()).toBe(false);
+      expect(geminiService.isRiverAiPrimary()).toBe(false);
+    });
+
+    it('should prioritize River AI first when configured as primary provider', async () => {
+      mockCreateChatCompletion.mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              content: 'Phản hồi từ River AI DeepSeek V4.1 Flash',
+            },
+          },
+        ],
+        usage: {
+          prompt_tokens: 30,
+          completion_tokens: 40,
+          total_tokens: 70,
+        },
+      });
+
+      const result = await riverPrimaryService.generateContent('Hỏi đáp về Next.js');
+
+      expect(result.data).toBe('Phản hồi từ River AI DeepSeek V4.1 Flash');
+      expect(result.model).toBe('riverai:deepseek-ai/DeepSeek-V4.1-Flash');
+      expect(result.isFallback).toBe(false);
+      expect(result.maskedKey).toBe('rv_tes...2345');
+      expect(mockCreateChatCompletion).toHaveBeenCalledTimes(1);
+      // Gemini không hề bị gọi tới
+      expect(mockGenerateContent).not.toHaveBeenCalled();
+    });
+
+    it('should automatically switch to River Model 2 on next key when Model 1 fails', async () => {
+      const dualModelConfig = {
+        get: vi.fn().mockImplementation((key: string, defaultVal?: unknown) => {
+          if (key === 'AI_PRIMARY_PROVIDER') return 'RIVER';
+          if (key === 'RIVER_MODEL_1') return 'deepseek-ai/DeepSeek-V4.1-Flash';
+          if (key === 'RIVER_MODEL_2') return 'deepseek-ai/DeepSeek-V3';
+          if (key === 'RIVER_API_KEY_1') return 'rv_key_111111111111111';
+          if (key === 'RIVER_API_KEY_2') return 'rv_key_222222222222222';
+          if (key === 'RIVER_BASE_URL') return 'https://api.river.ai/v1';
+          return defaultVal ?? '';
+        }),
+      };
+
+      const dualModelService = new GeminiService(
+        dualModelConfig as unknown as ConfigService,
+        new GeminiKeyManager(dualModelConfig as unknown as ConfigService),
+      );
+
+      // Lần 1: Model 1 bị lỗi server 500
+      mockCreateChatCompletion.mockRejectedValueOnce(new Error('Model 1 internal error 500'));
+      // Lần 2: Model 2 thành công trên key 2
+      mockCreateChatCompletion.mockResolvedValueOnce({
+        choices: [{ message: { content: 'Kết quả từ River Model 2 (DeepSeek-V3)' } }],
+        usage: { prompt_tokens: 15, completion_tokens: 20, total_tokens: 35 },
+      });
+
+      const result = await dualModelService.generateContent('Kiểm tra chuyển đổi model 2');
+
+      expect(result.data).toBe('Kết quả từ River Model 2 (DeepSeek-V3)');
+      expect(result.model).toBe('riverai:deepseek-ai/DeepSeek-V3');
+      expect(result.isFallback).toBe(true);
+      expect(result.maskedKey).toBe('rv_key...2222');
+      expect(mockCreateChatCompletion).toHaveBeenCalledTimes(2);
+      expect(mockCreateChatCompletion.mock.calls[0][0].model).toBe('deepseek-ai/DeepSeek-V4.1-Flash');
+      expect(mockCreateChatCompletion.mock.calls[1][0].model).toBe('deepseek-ai/DeepSeek-V3');
+    });
+
+    it('should put River key into cooldown on 429 and succeed with second River key', async () => {
+      const multiKeyConfig = {
+        get: vi.fn().mockImplementation((key: string, defaultVal?: unknown) => {
+          if (key === 'AI_PRIMARY_PROVIDER') return 'RIVER';
+          if (key === 'RIVER_MODEL_1') return 'deepseek-ai/DeepSeek-V4.1-Flash';
+          if (key === 'RIVER_API_KEY_1') return 'rv_key_111111111111111';
+          if (key === 'RIVER_API_KEY_2') return 'rv_key_222222222222222';
+          if (key === 'RIVER_BASE_URL') return 'https://api.river.ai/v1';
+          return defaultVal ?? '';
+        }),
+      };
+
+      const multiKeyService = new GeminiService(
+        multiKeyConfig as unknown as ConfigService,
+        new GeminiKeyManager(multiKeyConfig as unknown as ConfigService),
+      );
+
+      // Key 1: 429 Rate Limit
+      mockCreateChatCompletion.mockRejectedValueOnce({ status: 429, message: 'Rate limit exceeded' });
+      // Key 2: Thành công
+      mockCreateChatCompletion.mockResolvedValueOnce({
+        choices: [{ message: { content: 'Thành công qua River Key 2' } }],
+        usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
+      });
+
+      const result = await multiKeyService.generateContent('Thử nghiệm xoay key 429');
+
+      expect(result.data).toBe('Thành công qua River Key 2');
+      expect(result.maskedKey).toBe('rv_key...2222');
+      expect(mockCreateChatCompletion).toHaveBeenCalledTimes(2);
+    });
+
+    it('should automatically fallback to Gemini when primary River AI fails', async () => {
+      // River AI ném lỗi trong cả 3 lần thử
+      mockCreateChatCompletion.mockRejectedValue(
+        new Error('River AI network timeout'),
+      );
+
+      // Gemini thành công ở lần thử đầu tiên
+      mockGenerateContent.mockResolvedValueOnce({
+        text: 'Nội dung dự phòng từ Google Gemini 3.8',
+        usageMetadata: { promptTokenCount: 20, candidatesTokenCount: 30, totalTokenCount: 50 },
+      });
+
+      const result = await riverPrimaryService.generateContent('Câu hỏi dự phòng');
+
+      expect(result.data).toBe('Nội dung dự phòng từ Google Gemini 3.8');
+      expect(result.model).toBe('gemini-3.8-flash');
+      expect(result.isFallback).toBe(true);
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    });
+
+    it('should seamlessly parse structured JSON from River AI via generateJson', async () => {
+      const mockQuizJson = {
+        question: 'React Server Component chạy ở đâu?',
+        options: ['Browser', 'Server', 'Cả hai'],
+        correctIndex: 1,
+      };
+
+      mockCreateChatCompletion.mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              content: `\`\`\`json\n${JSON.stringify(mockQuizJson)}\n\`\`\``,
+            },
+          },
+        ],
+        usage: { prompt_tokens: 45, completion_tokens: 55, total_tokens: 100 },
+      });
+
+      const result = await riverPrimaryService.generateJson<{
+        question: string;
+        options: string[];
+        correctIndex: number;
+      }>('Sinh câu hỏi quiz');
+
+      expect(result.data).toEqual(mockQuizJson);
+      expect(result.data.question).toBe('React Server Component chạy ở đâu?');
+      expect(result.model).toBe('riverai:deepseek-ai/DeepSeek-V4.1-Flash');
+      expect(result.isFallback).toBe(false);
+    });
+
+    it('should throw GeminiServiceUnavailableException when both River AI and Gemini fail', async () => {
+      mockCreateChatCompletion.mockRejectedValue(
+        new Error('River AI 500 error'),
+      );
+
+      mockGenerateContent.mockRejectedValue({
+        status: 503,
+        message: 'Google cluster unavailable',
+      });
+
+      await expect(
+        riverPrimaryService.generateContent('Cả hai hệ thống đều chết'),
+      ).rejects.toThrow(GeminiServiceUnavailableException);
+    });
+
+    it('should use Gemini first and River AI as secondary fallback when AI_PRIMARY_PROVIDER=GEMINI', async () => {
+      mockGenerateContent.mockRejectedValue({
+        status: 429,
+        message: 'All Gemini keys exhausted',
+      });
+
+      mockCreateChatCompletion.mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              content: 'Nội dung cứu cánh từ River AI khi Gemini hết quota',
+            },
+          },
+        ],
+        usage: { prompt_tokens: 20, completion_tokens: 25, total_tokens: 45 },
+      });
+
+      const result = await geminiPrimaryService.generateContent('Hết quota Gemini');
+
+      expect(result.data).toBe('Nội dung cứu cánh từ River AI khi Gemini hết quota');
+      expect(result.model).toBe('riverai:deepseek-ai/DeepSeek-V4.1-Flash');
+      expect(result.isFallback).toBe(true);
+      expect(result.maskedKey).toBe('rv_tes...2345');
     });
   });
 });

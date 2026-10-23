@@ -18,11 +18,11 @@ import '@xyflow/react/dist/style.css';
 
 import type { ILessonMindmapNode } from 'share-lib';
 import { SmoothBezierEdge } from '@/features/course/components/mindmap/edges/smooth-bezier-edge';
+import { startLayoutAnimation } from '@/features/course/utils/mindmap-animation.util';
 import { LessonMindmapCanvasNode } from './lesson-mindmap-canvas-node';
 import { LessonMindmapCanvasToolbar } from './lesson-mindmap-canvas-toolbar';
 import {
   convertLessonMindmapToFlowElements,
-  collectBranchNodeIds,
   generateLessonMindmapDefaultCollapsedIds,
   type LessonMindmapNodeData,
 } from '../../../../utils/lesson-mindmap-flow.util';
@@ -44,8 +44,13 @@ export interface LessonMindmapCanvasViewProps {
   onCollapsedIdsChange?: (newSet: Set<string>) => void;
 }
 
-function LessonMindmapFlowCanvas(props: LessonMindmapCanvasViewProps): React.JSX.Element {
-  const { root, currentTime = 0, onSeek } = props;
+function LessonMindmapFlowCanvas({
+  root,
+  currentTime = 0,
+  onSeek,
+  collapsedIds,
+  onCollapsedIdsChange,
+}: LessonMindmapCanvasViewProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Khởi tạo mặc định thu gọn hiển thị 2 cấp độ đầu tiên (Level 0 Root + Level 1 con trực tiếp)
@@ -53,26 +58,19 @@ function LessonMindmapFlowCanvas(props: LessonMindmapCanvasViewProps): React.JSX
     generateLessonMindmapDefaultCollapsedIds(root, 1),
   );
 
-  const activeCollapsedIds = props.collapsedIds ?? internalCollapsedIds;
+  const activeCollapsedIds = collapsedIds ?? internalCollapsedIds;
 
   const updateCollapsed = useCallback(
     (newSet: Set<string>) => {
-      if (props.onCollapsedIdsChange) {
-        props.onCollapsedIdsChange(newSet);
+      if (onCollapsedIdsChange) {
+        onCollapsedIdsChange(newSet);
       } else {
         setInternalCollapsedIds(newSet);
       }
     },
-    [props.onCollapsedIdsChange],
+    [onCollapsedIdsChange],
   );
 
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const { fitView } = useReactFlow();
-
-  // Kiểm tra xem có đang mở rộng toàn bộ không
-  const isFullyExpanded = activeCollapsedIds.size === 0;
-
-  // Toggle thu gọn từng node (Hỗ trợ mở rộng tiệm tiến - Progressive Disclosure)
   const handleToggleCollapse = useCallback(
     (id: string) => {
       const next = new Set(activeCollapsedIds);
@@ -86,14 +84,134 @@ function LessonMindmapFlowCanvas(props: LessonMindmapCanvasViewProps): React.JSX
     [activeCollapsedIds, updateCollapsed],
   );
 
-  // Toggle thu gọn / mở rộng tất cả (Chuyển đổi giữa Toàn bộ cây và Thu gọn về 2 cấp độ)
   const handleToggleCollapseAll = useCallback(() => {
-    if (isFullyExpanded) {
-      updateCollapsed(generateLessonMindmapDefaultCollapsedIds(root, 1));
-    } else {
-      updateCollapsed(new Set());
+    const isAllCollapsed = activeCollapsedIds.size > 0;
+    const next = isAllCollapsed
+      ? new Set<string>()
+      : generateLessonMindmapDefaultCollapsedIds(root, 1);
+
+    updateCollapsed(next);
+  }, [activeCollapsedIds, root, updateCollapsed]);
+
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const { fitView } = useReactFlow();
+
+  // Kiểm tra xem có đang mở rộng toàn bộ không
+  const isFullyExpanded = activeCollapsedIds.size === 0;
+
+  // Layout chỉ phụ thuộc cấu trúc cây + trạng thái thu gọn.
+  // KHÔNG phụ thuộc currentTime để tránh chạy Dagre liên tục khi video đang phát.
+  const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
+    return convertLessonMindmapToFlowElements(root, {
+      collapsedIds: activeCollapsedIds,
+      currentTime: 0,
+      onToggleCollapse: handleToggleCollapse,
+      onSeek,
+    });
+  }, [root, activeCollapsedIds, handleToggleCollapse, onSeek]);
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(layoutNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(layoutEdges);
+
+  const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
+  const cancelAnimationRef = useRef<(() => void) | null>(null);
+  const isFirstLayoutRef = useRef(true);
+  // Tăng revision sau mỗi animation để effect highlight áp lại trạng thái mới nhất
+  // (animation frames dùng target nodes từ layout nên có thể ghi đè highlight).
+  const [highlightRevision, setHighlightRevision] = useState(0);
+
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+
+  useEffect(() => {
+    edgesRef.current = edges;
+  }, [edges]);
+
+  // Animate khi cấu trúc / trạng thái thu gọn thay đổi
+  useEffect(() => {
+    cancelAnimationRef.current?.();
+
+    if (isFirstLayoutRef.current) {
+      isFirstLayoutRef.current = false;
+      setNodes(layoutNodes);
+      setEdges(layoutEdges);
+      return;
     }
-  }, [isFullyExpanded, root, updateCollapsed]);
+
+    cancelAnimationRef.current = startLayoutAnimation({
+      currentNodes: nodesRef.current,
+      currentEdges: edgesRef.current,
+      targetNodes: layoutNodes,
+      targetEdges: layoutEdges,
+      duration: 220,
+      onFrame: ({ nodes: frameNodes, edges: frameEdges }) => {
+        setNodes(frameNodes);
+        setEdges(frameEdges);
+      },
+      onComplete: () => {
+        cancelAnimationRef.current = null;
+        setHighlightRevision((value) => value + 1);
+        void fitView({ padding: 0.25, duration: 300 });
+      },
+    });
+
+    return () => {
+      cancelAnimationRef.current?.();
+    };
+  }, [layoutNodes, layoutEdges, setNodes, setEdges, fitView]);
+
+  // Dọn dẹp animation khi unmount
+  useEffect(() => {
+    return () => {
+      cancelAnimationRef.current?.();
+    };
+  }, []);
+
+  // Highlight node gần thời điểm video hiện tại mà KHÔNG reset vị trí (kể cả khi user đang kéo node)
+  useEffect(() => {
+    const nearNodeIds = new Set<string>();
+    for (const node of layoutNodes) {
+      if (Math.abs(currentTime - node.data.timestamp) < 5) {
+        nearNodeIds.add(node.id);
+      }
+    }
+
+    setNodes((previousNodes) => {
+      let changed = false;
+      const nextNodes = previousNodes.map((node) => {
+        const isNear = nearNodeIds.has(node.id);
+        if (Boolean(node.data.isNearCurrentTime) === isNear) return node;
+        changed = true;
+        return {
+          ...node,
+          data: { ...node.data, isNearCurrentTime: isNear },
+        };
+      });
+      return changed ? nextNodes : previousNodes;
+    });
+
+    setEdges((previousEdges) => {
+      let changed = false;
+      const nextEdges = previousEdges.map((edge) => {
+        const isNear = nearNodeIds.has(edge.target);
+        if (Boolean(edge.animated) === isNear) return edge;
+        changed = true;
+        return { ...edge, animated: isNear };
+      });
+      return changed ? nextEdges : previousEdges;
+    });
+  }, [currentTime, layoutNodes, highlightRevision, setNodes, setEdges]);
+
+  // Tự động fit view lần đầu khi ReactFlow đã render/measure nodes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void fitView({ padding: 0.25, duration: 400 });
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [fitView]);
 
   // Toàn màn hình toggle
   const handleToggleFullscreen = useCallback(() => {
@@ -111,7 +229,7 @@ function LessonMindmapFlowCanvas(props: LessonMindmapCanvasViewProps): React.JSX
       setIsFullscreen(Boolean(document.fullscreenElement));
       // Tự động căn giữa sau khi chuyển trạng thái fullscreen
       setTimeout(() => {
-        fitView({ padding: 0.2, duration: 250 });
+        void fitView({ padding: 0.2, duration: 250 });
       }, 100);
     };
 
@@ -121,32 +239,34 @@ function LessonMindmapFlowCanvas(props: LessonMindmapCanvasViewProps): React.JSX
     };
   }, [fitView]);
 
-  // Tính toán layout ReactFlow từ cây dữ liệu
-  const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
-    return convertLessonMindmapToFlowElements(root, {
+  // Khôi phục layout chuẩn sau khi người dùng kéo node (drag được giữ nguyên như hiện tại)
+  const handleRelayout = useCallback(() => {
+    cancelAnimationRef.current?.();
+
+    const target = convertLessonMindmapToFlowElements(root, {
       collapsedIds: activeCollapsedIds,
       currentTime,
       onToggleCollapse: handleToggleCollapse,
       onSeek,
     });
-  }, [root, activeCollapsedIds, currentTime, handleToggleCollapse, onSeek]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-
-  // Cập nhật nodes và edges khi initialNodes hoặc initialEdges thay đổi
-  useEffect(() => {
-    setNodes(initialNodes);
-    setEdges(initialEdges);
-  }, [initialNodes, initialEdges, setNodes, setEdges]);
-
-  // Tự động fit view khi vừa mount hoặc khi cấu trúc thay đổi
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fitView({ padding: 0.25, duration: 400 });
-    }, 80);
-    return () => clearTimeout(timer);
-  }, [fitView, activeCollapsedIds]);
+    cancelAnimationRef.current = startLayoutAnimation({
+      currentNodes: nodesRef.current,
+      currentEdges: edgesRef.current,
+      targetNodes: target.nodes,
+      targetEdges: target.edges,
+      duration: 220,
+      onFrame: ({ nodes: frameNodes, edges: frameEdges }) => {
+        setNodes(frameNodes);
+        setEdges(frameEdges);
+      },
+      onComplete: () => {
+        cancelAnimationRef.current = null;
+        setHighlightRevision((value) => value + 1);
+        void fitView({ padding: 0.25, duration: 300 });
+      },
+    });
+  }, [root, currentTime, activeCollapsedIds, handleToggleCollapse, onSeek, setNodes, setEdges, fitView]);
 
   return (
     <div
@@ -162,6 +282,7 @@ function LessonMindmapFlowCanvas(props: LessonMindmapCanvasViewProps): React.JSX
           onToggleCollapseAll={handleToggleCollapseAll}
           isFullscreen={isFullscreen}
           onToggleFullscreen={handleToggleFullscreen}
+          onRelayout={handleRelayout}
         />
       </div>
 

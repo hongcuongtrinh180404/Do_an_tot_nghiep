@@ -117,3 +117,16 @@ export class GeminiAllKeysExhaustedException extends GeminiBaseException {
     super(message, HttpStatus.TOO_MANY_REQUESTS);
   }
 }
+
+/**
+ * 429: Toàn bộ API key của River AI đều đang bị COOLDOWN hoặc DEAD
+ */
+export class RiverAllKeysExhaustedException extends GeminiBaseException {
+  public readonly retryable = false;
+  public readonly requiresKeyRotation = false;
+
+  constructor(message = 'Tất cả các River API key hiện tại đều đang bận hoặc quá tải hạn mức. Vui lòng thử lại sau.') {
+    super(message, HttpStatus.TOO_MANY_REQUESTS);
+  }
+}
+

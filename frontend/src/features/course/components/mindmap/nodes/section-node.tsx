@@ -7,14 +7,19 @@ import type { SectionNodeData } from '../../../utils/mindmap-converter.util';
 
 import { useCourseMindmapContext } from '../course-mindmap-context';
 import { CollapseCountBadge } from './collapse-count-badge';
+import { COURSE_NODE_DIMENSIONS } from '../../../utils/mindmap-node-size.util';
 
 function SectionNodeComponent({ data }: NodeProps): React.JSX.Element {
   const nodeData = data as unknown as SectionNodeData;
   const { onToggleSectionCollapse } = useCourseMindmapContext();
   const chapterNumber = String(nodeData.index + 1).padStart(2, '0');
+  const dimension = COURSE_NODE_DIMENSIONS.section;
 
   return (
-    <div className="relative group min-w-[240px] max-w-[280px] rounded-xl bg-card border border-border/80 p-3 shadow-xs transition-all hover:border-sky-300 dark:hover:border-sky-700 hover:shadow-md">
+    <div
+      className="relative group flex flex-col justify-center rounded-xl bg-card border border-border/80 p-3 shadow-xs transition-all hover:border-sky-300 dark:hover:border-sky-700 hover:shadow-md"
+      style={{ width: dimension.width, height: dimension.height }}
+    >
       {/* Target Handle from Course Root */}
       <Handle
         type="target"
@@ -27,7 +32,10 @@ function SectionNodeComponent({ data }: NodeProps): React.JSX.Element {
           {chapterNumber}
         </div>
         <div className="min-w-0 flex-1">
-          <h4 className="text-xs font-semibold text-foreground leading-snug line-clamp-2">
+          <h4
+            className="text-xs font-semibold text-foreground leading-snug line-clamp-2 break-words [overflow-wrap:anywhere]"
+            title={nodeData.title}
+          >
             {nodeData.title}
           </h4>
           <div className="flex items-center gap-2 mt-1">

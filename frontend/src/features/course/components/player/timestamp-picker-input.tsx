@@ -49,6 +49,7 @@ export function TimestampPickerInput({
     if (focusedInput !== null) return;
     const m = Math.floor(Math.max(0, valueSeconds) / 60);
     const s = Math.floor(Math.max(0, valueSeconds) % 60);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMinStr(formatPadded(m));
     setSecStr(formatPadded(s));
   }, [valueSeconds, focusedInput]);

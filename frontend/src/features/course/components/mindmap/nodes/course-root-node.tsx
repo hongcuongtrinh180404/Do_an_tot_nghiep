@@ -4,12 +4,17 @@ import React, { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { Icon } from '@/components/ui/icon';
 import type { CourseRootNodeData } from '../../../utils/mindmap-converter.util';
+import { COURSE_NODE_DIMENSIONS } from '../../../utils/mindmap-node-size.util';
 
 function CourseRootNodeComponent({ data }: NodeProps): React.JSX.Element {
   const nodeData = data as unknown as CourseRootNodeData;
+  const dimension = COURSE_NODE_DIMENSIONS.courseRoot;
 
   return (
-    <div className="relative group min-w-[280px] max-w-[320px] rounded-2xl bg-card border-2 border-primary/70 p-4 shadow-md transition-all hover:shadow-lg">
+    <div
+      className="relative group flex flex-col justify-center rounded-2xl bg-card border-2 border-primary/70 p-4 shadow-md transition-all hover:shadow-lg"
+      style={{ width: dimension.width, height: dimension.height }}
+    >
       <div className="flex items-start gap-3">
         <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
           <Icon icon="lucide:graduation-cap" className="size-5" />
@@ -25,7 +30,10 @@ function CourseRootNodeComponent({ data }: NodeProps): React.JSX.Element {
               </span>
             )}
           </div>
-          <h3 className="text-sm font-bold text-foreground leading-snug line-clamp-2">
+          <h3
+            className="text-sm font-bold text-foreground leading-snug line-clamp-2 break-words [overflow-wrap:anywhere]"
+            title={nodeData.title}
+          >
             {nodeData.title}
           </h3>
           <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">

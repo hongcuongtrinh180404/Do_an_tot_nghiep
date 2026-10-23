@@ -5,7 +5,7 @@
 > **Sinh viên thực hiện:** Trịnh Hồng Cường – **MSSV:** 28211151710  
 > **Giảng viên hướng dẫn:** ThS. Nguyễn Hữu Phúc  
 > **Thời gian:** 28/9/2026 – 22/12/2026 (3 tháng)  
-> **Kiến trúc:** Monorepo chuẩn doanh nghiệp kết hợp **NestJS 11**, **Next.js 16 (App Router)**, **RabbitMQ**, **AssemblyAI**, **Gemini API**, **Markmap**, và **SePay**.
+> **Kiến trúc:** **NestJS 11**, **Next.js 16 (App Router)**, **RabbitMQ**, **AssemblyAI**, **Gemini API**, **Markmap**, và **SePay**.
 
 ---
 

@@ -4,7 +4,10 @@ import React, { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { Icon } from '@/components/ui/icon';
 import { cn } from '@/lib/utils';
-import type { LessonMindmapNodeData } from '../../../../utils/lesson-mindmap-flow.util';
+import {
+  getNodeDimension,
+  type LessonMindmapNodeData,
+} from '../../../../utils/lesson-mindmap-flow.util';
 
 function formatTime(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -16,83 +19,57 @@ function formatTime(seconds: number): string {
 function LessonMindmapCanvasNodeComponent({ data }: NodeProps): React.JSX.Element {
   const nodeData = data as unknown as LessonMindmapNodeData;
   const isRoot = nodeData.level === 0;
-
-  // Level color tokens (Tuân thủ Purple Ban: Sky Blue, Indigo, Slate)
-  const levelStyles = [
-    // Level 0 (Root): Nổi bật nhất với sắc Sky Blue
-    'bg-sky-500/10 border-2 border-sky-500/50 text-sky-950 dark:text-sky-100 shadow-sm',
-    // Level 1: Nhánh chính cấp 1 với sắc Indigo nhẹ
-    'bg-indigo-500/10 border border-indigo-500/40 text-indigo-950 dark:text-indigo-200 shadow-2xs',
-    // Level 2: Nhánh cấp 2 với Card theme chuẩn
-    'bg-card border border-border/90 text-foreground shadow-2xs',
-    // Level 3+: Nhánh chi tiết
-    'bg-muted/40 border border-border/70 text-muted-foreground',
-  ];
-
-  const currentLevelStyle = levelStyles[Math.min(nodeData.level, levelStyles.length - 1)];
+  const dimension = getNodeDimension(nodeData.level);
 
   return (
     <div
       className={cn(
-        'group relative min-w-[200px] max-w-[280px] rounded-xl px-3 py-2.5 transition-all select-none',
-        currentLevelStyle,
-        nodeData.isNearCurrentTime
-          ? 'ring-2 ring-sky-500 ring-offset-2 ring-offset-background'
-          : 'hover:border-sky-500/60 hover:shadow-xs',
+        'group relative box-border flex items-center rounded-[18px] bg-white border-2 border-[#1E2243] px-5 py-[18px] pr-6 transition-all duration-200 select-none shadow-[0_4px_12px_rgba(15,23,42,0.05)] hover:shadow-[0_8px_20px_rgba(30,34,67,0.12)] hover:-translate-y-0.5',
+        nodeData.isNearCurrentTime && 'ring-2 ring-sky-500 ring-offset-2',
       )}
+      style={{ width: dimension.width, height: dimension.height }}
     >
       {/* Target Handle (Nhận đường nối từ Node Cha bên trái) */}
       {!isRoot && (
         <Handle
           type="target"
           position={Position.Left}
-          className="!size-2 !bg-sky-600 !border-2 !border-background !-left-1"
+          className="!size-2.5 !bg-[#1E2243] !border-2 !border-white !-left-1.5"
         />
       )}
 
-      {/* Nội dung Node */}
-      <div className="flex flex-col space-y-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-mono font-semibold tracking-wider text-muted-foreground uppercase">
-            {isRoot ? 'Chủ đề gốc' : `Cấp ${nodeData.level + 1}`}
-          </span>
+      {/* Huy hiệu Timestamp gắn nổi ở góc trên mép phải */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          nodeData.onSeek?.(nodeData.timestamp);
+        }}
+        title={`Tua video tới mốc ${formatTime(nodeData.timestamp)}`}
+        className="absolute -top-[14px] right-[18px] inline-flex items-center gap-1.5 bg-white border-[1.5px] border-[#818CF8] text-[#1E2243] px-3 py-[3px] rounded-full text-[13px] font-semibold font-mono cursor-pointer select-none transition-colors duration-150 hover:bg-[#EEF2FF] hover:text-[#4F46E5] hover:border-[#4F46E5] shadow-2xs"
+      >
+        <span className="text-[11px] leading-none select-none">▷</span>
+        <span>{formatTime(nodeData.timestamp)}</span>
+      </button>
 
-          {/* Badge mốc thời gian video - Nhấp để tua video */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              nodeData.onSeek?.(nodeData.timestamp);
-            }}
-            title={`Tua video tới ${formatTime(nodeData.timestamp)}`}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-mono font-medium bg-background/90 hover:bg-sky-600 hover:text-white border border-border/80 text-muted-foreground transition-colors cursor-pointer shadow-2xs"
-          >
-            <Icon icon="lucide:play" className="size-2.5" />
-            <span>{formatTime(nodeData.timestamp)}</span>
-          </button>
-        </div>
-
-        {/* Tiêu đề Node */}
-        <p
-          className={cn(
-            'leading-snug line-clamp-2',
-            isRoot ? 'text-xs sm:text-sm font-bold' : 'text-xs font-medium',
-          )}
-        >
-          {nodeData.title}
-        </p>
-      </div>
+      {/* Tiêu đề nội dung: luôn clamp 2 dòng + ellipsis, hover để xem đầy đủ */}
+      <p
+        className="m-0 w-full min-w-0 text-[15px] font-bold text-[#0F172A] leading-[1.45] tracking-[-0.01em] line-clamp-2 break-words [overflow-wrap:anywhere]"
+        title={nodeData.title}
+      >
+        {nodeData.title}
+      </p>
 
       {/* Source Handle (Phát đường nối sang Node Con bên phải) */}
       {nodeData.hasChildren && !nodeData.isCollapsed && (
         <Handle
           type="source"
           position={Position.Right}
-          className="!size-2 !bg-sky-600 !border-2 !border-background !-right-1"
+          className="!size-2.5 !bg-[#1E2243] !border-2 !border-white !-right-1.5"
         />
       )}
 
-      {/* Nút Thu gọn / Mở rộng nhánh con */}
+      {/* Nút mở rộng/thu gọn nhánh con neo ở giữa mép phải */}
       {nodeData.hasChildren && (
         <button
           type="button"
@@ -105,23 +82,12 @@ function LessonMindmapCanvasNodeComponent({ data }: NodeProps): React.JSX.Elemen
               ? `Mở rộng ${nodeData.childCount} nhánh con`
               : 'Thu gọn nhánh con'
           }
-          className={cn(
-            'absolute top-1/2 -right-3 -translate-y-1/2 z-20',
-            'h-5 min-w-[20px] px-1 rounded-full',
-            'border-2 border-background shadow-xs hover:shadow-sm',
-            'flex items-center justify-center cursor-pointer select-none',
-            'transition-all duration-200 active:scale-95 hover:scale-110',
-            nodeData.isCollapsed
-              ? 'bg-sky-600 hover:bg-sky-500 text-white'
-              : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground',
-          )}
+          className="absolute -right-[13px] top-1/2 -translate-y-1/2 size-[26px] rounded-full bg-[#2563EB] text-white border-[2.5px] border-white text-[11px] font-extrabold flex items-center justify-center cursor-pointer shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-transform duration-150 hover:bg-[#1D4ED8] hover:scale-110 active:scale-95 z-20"
         >
           {nodeData.isCollapsed ? (
-            <span className="font-bold text-[10px] leading-none">
-              +{nodeData.childCount}
-            </span>
+            <span>+{nodeData.childCount}</span>
           ) : (
-            <Icon icon="lucide:minus" className="size-2.5 stroke-[2.5]" />
+            <Icon icon="lucide:minus" className="size-3 stroke-[3]" />
           )}
         </button>
       )}

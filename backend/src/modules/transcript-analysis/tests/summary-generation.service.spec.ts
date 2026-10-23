@@ -75,7 +75,7 @@ describe('SummaryGenerationService', () => {
     it('should throw BadRequestException if transcript is not ready', async () => {
       mockLessonRepo.findById.mockResolvedValueOnce({ id: 'lesson-123', title: 'TypeScript' });
       mockLessonTranscriptRepo.findByLessonId.mockResolvedValueOnce({
-        status: LessonTranscriptionStatusEnum.UPLOADING,
+        status: LessonTranscriptionStatusEnum.TRANSCRIBING,
       });
 
       await expect(service.generateSummary('lesson-123')).rejects.toThrow(BadRequestException);

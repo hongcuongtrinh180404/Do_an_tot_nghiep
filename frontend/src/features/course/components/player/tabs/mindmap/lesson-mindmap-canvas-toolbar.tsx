@@ -10,6 +10,7 @@ interface LessonMindmapCanvasToolbarProps {
   onToggleCollapseAll: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  onRelayout: () => void;
   className?: string;
 }
 
@@ -18,6 +19,7 @@ export function LessonMindmapCanvasToolbar({
   onToggleCollapseAll,
   isFullscreen,
   onToggleFullscreen,
+  onRelayout,
   className = '',
 }: LessonMindmapCanvasToolbarProps): React.JSX.Element {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
@@ -60,6 +62,21 @@ export function LessonMindmapCanvasToolbar({
         className="size-7 p-0 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
       >
         <Icon icon="lucide:maximize" className="size-3.5" />
+      </Button>
+
+      <div className="w-[1px] h-4 bg-border/80 mx-0.5" />
+
+      {/* Relayout after manual drag */}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={onRelayout}
+        title="Sắp xếp lại sơ đồ (khôi phục khoảng cách chuẩn)"
+        className="h-7 px-2 text-xs rounded-lg text-muted-foreground hover:text-foreground cursor-pointer gap-1"
+      >
+        <Icon icon="lucide:sparkles" className="size-3.5 text-sky-500" />
+        <span className="text-[11px] font-medium hidden sm:inline">Sắp xếp</span>
       </Button>
 
       <div className="w-[1px] h-4 bg-border/80 mx-0.5" />

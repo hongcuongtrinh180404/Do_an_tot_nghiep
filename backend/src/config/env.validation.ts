@@ -54,5 +54,17 @@ export const envValidationSchema = Joi.object({
   GEMINI_API_KEY_4: Joi.string().allow('').default(''),
   GEMINI_API_KEY_5: Joi.string().allow('').default(''),
   GEMINI_API_KEY_6: Joi.string().allow('').default(''),
+
+  // River AI Configuration (OpenAI Compatible)
+  AI_PRIMARY_PROVIDER: Joi.string().valid('RIVER', 'GEMINI').default('RIVER'),
+  RIVER_BASE_URL: Joi.string().default('https://api.river.ai/v1'),
+  RIVER_TIMEOUT_MS: Joi.number().default(60000),
+  RIVER_MODEL_1: Joi.string().default('deepseek-ai/DeepSeek-V4.1-Flash'),
+  RIVER_MODEL_2: Joi.string().allow('').default('deepseek-ai/DeepSeek-V3'),
+  RIVER_MODEL: Joi.string().allow('').default('deepseek-ai/DeepSeek-V4.1-Flash'),
+  RIVER_API_KEY: Joi.string().allow('').default(''),
+  RIVER_API_KEY_1: Joi.string().allow('').default(''),
+  RIVER_API_KEY_2: Joi.string().allow('').default(''),
+  RIVER_API_KEY_3: Joi.string().allow('').default(''),
 });
 

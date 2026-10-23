@@ -7,6 +7,7 @@ import type { LessonNodeData } from '../../../utils/mindmap-converter.util';
 
 import { useCourseMindmapContext } from '../course-mindmap-context';
 import { CollapseCountBadge } from './collapse-count-badge';
+import { COURSE_NODE_DIMENSIONS } from '../../../utils/mindmap-node-size.util';
 
 function formatDuration(seconds?: number): string {
   if (!seconds || seconds <= 0) return '';
@@ -20,9 +21,13 @@ function LessonNodeComponent({ data }: NodeProps): React.JSX.Element {
   const durationText = formatDuration(nodeData.duration);
   const hasKeypoints = nodeData.keyPointCount > 0;
   const isVideo = nodeData.contentType === 'video' || !nodeData.contentType;
+  const dimension = COURSE_NODE_DIMENSIONS.lesson;
 
   return (
-    <div className="relative group min-w-[220px] max-w-[260px] rounded-xl bg-card border border-border/70 p-2.5 shadow-2xs transition-all hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-sm">
+    <div
+      className="relative group flex flex-col justify-center rounded-xl bg-card border border-border/70 p-2.5 shadow-2xs transition-all hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-sm"
+      style={{ width: dimension.width, height: dimension.height }}
+    >
       {/* Target Handle from Section */}
       <Handle
         type="target"
@@ -38,7 +43,10 @@ function LessonNodeComponent({ data }: NodeProps): React.JSX.Element {
           />
         </div>
         <div className="min-w-0 flex-1">
-          <h5 className="text-[11px] font-medium text-foreground leading-snug line-clamp-2">
+          <h5
+            className="text-[11px] font-medium text-foreground leading-snug line-clamp-2 break-words [overflow-wrap:anywhere]"
+            title={nodeData.title}
+          >
             {nodeData.title}
           </h5>
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">

@@ -115,8 +115,8 @@ describe('AssemblyAiService', () => {
         start: 100,
         end: 900,
       });
-      expect((result as Record<string, unknown>).confidence).toBeUndefined();
-      expect((result as Record<string, unknown>).words).toBeUndefined();
+      expect((result as unknown as Record<string, unknown>).confidence).toBeUndefined();
+      expect((result as unknown as Record<string, unknown>).words).toBeUndefined();
     });
 
     it('should allow overriding languageCode and options', async () => {

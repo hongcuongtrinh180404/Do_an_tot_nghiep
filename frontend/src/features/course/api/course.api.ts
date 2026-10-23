@@ -3,18 +3,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import type {
-  IApiResponse,
-  ICourse,
-  ICreateCoursePayload,
-  IUpdateCoursePayload,
-  ICreateSectionPayload,
-  IUpdateSectionPayload,
-  IReorderSectionsPayload,
-  ICreateLessonPayload,
-  ISection,
-  ILesson,
-  ILessonTranscript,
+import {
+  type IApiResponse,
+  type ICourse,
+  type ICreateCoursePayload,
+  type IUpdateCoursePayload,
+  type ICreateSectionPayload,
+  type IUpdateSectionPayload,
+  type IReorderSectionsPayload,
+  type ICreateLessonPayload,
+  type ISection,
+  type ILesson,
+  type ILessonTranscript,
+  LessonTranscriptionStatusEnum,
 } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 
@@ -244,14 +245,63 @@ export function useLessonDetailQuery(id: string) {
   });
 }
 
-export function useLessonTranscriptQuery(lessonId?: string) {
+export function useLessonTranscriptQuery(
+  lessonId?: string,
+  currentLessonStatus?: LessonTranscriptionStatusEnum,
+) {
   return useQuery({
     queryKey: courseKeys.lessonTranscript(lessonId || ''),
     queryFn: () => courseApi.getLessonTranscript(lessonId || ''),
     enabled: Boolean(lessonId),
-    staleTime: 60 * 1000,
+    staleTime: (query) => {
+      const status = query.state.data?.status;
+      const isProcessing =
+        status === LessonTranscriptionStatusEnum.TRANSCRIBING ||
+        status === LessonTranscriptionStatusEnum.QUEUED ||
+        (!status &&
+          (currentLessonStatus === LessonTranscriptionStatusEnum.TRANSCRIBING ||
+            currentLessonStatus === LessonTranscriptionStatusEnum.QUEUED));
+      return isProcessing ? 0 : 60 * 1000;
+    },
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      const isProcessing =
+        status === LessonTranscriptionStatusEnum.TRANSCRIBING ||
+        status === LessonTranscriptionStatusEnum.QUEUED ||
+        (!status &&
+          (currentLessonStatus === LessonTranscriptionStatusEnum.TRANSCRIBING ||
+            currentLessonStatus === LessonTranscriptionStatusEnum.QUEUED));
+
+      // Dừng polling khi không còn trong tiến trình xử lý
+      if (!isProcessing) {
+        return false;
+      }
+
+      // Exponential backoff: 3s -> 5s -> 10s, timeout sau 5 phút (~30 lần poll)
+      const fetchCount = query.state.dataUpdateCount ?? 0;
+      if (fetchCount < 5) {
+        return 3000; // 3 giây đầu tiên (5 lần đầu ~15s)
+      }
+      if (fetchCount < 10) {
+        return 5000; // 5 giây tiếp theo (5 lần tiếp ~25s)
+      }
+      if (fetchCount < 30) {
+        return 10000; // 10 giây cho các lần tiếp theo (tối đa ~5 phút)
+      }
+
+      // Quá 5 phút mà chưa xong, dừng polling để tránh lãng phí tải máy chủ
+      return false;
+    },
     retry: (failureCount, error) => {
       const status = (error as { response?: { status?: number } })?.response?.status;
+      // Nếu 404 nhưng bài học đang ở trạng thái TRANSCRIBING/QUEUED, tiếp tục thử lại
+      if (
+        status === 404 &&
+        (currentLessonStatus === LessonTranscriptionStatusEnum.TRANSCRIBING ||
+          currentLessonStatus === LessonTranscriptionStatusEnum.QUEUED)
+      ) {
+        return failureCount < 10;
+      }
       if (status === 404) return false;
       return failureCount < 2;
     },

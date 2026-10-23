@@ -24,6 +24,7 @@ interface LessonNavSidebarProps {
   onSeek: (seconds: number) => void;
   formatTime: (seconds: number) => string;
   onSelectLesson?: (lessonId: string) => void;
+  onRefreshTranscription?: () => void;
 }
 
 export function LessonNavSidebar({
@@ -41,6 +42,7 @@ export function LessonNavSidebar({
   onSeek,
   formatTime,
   onSelectLesson,
+  onRefreshTranscription,
 }: LessonNavSidebarProps): React.JSX.Element {
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>('timeline');
 
@@ -104,6 +106,7 @@ export function LessonNavSidebar({
             formatTime={formatTime}
             onRetryTranscription={onRetryTranscription}
             isRetrying={isRetryingTranscription}
+            onRefresh={onRefreshTranscription}
           />
         ) : (
           <LessonCurriculumTab

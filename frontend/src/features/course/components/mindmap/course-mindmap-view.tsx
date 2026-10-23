@@ -36,6 +36,7 @@ import {
   type CourseMindmapRawData,
 } from '../../utils/mindmap-converter.util';
 import { getLayoutedElements } from '../../utils/mindmap-layout.util';
+import { COURSE_MINDMAP_LAYOUT_VERSION } from '../../utils/mindmap-node-size.util';
 import { startLayoutAnimation } from '../../utils/mindmap-animation.util';
 import { CourseRootNode } from './nodes/course-root-node';
 import { SectionNode } from './nodes/section-node';
@@ -70,6 +71,8 @@ export interface ISavedMindmapData {
   nodes: Node[];
   edges: Edge[];
   collapsedIds?: string[];
+  /** Version của công thức layout + kích thước node dùng để tạo snapshot */
+  layoutVersion?: number;
   updatedAt?: string;
 }
 
@@ -93,14 +96,47 @@ function InnerCanvas({
   const { fitView } = useReactFlow();
   const upsertMutation = useUpsertCourseMindmapMutation(courseId);
 
-  // Khởi tạo state CHÍNH XÁC từ dữ liệu lưu trong database course_mindmaps!
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(savedData.nodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(savedData.edges);
+  // Snapshot cũ (chưa có layoutVersion hoặc version thấp hơn) được re-layout
+  // bằng kích thước node mới để tránh lệch khoảng cách/overlap.
+  const initialSnapshot = useMemo(() => {
+    const hasSavedCollapsedIds = Array.isArray(savedData.collapsedIds);
+    const savedCollapsedIds = new Set(savedData.collapsedIds ?? []);
+
+    if (savedData.layoutVersion === COURSE_MINDMAP_LAYOUT_VERSION) {
+      return {
+        nodes: savedData.nodes,
+        edges: savedData.edges,
+        collapsedIds: savedCollapsedIds,
+        needsMigration: false,
+      };
+    }
+
+    const nextCollapsedIds = hasSavedCollapsedIds
+      ? savedCollapsedIds
+      : generateDefaultCollapsedIds(rawData);
+    const { nodes: rawNodes, edges: rawEdges } = convertCurriculumToFlowElements(
+      rawData,
+      nextCollapsedIds,
+    );
+    const layouted = getLayoutedElements(rawNodes, rawEdges, { direction: 'LR' });
+
+    return {
+      nodes: layouted.nodes,
+      edges: layouted.edges,
+      collapsedIds: nextCollapsedIds,
+      needsMigration: true,
+    };
+  }, [savedData, rawData]);
+
+  // Khởi tạo state từ snapshot đã migrate (state CHÍNH XÁC từ database nếu version khớp)
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initialSnapshot.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initialSnapshot.edges);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(
-    () => new Set(savedData.collapsedIds || []),
+    () => initialSnapshot.collapsedIds,
   );
   const [showMinimap, setShowMinimap] = useState(false);
-  const [isModified, setIsModified] = useState(false);
+  // Snapshot cũ cần được lưu lại để persist layoutVersion mới
+  const [isModified, setIsModified] = useState(initialSnapshot.needsMigration);
 
   const nodesRef = React.useRef(nodes);
   const edgesRef = React.useRef(edges);
@@ -256,6 +292,7 @@ function InnerCanvas({
       nodes: layouted.nodes,
       edges: layouted.edges,
       collapsedIds: Array.from(defaultCollapsed),
+      layoutVersion: COURSE_MINDMAP_LAYOUT_VERSION,
       updatedAt: new Date().toISOString(),
     };
 
@@ -436,6 +473,7 @@ export function CourseMindmapView({
       nodes: layouted.nodes,
       edges: layouted.edges,
       collapsedIds: Array.from(defaultCollapsed),
+      layoutVersion: COURSE_MINDMAP_LAYOUT_VERSION,
       updatedAt: new Date().toISOString(),
     };
 
