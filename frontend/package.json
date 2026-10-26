@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "audit:ui": "node ../.agent/skills/web-design-guidelines/scripts/audit-ui.mjs src"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

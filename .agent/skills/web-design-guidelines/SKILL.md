@@ -3,7 +3,7 @@ name: web-design-guidelines
 description: Review UI code for Web Interface Guidelines compliance. Use when asked to "review my UI", "check accessibility", "audit design", "review UX", or "check my site against best practices".
 metadata:
   author: vercel
-  version: '1.0.0'
+  version: "1.0.0"
   argument-hint: <file-or-pattern>
 ---
 
@@ -26,12 +26,23 @@ Fetch fresh guidelines before each review:
 https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md
 ```
 
-Use WebFetch to retrieve the latest rules. The fetched content contains all the rules and output format instructions.
+Use WebFetch or terminal tools to retrieve the latest rules. The fetched content contains all the rules and output format instructions.
+
+## Quick Static Audit Script
+
+In addition to LLM review, you can run the built-in fast static scanner:
+
+```bash
+# Scan entire frontend src
+node .agent/skills/web-design-guidelines/scripts/audit-ui.mjs frontend/src
+
+# Or via pnpm script
+pnpm audit:ui
+```
 
 ## Usage
 
 When a user provides a file or pattern argument:
-
 1. Fetch guidelines from the source URL above
 2. Read the specified files
 3. Apply all rules from the fetched guidelines
@@ -43,16 +54,17 @@ If no files specified, ask the user which files to review.
 
 ## Related Skills
 
-| Skill                                              | When to Use                                                                |
-| -------------------------------------------------- | -------------------------------------------------------------------------- |
-| **[frontend-design](../frontend-design/SKILL.md)** | Before coding - Learn design principles (color, typography, UX psychology) |
-| **web-design-guidelines** (this)                   | After coding - Audit for accessibility, performance, and best practices    |
+| Skill | When to Use |
+| :--- | :--- |
+| **`design-taste-frontend` / `taste-skill`** | Before & during design - Art direction, anti-slop, rich typography, non-cliché layouts |
+| **`frontend-design`** | Architecture - Layout decisions, design tokens, responsive system |
+| **`web-design-guidelines` (this)** | After coding - Quality audit for accessibility (a11y), keyboard states, and best practices |
 
-## Design Workflow
+## Design & Quality Workflow
 
 ```
-1. DESIGN   → Read frontend-design principles
-2. CODE     → Implement the design
-3. AUDIT    → Run web-design-guidelines review ← YOU ARE HERE
-4. FIX      → Address findings from audit
+1. DIRECTION  → Apply taste-skill (art direction, anti-slop, palette, type)
+2. IMPLEMENT  → Build React/Next.js components with semantic HTML
+3. LINT/AUDIT → Run 'pnpm audit:ui' + web-design-guidelines check
+4. VERIFY     → Fix all detected violations
 ```
