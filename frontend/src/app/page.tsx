@@ -48,7 +48,7 @@ export default function Home(): React.JSX.Element {
               <>
                 {user.role === RoleEnum.ADMIN && (
                   <Link
-                    href="/admin/users"
+                    href="/admin/dashboard"
                     className={buttonVariants({ variant: 'outline', size: 'sm' })}
                   >
                     <Icon icon="lucide:shield" className="size-3.5 mr-1.5 text-primary" />

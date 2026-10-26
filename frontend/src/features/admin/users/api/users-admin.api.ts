@@ -89,7 +89,7 @@ export function useAdminUsersQuery(params: AdminUsersQueryParams) {
   return useQuery({
     queryKey: usersAdminKeys.list(params),
     queryFn: () => usersAdminApi.getUsers(params),
-    enabled: isMounted && typeof window !== 'undefined' && !!localStorage.getItem('accessToken'),
+    enabled: isMounted,
     staleTime: 60 * 1000,
   });
 }
@@ -100,7 +100,7 @@ export function useAdminUserDetailQuery(userId: string) {
   return useQuery({
     queryKey: usersAdminKeys.detail(userId),
     queryFn: () => usersAdminApi.getUserDetail(userId),
-    enabled: isMounted && Boolean(userId) && typeof window !== 'undefined' && !!localStorage.getItem('accessToken'),
+    enabled: isMounted && Boolean(userId),
     staleTime: 60 * 1000,
   });
 }

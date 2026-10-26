@@ -5,4 +5,6 @@ export * from './components/admin-sidebar';
 export * from './components/admin-header';
 export * from './components/admin-layout';
 export * from './components/admin-users-placeholder';
+export * from './components/admin-tab-placeholder';
 export * from './users';
+export * from './categories';

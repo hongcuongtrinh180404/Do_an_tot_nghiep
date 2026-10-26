@@ -41,7 +41,7 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps): React.JSX.
       >
         {/* Brand / Logo Section */}
         <div className="h-16 flex items-center justify-between px-6 border-b border-border/60 shrink-0">
-          <Link href="/admin/users" className="flex items-center gap-3 group">
+          <Link href="/admin/dashboard" className="flex items-center gap-3 group">
             <div className="size-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-base shadow-sm group-hover:opacity-95 transition-opacity">
               <Icon icon="lucide:shield" className="size-5" />
             </div>

@@ -26,6 +26,8 @@ import {
   type UpdateUserAdminFormValues,
 } from '../schemas/user-admin.schema';
 import { UserRoleBadge, UserStatusBadge } from './users-status-badge';
+import { UserEnrolledCoursesSection } from './user-enrolled-courses-section';
+import { InstructorCoursesSection } from './instructor-courses-section';
 
 interface UserDetailsViewProps {
   userId: string;
@@ -39,7 +41,7 @@ export function UserDetailsView({ userId }: UserDetailsViewProps): React.JSX.Ele
   const returnUrl = searchParams.get('returnUrl') || '/admin/users';
 
   // API Queries & Mutations
-  const { data: user, isLoading, isError, refetch } = useAdminUserDetailQuery(userId);
+  const { data: user, isLoading, isPending, isError, refetch } = useAdminUserDetailQuery(userId);
   const updateMutation = useUpdateUserAdminMutation();
 
   const [copiedId, setCopiedId] = React.useState(false);
@@ -126,7 +128,7 @@ export function UserDetailsView({ userId }: UserDetailsViewProps): React.JSX.Ele
   };
 
   // Màn hình Skeleton Loading
-  if (isLoading) {
+  if (isLoading || isPending) {
     return (
       <div className="flex-1 min-h-0 flex flex-col p-4 sm:p-6 lg:p-8 space-y-6 animate-pulse">
         <div className="flex items-center justify-between border-b border-border/60 pb-4">
@@ -387,6 +389,13 @@ export function UserDetailsView({ userId }: UserDetailsViewProps): React.JSX.Ele
           </form>
         </div>
       </div>
+
+      {/* Phân Hệ Khóa Học: Giảng viên hiển thị 4 KPI + 2 Tab, Học viên/Admin hiển thị danh sách đã mua */}
+      {user.role === RoleEnum.INSTRUCTOR ? (
+        <InstructorCoursesSection />
+      ) : (
+        <UserEnrolledCoursesSection />
+      )}
     </div>
   );
 }
