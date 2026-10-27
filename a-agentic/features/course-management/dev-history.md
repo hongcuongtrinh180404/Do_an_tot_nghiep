@@ -1242,6 +1242,27 @@
     - TypeScript: **0 lỗi** (`tsc --noEmit` exit code 0).
     - ESLint: **0 lỗi, 0 cảnh báo** (`eslint src/` exit code 0).
 
-
-
-
+- **Milestone 46 (UI Palette Refinement - Charcoal #313131 for Primary Buttons & Filters)**:
+  - Bối cảnh & Yêu cầu:
+    - Người dùng phản hồi các nút CTA và thẻ danh mục lọc đang sử dụng màu đỏ cam quá rực rỡ (`#DE2900` / `#F02D01`), khi nhìn lâu trên nền trắng sẽ gây chói mắt và mỏi thị giác.
+    - Yêu cầu chuyển đổi sang gam màu than chì thanh lịch `#313131` theo tiêu chuẩn thẩm mỹ tinh gọn của skill `design-taste-frontend`.
+  - Phân tích & Triển khai:
+    - **CSS Variables Design Token (`globals.css`)**:
+      - Cập nhật `--primary: #313131;`, `--ring: #313131;`, `--sidebar-primary: #313131;` và `--sidebar-ring: #313131;`.
+      - Chế độ `.dark`: Thiết lập `--primary: #FFFFFF; --primary-foreground: #161616;` cho độ tương phản cao, hiện đại.
+    - **Hero CTA Button (`public-hero.tsx`)**:
+      - Chuyển nút *"Khám phá khóa học ngay"* từ `bg-[#DE2900]` sang `bg-[#313131] hover:bg-[#202020] text-white font-bold px-6 shadow-none text-base`.
+      - Chuyển nút nộp câu hỏi quiz xem trước và active breakpoint pill trong sandbox player sang `#313131`.
+      - Scrubber video tiến trình chuyển sang màu ngọc bích `#027D88` êm dịu, loại bỏ vệt đỏ chói.
+    - **Category Rail (`category-rail.tsx`)**:
+      - Thẻ danh mục được chọn (như *"Tất cả lĩnh vực [48]"*) chuyển trạng thái `isSelected` sang `bg-[#313131] text-white font-bold`, thẻ đếm khóa học hiển thị `bg-white/20 text-white`.
+    - **High-Impact Conversion CTAs on Dark Surfaces (`ai-experience-banner.tsx`, `public-header.tsx`)**:
+      - Giữ nguyên màu đỏ nổi bật (`bg-[#DE2900] text-white hover:bg-[#c42400] font-bold`) cho các nút chuyển đổi người dùng quan trọng đặt trên nền đen `#161616`:
+        - Nút *"Tham gia miễn phí"* trên Header Navigation.
+        - Nút *"Tạo tài khoản học viên miễn phí"* trên CTA Banner cuối trang Trải nghiệm AI.
+      - **Lý do thiết kế**: Các nút chuyển đổi này ít khi bấm nhưng cần nổi bật tuyệt đối để thu hút người dùng đăng ký; đặt trên nền tối `#161616` không hề gây chói hay mỏi mắt như khi nằm trên nền trắng lớn, đồng thời bảo tồn bản sắc thương hiệu Mindly.
+      - Nút *"Xem tất cả khóa học"* và *"Đặt lại bộ lọc"* đồng bộ màu `#313131`.
+      - Title hover trong `CourseCard` chuyển sang màu xanh ngọc bích thương hiệu `#027D88`.
+  - Kiểm thử & Chất lượng:
+    - Độ tương phản đạt chuẩn WCAG AAA.
+    - TypeScript: Typecheck `tsc --noEmit` đạt 0 lỗi (Exit Code 0).

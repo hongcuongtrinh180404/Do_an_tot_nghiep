@@ -105,7 +105,7 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
       <div className="flex flex-1 flex-col p-4">
         
         {/* Title: strict 2 lines clamp */}
-        <h3 className="line-clamp-2 text-sm sm:text-base font-bold text-[#161616] leading-snug group-hover:text-[#F02D01] transition-colors min-h-[2.5rem]">
+        <h3 className="line-clamp-2 text-sm sm:text-base font-bold text-[#161616] leading-snug group-hover:text-[#027D88] transition-colors min-h-[2.5rem]">
           <Link href={`/courses/${course.id}`}>
             {course.title}
           </Link>

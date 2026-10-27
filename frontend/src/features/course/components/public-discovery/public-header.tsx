@@ -98,7 +98,7 @@ export function PublicHeader({
               value={localSearch}
               onChange={handleInputChange}
               placeholder="Tìm kiếm khóa học, giảng viên, kỹ năng..."
-              className="w-full h-10 rounded-lg border border-neutral-700 bg-[#282828] pl-9 pr-4 text-sm text-white placeholder:text-neutral-400 focus:bg-[#202020] focus:border-[#F02D01] focus:outline-none transition-colors"
+              className="w-full h-10 rounded-lg border border-neutral-700 bg-[#282828] pl-9 pr-4 text-sm text-white placeholder:text-neutral-400 focus:bg-[#202020] focus:border-neutral-500 focus:outline-none transition-colors"
             />
           </form>
         </div>
@@ -112,7 +112,7 @@ export function PublicHeader({
                   href="/admin/dashboard"
                   className={buttonVariants({ variant: 'outline', size: 'sm', className: 'hidden sm:inline-flex border-neutral-700 text-white hover:bg-neutral-800' })}
                 >
-                  <Icon icon="lucide:shield" className="size-3.5 mr-1.5 text-[#F02D01]" />
+                  <Icon icon="lucide:shield" className="size-3.5 mr-1.5 text-neutral-400" />
                   Quản trị
                 </Link>
               )}
@@ -159,7 +159,7 @@ export function PublicHeader({
               </Link>
               <Link
                 href="/register"
-                className={buttonVariants({ size: 'sm', className: 'bg-[#DE2900] text-white hover:bg-[#c42400] font-bold' })}
+                className={buttonVariants({ variant: 'coral', size: 'sm', className: 'font-bold shadow-none' })}
               >
                 <Icon icon="lucide:user-plus" className="size-3.5 mr-1.5" />
                 Tham gia miễn phí

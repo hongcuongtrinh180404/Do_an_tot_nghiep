@@ -119,11 +119,12 @@
   /* palevioletred */
   --palevioletred-100: #fd608b;
 
-  /* Brand Colors (Domestika) */
+  /* Brand Colors */
   --red: #F02D01;
   --teal: #027D88;
   --white: #FFFFFF;
   --black: #161616;
+  --charcoal: #313131;
   --darkslateblue: #354fb2;
 
   /* Semantic Theme Mapping */
@@ -133,7 +134,7 @@
   --card-foreground: #161616;
   --popover: #FFFFFF;
   --popover-foreground: #161616;
-  --primary: #F02D01;
+  --primary: #313131;
   --primary-foreground: #FFFFFF;
   --secondary: #F2F2F2;
   --secondary-foreground: #161616;
@@ -144,22 +145,22 @@
   --destructive: #DC2626;
   --border: #E5E7EB;
   --input: #E5E7EB;
-  --ring: #F02D01;
+  --ring: #313131;
   --radius: 0.5rem;
 
-  --chart-1: #F02D01;
+  --chart-1: #313131;
   --chart-2: #027D88;
   --chart-3: #FFD100;
   --chart-4: #F2A82D;
   --chart-5: #161616;
   --sidebar: #161616;
   --sidebar-foreground: #FFFFFF;
-  --sidebar-primary: #F02D01;
+  --sidebar-primary: #313131;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #262626;
   --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: #2B2B2B;
-  --sidebar-ring: #F02D01;
+  --sidebar-ring: #313131;
 }
 
 .dark {
@@ -169,8 +170,8 @@
   --card-foreground: #FFFFFF;
   --popover: #202020;
   --popover-foreground: #FFFFFF;
-  --primary: #F02D01;
-  --primary-foreground: #FFFFFF;
+  --primary: #FFFFFF;
+  --primary-foreground: #161616;
   --secondary: #2B2B2B;
   --secondary-foreground: #FFFFFF;
   --muted: #262626;
@@ -180,15 +181,15 @@
   --destructive: #EF4444;
   --border: #333333;
   --input: #333333;
-  --ring: #F02D01;
+  --ring: #FFFFFF;
   --sidebar: #161616;
   --sidebar-foreground: #FFFFFF;
-  --sidebar-primary: #F02D01;
-  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-primary: #FFFFFF;
+  --sidebar-primary-foreground: #161616;
   --sidebar-accent: #262626;
   --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: #333333;
-  --sidebar-ring: #F02D01;
+  --sidebar-ring: #FFFFFF;
 }
 
 @layer base {

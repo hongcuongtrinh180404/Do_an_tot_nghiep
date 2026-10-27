@@ -59,7 +59,7 @@ export function PublicHero(): React.JSX.Element {
                 href="#featured"
                 className={buttonVariants({
                   size: 'lg',
-                  className: 'bg-[#DE2900] text-white hover:bg-[#c42400] font-bold px-6 shadow-none text-base',
+                  className: 'bg-[#313131] text-white hover:bg-[#202020] font-bold px-6 shadow-none text-base transition-colors',
                 })}
               >
                 Khám phá khóa học ngay
@@ -80,13 +80,13 @@ export function PublicHero(): React.JSX.Element {
             {/* Quick Keyword Jumps */}
             <div className="pt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span className="font-semibold text-foreground">Chủ đề tiêu biểu:</span>
-              <a href="#recent" className="hover:text-[#F02D01] hover:underline transition-colors">Next.js App Router</a>
+              <a href="#recent" className="hover:text-[#313131] hover:underline transition-colors">Next.js App Router</a>
               <span>•</span>
-              <a href="#recent" className="hover:text-[#F02D01] hover:underline transition-colors">Gemini AI Pipeline</a>
+              <a href="#recent" className="hover:text-[#313131] hover:underline transition-colors">Gemini AI Pipeline</a>
               <span>•</span>
-              <a href="#recent" className="hover:text-[#F02D01] hover:underline transition-colors">Design System</a>
+              <a href="#recent" className="hover:text-[#313131] hover:underline transition-colors">Design System</a>
               <span>•</span>
-              <a href="#recent" className="hover:text-[#F02D01] hover:underline transition-colors">NestJS Clean Code</a>
+              <a href="#recent" className="hover:text-[#313131] hover:underline transition-colors">NestJS Clean Code</a>
             </div>
           </div>
 
@@ -191,7 +191,7 @@ export function PublicHero(): React.JSX.Element {
                             size="sm"
                             onClick={handleCheckAnswer}
                             disabled={selectedQuizOption === null}
-                            className="h-7 text-xs bg-[#F02D01] hover:bg-[#de2900] text-white font-bold"
+                            className="h-7 text-xs bg-[#313131] hover:bg-[#202020] text-white font-bold"
                           >
                             Kiểm tra kết quả
                           </Button>
@@ -224,7 +224,7 @@ export function PublicHero(): React.JSX.Element {
                 <div className="relative z-10 pt-2">
                   <div className="relative w-full h-1.5 rounded-full bg-white/20 mb-2">
                     <div
-                      className="absolute left-0 top-0 h-full rounded-full bg-[#F02D01] transition-colors"
+                      className="absolute left-0 top-0 h-full rounded-full bg-[#027D88] transition-colors"
                       style={{
                         width: `${(activeBreakpoint.seconds / 255) * 100}%`,
                       }}
@@ -244,7 +244,7 @@ export function PublicHero(): React.JSX.Element {
                             onClick={() => handleSelectBreakpoint(idx)}
                             className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
                               isActive
-                                ? 'bg-[#DE2900] text-white font-bold'
+                                ? 'bg-[#313131] text-white font-bold border border-white/20'
                                 : 'bg-white/10 text-white/80 hover:bg-white/20'
                             }`}
                           >

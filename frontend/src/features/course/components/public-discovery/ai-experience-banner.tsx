@@ -26,7 +26,7 @@ export function AiExperienceBanner(): React.JSX.Element {
             {/* 3 Sequential Process Steps without decorative 01/02/03 labels */}
             <div className="space-y-4 pt-1">
               <div className="flex items-start gap-3">
-                <div className="size-2 rounded-full bg-[#DE2900] mt-2 shrink-0" />
+                <div className="size-2 rounded-full bg-[#313131] mt-2 shrink-0" />
                 <div>
                   <h4 className="text-base font-bold text-[#161616]">
                     Bóc tách âm thanh có mốc thời gian (AssemblyAI)
@@ -71,7 +71,7 @@ export function AiExperienceBanner(): React.JSX.Element {
               <div className="flex items-center justify-between border-b border-[#282828] bg-[#161616] px-4 py-3 text-xs text-white">
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1.5">
-                    <span className="size-2.5 rounded-full bg-[#DE2900]" />
+                    <span className="size-2.5 rounded-full bg-[#313131]" />
                     <span className="size-2.5 rounded-full bg-[#ffd100]" />
                     <span className="size-2.5 rounded-full bg-[#027D88]" />
                   </div>
@@ -92,7 +92,7 @@ export function AiExperienceBanner(): React.JSX.Element {
                 <div className="rounded-lg border border-[#e5e7eb] bg-[#f8f9fa] p-4">
                   <div className="flex items-center justify-between mb-3 text-xs font-semibold text-[#161616]">
                     <div className="flex items-center gap-1.5 text-[#161616]">
-                      <Icon icon="lucide:mic" className="size-4 text-[#DE2900]" />
+                      <Icon icon="lucide:mic" className="size-4 text-[#027D88]" />
                       <span>Luồng phụ đề thời gian thực (AssemblyAI STT)</span>
                     </div>
                     <span className="rounded bg-white px-2 py-0.5 text-xs text-[#027D88] font-bold border border-[#e5e7eb]">
@@ -111,7 +111,7 @@ export function AiExperienceBanner(): React.JSX.Element {
                     </div>
 
                     <div className="flex items-start gap-2.5 p-2 rounded bg-[#f3fcfc] border border-[#027D88]/30">
-                      <span className="rounded bg-[#DE2900] text-white px-2 py-0.5 text-xs shrink-0 font-bold tabular-nums">
+                      <span className="rounded bg-[#313131] text-white px-2 py-0.5 text-xs shrink-0 font-bold tabular-nums">
                         01:30
                       </span>
                       <p className="text-[#161616] leading-relaxed font-semibold">
@@ -156,8 +156,8 @@ export function AiExperienceBanner(): React.JSX.Element {
                   {/* In-video Quiz Checkpoint */}
                   <div className="rounded-lg border border-[#e5e7eb] bg-white p-4 flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-[#DE2900] mb-2">
-                        <Icon icon="lucide:check-circle-2" className="size-4 text-[#DE2900]" />
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-[#027D88] mb-2">
+                        <Icon icon="lucide:check-circle-2" className="size-4 text-[#027D88]" />
                         <span>Mốc In-video Quiz (01:30)</span>
                       </div>
 
@@ -198,8 +198,9 @@ export function AiExperienceBanner(): React.JSX.Element {
           <Link
             href="/register"
             className={buttonVariants({
+              variant: 'coral',
               size: 'lg',
-              className: 'bg-[#DE2900] text-white hover:bg-[#c42400] font-bold px-6 shrink-0 shadow-none text-base',
+              className: 'font-bold px-6 shrink-0 shadow-none text-base',
             })}
           >
             Tạo tài khoản học viên miễn phí

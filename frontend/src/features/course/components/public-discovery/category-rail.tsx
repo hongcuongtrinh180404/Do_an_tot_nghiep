@@ -48,7 +48,7 @@ export function CategoryRail({
                 onClick={() => onSelectCategory(category.slug)}
                 className={`group flex items-center gap-2.5 whitespace-nowrap rounded-lg px-3.5 py-2.5 text-xs sm:text-sm font-medium transition-colors shrink-0 ${
                   isSelected
-                    ? 'bg-[#F02D01] text-white font-bold'
+                    ? 'bg-[#313131] text-white font-bold'
                     : 'bg-[#f2f2f2] text-[#161616] hover:bg-[#e8e8e8] border border-[#e8e8e8]'
                 }`}
               >

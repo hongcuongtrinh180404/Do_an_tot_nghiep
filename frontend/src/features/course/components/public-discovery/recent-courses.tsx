@@ -127,7 +127,7 @@ export function RecentCourses({
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="h-8 rounded-lg border border-border bg-background px-2.5 text-xs text-[#161616] focus:outline-none focus:ring-1 focus:ring-[#F02D01]"
+                className="h-8 rounded-lg border border-border bg-background px-2.5 text-xs text-[#161616] focus:outline-none focus:ring-1 focus:ring-[#313131]"
               >
                 <option value="newest">Mới nhất</option>
                 <option value="rating">Đánh giá cao nhất</option>
@@ -159,7 +159,7 @@ export function RecentCourses({
             <button
               type="button"
               onClick={onClearFilters}
-              className="text-[#F02D01] hover:underline font-semibold ml-2"
+              className="text-[#313131] hover:underline font-semibold ml-2"
             >
               Đặt lại bộ lọc
             </button>
@@ -185,7 +185,7 @@ export function RecentCourses({
             <button
               type="button"
               onClick={onClearFilters}
-              className="mt-4 rounded-lg bg-[#F02D01] px-4 py-2 text-xs font-semibold text-white hover:bg-[#de2900] transition-colors"
+              className="mt-4 rounded-lg bg-[#313131] px-4 py-2 text-xs font-semibold text-white hover:bg-[#202020] transition-colors"
             >
               Xem tất cả khóa học
             </button>
