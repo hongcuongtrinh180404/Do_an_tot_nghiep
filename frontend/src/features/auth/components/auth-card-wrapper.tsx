@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { MindlyLogo } from '@/components/brand';
 
 interface AuthCardWrapperProps {
   children: React.ReactNode;
@@ -29,8 +30,10 @@ export function AuthCardWrapper({
   return (
     <Card className="w-full max-w-md border-border/50 bg-card/90 shadow-2xl backdrop-blur-md transition-all duration-300">
       <CardHeader className="space-y-1.5 text-center pb-4">
-        <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary font-black text-xl shadow-inner">
-          ĐA
+        <div className="mx-auto mb-3 flex items-center justify-center">
+          <Link href="/" aria-label="Mindly - Map Your Mind">
+            <MindlyLogo variant="light-header" className="h-10 w-auto" showSlogan={true} />
+          </Link>
         </div>
         <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
           {headerTitle}

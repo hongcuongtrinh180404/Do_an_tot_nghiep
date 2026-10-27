@@ -13,6 +13,18 @@
 
 ## 2. Technical Notes & Gotchas
 
+- **Brand Identity & Mindly Logo Integration**:
+  - Tích hợp bộ nhận diện thương hiệu chính thức Mindly (`mindly-logo.tsx`, `student-icon-path.ts`) sử dụng file vector chuẩn từ `refer/logo_nguoi_hoc_trace.svg`.
+  - Icon hình người tư duy đạt chuẩn 7 điểm hình học:
+    1. Đường viền thân người bên phải (Right Torso): Uốn lượn mượt mà từ nách xuống mặt bàn học.
+    2. Cánh tay phải giơ cao (Raised Right Arm): Thiết kế Dual-contour hai đường viền bao bọc tự nhiên kết thúc tại bàn tay tròn rỗng ở đỉnh.
+    3. Đầu và cổ: Đầu là hình tròn rỗng tối giản, liền mạch phía trên đường cong vai/ngực.
+    4. Cánh tay trái và tư thế viết bài: Gập khuỷu tay đặt chắc chắn trên bàn, bàn tay cầm bút trên trang giấy kèm nét gấp khúc khuỷu tay trong.
+    5. Mặt bàn học: Đa giác hình bình hành kéo dài theo luật phối cảnh, chứa 2 nét ngang đỏ tượng trưng cho dòng chữ/bài tập.
+    6. Chồng sách bên trái: Hai quyển sách xếp chồng 3D isometric tạo thế cân bằng thị giác.
+    7. Màu sắc và quy chuẩn: Màu đỏ tươi `#FF1018`, không fill vùng kín chính, `fillRule="evenodd"`.
+  - Hỗ trợ đa dạng biến thể: `dark-header` (cho Navbar tối `#161616`), `light-header` (nền sáng), `coral`, `auto` và `iconOnly`.
+  - Tạo bộ asset SVG tĩnh chuẩn tại `frontend/public/brand/` (`mindly-logo.svg`, `mindly-logo-light.svg`, `mindly-logo-dark.svg`, `mindly-icon.svg`).
 - **Slug Generation & Soft-delete Index**: Sử dụng Partial Unique Index `{ slug: 1 }` với `partialFilterExpression: { deletedAt: null }`. Đảm bảo slug chỉ duy nhất giữa các khóa học đang hoạt động và cho phép tái sử dụng slug nếu khóa học cũ đã bị xóa mềm.
 - **Instructor Reference & Validation**: `instructorId` tham chiếu tới User. Khi tạo khóa học, `CourseService` kiểm tra người dùng phải tồn tại, chưa bị soft-delete, có `status === ACTIVE` và vai trò `role` là `INSTRUCTOR` hoặc `ADMIN`.
 - **Global Guards & Zero-Trust Body**: `JwtAuthGuard` và `RolesGuard` được cấu hình toàn cục qua `APP_GUARD`, do đó controller không cần gắn `@UseGuards` dư thừa. Với `forbidNonWhitelisted: true`, `CreateCourseDto` không khai báo `instructorId` và `status`, giúp chặn hoàn toàn các payload gửi kèm trường này với lỗi `400 Bad Request`. `instructorId` được gán trực tiếp từ `@CurrentUser('id')`.
@@ -1197,5 +1209,39 @@
     - **Gate 4 (Image strategy)**: PASS. Media video HTML5 thực tế có poster, 6 thumbnails 16:9 chủ đề riêng biệt (không trùng lặp, không crop tái sử dụng), 5 avatar giảng viên riêng biệt.
     - **Gate 5 (Hero discipline)**: PASS. H1 đạt tối đa 2 dòng trên cả 3 viewports; CTA nằm trong màn hình đầu tiên (above the fold); Subhead được tinh gọn từ 35 từ xuống 17 từ (*"Học trực tuyến với video tương tác, tự động đồng bộ Mindmap và In-video Quiz thông minh."*), hoàn toàn thỏa mãn giới hạn < 20 từ.
     - **Gate 6 (Theme audit)**: PASS. Bảng màu Domestika đồng bộ (Teal `#027D88`, Red `#DE2900`/`#F02D01`, Dark `#161616`, Gold `#FFD100`, Azure `#F3FCFC`), 100% font Roboto, flat card surfaces không shadow ở trạng thái nghỉ.
+
+- **Milestone 45 (Mindly Official Brand Identity & Vector Logo Integration)**:
+  - Bối cảnh & Yêu cầu:
+    - Tiếp nhận ảnh mockup nhận diện thương hiệu Mindly từ người dùng: Biểu tượng học viên đang ngồi tư duy/học tập tại bàn có chồng sách, giơ tay phát biểu hào hứng, chữ "Mindly" bo góc hiện đại và slogan "MAP YOUR MIND".
+    - Yêu cầu tích hợp vào source code thực tế (không dùng ảnh chụp crop mờ/vỡ hình), đặt tại góc trên bên trái Header/Navbar, hỗ trợ cả nền sáng lẫn nền tối (Dark Header `#161616`), điều hướng về trang chủ khi click, tương thích mượt mà trên desktop, tablet, mobile.
+  - Phân tích & Trích xuất quy chuẩn đồ họa:
+    - Phân tích pixel raster của ảnh mẫu (kích thước 297x100px):
+      - Icon học viên: nét vẽ stroke coral-red (`#EA5261` / `#DE2900`), độ dày 3.2px, đầu nét bo tròn (`strokeLinecap="round"`). Chi tiết gồm: chồng sách phối cảnh 3D góc trái bàn, thước/tẩy góc phải, tờ giấy nháp, học viên tựa bàn viết bút, đầu tròn rỗng, cánh tay phải giơ cao góc 75 độ với bàn tay tròn rỗng.
+      - Chữ "Mindly": typography dạng rounded geometric sans-serif bo góc thân thiện, đậm nét (`font-weight: 900`).
+      - Slogan "MAP YOUR MIND": chữ in hoa, dãn cách ký tự rộng (`letter-spacing: 3.8px`). Trên nền sáng: màu chàm/indigo đậm (`#4A387D`); Trên nền tối: màu bạc/slate sáng (`#CBD5E1`) để tối ưu độ tương phản WCAG.
+  - Triển khai kỹ thuật:
+    - Tạo Component React Vector `MindlyLogo` (`frontend/src/components/brand/mindly-logo.tsx`) và `MindlyStudentIconPaths`:
+      - Vector SVG độc lập, tự động co giãn theo tỷ lệ (viewBox `0 0 280 84`, `preserveAspectRatio="xMidYMid meet"`), 100% sắc nét trên màn hình Retina / 4K mà không bị vỡ/nhoè như file bitmap.
+      - Hỗ trợ đa dạng cấu hình: `variant="dark-header" | "light-header" | "coral" | "auto"`, `size="sm" | "md" | "lg" | "xl"`, `showSlogan={true|false}`, `iconOnly={true|false}`.
+    - Xuất bộ tài nguyên SVG tĩnh chuẩn hóa vào `frontend/public/brand/`:
+      - `mindly-logo.svg` & `mindly-logo-light.svg`: Phiên bản đầy đủ nền sáng (icon + text coral, slogan indigo).
+      - `mindly-logo-dark.svg`: Phiên bản đầy đủ nền tối (icon coral, text trắng tinh khiết, slogan slate sáng).
+      - `mindly-icon.svg`: Biểu tượng học viên đứng độc lập.
+    - Tích hợp vào các khu vực cốt lõi của website:
+      - `PublicHeader` (`frontend/src/features/course/components/public-discovery/public-header.tsx`): Đặt tại góc trên bên trái, bọc trong `<Link href="/">` với `aria-label="Mindly - Map Your Mind - Trang chủ"`, chiều cao `h-9 sm:h-10 w-auto`, hiển thị cân đối trên Desktop, Tablet và Mobile.
+      - `PublicFooter` (`frontend/src/features/course/components/public-discovery/public-footer.tsx`): Thay thế ký tự "M" sơ sài trước đây bằng `MindlyLogo` bản dark header (`h-11 w-auto`).
+      - `AdminSidebar` (`frontend/src/features/admin/components/admin-sidebar.tsx`): Sử dụng `MindlyLogo` với badge "Admin".
+      - `AuthCardWrapper` (`frontend/src/features/auth/components/auth-card-wrapper.tsx`): Tích hợp logo Mindly vào phần đầu các form Đăng nhập / Đăng ký.
+      - `RootLayout` (`frontend/src/app/layout.tsx`): Nạp font `Plus_Jakarta_Sans` và cập nhật SEO Title & Description thương hiệu Mindly.
+  - Tinh chỉnh chuẩn hóa theo ảnh chi tiết (Right Body Refinement):
+    - Khắc phục đường nét mạn sườn phải (Right Torso): Bổ sung đường nét thân dưới nách kéo dài thẳng xuống mặt bàn học (`M 75 42 C 75 50, 76 58, 77 66`), loại bỏ cảm giác cánh tay phải bị "lơ lửng" thiếu liên kết với cơ thể.
+    - Chuẩn hóa cánh tay phải dạng đường bao kép (Dual-contour): Viền ngoài đi từ vai phải lên bàn tay (`M 64.5 39.5 C 69 35, 75 25, 82 15`), bàn tay tròn rỗng tại đỉnh (`cx=85, cy=13, r=4.2`), viền trong đi từ bàn tay xuống hõm nách (`M 81.5 15.5 C 76 25, 73 34, 75 42`).
+    - Hoàn thiện cổ áo (Neck & Collar) và bàn tay trái hình tròn rỗng cầm bút tì trên trang giấy nháp, khớp 100% hình ảnh phóng to thực tế từ người dùng.
+  - Kiểm thử & Chất lượng:
+    - Headless Browser Inspector: **0 FAIL** trên cả 3 viewport (1440px desktop, 768px tablet, 390px mobile).
+    - TypeScript: **0 lỗi** (`tsc --noEmit` exit code 0).
+    - ESLint: **0 lỗi, 0 cảnh báo** (`eslint src/` exit code 0).
+
+
 
 

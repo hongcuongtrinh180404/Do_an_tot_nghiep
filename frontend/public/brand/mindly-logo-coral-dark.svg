@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 84" width="280" height="80" fill="none" class="mindly-logo" role="img" aria-label="Mindly - Map Your Mind">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@800;900&amp;display=swap');
+      .mindly-brand-title {
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        font-weight: 900;
+        font-size: 43px;
+        letter-spacing: -0.5px;
+      }
+      .mindly-brand-slogan {
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        font-weight: 800;
+        font-size: 8.5px;
+        letter-spacing: 3.8px;
+      }
+    </style>
+  </defs>
+
+  <!-- Left: The Thinking Student Icon -->
+  <g id="mindly-student-icon" stroke="#EA5261" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Stack of Books (Isometric 3D) -->
+    <!-- Top book -->
+    <path d="M 21 60 L 35 56 L 47 60 L 33 64 Z" fill="#221b1f" />
+    <path d="M 21 60 L 21 64 L 33 68 L 47 64 L 47 60" />
+    
+    <!-- Bottom book -->
+    <path d="M 18 65 L 18 69 L 31 73 L 44 69 L 44 65" />
+    <path d="M 18 65 L 31 69 L 44 65" />
+
+    <!-- Desk Surface Perspective Line -->
+    <path d="M 36 71 L 94 75" />
+
+    <!-- Sheet of Paper on Desk -->
+    <path d="M 46 66 L 76 63 L 80 70 L 50 73 Z" fill="#1f1a1d" />
+
+    <!-- Eraser / Ruler on Right of Desk -->
+    <path d="M 81 67 L 88 65.5 L 90 69 L 83 70.5 Z" />
+
+    <!-- Student Head (Hollow Circle) -->
+    <circle cx="67" cy="35" r="9.5" fill="#161616" />
+
+    <!-- Raised Enthusiastic Right Arm -->
+    <path d="M 72 43 C 76 39, 81 32, 85 24" />
+    <!-- Hand at Top of Raised Arm (Hollow Circle) -->
+    <circle cx="87.5" cy="20.5" r="4.2" fill="#161616" />
+
+    <!-- Back / Torso leaning attentively towards desk -->
+    <path d="M 64 45 C 57 46, 49 50, 47 62" />
+
+    <!-- Left Arm & Hand writing with pen -->
+    <path d="M 50 54 C 53 60, 56 64, 63 65" />
+    <path d="M 63 65 C 67 65, 70 66, 73 68" />
+    <circle cx="74" cy="68.5" r="2" fill="#EA5261" stroke="none" />
+  </g>
+
+  <!-- Right: Mindly Brand Wordmark -->
+  <text x="108" y="54" class="mindly-brand-title" fill="#EA5261">Mindly</text>
+
+  <!-- Right: Slogan 'MAP YOUR MIND' -->
+  <text x="110" y="73" class="mindly-brand-slogan" fill="#E2E8F0">MAP YOUR MIND</text>
+</svg>

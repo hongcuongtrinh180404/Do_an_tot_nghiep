@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { MindlyLogo } from '@/components/brand';
 
 export function PublicFooter(): React.JSX.Element {
   return (
@@ -13,13 +14,16 @@ export function PublicFooter(): React.JSX.Element {
           
           {/* Brand Col */}
           <div className="md:col-span-5 space-y-4">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="flex size-9 items-center justify-center rounded-lg bg-[#F02D01] text-white font-black text-lg">
-                M
-              </div>
-              <span className="text-2xl font-black tracking-tight text-white">
-                Mindly
-              </span>
+            <Link
+              href="/"
+              className="inline-block transition-opacity hover:opacity-90"
+              aria-label="Mindly - Map Your Mind - Trang chủ"
+            >
+              <MindlyLogo
+                variant="dark-header"
+                className="h-11 w-auto"
+                showSlogan={true}
+              />
             </Link>
 
             <p className="text-sm text-neutral-300 leading-relaxed max-w-sm">

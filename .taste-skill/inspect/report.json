@@ -1,6 +1,6 @@
 {
  "url": "http://localhost:3000",
- "at": "2026-10-27T01:32:23.009Z",
+ "at": "2026-10-27T03:01:43.935Z",
  "allow": [],
  "viewports": [
   {
@@ -13,7 +13,7 @@
     0.55,
     0.58,
     0.68,
-    0.89
+    0.91
    ],
    "motion": {
     "elements": 10,
@@ -29,13 +29,13 @@
      "h": 900
     },
     "page": {
-     "height": 4069,
+     "height": 4084,
      "screens": 4.5,
-     "words": 1241,
+     "words": 1240,
      "img": 18,
      "video": 1,
      "canvas": 0,
-     "svg": 68,
+     "svg": 70,
      "sections": 6,
      "horizontalOverflow": 0,
      "overflowCulprits": [],
@@ -271,7 +271,7 @@
       },
       {
        "color": "#d4d4d4",
-       "share": 0.14
+       "share": 0.13
       },
       {
        "color": "#027d88",
@@ -386,7 +386,8 @@
     },
     "fontsLoaded": [
      "roboto",
-     "roboto fallback"
+     "roboto fallback",
+     "plus jakarta sans"
     ]
    },
    "layout": {
@@ -394,7 +395,7 @@
      "w": 1440,
      "h": 900
     },
-    "pageH": 4069,
+    "pageH": 4084,
     "margins": {
      "left": 32,
      "right": 33
@@ -519,14 +520,14 @@
       "sel": "footer.w-full.border-t",
       "tag": "footer",
       "top": 3699,
-      "height": 370,
-      "words": 122,
+      "height": 386,
+      "words": 121,
       "media": 0,
       "middle": 164,
       "heading": {
-       "text": "Mindly",
-       "size": 24,
-       "tag": "span"
+       "text": "Khám phá",
+       "size": 14,
+       "tag": "h4"
       },
       "left": 32,
       "right": 32,
@@ -604,11 +605,11 @@
     "page": {
      "height": 5801,
      "screens": 5.7,
-     "words": 1241,
+     "words": 1240,
      "img": 18,
      "video": 1,
      "canvas": 0,
-     "svg": 68,
+     "svg": 70,
      "sections": 6,
      "horizontalOverflow": 0,
      "overflowCulprits": [],
@@ -843,7 +844,7 @@
       },
       {
        "color": "#d4d4d4",
-       "share": 0.14
+       "share": 0.13
       },
       {
        "color": "#027d88",
@@ -958,7 +959,8 @@
     },
     "fontsLoaded": [
      "roboto",
-     "roboto fallback"
+     "roboto fallback",
+     "plus jakarta sans"
     ]
    },
    "layout": {
@@ -1092,13 +1094,13 @@
       "tag": "footer",
       "top": 5371,
       "height": 430,
-      "words": 122,
+      "words": 121,
       "media": 0,
       "middle": 0,
       "heading": {
-       "text": "Mindly",
-       "size": 24,
-       "tag": "span"
+       "text": "Khám phá",
+       "size": 14,
+       "tag": "h4"
       },
       "left": 24,
       "right": 24,
@@ -1157,7 +1159,7 @@
     0.66,
     0.7,
     0.78,
-    0.92,
+    0.93,
     0.94
    ],
    "motion": {
@@ -1174,13 +1176,13 @@
      "h": 844
     },
     "page": {
-     "height": 8801,
+     "height": 8817,
      "screens": 10.4,
-     "words": 1217,
+     "words": 1216,
      "img": 18,
      "video": 1,
      "canvas": 0,
-     "svg": 68,
+     "svg": 70,
      "sections": 6,
      "horizontalOverflow": 0,
      "overflowCulprits": [],
@@ -1308,31 +1310,10 @@
       "top": 6120,
       "tag": "h2",
       "kind": "heading"
-     },
-     {
-      "text": "M Mindly",
-      "words": 2,
-      "chars": 8,
-      "lines": 1,
-      "size": 24,
-      "vw": 6.2,
-      "font": "Roboto",
-      "weight": 900,
-      "tracking": -0.025,
-      "leading": 1.33,
-      "upper": false,
-      "italic": false,
-      "mono": false,
-      "align": "left",
-      "position": "center",
-      "widthRatio": 0.92,
-      "top": 8100,
-      "tag": "a",
-      "kind": "heading"
      }
     ],
     "headingSummary": {
-     "count": 5,
+     "count": 4,
      "maxLines": 2,
      "over2Lines": 0,
      "statements": 0,
@@ -1427,7 +1408,7 @@
      "textColors": [
       {
        "color": "#161616",
-       "share": 0.38
+       "share": 0.39
       },
       {
        "color": "#ffffff",
@@ -1435,7 +1416,7 @@
       },
       {
        "color": "#d4d4d4",
-       "share": 0.13
+       "share": 0.12
       },
       {
        "color": "#027d88",
@@ -1543,7 +1524,8 @@
     },
     "fontsLoaded": [
      "roboto",
-     "roboto fallback"
+     "roboto fallback",
+     "plus jakarta sans"
     ]
    },
    "layout": {
@@ -1551,7 +1533,7 @@
      "w": 390,
      "h": 844
     },
-    "pageH": 8801,
+    "pageH": 8817,
     "margins": {
      "left": 16,
      "right": 17
@@ -1676,14 +1658,14 @@
       "sel": "footer.w-full.border-t",
       "tag": "footer",
       "top": 8035,
-      "height": 766,
-      "words": 122,
+      "height": 782,
+      "words": 121,
       "media": 0,
       "middle": 0,
       "heading": {
-       "text": "Mindly",
-       "size": 24,
-       "tag": "span"
+       "text": "Khám phá",
+       "size": 14,
+       "tag": "h4"
       },
       "left": 16,
       "right": 17,

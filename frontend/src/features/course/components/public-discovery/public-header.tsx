@@ -7,6 +7,7 @@ import { useCurrentUserQuery, useLogoutMutation } from '@/features/auth/api/auth
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { useIsMounted } from '@/hooks/use-is-mounted';
+import { MindlyLogo } from '@/components/brand';
 
 interface PublicHeaderProps {
   onSearchSubmit?: (query: string) => void;
@@ -20,7 +21,7 @@ export function PublicHeader({
   setSearchQuery,
 }: PublicHeaderProps): React.JSX.Element {
   const isMounted = useIsMounted();
-  const { data: user, isLoading } = useCurrentUserQuery();
+  const { data: user } = useCurrentUserQuery();
   const logoutMutation = useLogoutMutation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -45,18 +46,16 @@ export function PublicHeader({
       <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Left: Brand Logo */}
         <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2.5 group" aria-label="Mindly - Trang chủ khóa học">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-[#F02D01] text-white font-black text-lg transition-transform group-hover:scale-105">
-              M
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-extrabold tracking-tight text-white leading-none">
-                Mindly
-              </span>
-              <span className="text-xs font-medium text-neutral-300 leading-tight mt-0.5">
-                Video tương tác & AI
-              </span>
-            </div>
+          <Link
+            href="/"
+            className="flex items-center transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md py-1"
+            aria-label="Mindly - Map Your Mind - Trang chủ"
+          >
+            <MindlyLogo
+              variant="dark-header"
+              className="h-9 sm:h-10 w-auto"
+              showSlogan={true}
+            />
           </Link>
 
           {/* Desktop Nav Links */}

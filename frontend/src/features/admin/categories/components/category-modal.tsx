@@ -36,17 +36,15 @@ export function CategoryModal({
   const [fileName, setFileName] = React.useState('');
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
-  // Reset form khi đóng mở
-  React.useEffect(() => {
-    if (isOpen) {
-      setName('');
-      setPreviewUrl(null);
-      setFileName('');
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+  const handleClose = () => {
+    setName('');
+    setPreviewUrl(null);
+    setFileName('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
-  }, [isOpen]);
+    onClose();
+  };
 
   if (!isOpen) return null;
 
@@ -90,7 +88,7 @@ export function CategoryModal({
   return (
     <div
       className="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         className="bg-card text-card-foreground rounded-2xl max-w-md w-full shadow-2xl border border-border overflow-hidden"
@@ -101,7 +99,7 @@ export function CategoryModal({
           <h3 className="font-bold text-foreground text-base">Thêm danh mục mới</h3>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="text-muted-foreground hover:text-foreground transition cursor-pointer p-1 rounded-md"
             aria-label="Đóng"
           >
@@ -199,7 +197,7 @@ export function CategoryModal({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={onClose}
+              onClick={handleClose}
               className="text-xs font-semibold cursor-pointer rounded-xl px-4 py-2"
             >
               Hủy
