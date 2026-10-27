@@ -1157,3 +1157,45 @@
     - `frontend/src/app/page.tsx` (Trang chủ Landing Page - Header, Content Grid, Footer).
   - Kết quả kiểm tra: TypeScript 0 lỗi, ESLint 0 lỗi, toàn bộ hệ thống thẳng hàng tuyệt đối.
 
+- **Milestone 43 (Public Course Discovery Homepage "Mindly" — Domestika Aesthetics & Taste Skill Gate 2)**:
+  - Bối cảnh & Mục tiêu:
+    - Chuyển đổi route gốc `/` thành trang chủ khám phá khóa học công khai (`Public Course Homepage`) mang tên thương hiệu **"Mindly"**.
+    - Phục vụ học viên chưa đăng nhập trải nghiệm trước bài học mẫu và tính năng AI, đồng thời giữ các lối tắt vào Hồ sơ / Khóa học của tôi / Dashboard Admin nếu đã có phiên đăng nhập.
+    - Áp dụng nguyên mẫu bố cục, visual hierarchy, thẻ bài giảng 16:9 kèm facts, thanh chọn lĩnh vực và thanh điều hướng Dark bar theo chuẩn **Domestika** (`https://www.domestika.org/`).
+    - Tích hợp bộ biến màu token chuẩn trích xuất từ Domestika: `--red: #F02D01`, `--red-100: #DE2900`, `--teal-100: #027D88`, `--azure-100: #F3FCFC`, `--gold-100: #FFD100`, `--black-200: #161616`, `--whitesmoke-100: #F2F2F2`, `--gainsboro-200: #E8E8E8`.
+  - Triển khai & Cấu trúc:
+    - Thư mục chuyên biệt: `frontend/src/features/course/components/public-discovery/`
+    - `mock-discovery-data.ts`: Mock dữ liệu chuẩn hợp đồng `ICourse`, `CourseLevelEnum`, danh mục tiếng Việt thực tế, và dữ liệu Live Sandbox.
+    - `public-header.tsx`: Header dark bar `#161616`, brand logo Mindly đỏ, thanh tìm kiếm khóa học và trạng thái auth phiên người dùng.
+    - `public-hero.tsx`: Tiêu đề H1 giới hạn 2 dòng ("Khám phá tri thức với video tương tác và AI") kèm "One Live Thing" — Trình phát sandbox video tương tác có câu hỏi In-video Quiz tự động dừng tại 01:30 và đồng bộ thời gian thực nhánh sơ đồ tư duy Mindmap.
+    - `category-rail.tsx`: Thanh cuộn danh mục lĩnh vực đào tạo có gắn chỉ số số lượng bài giảng và active tab đỏ Domestika.
+    - `course-card.tsx`: Thiết kế card chuẩn Domestika nguyên bản theo hình ảnh tham chiếu: Badge vàng nổi bật `BEST SELLER` (`#FFD100`), 16:9 thumbnail, 3 level dots, thời lượng, avatar giảng viên, sao vàng `#FFD100`, dòng phần trăm giảm giá màu đỏ (`#DC2626` kèm giá gốc gạch ngang), và nút Mua khóa học màu Teal `#027D88` (kèm icon giỏ hàng shopping-cart) tràn ngang chân thẻ (`w-full`).
+    - `featured-courses.tsx` & `recent-courses.tsx`: Trưng bày khóa học nổi bật và catalog khóa học kèm bộ lọc cấp độ, tìm kiếm, sắp xếp.
+    - `ai-experience-banner.tsx`: Bố cục Asymmetric Editorial Split (Cột trái là mô tả chiều sâu 3 pha; Cột phải là hộp preview tương tác luồng subtitle AssemblyAI + cây Markmap Gemini + điểm dừng quiz).
+    - `public-footer.tsx`: Designed closing footer nền dark `#161616`, đầy đủ phân nhóm liên kết và tương phản chữ cao.
+  - Xử lý các phát hiện linter & inspector của Taste Skill:
+    - `[broken-image]`: Cập nhật thumbnail sang URL Unsplash hoạt động ổn định.
+    - `[small-text]`: Nâng chuẩn toàn bộ cỡ chữ đọc được lên tối thiểu 13px (cấu hình `.text-xs` tối thiểu 13px trong `globals.css`).
+    - `[icon-cards]`: Tái cấu trúc banner tính năng từ 3 card icon đồng dạng sang bố cục narrative split bất đối xứng.
+    - `[numbering]` & `[eyebrow]`: Loại bỏ số thứ tự trang trí 01/02/03 và eyebrow label khỏi tiêu đề.
+    - `[contrast]`: Sử dụng `--red-100: #DE2900` cho các nút bấm hành động nổi bật để đạt tỷ lệ tương phản WCAG AA 4.67:1 (> 4.5:1).
+    - `[still-page]`: Bổ sung `<video autoPlay loop muted playsInline>` bài giảng thực tế và hệ thống animation entrance `.taste-enter` (10+ phần tử chuyển động khi tải trang).
+  - Kiểm định chất lượng:
+    - `lint.mjs`: **0 FAIL, 0 WARN**.
+    - `inspect.mjs`: **0 FAIL** trên cả 3 viewport 1440px, 768px, 390px.
+    - TypeScript: **0 errors** (`pnpm --filter frontend exec tsc --noEmit` exit 0).
+    - Đánh giá thẩm mỹ Critique: **9.2 / 10**.
+
+- **Milestone 44 (Taste Skill Full 6-Gate Audit & Hero Copy Refinement)**:
+  - Bối cảnh & Mục tiêu:
+    - Chạy toàn bộ quy trình kiểm toán 6 cổng (Gates 1-6) của `design-taste-frontend` trên Public Course Discovery Homepage ("Mindly").
+    - Đảm bảo 100% tiêu chí trung thực, không bỏ qua các lỗi đo lường hoặc chấp nhận kết quả qua loa.
+  - Kết quả kiểm toán 6 cổng:
+    - **Gate 1 (Em-dash & En-dash)**: PASS. Loại bỏ hoàn toàn 2 ký tự em-dash `\u2014` tại `public-footer.tsx` và `ai-experience-banner.tsx`. Ripgrep xác nhận count = 0.
+    - **Gate 2 (Pre-flight check)**: PASS. `lint.mjs` đạt 0 FAIL, 0 WARN; `tsc --noEmit` đạt 0 lỗi; `inspect.mjs` đạt 0 FAIL trên cả 3 viewports.
+    - **Gate 3 (Section-layout repetition)**: PASS. Đạt 6 họ bố cục khác biệt trên 6 sections (Hero split sandbox, Featured 3-col card showcase, Category horizontal pill rail, Recent filterable catalog grid, AI pipeline narrative step-stage, Footer 5-col directory).
+    - **Gate 4 (Image strategy)**: PASS. Media video HTML5 thực tế có poster, 6 thumbnails 16:9 chủ đề riêng biệt (không trùng lặp, không crop tái sử dụng), 5 avatar giảng viên riêng biệt.
+    - **Gate 5 (Hero discipline)**: PASS. H1 đạt tối đa 2 dòng trên cả 3 viewports; CTA nằm trong màn hình đầu tiên (above the fold); Subhead được tinh gọn từ 35 từ xuống 17 từ (*"Học trực tuyến với video tương tác, tự động đồng bộ Mindmap và In-video Quiz thông minh."*), hoàn toàn thỏa mãn giới hạn < 20 từ.
+    - **Gate 6 (Theme audit)**: PASS. Bảng màu Domestika đồng bộ (Teal `#027D88`, Red `#DE2900`/`#F02D01`, Dark `#161616`, Gold `#FFD100`, Azure `#F3FCFC`), 100% font Roboto, flat card surfaces không shadow ở trạng thái nghỉ.
+
+

@@ -1,0 +1,1810 @@
+{
+ "url": "http://localhost:3000",
+ "at": "2026-10-27T01:32:23.009Z",
+ "allow": [],
+ "viewports": [
+  {
+   "width": 1440,
+   "height": 900,
+   "load": "load",
+   "screens": 5,
+   "filled": [
+    0.5,
+    0.55,
+    0.58,
+    0.68,
+    0.89
+   ],
+   "motion": {
+    "elements": 10,
+    "css": 9,
+    "transitions": 0,
+    "scripted": 1,
+    "videos": 1,
+    "playingVideos": 1
+   },
+   "metrics": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "page": {
+     "height": 4069,
+     "screens": 4.5,
+     "words": 1241,
+     "img": 18,
+     "video": 1,
+     "canvas": 0,
+     "svg": 68,
+     "sections": 6,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 28,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 13,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "Khám phá tri thức với video tương tác và AI",
+     "words": 10,
+     "chars": 43,
+     "lines": 2,
+     "size": 48,
+     "vw": 3.3,
+     "font": "Roboto",
+     "weight": 900,
+     "tracking": -0.025,
+     "leading": 1.15,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "left",
+     "widthRatio": 0.46,
+     "top": 207,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Khám phá tri thức với video tương tác và AI",
+     "words": 10,
+     "lines": 2,
+     "size": 48,
+     "font": "Roboto"
+    },
+    "headings": [
+     {
+      "text": "Khám phá tri thức với video tương tác và AI",
+      "words": 10,
+      "chars": 43,
+      "lines": 2,
+      "size": 48,
+      "vw": 3.3,
+      "font": "Roboto",
+      "weight": 900,
+      "tracking": -0.025,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.46,
+      "top": 207,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "Khóa học nổi bật được cộng đồng đánh giá cao",
+      "words": 10,
+      "chars": 44,
+      "lines": 1,
+      "size": 30,
+      "vw": 2.1,
+      "font": "Roboto",
+      "weight": 800,
+      "tracking": -0.025,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.47,
+      "top": 717,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Khóa học mới nhất trên Mindly",
+      "words": 6,
+      "chars": 29,
+      "lines": 1,
+      "size": 30,
+      "vw": 2.1,
+      "font": "Roboto",
+      "weight": 800,
+      "tracking": -0.025,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.38,
+      "top": 1666,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Tự động hóa học tập với công nghệ video đa tương tác",
+      "words": 12,
+      "chars": 52,
+      "lines": 2,
+      "size": 36,
+      "vw": 2.5,
+      "font": "Roboto",
+      "weight": 900,
+      "tracking": -0.025,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.38,
+      "top": 2934,
+      "tag": "h2",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 4,
+     "maxLines": 2,
+     "over2Lines": 0,
+     "statements": 0,
+     "centered": 0,
+     "medianWords": 10,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Roboto",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      13,
+      14,
+      16,
+      18,
+      24,
+      30,
+      36,
+      48
+     ],
+     "sizeCount": 8,
+     "notLoaded": [],
+     "body": {
+      "font": "Roboto",
+      "size": 16,
+      "leading": 1.5,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 18.1
+     },
+     "measureChars": 68,
+     "max": {
+      "size": 48,
+      "vw": 3.3,
+      "font": "Roboto",
+      "text": "Khám phá tri thức với video tương tác và"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0.01,
+     "centerShare": 0.04,
+     "smallText": 0
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#ffffff",
+     "bodyBgHsl": {
+      "h": 0,
+      "s": 0,
+      "l": 1
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#ffffff",
+       "top": 0,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 1
+       }
+      },
+      {
+       "color": "#f8f9fa",
+       "top": 2848,
+       "hsl": {
+        "h": 210,
+        "s": 0.17,
+        "l": 0.98
+       }
+      },
+      {
+       "color": "#161616",
+       "top": 3699,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 0.09
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#161616",
+       "share": 0.38
+      },
+      {
+       "color": "#ffffff",
+       "share": 0.21
+      },
+      {
+       "color": "#d4d4d4",
+       "share": 0.14
+      },
+      {
+       "color": "#027d88",
+       "share": 0.11
+      },
+      {
+       "color": "#262626",
+       "share": 0.07
+      }
+     ],
+     "button": {
+      "bg": "#027d88",
+      "hsl": {
+       "h": 185,
+       "s": 0.97,
+       "l": 0.27
+      },
+      "fg": "#ffffff"
+     },
+     "lowContrast": [
+      {
+       "text": "Tham gia miễn phí",
+       "ratio": 4.1,
+       "need": 4.5,
+       "size": 12.8,
+       "fg": "#ffffff",
+       "bg": "#f02d01"
+      },
+      {
+       "text": "Khám phá khóa học ngay",
+       "ratio": 4.1,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#ffffff",
+       "bg": "#f02d01"
+      },
+      {
+       "text": "Tất cả lĩnh vực",
+       "ratio": 4.1,
+       "need": 4.5,
+       "size": 13,
+       "fg": "#ffffff",
+       "bg": "#f02d01"
+      },
+      {
+       "text": "Tạo tài khoản học viên miễn phí",
+       "ratio": 4.1,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#ffffff",
+       "bg": "#f02d01"
+      }
+     ]
+    },
+    "buttons": {
+     "count": 26,
+     "inHero": 9,
+     "radius": 4,
+     "height": 40,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Đăng nhập",
+      "Tham gia miễn phí",
+      "Khám phá khóa học ngay",
+      "Tìm hiểu công nghệ AI",
+      "A. Khi component cần fetch dữ liệu trực "
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 1,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 16,
+     "boxRadius": 8,
+     "squareMedia": 0,
+     "roundedMedia": 10,
+     "mediaRadius": 8,
+     "textShadow": 0,
+     "cardRows": [
+      {
+       "count": 6,
+       "iconTopped": false,
+       "rounded": true,
+       "top": 1762
+      }
+     ]
+    },
+    "heroMedia": [
+     {
+      "type": "video",
+      "ratio": 0.19
+     }
+    ],
+    "nav": {
+     "links": 7,
+     "fixed": true,
+     "height": 65,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "roboto",
+     "roboto fallback"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "pageH": 4069,
+    "margins": {
+     "left": 32,
+     "right": 33
+    },
+    "sections": [
+     {
+      "sel": "section.w-full.bg-background",
+      "tag": "section",
+      "top": 65,
+      "height": 596,
+      "words": 187,
+      "media": 1,
+      "middle": 135,
+      "heading": {
+       "text": "Khám phá tri thức với video tương tác và AI",
+       "size": 48,
+       "tag": "h1"
+      },
+      "left": 32,
+      "right": 33,
+      "textLeft": 32,
+      "textRight": 47,
+      "fullBleed": false,
+      "footer": false,
+      "hero": true,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#featured.w-full.bg-background",
+      "tag": "section",
+      "top": 661,
+      "height": 733,
+      "words": 176,
+      "media": 3,
+      "middle": 26,
+      "heading": {
+       "text": "Khóa học nổi bật được cộng đồng đánh giá cao",
+       "size": 30,
+       "tag": "h2"
+      },
+      "left": 32,
+      "right": 33,
+      "textLeft": 32,
+      "textRight": 45,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#categories.w-full.bg-background",
+      "tag": "section",
+      "top": 1394,
+      "height": 216,
+      "words": 62,
+      "media": 0,
+      "middle": 10,
+      "heading": {
+       "text": "Khám phá theo lĩnh vực chuyên môn",
+       "size": 24,
+       "tag": "h2"
+      },
+      "left": 32,
+      "right": 10,
+      "textLeft": 32,
+      "textRight": 58,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#recent.w-full.bg-background",
+      "tag": "section",
+      "top": 1610,
+      "height": 1238,
+      "words": 305,
+      "media": 6,
+      "middle": 4,
+      "heading": {
+       "text": "Khóa học mới nhất trên Mindly",
+       "size": 30,
+       "tag": "h2"
+      },
+      "left": 32,
+      "right": 32,
+      "textLeft": 32,
+      "textRight": 45,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#ai-experience.w-full.bg-[#f8f9fa]",
+      "tag": "section",
+      "top": 2848,
+      "height": 851,
+      "words": 310,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Tự động hóa học tập với công nghệ video đa tương t",
+       "size": 36,
+       "tag": "h2"
+      },
+      "left": 32,
+      "right": 49,
+      "textLeft": 32,
+      "textRight": 49,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "footer.w-full.border-t",
+      "tag": "footer",
+      "top": 3699,
+      "height": 370,
+      "words": 122,
+      "media": 0,
+      "middle": 164,
+      "heading": {
+       "text": "Mindly",
+       "size": 24,
+       "tag": "span"
+      },
+      "left": 32,
+      "right": 32,
+      "textLeft": 32,
+      "textRight": 32,
+      "fullBleed": false,
+      "footer": true,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     }
+    ],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "Khám phá tri thức với video tương tác và AI",
+      "size": 48,
+      "top": 207,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 32,
+      "n": 10
+     },
+     {
+      "x": 52,
+      "n": 3
+     }
+    ],
+    "leftBlocks": 13,
+    "bodySize": 16,
+    "stage": false,
+    "explains": true,
+    "slivers": [],
+    "voidShare": 0.1,
+    "voidBox": {
+     "x": 720,
+     "y": 600,
+     "w": 720,
+     "h": 180
+    }
+   },
+   "app": null,
+   "consoleErrors": []
+  },
+  {
+   "width": 768,
+   "height": 1024,
+   "load": "load",
+   "screens": 6,
+   "filled": [
+    0.5,
+    0.34,
+    0.54,
+    0.74,
+    0.79,
+    0.87
+   ],
+   "motion": {
+    "elements": 10,
+    "css": 9,
+    "transitions": 0,
+    "scripted": 1,
+    "videos": 1,
+    "playingVideos": 1
+   },
+   "metrics": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "page": {
+     "height": 5801,
+     "screens": 5.7,
+     "words": 1241,
+     "img": 18,
+     "video": 1,
+     "canvas": 0,
+     "svg": 68,
+     "sections": 6,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 28,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 13,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "Khám phá tri thức với video tương tác và AI",
+     "words": 10,
+     "chars": 43,
+     "lines": 1,
+     "size": 36,
+     "vw": 4.7,
+     "font": "Roboto",
+     "weight": 900,
+     "tracking": -0.025,
+     "leading": 1.15,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "center",
+     "widthRatio": 0.86,
+     "top": 113,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Khám phá tri thức với video tương tác và AI",
+     "words": 10,
+     "lines": 1,
+     "size": 36,
+     "font": "Roboto"
+    },
+    "headings": [
+     {
+      "text": "Khám phá tri thức với video tương tác và AI",
+      "words": 10,
+      "chars": 43,
+      "lines": 1,
+      "size": 36,
+      "vw": 4.7,
+      "font": "Roboto",
+      "weight": 900,
+      "tracking": -0.025,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.86,
+      "top": 113,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "Khóa học nổi bật được cộng đồng đánh giá cao",
+      "words": 10,
+      "chars": 44,
+      "lines": 2,
+      "size": 30,
+      "vw": 3.9,
+      "font": "Roboto",
+      "weight": 800,
+      "tracking": -0.025,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.73,
+      "top": 1001,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Khóa học mới nhất trên Mindly",
+      "words": 6,
+      "chars": 29,
+      "lines": 1,
+      "size": 30,
+      "vw": 3.9,
+      "font": "Roboto",
+      "weight": 800,
+      "tracking": -0.025,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.94,
+      "top": 2412,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Tự động hóa học tập với công nghệ video đa tương tác",
+      "words": 12,
+      "chars": 52,
+      "lines": 1,
+      "size": 30,
+      "vw": 3.9,
+      "font": "Roboto",
+      "weight": 900,
+      "tracking": -0.025,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.94,
+      "top": 4083,
+      "tag": "h2",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 4,
+     "maxLines": 2,
+     "over2Lines": 0,
+     "statements": 0,
+     "centered": 0,
+     "medianWords": 10,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Roboto",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      13,
+      14,
+      16,
+      18,
+      24,
+      30,
+      36
+     ],
+     "sizeCount": 7,
+     "notLoaded": [],
+     "body": {
+      "font": "Roboto",
+      "size": 16,
+      "leading": 1.5,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 18.1
+     },
+     "measureChars": 90,
+     "max": {
+      "size": 36,
+      "vw": 4.7,
+      "font": "Roboto",
+      "text": "Khám phá tri thức với video tương tác và"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0.01,
+     "centerShare": 0.04,
+     "smallText": 0
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#ffffff",
+     "bodyBgHsl": {
+      "h": 0,
+      "s": 0,
+      "l": 1
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#ffffff",
+       "top": 0,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 1
+       }
+      },
+      {
+       "color": "#161616",
+       "top": 439,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 0.09
+       }
+      },
+      {
+       "color": "#f8f9fa",
+       "top": 4019,
+       "hsl": {
+        "h": 210,
+        "s": 0.17,
+        "l": 0.98
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#161616",
+       "share": 0.38
+      },
+      {
+       "color": "#ffffff",
+       "share": 0.21
+      },
+      {
+       "color": "#d4d4d4",
+       "share": 0.14
+      },
+      {
+       "color": "#027d88",
+       "share": 0.11
+      },
+      {
+       "color": "#262626",
+       "share": 0.07
+      }
+     ],
+     "button": {
+      "bg": "#027d88",
+      "hsl": {
+       "h": 185,
+       "s": 0.97,
+       "l": 0.27
+      },
+      "fg": "#ffffff"
+     },
+     "lowContrast": [
+      {
+       "text": "Tham gia miễn phí",
+       "ratio": 4.1,
+       "need": 4.5,
+       "size": 12.8,
+       "fg": "#ffffff",
+       "bg": "#f02d01"
+      },
+      {
+       "text": "Khám phá khóa học ngay",
+       "ratio": 4.1,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#ffffff",
+       "bg": "#f02d01"
+      },
+      {
+       "text": "Tất cả lĩnh vực",
+       "ratio": 4.1,
+       "need": 4.5,
+       "size": 13,
+       "fg": "#ffffff",
+       "bg": "#f02d01"
+      },
+      {
+       "text": "Tạo tài khoản học viên miễn phí",
+       "ratio": 4.1,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#ffffff",
+       "bg": "#f02d01"
+      }
+     ]
+    },
+    "buttons": {
+     "count": 26,
+     "inHero": 9,
+     "radius": 4,
+     "height": 40,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Đăng nhập",
+      "Tham gia miễn phí",
+      "Khám phá khóa học ngay",
+      "Tìm hiểu công nghệ AI",
+      "A. Khi component cần fetch dữ liệu trực "
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 1,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 16,
+     "boxRadius": 8,
+     "squareMedia": 0,
+     "roundedMedia": 10,
+     "mediaRadius": 8,
+     "textShadow": 0,
+     "cardRows": [
+      {
+       "count": 6,
+       "iconTopped": false,
+       "rounded": true,
+       "top": 2560
+      }
+     ]
+    },
+    "heroMedia": [
+     {
+      "type": "video",
+      "ratio": 0.37
+     }
+    ],
+    "nav": {
+     "links": 7,
+     "fixed": true,
+     "height": 65,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "roboto",
+     "roboto fallback"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "pageH": 5801,
+    "margins": {
+     "left": 24,
+     "right": 25
+    },
+    "sections": [
+     {
+      "sel": "section.w-full.bg-background",
+      "tag": "section",
+      "top": 65,
+      "height": 880,
+      "words": 200,
+      "media": 1,
+      "middle": 0,
+      "heading": {
+       "text": "Khám phá tri thức với video tương tác và AI",
+       "size": 36,
+       "tag": "h1"
+      },
+      "left": 24,
+      "right": 25,
+      "textLeft": 24,
+      "textRight": 39,
+      "fullBleed": false,
+      "footer": false,
+      "hero": true,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#featured.w-full.bg-background",
+      "tag": "section",
+      "top": 945,
+      "height": 1195,
+      "words": 176,
+      "media": 3,
+      "middle": 0,
+      "heading": {
+       "text": "Khóa học nổi bật được cộng đồng đánh giá cao",
+       "size": 30,
+       "tag": "h2"
+      },
+      "left": 24,
+      "right": 25,
+      "textLeft": 24,
+      "textRight": 37,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#categories.w-full.bg-background",
+      "tag": "section",
+      "top": 2140,
+      "height": 216,
+      "words": 51,
+      "media": 0,
+      "middle": 408,
+      "heading": {
+       "text": "Khám phá theo lĩnh vực chuyên môn",
+       "size": 24,
+       "tag": "h2"
+      },
+      "left": 24,
+      "right": 0,
+      "textLeft": 24,
+      "textRight": 24,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#recent.w-full.bg-background",
+      "tag": "section",
+      "top": 2356,
+      "height": 1663,
+      "words": 305,
+      "media": 6,
+      "middle": 0,
+      "heading": {
+       "text": "Khóa học mới nhất trên Mindly",
+       "size": 30,
+       "tag": "h2"
+      },
+      "left": 24,
+      "right": 25,
+      "textLeft": 24,
+      "textRight": 37,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#ai-experience.w-full.bg-[#f8f9fa]",
+      "tag": "section",
+      "top": 4019,
+      "height": 1353,
+      "words": 310,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Tự động hóa học tập với công nghệ video đa tương t",
+       "size": 30,
+       "tag": "h2"
+      },
+      "left": 24,
+      "right": 25,
+      "textLeft": 24,
+      "textRight": 25,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "footer.w-full.border-t",
+      "tag": "footer",
+      "top": 5371,
+      "height": 430,
+      "words": 122,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Mindly",
+       "size": 24,
+       "tag": "span"
+      },
+      "left": 24,
+      "right": 24,
+      "textLeft": 24,
+      "textRight": 24,
+      "fullBleed": false,
+      "footer": true,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     }
+    ],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "Khám phá tri thức với video tương tác và AI",
+      "size": 36,
+      "top": 113,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 24,
+      "n": 10
+     },
+     {
+      "x": 44,
+      "n": 3
+     }
+    ],
+    "leftBlocks": 13,
+    "bodySize": 16,
+    "stage": false,
+    "explains": true,
+    "slivers": [],
+    "voidShare": 0,
+    "voidBox": null
+   },
+   "app": null,
+   "consoleErrors": []
+  },
+  {
+   "width": 390,
+   "height": 844,
+   "load": "load",
+   "screens": 11,
+   "filled": [
+    0.67,
+    0.52,
+    0.73,
+    0.53,
+    0.55,
+    0.55,
+    0.66,
+    0.7,
+    0.78,
+    0.92,
+    0.94
+   ],
+   "motion": {
+    "elements": 10,
+    "css": 9,
+    "transitions": 0,
+    "scripted": 1,
+    "videos": 1,
+    "playingVideos": 1
+   },
+   "metrics": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "page": {
+     "height": 8801,
+     "screens": 10.4,
+     "words": 1217,
+     "img": 18,
+     "video": 1,
+     "canvas": 0,
+     "svg": 68,
+     "sections": 6,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 28,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 14,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "Khám phá tri thức với video tương tác và AI",
+     "words": 10,
+     "chars": 43,
+     "lines": 2,
+     "size": 30,
+     "vw": 7.7,
+     "font": "Roboto",
+     "weight": 900,
+     "tracking": -0.025,
+     "leading": 1.15,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "center",
+     "widthRatio": 0.92,
+     "top": 113,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Khám phá tri thức với video tương tác và AI",
+     "words": 10,
+     "lines": 2,
+     "size": 30,
+     "font": "Roboto"
+    },
+    "headings": [
+     {
+      "text": "Khám phá tri thức với video tương tác và AI",
+      "words": 10,
+      "chars": 43,
+      "lines": 2,
+      "size": 30,
+      "vw": 7.7,
+      "font": "Roboto",
+      "weight": 900,
+      "tracking": -0.025,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 113,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "Khóa học nổi bật được cộng đồng đánh giá cao",
+      "words": 10,
+      "chars": 44,
+      "lines": 2,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Roboto",
+      "weight": 800,
+      "tracking": -0.025,
+      "leading": 1.33,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 950,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Khóa học mới nhất trên Mindly",
+      "words": 6,
+      "chars": 29,
+      "lines": 1,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Roboto",
+      "weight": 800,
+      "tracking": -0.025,
+      "leading": 1.33,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 2948,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Tự động hóa học tập với công nghệ video đa tương tác",
+      "words": 12,
+      "chars": 52,
+      "lines": 2,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Roboto",
+      "weight": 900,
+      "tracking": -0.025,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 6120,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "M Mindly",
+      "words": 2,
+      "chars": 8,
+      "lines": 1,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Roboto",
+      "weight": 900,
+      "tracking": -0.025,
+      "leading": 1.33,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 8100,
+      "tag": "a",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 5,
+     "maxLines": 2,
+     "over2Lines": 0,
+     "statements": 0,
+     "centered": 0,
+     "medianWords": 10,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Roboto",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      13,
+      14,
+      16,
+      20,
+      24,
+      30
+     ],
+     "sizeCount": 6,
+     "notLoaded": [],
+     "body": {
+      "font": "Roboto",
+      "size": 16,
+      "leading": 1.63,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 18.1
+     },
+     "measureChars": 45,
+     "max": {
+      "size": 30,
+      "vw": 7.7,
+      "font": "Roboto",
+      "text": "Khám phá tri thức với video tương tác và"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0.01,
+     "centerShare": 0.06,
+     "smallText": 0
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#ffffff",
+     "bodyBgHsl": {
+      "h": 0,
+      "s": 0,
+      "l": 1
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#ffffff",
+       "top": 0,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 1
+       }
+      },
+      {
+       "color": "#161616",
+       "top": 640,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 0.09
+       }
+      },
+      {
+       "color": "#f8f9fa",
+       "top": 6056,
+       "hsl": {
+        "h": 210,
+        "s": 0.17,
+        "l": 0.98
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#161616",
+       "share": 0.38
+      },
+      {
+       "color": "#ffffff",
+       "share": 0.21
+      },
+      {
+       "color": "#d4d4d4",
+       "share": 0.13
+      },
+      {
+       "color": "#027d88",
+       "share": 0.11
+      },
+      {
+       "color": "#262626",
+       "share": 0.07
+      }
+     ],
+     "button": {
+      "bg": "#027d88",
+      "hsl": {
+       "h": 185,
+       "s": 0.97,
+       "l": 0.27
+      },
+      "fg": "#ffffff"
+     },
+     "lowContrast": [
+      {
+       "text": "Tham gia miễn phí",
+       "ratio": 4.1,
+       "need": 4.5,
+       "size": 12.8,
+       "fg": "#ffffff",
+       "bg": "#f02d01"
+      },
+      {
+       "text": "Khám phá khóa học ngay",
+       "ratio": 4.1,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#ffffff",
+       "bg": "#f02d01"
+      },
+      {
+       "text": "Kiểm tra kết quả",
+       "ratio": 4.1,
+       "need": 4.5,
+       "size": 13,
+       "fg": "#ffffff",
+       "bg": "#f02d01"
+      },
+      {
+       "text": "Tất cả lĩnh vực",
+       "ratio": 4.1,
+       "need": 4.5,
+       "size": 13,
+       "fg": "#ffffff",
+       "bg": "#f02d01"
+      }
+     ]
+    },
+    "buttons": {
+     "count": 26,
+     "inHero": 6,
+     "radius": 4,
+     "height": 40,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Đăng nhập",
+      "Tham gia miễn phí",
+      "Khám phá khóa học ngay",
+      "Tìm hiểu công nghệ AI",
+      "A. Khi component cần fetch dữ liệu trực "
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 1,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 16,
+     "boxRadius": 8,
+     "squareMedia": 0,
+     "roundedMedia": 10,
+     "mediaRadius": 8,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [
+     {
+      "type": "video",
+      "ratio": 0.22
+     }
+    ],
+    "nav": {
+     "links": 3,
+     "fixed": true,
+     "height": 65,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "roboto",
+     "roboto fallback"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "pageH": 8801,
+    "margins": {
+     "left": 16,
+     "right": 17
+    },
+    "sections": [
+     {
+      "sel": "section.w-full.bg-background",
+      "tag": "section",
+      "top": 65,
+      "height": 829,
+      "words": 132,
+      "media": 1,
+      "middle": 0,
+      "heading": {
+       "text": "Khám phá tri thức với video tương tác và AI",
+       "size": 30,
+       "tag": "h1"
+      },
+      "left": 16,
+      "right": 17,
+      "textLeft": 16,
+      "textRight": 26,
+      "fullBleed": false,
+      "footer": false,
+      "hero": true,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#featured.w-full.bg-background",
+      "tag": "section",
+      "top": 894,
+      "height": 1724,
+      "words": 176,
+      "media": 3,
+      "middle": 0,
+      "heading": {
+       "text": "Khóa học nổi bật được cộng đồng đánh giá cao",
+       "size": 24,
+       "tag": "h2"
+      },
+      "left": 16,
+      "right": 17,
+      "textLeft": 16,
+      "textRight": 24,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#categories.w-full.bg-background",
+      "tag": "section",
+      "top": 2618,
+      "height": 274,
+      "words": 37,
+      "media": 0,
+      "middle": 778,
+      "heading": {
+       "text": "Khám phá theo lĩnh vực chuyên môn",
+       "size": 20,
+       "tag": "h2"
+      },
+      "left": 16,
+      "right": 0,
+      "textLeft": 16,
+      "textRight": 24,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#recent.w-full.bg-background",
+      "tag": "section",
+      "top": 2892,
+      "height": 3164,
+      "words": 303,
+      "media": 6,
+      "middle": 0,
+      "heading": {
+       "text": "Khóa học mới nhất trên Mindly",
+       "size": 24,
+       "tag": "h2"
+      },
+      "left": 16,
+      "right": 17,
+      "textLeft": 16,
+      "textRight": 29,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#ai-experience.w-full.bg-[#f8f9fa]",
+      "tag": "section",
+      "top": 6056,
+      "height": 1980,
+      "words": 308,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Tự động hóa học tập với công nghệ video đa tương t",
+       "size": 24,
+       "tag": "h2"
+      },
+      "left": 16,
+      "right": 16,
+      "textLeft": 16,
+      "textRight": 16,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "footer.w-full.border-t",
+      "tag": "footer",
+      "top": 8035,
+      "height": 766,
+      "words": 122,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Mindly",
+       "size": 24,
+       "tag": "span"
+      },
+      "left": 16,
+      "right": 17,
+      "textLeft": 16,
+      "textRight": 17,
+      "fullBleed": false,
+      "footer": true,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     }
+    ],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "Khám phá tri thức với video tương tác và AI",
+      "size": 30,
+      "top": 113,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 16,
+      "n": 10
+     },
+     {
+      "x": 36,
+      "n": 3
+     }
+    ],
+    "leftBlocks": 13,
+    "bodySize": 16,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0,
+    "voidBox": null
+   },
+   "app": null,
+   "consoleErrors": []
+  }
+ ],
+ "findings": [
+  {
+   "level": "WARN",
+   "id": "contrast",
+   "width": 1440,
+   "message": "Low-contrast text: \"Tham gia miễn phí\" 4.1:1 needs 4.5:1; \"Khám phá khóa học ngay\" 4.1:1 needs 4.5:1; \"Tất cả lĩnh vực\" 4.1:1 needs 4.5:1; \"Tạo tài khoản học viên miễn phí\" 4.1:1 needs 4.5:1",
+   "fix": "Darken or lighten the text colour.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "WARN",
+   "id": "no-real-pictures",
+   "width": 1440,
+   "message": "Only 0 real photograph(s) or clip(s); the rest are interface fragments.",
+   "fix": "Add two or more real pictures of the customer's world from scripts/assets.mjs, not stock of people at laptops."
+  },
+  {
+   "level": "WARN",
+   "id": "no-footage",
+   "width": 1440,
+   "message": "No video anywhere on the page.",
+   "fix": "Look for one honest clip with scripts/assets.mjs --video (the place, the material, the process) and use it as a muted loop with a poster frame. Defend its absence only if no clip fits the subject."
+  },
+  {
+   "level": "WARN",
+   "id": "still-page",
+   "width": 1440,
+   "message": "Little motion: 10 element(s) moved while the page loaded and scrolled.",
+   "fix": "Give every section an entrance for its parts (not one fade of the whole block) and add one moving picture: a looping clip or a slow move on a photograph."
+  },
+  {
+   "level": "WARN",
+   "id": "measure",
+   "width": 768,
+   "message": "Longest paragraph runs about 90 characters per line.",
+   "fix": "Cap paragraphs at 45–75 characters (max-width: 60ch)."
+  },
+  {
+   "level": "WARN",
+   "id": "empty-middle",
+   "width": 768,
+   "message": "1 section(s) have content at both edges and 408px of nothing between: \"Khám phá theo lĩnh vực chuyên môn\"",
+   "fix": "Bring the two parts together on the grid, or put the picture or figure of the section in the middle. An empty middle third reads as a hole, the same as an empty half."
+  }
+ ],
+ "images": [
+  {
+   "viewport": "desktop",
+   "width": 1440,
+   "fold": "D:\\Download\\hk1_2027\\project_do_an\\.taste-skill\\inspect\\desktop-fold.jpg",
+   "pages": [
+    "D:\\Download\\hk1_2027\\project_do_an\\.taste-skill\\inspect\\desktop-page-01.jpg",
+    "D:\\Download\\hk1_2027\\project_do_an\\.taste-skill\\inspect\\desktop-page-02.jpg"
+   ],
+   "film": []
+  },
+  {
+   "viewport": "tablet",
+   "width": 768,
+   "fold": "D:\\Download\\hk1_2027\\project_do_an\\.taste-skill\\inspect\\tablet-fold.jpg",
+   "pages": [
+    "D:\\Download\\hk1_2027\\project_do_an\\.taste-skill\\inspect\\tablet-page-01.jpg"
+   ],
+   "film": []
+  },
+  {
+   "viewport": "mobile",
+   "width": 390,
+   "fold": "D:\\Download\\hk1_2027\\project_do_an\\.taste-skill\\inspect\\mobile-fold.jpg",
+   "pages": [
+    "D:\\Download\\hk1_2027\\project_do_an\\.taste-skill\\inspect\\mobile-page-01.jpg",
+    "D:\\Download\\hk1_2027\\project_do_an\\.taste-skill\\inspect\\mobile-page-02.jpg"
+   ],
+   "film": []
+  }
+ ]
+}
