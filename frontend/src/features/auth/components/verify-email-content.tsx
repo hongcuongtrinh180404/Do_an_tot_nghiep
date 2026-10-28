@@ -106,7 +106,10 @@ export function VerifyEmailContent(): React.JSX.Element {
 
           <div className="space-y-3 pt-2">
             <Link href="/" className="block w-full">
-              <Button className="w-full font-semibold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white">
+              <Button
+                aria-label="Vào Bảng Điều Khiển Học Tập"
+                className="w-full font-semibold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
                 <Icon icon="lucide:sparkles" className="mr-2 size-4" />
                 Vào Bảng Điều Khiển Học Tập
               </Button>

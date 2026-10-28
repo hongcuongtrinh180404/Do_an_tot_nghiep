@@ -1,5 +1,7 @@
 export * from './api/auth.api';
 export * from './components/auth-card-wrapper';
+export * from './components/auth-showcase-carousel';
+export * from './components/auth-top-nav';
 export * from './components/password-input';
 export * from './components/login-form';
 export * from './components/register-form';

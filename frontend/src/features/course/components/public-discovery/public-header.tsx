@@ -78,12 +78,6 @@ export function PublicHeader({
             >
               Mới nhất
             </Link>
-            <Link
-              href="#ai-experience"
-              className="text-sm font-medium text-neutral-300 transition-colors hover:text-white"
-            >
-              Trải nghiệm AI
-            </Link>
           </nav>
         </div>
 
@@ -217,13 +211,6 @@ export function PublicHeader({
               className="py-2 text-sm font-medium text-foreground hover:text-primary"
             >
               Khóa học mới nhất
-            </Link>
-            <Link
-              href="#ai-experience"
-              onClick={() => setMobileMenuOpen(false)}
-              className="py-2 text-sm font-medium text-foreground hover:text-primary"
-            >
-              Trải nghiệm học AI
             </Link>
           </nav>
 

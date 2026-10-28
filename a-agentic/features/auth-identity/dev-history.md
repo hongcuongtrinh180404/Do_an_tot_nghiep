@@ -248,6 +248,25 @@
   - Created dedicated MongoDB integration test suite (`user.schema.integration.spec.ts`) passing 10 test cases against active MongoDB instance.
   - All 9 backend test files (56 unit & integration tests) pass 100%. Type check `npx tsc --noEmit` clean across workspace.
 
+### [2026-10-28] - Right Panel Minimal Full-Bleed Crossfade Hero Image (All 4 Images, 50/50 Split)
+
+- **Context & Objective**:
+  - Redesigned the right panel into a minimal, full-bleed hero artwork showcase (`w-full h-full object-cover`), removing all decorative headers, descriptions, badges, complex controls, and bordered boxes per user specification and `/design-taste-frontend` rules.
+- **Frontend Architecture & Crossfade Mechanics**:
+  - `AuthShowcaseCarousel` (`frontend/src/features/auth/components/auth-showcase-carousel.tsx`):
+    - Full-bleed presentation: 100% width & height (`w-full h-full object-cover object-center`), occupying entire 50% screen width on Desktop (`lg:w-1/2` in `grid grid-cols-1 lg:grid-cols-2`).
+    - 4-image crossfade loop: Smooth opacity fade transition (`transition-opacity duration-1000 ease-in-out`) between all 4 artworks (`panel-1.jpg`, `panel-2.jpg`, `panel-3.jpg`, `panel-4.jpg`).
+    - Autoplay interval: 5.5s (between 5-6s) with pause-on-hover/focus.
+    - Minimalist indicators: 4 ultra-clean subtle pill dots (`absolute bottom-6 left-1/2 -translate-x-1/2`) with tablist accessibility roles.
+    - Zero redundant text: Completely removed DATN Portal header, ART tag, online status pill, category badges, headlines, and descriptions.
+  - `AuthLayout` (`frontend/src/app/(auth)/layout.tsx`):
+    - Desktop: Clean 50/50 split via `grid grid-cols-1 lg:grid-cols-2`.
+    - Left column: Auth form preserved cleanly (`w-full min-h-screen flex flex-col justify-between ...`).
+    - Mobile & Tablet (< 1024px): Right image column is completely hidden (`hidden lg:block`), dedicating full viewport to Auth Form.
+- **Verification & Gates**:
+  - Ran `audit-ui.mjs` on `src/features/auth` and `src/app/(auth)`: 0 violations across 19 files.
+  - Updated unit test suite `auth-showcase-and-schema.spec.ts` testing 4-image crossfade and 5.5s interval; 8/8 tests pass 100%.
+
 ### [2026-09-21] - User Profile Management & Cloudinary Avatar Upload Implementation
 
 - **Backend (NestJS + Cloudinary + MongoDB)**:
@@ -307,3 +326,17 @@
 - **Quality & Testing**:
   - 100% test pass rate across 7 test suites (42 unit tests total), adhering strictly to Zero `any` and AAA pattern.
   - Oxlint verified with 0 errors and 0 warnings.
+
+
+### [2026-10-28] - Streamline Auth UI (Register & Login Redesign)
+
+- **Registration Form Streamlining (`frontend/src/features/auth/`)**:
+  - Removed explicit `firstName` and `lastName` input fields from the registration flow as per user preference for a frictionless sign-up experience.
+  - Updated `registerSchema` to solely validate `email`, `password`, and `confirmPassword`.
+  - Backend already handles missing names by defaulting `fullName` to the email username (`email.split('@')[0]`), and users can customize their name later via `/profile`.
+- **UI/UX Polishing (`design-taste-frontend` / `frontend-specialist`)**:
+  - Completely removed redundant legal disclaimer line from `AuthLayout` footer.
+  - Streamlined `AuthTopNav` by keeping only the sleek `← Về trang chủ` link, eliminating duplicated "Đăng nhập / Đăng ký" action from the top header.
+  - Centered auth card container seamlessly in the viewport with optimized `max-w-[400px]`, rounded-xl inputs, high-contrast typography, and single switch link under the card footer.
+  - Retained 50/50 responsive split showcase on wide desktop displays (`lg:` breakpoint) with graceful centered single column on mobile and tablet.
+  - Unit tests updated and verified 100% passing (8/8 tests).

@@ -2,14 +2,6 @@ import { z } from 'zod';
 
 export const registerSchema = z
   .object({
-    firstName: z
-      .string()
-      .transform((val) => val.trim())
-      .pipe(z.string().min(1, 'Họ và tên đệm không được để trống')),
-    lastName: z
-      .string()
-      .transform((val) => val.trim())
-      .pipe(z.string().min(1, 'Tên không được để trống')),
     email: z
       .string()
       .transform((val) => val.trim())

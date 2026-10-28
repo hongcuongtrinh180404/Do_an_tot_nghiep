@@ -8,6 +8,7 @@ import { RoleEnum } from 'share-lib';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Icon } from '@/components/ui/icon';
 import { AuthCardWrapper } from './auth-card-wrapper';
 import { PasswordInput } from './password-input';
 import { GoogleLoginButton } from './google-login-button';
@@ -54,20 +55,23 @@ export function LoginForm(): React.JSX.Element {
   return (
     <AuthCardWrapper
       headerTitle="Đăng Nhập"
-      headerDescription="Cổng thông tin quản lý Đồ án tốt nghiệp"
+      headerDescription="Học dễ dàng, hiểu sâu sắc"
       backButtonLabel="Chưa có tài khoản?"
       backButtonText="Đăng ký ngay"
       backButtonHref="/register"
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
         <div className="space-y-1.5">
-          <Label htmlFor="email">Địa chỉ Email</Label>
+          <Label htmlFor="email" className="text-xs font-medium text-foreground/85">
+            Địa chỉ Email
+          </Label>
           <Input
             id="email"
             type="email"
             placeholder="nguyenvana@university.edu.vn"
             autoComplete="email"
             disabled={loginMutation.isPending}
+            className="h-10 text-sm rounded-xl border-border/80 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary"
             {...register('email')}
           />
           {errors.email && (
@@ -77,13 +81,16 @@ export function LoginForm(): React.JSX.Element {
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="password">Mật khẩu</Label>
+            <Label htmlFor="password" className="text-xs font-medium text-foreground/85">
+              Mật khẩu
+            </Label>
           </div>
           <PasswordInput
             id="password"
             placeholder="••••••••"
             autoComplete="current-password"
             disabled={loginMutation.isPending}
+            className="h-10 text-sm rounded-xl border-border/80 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary"
             {...register('password')}
           />
           {errors.password && (
@@ -93,18 +100,25 @@ export function LoginForm(): React.JSX.Element {
 
         <Button
           type="submit"
-          className="w-full font-semibold transition-all shadow-md hover:shadow-lg mt-2"
+          className="w-full h-10 font-semibold transition-all rounded-xl shadow-sm hover:shadow active:scale-[0.99] mt-2"
           disabled={loginMutation.isPending}
         >
-          {loginMutation.isPending ? 'Đang xác thực...' : 'Đăng Nhập'}
+          {loginMutation.isPending ? (
+            <span className="inline-flex items-center gap-2">
+              <Icon icon="lucide:loader-2" className="size-4 animate-spin" />
+              Đang xác thực...
+            </span>
+          ) : (
+            'Đăng Nhập'
+          )}
         </Button>
 
-        <div className="relative my-4">
+        <div className="relative my-3.5">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t border-border/60" />
           </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground font-medium">
+          <div className="relative flex justify-center text-[11px] uppercase tracking-wider">
+            <span className="bg-card px-2.5 text-muted-foreground/80 font-medium">
               Hoặc tiếp tục với
             </span>
           </div>
@@ -115,4 +129,3 @@ export function LoginForm(): React.JSX.Element {
     </AuthCardWrapper>
   );
 }
-

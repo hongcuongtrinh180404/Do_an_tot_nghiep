@@ -25,8 +25,6 @@ export function RegisterForm(): React.JSX.Element {
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -51,8 +49,6 @@ export function RegisterForm(): React.JSX.Element {
       {
         email: data.email,
         password: data.password,
-        firstName: data.firstName,
-        lastName: data.lastName,
       },
       {
         onSuccess: () => {
@@ -78,28 +74,27 @@ export function RegisterForm(): React.JSX.Element {
   if (registeredEmail) {
     return (
       <AuthCardWrapper
-        headerTitle="Kiểm Tra Email Của Bạn"
-        headerDescription="Chúng tôi đã gửi hướng dẫn kích hoạt tài khoản"
+        headerTitle="Kiểm tra hộp thư của bạn"
+        headerDescription="Chúng tôi đã gửi liên kết kích hoạt đến email của bạn"
         backButtonLabel="Đã kích hoạt tài khoản?"
         backButtonText="Đăng nhập ngay"
         backButtonHref="/login"
       >
-        <div className="space-y-6 text-center py-2">
-          {/* Envelope Icon with glow */}
-          <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500 ring-8 ring-sky-500/5">
-            <Icon icon="lucide:mail-check" className="size-8" />
+        <div className="space-y-5 text-center py-2">
+          {/* Envelope Icon */}
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-8 ring-primary/5">
+            <Icon icon="lucide:mail-check" className="size-7" />
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Một liên kết kích hoạt đã được gửi tới địa chỉ email:
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              Một liên kết kích hoạt đã được gửi tới địa chỉ:
             </p>
-            <p className="font-semibold text-foreground text-sm px-3 py-1.5 rounded-lg bg-muted/60 inline-block break-all border border-border/40">
+            <p className="font-semibold text-foreground text-xs sm:text-sm px-3 py-1.5 rounded-lg bg-muted/60 inline-block break-all border border-border/50">
               {registeredEmail}
             </p>
-            <p className="text-xs text-muted-foreground leading-relaxed pt-2">
-              Vui lòng mở hộp thư và nhấn vào nút <strong>Kích Hoạt Tài Khoản</strong> để hoàn tất đăng ký. 
-              Nếu không tìm thấy, vui lòng kiểm tra hộp thư Rác (Spam).
+            <p className="text-xs text-muted-foreground leading-relaxed pt-1">
+              Vui lòng mở email và nhấn <strong>Kích Hoạt Tài Khoản</strong> để hoàn tất. Đừng quên kiểm tra hòm thư Rác (Spam) nếu chưa nhận được.
             </p>
           </div>
 
@@ -107,7 +102,7 @@ export function RegisterForm(): React.JSX.Element {
             <Button
               type="button"
               variant="outline"
-              className="w-full font-medium text-xs sm:text-sm h-10 border-border/80 hover:bg-muted/50"
+              className="w-full font-medium text-xs sm:text-sm h-10 border-border/80 hover:bg-muted/50 rounded-xl"
               disabled={resendCooldown > 0 || resendMutation.isPending}
               onClick={handleResend}
             >
@@ -127,7 +122,7 @@ export function RegisterForm(): React.JSX.Element {
             </Button>
 
             <Link href="/login" className="block w-full">
-              <Button type="button" className="w-full font-semibold shadow-md">
+              <Button type="button" className="w-full font-semibold shadow-sm hover:shadow transition-all rounded-xl h-10">
                 Chuyển Đến Trang Đăng Nhập
               </Button>
             </Link>
@@ -140,50 +135,23 @@ export function RegisterForm(): React.JSX.Element {
   return (
     <AuthCardWrapper
       headerTitle="Đăng Ký Tài Khoản"
-      headerDescription="Tạo tài khoản mới để tham gia hệ thống quản lý đồ án"
+      headerDescription="Tạo tài khoản Mindly để bắt đầu quản lý đồ án"
       backButtonLabel="Đã có tài khoản?"
       backButtonText="Đăng nhập"
       backButtonHref="/login"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="firstName">Họ và tên đệm</Label>
-            <Input
-              id="firstName"
-              placeholder="Nguyễn Văn"
-              autoComplete="given-name"
-              disabled={registerMutation.isPending}
-              {...register('firstName')}
-            />
-            {errors.firstName && (
-              <p className="text-xs font-medium text-destructive">{errors.firstName.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="lastName">Tên</Label>
-            <Input
-              id="lastName"
-              placeholder="An"
-              autoComplete="family-name"
-              disabled={registerMutation.isPending}
-              {...register('lastName')}
-            />
-            {errors.lastName && (
-              <p className="text-xs font-medium text-destructive">{errors.lastName.message}</p>
-            )}
-          </div>
-        </div>
-
         <div className="space-y-1.5">
-          <Label htmlFor="email">Địa chỉ Email</Label>
+          <Label htmlFor="email" className="text-xs font-medium text-foreground/85">
+            Địa chỉ Email
+          </Label>
           <Input
             id="email"
             type="email"
             placeholder="nguyenvanan@university.edu.vn"
             autoComplete="email"
             disabled={registerMutation.isPending}
+            className="h-10 text-sm rounded-xl border-border/80 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary"
             {...register('email')}
           />
           {errors.email && (
@@ -192,12 +160,15 @@ export function RegisterForm(): React.JSX.Element {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="password">Mật khẩu</Label>
+          <Label htmlFor="password" className="text-xs font-medium text-foreground/85">
+            Mật khẩu
+          </Label>
           <PasswordInput
             id="password"
             placeholder="Tối thiểu 6 ký tự"
             autoComplete="new-password"
             disabled={registerMutation.isPending}
+            className="h-10 text-sm rounded-xl border-border/80 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary"
             {...register('password')}
           />
           {errors.password && (
@@ -206,12 +177,15 @@ export function RegisterForm(): React.JSX.Element {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="confirmPassword">Xác nhận mật khẩu</Label>
+          <Label htmlFor="confirmPassword" className="text-xs font-medium text-foreground/85">
+            Xác nhận mật khẩu
+          </Label>
           <PasswordInput
             id="confirmPassword"
-            placeholder="Nhập lại mật khẩu trên"
+            placeholder="Nhập lại mật khẩu phía trên"
             autoComplete="new-password"
             disabled={registerMutation.isPending}
+            className="h-10 text-sm rounded-xl border-border/80 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary"
             {...register('confirmPassword')}
           />
           {errors.confirmPassword && (
@@ -223,19 +197,26 @@ export function RegisterForm(): React.JSX.Element {
 
         <Button
           type="submit"
-          className="w-full font-semibold transition-all shadow-md hover:shadow-lg mt-2"
+          className="w-full h-10 font-semibold transition-all rounded-xl shadow-sm hover:shadow active:scale-[0.99] mt-2"
           disabled={registerMutation.isPending}
         >
-          {registerMutation.isPending ? 'Đang tạo tài khoản...' : 'Đăng Ký'}
+          {registerMutation.isPending ? (
+            <span className="inline-flex items-center gap-2">
+              <Icon icon="lucide:loader-2" className="size-4 animate-spin" />
+              Đang tạo tài khoản...
+            </span>
+          ) : (
+            'Đăng Ký'
+          )}
         </Button>
 
-        <div className="relative my-4">
+        <div className="relative my-3.5">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t border-border/60" />
           </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground font-medium">
-              Hoặc đăng ký nhanh với
+          <div className="relative flex justify-center text-[11px] uppercase tracking-wider">
+            <span className="bg-card px-2.5 text-muted-foreground/80 font-medium">
+              Hoặc tiếp tục với
             </span>
           </div>
         </div>
