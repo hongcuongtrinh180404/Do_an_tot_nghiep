@@ -33,6 +33,12 @@ export class LocalAuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    if (user.isEmailVerified === false) {
+      throw new UnauthorizedException(
+        'Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email để kích hoạt tài khoản trước khi đăng nhập.',
+      );
+    }
+
     if (user.status !== UserStatusEnum.ACTIVE) {
       throw new UnauthorizedException('Account is not active or has been suspended');
     }

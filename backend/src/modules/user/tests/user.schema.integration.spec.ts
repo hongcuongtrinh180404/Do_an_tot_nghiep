@@ -54,14 +54,6 @@ describe('UserSchema & MongoDB Partial Unique Indexes (Integration Test)', () =>
         }),
       ).rejects.toThrow();
 
-      // Missing passwordHash
-      await expect(
-        UserModel.create({
-          email: 'test@example.com',
-          fullName: 'Test User',
-        }),
-      ).rejects.toThrow();
-
       // Missing fullName
       await expect(
         UserModel.create({
@@ -69,6 +61,13 @@ describe('UserSchema & MongoDB Partial Unique Indexes (Integration Test)', () =>
           passwordHash: 'hash',
         }),
       ).rejects.toThrow();
+
+      // passwordHash is optional (nullable) for external OAuth users (e.g. Google)
+      const oauthUser = await UserModel.create({
+        email: 'oauth_user@example.com',
+        fullName: 'OAuth User',
+      });
+      expect(oauthUser.passwordHash).toBeNull();
     });
 
     it('should automatically lowercase email', async () => {

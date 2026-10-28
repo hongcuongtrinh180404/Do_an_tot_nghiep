@@ -42,6 +42,20 @@ export class UserService extends BaseService<IUser, string> {
     return this.userRepository.findByUsername(username, session);
   }
 
+  async findByGoogleSub(
+    googleSub: string,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    return this.userRepository.findByGoogleSub(googleSub, session);
+  }
+
+  async findByVerificationToken(
+    token: string,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    return this.userRepository.findByVerificationToken(token, session);
+  }
+
   async ensureEmailNotTaken(email: string, session?: ClientSession): Promise<void> {
     const existing = await this.findByEmail(email, false, session);
     if (existing) {
@@ -191,6 +205,8 @@ export class UserService extends BaseService<IUser, string> {
       bio: user.bio ?? null,
       role: user.role,
       status: user.status,
+      googleSub: user.googleSub ?? null,
+      isEmailVerified: !!user.isEmailVerified,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       firstName: user.firstName,

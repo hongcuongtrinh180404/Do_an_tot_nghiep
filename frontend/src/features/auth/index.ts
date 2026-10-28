@@ -3,6 +3,8 @@ export * from './components/auth-card-wrapper';
 export * from './components/password-input';
 export * from './components/login-form';
 export * from './components/register-form';
+export * from './components/google-login-button';
+export * from './components/verify-email-content';
 export * from './hooks/use-auth';
 export * from './schemas/login.schema';
 export * from './schemas/register.schema';

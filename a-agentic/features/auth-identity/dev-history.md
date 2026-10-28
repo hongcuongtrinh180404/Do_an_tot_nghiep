@@ -50,13 +50,75 @@
 - **Gotcha 10 (NestJS Standalone CLI Context & `tsc` vs `tsx` Decorator Metadata)**:
   - When executing standalone scripts (e.g., Database Seeders or Migrations) outside the HTTP server, tools using esbuild (like `tsx`) omit TypeScript `emitDecoratorMetadata` (`design:paramtypes`), which causes NestJS dependency injection to fail or pass `undefined` to services with injected dependencies.
   - **Resolution**: Utilized Nest CLI's native `--entryFile` parameter: `nest start --entryFile database/seeds/seed`. This runs through TypeScript compiler (`tsc`), cleanly preserves decorator metadata, and allows graceful connection shutdown via `app.close()`.
-- **Gotcha 11 (Sub-Package Workspace Isolation with Duplicate `pnpm-workspace.yaml` / `pnpm-lock.yaml`)**:
-  - If `pnpm-workspace.yaml` or `pnpm-lock.yaml` is inadvertently placed inside a sub-project directory (like `backend/`), running pnpm commands inside that directory causes pnpm to treat the subdirectory as an isolated workspace root without access to sibling packages. It throws `[ERR_PNPM_WORKSPACE_PKG_NOT_FOUND]` for `"share-lib@workspace:*"`.
-  - **Resolution**: In a pnpm monorepo, `pnpm-workspace.yaml` and `pnpm-lock.yaml` must ONLY exist at the root repository level. Removed conflicting files from `backend/`.
+- **Gotcha 12 (Google OAuth Server-side ID Token Verification & Safe Account Linking)**:
+  - Google ID Tokens must always be verified server-side with `google-auth-library` (`OAuth2Client.verifyIdToken({ idToken, audience })`) rather than trusting user profile data sent by the client.
+  - The permanent, immutable identifier for Google accounts is the `sub` claim (`googleSub`), rather than `email` which can potentially change.
+  - Safe Account Linking: If an existing account registered via email/password matches the Google email, auto-linking is safely allowed ONLY when Google confirms `email_verified === true`.
+  - In MongoDB `UserEntity`, `passwordHash` must be optional (`required: false, default: null`) so users registering solely via Google OAuth do not fail schema constraints.
+  - In Next.js client, `<GoogleLogin />` component from `@react-oauth/google` must omit ad-hoc props like `locale` to satisfy strict React 19 TypeScript typings.
+- **Gotcha 13 (MongoDB partialFilterExpression Cannot Mix with sparse & Email Verification Lifecycle)**:
+  - In MongoDB, `{ sparse: true }` cannot be mixed with `partialFilterExpression`. MongoDB throws `MongoServerError: cannot mix "partialFilterExpression" and "sparse" options`. When indexing nullable fields like `googleSub` or `emailVerificationToken`, use `partialFilterExpression: { deletedAt: null, <field>: { $type: "string" } }` exclusively without `sparse: true`.
+  - When users register via email/password, accounts must be created with `isEmailVerified: false` and `status: UserStatusEnum.INACTIVE`. Login attempts are rejected with an explicit Vietnamese message until activated.
+  - To prevent SMTP setup blocking local development or testing, `MailService` automatically detects missing `GMAIL_APP_PASSWORD` and prints the direct activation link prominently to the terminal console as a fallback.
+  - On `/verify-email`, `useVerifyEmailMutation` validates the token, activates `status: ACTIVE`, clears tokens, and immediately generates an authenticated session (tokens + `BroadcastChannel('app_auth_sync')`), redirecting the user straight to the learning dashboard.
 
 ---
 
 ## 2. Change Log & Bug Fixes
+
+### [2026-10-28] - Phase 2: Email Verification via Gmail Link & Account Activation
+
+- **Share-Lib (`share-lib/`)**:
+  - Added `isEmailVerified?: boolean`, `emailVerificationToken?: string | null`, and `emailVerificationExpires?: Date | string | null` to `IUser`.
+  - Added `isEmailVerified` to `IUserProfile`.
+  - Added `IVerifyEmailPayload`, `IResendVerificationPayload`, and `IRegisterResponse` to `auth.interface.ts`.
+  - Compiled and exported updated declaration files.
+- **Backend (`backend/`)**:
+  - Installed `nodemailer` and `@types/nodemailer`.
+  - Configured Gmail SMTP variables (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `MAIL_FROM_NAME`, `MAIL_FROM_EMAIL`, `FRONTEND_URL`) in `.env.example` and `.env`.
+  - Created `MailModule` and `MailService` with responsive HTML template, Gmail SMTP transporter, and prominent terminal fallback when credentials are not yet configured.
+  - Updated `UserSchema` with `isEmailVerified`, `emailVerificationToken` (with `select: false` and partial index), and `emailVerificationExpires` (with `select: false`).
+  - Added `findByVerificationToken` to `UserRepository` and `UserService` with explicit field inclusion (`+emailVerificationToken +emailVerificationExpires`).
+  - Updated `LocalAuthService.validateUser` to block login with clear error if `isEmailVerified === false`.
+  - Updated `AuthService.register` to create unverified accounts, generate 32-byte crypto token (24h expiry), send email, and return `IRegisterResponse`.
+  - Implemented `AuthService.verifyEmail` (activating account, clearing token, generating session) and `AuthService.resendVerification`.
+  - Updated `AuthService.loginWithGoogle` to automatically set `isEmailVerified: true` and activate account on linking.
+  - Added endpoints `POST /auth/verify-email` and `POST /auth/resend-verification` in `AuthController`.
+  - Extended unit tests in `auth.service.spec.ts` covering verification success, expired token, invalid token, and resend scenarios. All 568 backend tests pass 100%.
+- **Frontend (`frontend/`)**:
+  - Added `verifyEmail`, `resendVerification`, `useVerifyEmailMutation`, and `useResendVerificationMutation` to `frontend/src/features/auth/api/auth.api.ts`.
+  - Updated `RegisterForm` to display a dedicated "Kiểm Tra Email Của Bạn" state upon submission with 60s resend cooldown.
+  - Implemented `/verify-email` page (`frontend/src/app/(auth)/verify-email/page.tsx`) with Suspense wrapper and comprehensive states (verifying spinner, success with auto-login, expired/invalid token with resend form).
+  - Verified Next.js build passes with exit code 0.
+
+### [2026-10-27] - Google OAuth 2.0 Integration (Phase 1)
+
+- **Share-Lib (`share-lib/`)**:
+  - Updated `IUser` and `IUserProfile` to support `googleSub?: string | null` and nullable `passwordHash`.
+  - Added `IGoogleAuthPayload` interface.
+  - Compiled and exported updated `.d.ts`.
+- **Backend (`backend/`)**:
+  - Installed `google-auth-library` for cryptographic server-side JWT verification.
+  - Added `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to `backend/.env`.
+  - Updated `UserEntity` in `user.schema.ts` with `googleSub` partial unique index `{ deletedAt: null, googleSub: { $type: "string" } }` and nullable `passwordHash`.
+  - Added `findByGoogleSub` method to `UserRepository` and `UserService`.
+  - Created `GoogleAuthDto` with `class-validator` and `@Transform` string trimming.
+  - Implemented `AuthService.loginWithGoogle(dto: GoogleAuthDto)`:
+    - Cryptographic verification with `OAuth2Client.verifyIdToken`.
+    - Safe Account Linking (Option B) for verified emails.
+    - Role preservation (`ADMIN`, `INSTRUCTOR`, `STUDENT`).
+    - Account active status verification (`UserStatusEnum.ACTIVE`).
+    - Standard session creation and token generation with 30s Grace Period.
+  - Added `POST /api/v1/auth/google` endpoint to `AuthController`.
+  - Added 7 unit test scenarios in `auth.service.spec.ts` (15/15 tests passing 100%).
+- **Frontend (`frontend/`)**:
+  - Installed `@react-oauth/google`.
+  - Added `NEXT_PUBLIC_GOOGLE_CLIENT_ID` to `frontend/.env`.
+  - Wrapped `AppProviders` with `<GoogleOAuthProvider>`.
+  - Added `loginWithGoogle` and `useGoogleAuthMutation` with `BroadcastChannel('app_auth_sync')` multi-tab synchronization.
+  - Built `GoogleLoginButton` component with Google Identity Services Popup mode, loading indicators, and error toasts.
+  - Added divider and `GoogleLoginButton` to `/login` (`LoginForm`) and `/register` (`RegisterForm`).
+  - Verified `pnpm --filter frontend run build` passes with 0 errors across all routes.
 
 ### [2026-10-07] - Custom Select UI Component, CreatedAt Column, URL-based Database Sorting & Default Newest
 

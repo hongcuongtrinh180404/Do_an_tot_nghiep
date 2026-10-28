@@ -65,6 +65,37 @@ export class UserRepository extends BaseMongoRepository<IUser, UserEntity> {
     return doc ? this.toDomain(doc) : null;
   }
 
+  async findByGoogleSub(
+    googleSub: string,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    const doc = await this.model
+      .findOne({
+        googleSub: googleSub.trim(),
+        deletedAt: null,
+      })
+      .session(session ?? null)
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  async findByVerificationToken(
+    token: string,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    const doc = await this.model
+      .findOne({
+        emailVerificationToken: token.trim(),
+        deletedAt: null,
+      })
+      .select('+emailVerificationToken +emailVerificationExpires')
+      .session(session ?? null)
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
   async findUsersWithPagination(
     queryDto: QueryUsersDto,
     session?: ClientSession,

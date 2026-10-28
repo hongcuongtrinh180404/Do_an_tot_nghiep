@@ -5,13 +5,17 @@ import { AuthProviderEnum } from '../enums/auth-provider.enum.js';
 export interface IUser {
   id: string;
   email: string;
-  passwordHash: string;
+  passwordHash?: string | null;
   fullName: string;
   username?: string | null;
   avatarUrl?: string | null;
   bio?: string | null;
   role: RoleEnum;
   status: UserStatusEnum;
+  googleSub?: string | null;
+  isEmailVerified?: boolean;
+  emailVerificationToken?: string | null;
+  emailVerificationExpires?: Date | string | null;
   /** @deprecated Kept for backward compatibility during migration */
   password?: string | null;
   /** @deprecated Kept for backward compatibility during migration */
@@ -40,6 +44,8 @@ export interface IUserProfile {
   bio?: string | null;
   role: RoleEnum;
   status: UserStatusEnum;
+  googleSub?: string | null;
+  isEmailVerified?: boolean;
   createdAt?: Date | string;
   updatedAt?: Date | string;
   /** @deprecated Kept for backward compatibility during migration */

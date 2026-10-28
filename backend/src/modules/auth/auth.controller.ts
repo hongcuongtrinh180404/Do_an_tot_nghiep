@@ -10,12 +10,16 @@ import type {
   IAuthResponse,
   IAuthTokens,
   IUserProfile,
+  IRegisterResponse,
 } from 'share-lib';
 import { ApiResponse } from '../base/index.js';
 import { AuthService } from './services/auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
+import { GoogleAuthDto } from './dto/google-auth.dto.js';
+import { VerifyEmailDto } from './dto/verify-email.dto.js';
+import { ResendVerificationDto } from './dto/resend-verification.dto.js';
 import { Public } from './decorators/public.decorator.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 
@@ -26,9 +30,27 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  async register(@Body() dto: RegisterDto): Promise<ApiResponse<IAuthResponse>> {
+  async register(@Body() dto: RegisterDto): Promise<ApiResponse<IRegisterResponse>> {
     const result = await this.authService.register(dto);
-    return ApiResponse.success(result, 'User registration successful');
+    return ApiResponse.success(result, result.message);
+  }
+
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Body() dto: VerifyEmailDto): Promise<ApiResponse<IAuthResponse>> {
+    const result = await this.authService.verifyEmail(dto);
+    return ApiResponse.success(result, 'Xác thực tài khoản thành công');
+  }
+
+  @Public()
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  async resendVerification(
+    @Body() dto: ResendVerificationDto,
+  ): Promise<ApiResponse<{ sent: boolean; message: string }>> {
+    const result = await this.authService.resendVerification(dto);
+    return ApiResponse.success(result, result.message);
   }
 
   @Public()
@@ -37,6 +59,14 @@ export class AuthController {
   async login(@Body() dto: LoginDto): Promise<ApiResponse<IAuthResponse>> {
     const result = await this.authService.login(dto);
     return ApiResponse.success(result, 'Login successful');
+  }
+
+  @Public()
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  async googleAuth(@Body() dto: GoogleAuthDto): Promise<ApiResponse<IAuthResponse>> {
+    const result = await this.authService.loginWithGoogle(dto);
+    return ApiResponse.success(result, 'Đăng nhập Google thành công');
   }
 
   @Public()

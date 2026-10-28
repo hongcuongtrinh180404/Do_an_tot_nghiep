@@ -72,6 +72,8 @@ describe('UserService - Profile and Avatar Management', () => {
         bio: 'Lập trình viên',
         role: RoleEnum.STUDENT,
         status: UserStatusEnum.ACTIVE,
+        googleSub: null,
+        isEmailVerified: false,
         createdAt: mockUser.createdAt,
         updatedAt: mockUser.updatedAt,
         firstName: undefined,

@@ -33,3 +33,21 @@ export interface IJwtPayload {
   iat?: number;
   exp?: number;
 }
+
+export interface IGoogleAuthPayload {
+  idToken: string;
+}
+
+export interface IVerifyEmailPayload {
+  token: string;
+}
+
+export interface IResendVerificationPayload {
+  email: string;
+}
+
+export interface IRegisterResponse {
+  user: IUserProfile;
+  message: string;
+  emailSent: boolean;
+}

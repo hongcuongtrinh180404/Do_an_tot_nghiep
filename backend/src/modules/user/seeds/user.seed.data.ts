@@ -15,12 +15,12 @@ export const DEFAULT_SEED_PASSWORD = 'Password123@';
 export const USER_SEED_DATA: IUserSeedItem[] = [
   // 1 Admin
   {
-    email: 'admin@thc.edu.vn',
+    email: 'sseu1804@gmail.com',
     username: 'admin',
-    fullName: 'Quản Trị Viên Hệ Thống',
+    fullName: 'CUONG TRINH',
     role: RoleEnum.ADMIN,
     status: UserStatusEnum.ACTIVE,
-    bio: 'Quản trị viên cấp cao phụ trách hệ thống đào tạo THC E-Learning.',
+    bio: 'Quản trị viên cấp cao phụ trách hệ thống Mindly.',
     avatarUrl: null,
   },
 

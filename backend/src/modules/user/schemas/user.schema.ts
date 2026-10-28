@@ -10,8 +10,8 @@ export class UserEntity extends BaseAbstractDocument {
   @Prop({ type: String, required: true, lowercase: true, trim: true })
   email: string;
 
-  @Prop({ type: String, required: true, select: false })
-  passwordHash: string;
+  @Prop({ type: String, required: false, select: false, default: null })
+  passwordHash?: string | null;
 
   @Prop({ type: String, required: true, trim: true })
   fullName: string;
@@ -21,6 +21,9 @@ export class UserEntity extends BaseAbstractDocument {
 
   @Prop({ type: String, required: false, default: null })
   avatarUrl?: string | null;
+
+  @Prop({ type: String, required: false, default: null, trim: true })
+  googleSub?: string | null;
 
   @Prop({ type: String, required: false, default: null, trim: true })
   bio?: string | null;
@@ -40,6 +43,15 @@ export class UserEntity extends BaseAbstractDocument {
     index: true,
   })
   status: UserStatusEnum;
+
+  @Prop({ type: Boolean, default: false, index: true })
+  isEmailVerified: boolean;
+
+  @Prop({ type: String, required: false, default: null, select: false })
+  emailVerificationToken?: string | null;
+
+  @Prop({ type: Date, required: false, default: null, select: false })
+  emailVerificationExpires?: Date | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(UserEntity);
@@ -62,6 +74,29 @@ UserSchema.index(
     partialFilterExpression: {
       deletedAt: null,
       username: { $type: 'string' },
+    },
+  },
+);
+
+// 3. Unique googleSub cho các user có liên kết Google OAuth
+UserSchema.index(
+  { googleSub: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      deletedAt: null,
+      googleSub: { $type: 'string' },
+    },
+  },
+);
+
+// 4. Index cho emailVerificationToken (chỉ đánh index cho các document có token)
+UserSchema.index(
+  { emailVerificationToken: 1 },
+  {
+    partialFilterExpression: {
+      deletedAt: null,
+      emailVerificationToken: { $type: 'string' },
     },
   },
 );

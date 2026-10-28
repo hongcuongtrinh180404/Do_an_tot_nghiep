@@ -28,7 +28,7 @@ Trong `share-lib/src/enums/role.enum.ts` và `user-status.enum.ts`:
 
 | Role | Email | Mật khẩu mặc định | Họ và tên (`fullName`) | Username | Trạng thái | Ghi chú Profile (`bio`) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ADMIN** | `admin@thc.edu.vn` | `Admin@123456` | `Quản Trị Viên Hệ Thống` | `admin` | `active` | Quản trị viên cấp cao của nền tảng |
+| **ADMIN** | `sseu1804@gmail.com` | `Admin@123456` | `CUONG TRINH` | `admin` | `active` | Quản trị viên cấp cao của nền tảng Mindly |
 | **INSTRUCTOR** | `instructor@thc.edu.vn` | `Instructor@123456` | `ThS. Nguyễn Văn Giảng Viên` | `instructor` | `active` | Giảng viên chuyên ngành Công Nghệ Phần Mềm & AI |
 | **STUDENT** | `student@thc.edu.vn` | `Student@123456` | `Trần Học Viên` | `student` | `active` | Học viên tiêu biểu tham gia các khóa học tương tác |
 

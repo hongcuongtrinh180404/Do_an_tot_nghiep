@@ -116,11 +116,11 @@ describe('UserSeeder', () => {
     it('should call restore if an existing user was soft-deleted', async () => {
       // Arrange
       const deletedUser: IUser = {
-        ...createFakeUser('admin@thc.edu.vn', RoleEnum.ADMIN),
+        ...createFakeUser('sseu1804@gmail.com', RoleEnum.ADMIN),
         deletedAt: new Date(),
       };
       mockUserRepository.findByEmail.mockImplementation((email: string) => {
-        if (email === 'admin@thc.edu.vn') {
+        if (email === 'sseu1804@gmail.com') {
           return Promise.resolve(deletedUser);
         }
         return Promise.resolve(createFakeUser(email, RoleEnum.STUDENT));
