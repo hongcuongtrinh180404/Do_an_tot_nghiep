@@ -27,6 +27,17 @@ export interface ICourseCategory {
   iconName: string;
 }
 
+export interface IHighlightCourseCard {
+  id: string;
+  title: string;
+  slug: string;
+  author: string;
+  thumbnailUrl: string;
+  price: number;
+  originalPrice?: number;
+  badge?: string;
+}
+
 export const COURSE_CATEGORIES: ICourseCategory[] = [
   { id: 'cat-all', name: 'Tất cả lĩnh vực', slug: 'all', courseCount: 48, iconName: 'lucide:sparkles' },
   { id: 'cat-dev', name: 'Lập trình & Kỹ thuật', slug: 'lap-trinh', courseCount: 16, iconName: 'lucide:code-2' },
@@ -284,3 +295,96 @@ export const LIVE_PREVIEW_MOCK_DATA = {
     },
   ] as ILivePreviewBreakpoint[],
 };
+
+export const MOCK_HIGHLIGHT_COURSES: IHighlightCourseCard[] = [
+  {
+    id: 'hl-ceramic-wheel',
+    title: 'Ceramic Wheel From Scratch: Shape Your Pottery',
+    slug: 'ceramic-wheel-from-scratch-shape-pottery',
+    author: 'Paula Tapia',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=600&q=80',
+    price: 23000,
+    originalPrice: 630000,
+  },
+  {
+    id: 'hl-fashion-design',
+    title: 'Fashion Design and Textile Techniques: From Sketch to Garment',
+    slug: 'fashion-design-and-textile-techniques',
+    author: 'Domestika',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=600&q=80',
+    price: 23000,
+    originalPrice: 630000,
+  },
+  {
+    id: 'hl-folklore-illustration',
+    title: 'Folklore-Inspired Illustration: Create Mythical Worlds',
+    slug: 'folklore-inspired-illustration-mythical-worlds',
+    author: 'Tomas Ives',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=600&q=80',
+    price: 23000,
+    originalPrice: 630000,
+  },
+  {
+    id: 'hl-fantasy-illustration',
+    title: 'Specialization in Illustration of Fantasy Creatures',
+    slug: 'specialization-in-illustration-fantasy-creatures',
+    author: 'Domestika',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80',
+    price: 23000,
+    originalPrice: 630000,
+  },
+  {
+    id: 'hl-youtube-creation',
+    title: 'YouTube Content Creation Specialization: Script to Screen',
+    slug: 'youtube-content-creation-specialization',
+    author: 'Domestika',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=600&q=80',
+    price: 23000,
+    originalPrice: 630000,
+  },
+  {
+    id: 'hl-creative-business',
+    title: 'Validate Your Creative Business Idea and Brand Strategy',
+    slug: 'validate-your-creative-business-idea',
+    author: 'Lola Giardino',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
+    price: 23000,
+    originalPrice: 630000,
+  },
+  {
+    id: 'hl-social-media',
+    title: 'Social Media Marketing: Organic Growth & Community',
+    slug: 'social-media-marketing-organic-growth',
+    author: 'Domestika',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=600&q=80',
+    price: 23000,
+    originalPrice: 630000,
+  },
+  {
+    id: 'hl-advertising-jingles',
+    title: 'Advertising Jingles: Create Catchy Music for Brands',
+    slug: 'advertising-jingles-create-catchy-music',
+    author: 'Juan Salazar',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=600&q=80',
+    price: 23000,
+    originalPrice: 630000,
+  },
+  {
+    id: 'hl-documentary-filmmaking',
+    title: 'Specialization in Documentary Filmmaking & Storytelling',
+    slug: 'specialization-in-documentary-filmmaking',
+    author: 'Domestika',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=600&q=80',
+    price: 23000,
+    originalPrice: 630000,
+  },
+  {
+    id: 'hl-large-engraving',
+    title: 'Large Format Engraving: Create Contemporary Art Prints',
+    slug: 'large-format-engraving-contemporary-prints',
+    author: 'Luisa Estrada',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=600&q=80',
+    price: 23000,
+    originalPrice: 630000,
+  },
+];

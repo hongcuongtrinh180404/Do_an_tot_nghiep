@@ -60,32 +60,33 @@ export class SessionService extends BaseService<ISession, string> {
     newExpiresAt: Date,
     session?: ClientSession,
   ): Promise<RotateSessionResult> {
+    // Case 1: Token hash matches current active hash -> standard rotation.
+    // The update is atomic, so concurrent refreshes cannot both rotate the same
+    // session from the same incoming hash.
+    const rotatedSession = await this.sessionRepository.rotateIfCurrent(
+      userId,
+      incomingHash,
+      newHash,
+      newExpiresAt,
+      session,
+    );
+
+    if (rotatedSession) {
+      return {
+        session: rotatedSession,
+        isReusedGrace: false,
+      };
+    }
+
     const activeSession = await this.sessionRepository.findActiveByUserId(userId, session);
 
     if (!activeSession) {
       throw new UnauthorizedException('No active session found. Please log in again.');
     }
 
-    // Case 1: Token hash matches current active hash -> standard rotation
-    if (activeSession.refreshTokenHash === incomingHash) {
-      const updated = await this.sessionRepository.update(
-        activeSession.id,
-        {
-          previousRefreshTokenHash: activeSession.refreshTokenHash,
-          refreshTokenHash: newHash,
-          hashRotatedAt: new Date(),
-          expiresAt: newExpiresAt,
-        },
-        session,
-      );
-
-      return {
-        session: updated!,
-        isReusedGrace: false,
-      };
-    }
-
-    // Case 2: Token hash matches previous hash -> check 30s Grace Period
+    // Case 2: Token hash matches previous hash -> check 30s Grace Period.
+    // The caller must NOT persist/return the newly generated refresh token in
+    // this case; it should keep using the current token from the winning tab.
     if (activeSession.previousRefreshTokenHash === incomingHash) {
       const rotatedAt = activeSession.hashRotatedAt ? new Date(activeSession.hashRotatedAt).getTime() : 0;
       const now = Date.now();

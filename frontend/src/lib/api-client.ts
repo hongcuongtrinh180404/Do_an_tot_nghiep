@@ -80,7 +80,14 @@ apiClient.interceptors.response.use(
           const tokens = res.data.data;
           if (tokens?.accessToken) {
             localStorage.setItem('accessToken', tokens.accessToken);
-            localStorage.setItem('refreshToken', tokens.refreshToken);
+
+            // On a concurrent-refresh grace response the backend returns the
+            // same refresh token we sent. Do not overwrite localStorage here:
+            // another tab may have already stored the newly rotated token.
+            if (tokens.refreshToken && tokens.refreshToken !== currentRefreshToken) {
+              localStorage.setItem('refreshToken', tokens.refreshToken);
+            }
+
             return tokens.accessToken;
           }
           return null;

@@ -1,12 +1,16 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 import { BaseAbstractDocument } from '../../base/index.js';
 
 export type SessionDocument = HydratedDocument<SessionEntity>;
 
 @Schema({ timestamps: true, collection: 'sessions' })
 export class SessionEntity extends BaseAbstractDocument {
-  @Prop({ type: Types.ObjectId, required: true, ref: 'UserEntity', index: true })
+  // Mongoose 9: `Types.ObjectId` is the BSON class, not the schema type.
+  // Using it directly makes the path `Mixed`, so userId is persisted as a string
+  // and `findActiveByUserId` (which queries with ObjectId) never matches.
+  // Always use `Schema.Types.ObjectId` for ObjectId references.
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true, ref: 'UserEntity', index: true })
   userId: Types.ObjectId;
 
   @Prop({ type: String, required: true, index: true })

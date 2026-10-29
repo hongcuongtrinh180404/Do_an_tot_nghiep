@@ -3,6 +3,7 @@ export { PublicHero } from './public-hero';
 export { CategoryRail } from './category-rail';
 export { CourseCard } from './course-card';
 export { FeaturedCourses } from './featured-courses';
+export { NewsHighlightsCarousel } from './news-highlights-carousel';
 export { RecentCourses } from './recent-courses';
 export { AiExperienceBanner } from './ai-experience-banner';
 export { PublicFooter } from './public-footer';

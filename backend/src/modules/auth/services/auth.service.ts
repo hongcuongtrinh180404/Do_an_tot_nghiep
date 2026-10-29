@@ -153,12 +153,23 @@ export class AuthService {
     const newTokens = await this.authTokenService.generateTokens(userProfile);
     const newHash = this.authTokenService.hashToken(newTokens.refreshToken);
 
-    await this.sessionService.validateAndRotateSession(
+    const rotation = await this.sessionService.validateAndRotateSession(
       user.id,
       incomingHash,
       newHash,
       this.authTokenService.getRefreshTokenExpiryDate(),
     );
+
+    // Another tab already rotated the refresh token within the grace window.
+    // Keep that token (the caller's incoming token is only valid for the grace
+    // period) and issue a fresh access token so this request can continue.
+    if (rotation.isReusedGrace) {
+      return {
+        accessToken: newTokens.accessToken,
+        refreshToken: dto.refreshToken,
+        expiresIn: newTokens.expiresIn,
+      };
+    }
 
     return newTokens;
   }

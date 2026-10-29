@@ -9,6 +9,7 @@ describe('SessionService', () => {
   let service: SessionService;
   let mockSessionRepository: {
     findActiveByUserId: ReturnType<typeof vi.fn>;
+    rotateIfCurrent: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     revokeAllByUserId: ReturnType<typeof vi.fn>;
@@ -30,6 +31,7 @@ describe('SessionService', () => {
   beforeEach(() => {
     mockSessionRepository = {
       findActiveByUserId: vi.fn(),
+      rotateIfCurrent: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       revokeAllByUserId: vi.fn(),
@@ -91,6 +93,7 @@ describe('SessionService', () => {
 
   describe('validateAndRotateSession', () => {
     it('should throw UnauthorizedException when no active session exists', async () => {
+      mockSessionRepository.rotateIfCurrent.mockResolvedValue(null);
       mockSessionRepository.findActiveByUserId.mockResolvedValue(null);
 
       await expect(
@@ -98,14 +101,13 @@ describe('SessionService', () => {
       ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should rotate session normally when incoming hash matches current hash', async () => {
-      mockSessionRepository.findActiveByUserId.mockResolvedValue(mockSession);
+    it('should rotate session atomically when incoming hash matches current hash', async () => {
       const updatedSession = {
         ...mockSession,
         previousRefreshTokenHash: 'hash_current',
         refreshTokenHash: 'hash_next',
       };
-      mockSessionRepository.update.mockResolvedValue(updatedSession);
+      mockSessionRepository.rotateIfCurrent.mockResolvedValue(updatedSession);
 
       const expiresAt = new Date();
       const result = await service.validateAndRotateSession(
@@ -115,6 +117,14 @@ describe('SessionService', () => {
         expiresAt,
       );
 
+      expect(mockSessionRepository.rotateIfCurrent).toHaveBeenCalledWith(
+        'user_1',
+        'hash_current',
+        'hash_next',
+        expiresAt,
+        undefined,
+      );
+      expect(mockSessionRepository.findActiveByUserId).not.toHaveBeenCalled();
       expect(result.isReusedGrace).toBe(false);
       expect(result.session).toEqual(updatedSession);
     });
@@ -126,6 +136,7 @@ describe('SessionService', () => {
         previousRefreshTokenHash: 'hash_prev',
         hashRotatedAt: recentRotation,
       };
+      mockSessionRepository.rotateIfCurrent.mockResolvedValue(null);
       mockSessionRepository.findActiveByUserId.mockResolvedValue(sessionWithRecentRotation);
 
       const result = await service.validateAndRotateSession(
@@ -147,6 +158,7 @@ describe('SessionService', () => {
         previousRefreshTokenHash: 'hash_stolen',
         hashRotatedAt: oldRotation,
       };
+      mockSessionRepository.rotateIfCurrent.mockResolvedValue(null);
       mockSessionRepository.findActiveByUserId.mockResolvedValue(sessionWithOldRotation);
       mockSessionRepository.revokeAllByUserId.mockResolvedValue(true);
 
@@ -158,6 +170,7 @@ describe('SessionService', () => {
     });
 
     it('should reject when incoming hash matches neither current nor previous hash', async () => {
+      mockSessionRepository.rotateIfCurrent.mockResolvedValue(null);
       mockSessionRepository.findActiveByUserId.mockResolvedValue(mockSession);
 
       await expect(

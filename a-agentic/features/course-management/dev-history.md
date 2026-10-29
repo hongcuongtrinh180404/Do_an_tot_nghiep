@@ -13,6 +13,15 @@
 
 ## 2. Technical Notes & Gotchas
 
+- **Milestone 27 (News & Highlights Dark Mode Media Carousel - Domestika Editorial Style)**:
+  - Thiết kế và triển khai Media Carousel dạng thẻ đứng (aspect 3:4) hiển thị trên nền tối `bg-[#141414]` đặt ngay dưới section "Khóa học nổi bật được cộng đồng đánh giá cao" (`FeaturedCourses`) trên trang chủ (`frontend/src/app/page.tsx`).
+  - Xây dựng component `NewsHighlightsCarousel` (`frontend/src/features/course/components/public-discovery/news-highlights-carousel.tsx`):
+    - Background: `bg-[#141414]` toàn màn hình, tiêu đề "News and highlights" font đậm vừa màu trắng.
+    - Card: `aspect-[3/4]`, `rounded-xl sm:rounded-2xl`, tràn viền ảnh với overlay chuyển mờ `bg-gradient-to-t from-black/90 via-black/50 to-transparent`.
+    - Hiệu ứng tương tác: Rê chuột phóng to ảnh mượt mà `scale-105 duration-300 ease-out`. Khối giá tiền trượt/hiện lên mượt mà từ dưới gồm giá ưu đãi trắng nổi bật và giá gốc gạch ngang mờ `text-zinc-400 line-through`.
+    - Mũi tên điều hướng: Định vị nút trái đè lên mép trái thẻ thứ 2 đếm từ trái qua (`sm:left-[216px] md:left-[234px] -translate-x-1/2`), nút phải đè lên mép phải thẻ thứ 2 đếm từ phải qua (`sm:right-[216px] md:right-[234px] translate-x-1/2`). Cụm mũi tên mặc định ẩn và chỉ hiện mượt mà khi hover vào vùng carousel (`group-hover/carousel:opacity-100`); tự động ẩn khi chạm biên scroll; ẩn trên mobile để ưu tiên vuốt chạm tự nhiên.
+  - Khởi tạo mock data `MOCK_HIGHLIGHT_COURSES` và interface `IHighlightCourseCard` trong `mock-discovery-data.ts` với hình ảnh nghệ thuật độ phân giải cao tỉ lệ dọc (gốm sứ, thời trang, minh họa fantasy, documentary, jingles studio).
+  - Đảm bảo tuân thủ 100% Purple Ban, Clean Code, và vượt qua kiểm tra TypeScript (`tsc --noEmit`).
 - **Brand Identity & Mindly Logo Integration**:
   - Tích hợp bộ nhận diện thương hiệu chính thức Mindly (`mindly-logo.tsx`, `student-icon-path.ts`) sử dụng file vector chuẩn từ `refer/logo_nguoi_hoc_trace.svg`.
   - Icon hình người tư duy đạt chuẩn 7 điểm hình học:

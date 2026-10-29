@@ -6,6 +6,7 @@ import {
   PublicHero,
   CategoryRail,
   FeaturedCourses,
+  NewsHighlightsCarousel,
   RecentCourses,
   AiExperienceBanner,
   PublicFooter,
@@ -53,6 +54,9 @@ export default function Home(): React.JSX.Element {
 
         {/* Featured Courses Showcase */}
         <FeaturedCourses />
+
+        {/* Media Carousel / Horizontal Slider: News and highlights (Dark mode) */}
+        <NewsHighlightsCarousel />
 
         {/* Category Explorer Rail */}
         <CategoryRail

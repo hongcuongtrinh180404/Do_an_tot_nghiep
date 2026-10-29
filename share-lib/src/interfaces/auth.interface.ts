@@ -30,6 +30,8 @@ export interface IJwtPayload {
   sub: string;
   email: string;
   role: RoleEnum;
+  /** Unique token id, used to make every refresh token distinct. */
+  jti?: string;
   iat?: number;
   exp?: number;
 }

@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { AUTH_CONSTANTS, IAuthTokens, IJwtPayload, IUserProfile } from 'share-lib';
 
 @Injectable()
@@ -32,12 +32,17 @@ export class AuthTokenService {
       role: user.role,
     };
 
+    // Refresh tokens must be unique even when issued in the same second,
+    // otherwise token rotation would produce the same hash and the
+    // previous/current hash distinction used by the grace period breaks.
+    const refreshPayload: IJwtPayload = { ...payload, jti: randomUUID() };
+
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: this.accessSecret,
         expiresIn: this.accessExpiresIn as unknown as undefined, // Type cast for jwt sign options
       }),
-      this.jwtService.signAsync(payload, {
+      this.jwtService.signAsync(refreshPayload, {
         secret: this.refreshSecret,
         expiresIn: this.refreshExpiresIn as unknown as undefined,
       }),

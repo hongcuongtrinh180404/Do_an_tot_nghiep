@@ -310,6 +310,19 @@ describe('AuthService', () => {
       expect(result).toEqual(newTokens);
     });
 
+    it('should keep the incoming refresh token when another tab already rotated it', async () => {
+      mockSessionService.validateAndRotateSession.mockResolvedValue({
+        session: { id: 'session_1' },
+        isReusedGrace: true,
+      });
+
+      const result = await service.refreshToken({ refreshToken: 'mock_refresh_token' });
+
+      expect(result.accessToken).toBe(mockTokens.accessToken);
+      expect(result.refreshToken).toBe('mock_refresh_token');
+      expect(result.expiresIn).toBe(mockTokens.expiresIn);
+    });
+
     it('should throw UnauthorizedException if user is inactive', async () => {
       mockUserService.findById.mockResolvedValue({ ...mockUser, status: UserStatusEnum.SUSPENDED });
 
