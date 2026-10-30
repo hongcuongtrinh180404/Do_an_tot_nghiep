@@ -97,6 +97,23 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
             <Icon icon="lucide:link" className="size-3 shrink-0 text-muted-foreground/60" />
             <span className="truncate">{course.slug}</span>
           </p>
+
+          {/* Category Badge */}
+          {course.category ? (
+            <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border/40 bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {course.category.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={course.category.imageUrl}
+                  alt=""
+                  className="size-3.5 shrink-0 rounded object-contain"
+                />
+              ) : (
+                <Icon icon="lucide:folder" className="size-3 shrink-0" />
+              )}
+              <span className="truncate">{course.category.name}</span>
+            </span>
+          ) : null}
         </CardHeader>
 
         <CardContent className="py-2">

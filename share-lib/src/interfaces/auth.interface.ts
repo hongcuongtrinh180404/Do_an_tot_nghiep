@@ -48,6 +48,23 @@ export interface IResendVerificationPayload {
   email: string;
 }
 
+export interface IForgotPasswordPayload {
+  email: string;
+}
+
+export interface IForgotPasswordResponse {
+  message: string;
+}
+
+export interface IResetPasswordPayload {
+  token: string;
+  password: string;
+}
+
+export interface IResetPasswordResponse {
+  message: string;
+}
+
 export interface IRegisterResponse {
   user: IUserProfile;
   message: string;

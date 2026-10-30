@@ -82,6 +82,7 @@ export class CourseController {
       thumbnailUrl: dto.thumbnailUrl,
       price: dto.price,
       level: dto.level,
+      categoryId: dto.categoryId,
       instructorId: userId,
     });
     return ApiResponse.success(course, 'Tạo khóa học thành công');

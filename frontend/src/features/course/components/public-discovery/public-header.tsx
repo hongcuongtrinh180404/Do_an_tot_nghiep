@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { RoleEnum } from 'share-lib';
+import Image from 'next/image';
 import { useCurrentUserQuery, useLogoutMutation } from '@/features/auth/api/auth.api';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useIsMounted } from '@/hooks/use-is-mounted';
 import { MindlyLogo } from '@/components/brand';
 
@@ -24,6 +25,8 @@ export function PublicHeader({
   const { data: user } = useCurrentUserQuery();
   const logoutMutation = useLogoutMutation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const [localSearch, setLocalSearch] = useState(searchQuery);
 
   const handleSearch = (e: React.FormEvent): void => {
@@ -100,47 +103,101 @@ export function PublicHeader({
         {/* Right: Auth / User Session Actions */}
         <div className="flex items-center gap-3">
           {isMounted && user ? (
-            <div className="flex items-center gap-2">
-              {user.role === RoleEnum.ADMIN && (
-                <Link
-                  href="/admin/dashboard"
-                  className={buttonVariants({ variant: 'outline', size: 'sm', className: 'hidden sm:inline-flex border-neutral-700 text-white hover:bg-neutral-800' })}
-                >
-                  <Icon icon="lucide:shield" className="size-3.5 mr-1.5 text-neutral-400" />
-                  Quản trị
-                </Link>
-              )}
-              {(user.role === RoleEnum.INSTRUCTOR || user.role === RoleEnum.ADMIN) && (
-                <Link
-                  href="/instructor/courses"
-                  className={buttonVariants({ variant: 'outline', size: 'sm', className: 'hidden sm:inline-flex border-neutral-700 text-white hover:bg-neutral-800' })}
-                >
-                  <Icon icon="lucide:book-open" className="size-3.5 mr-1.5 text-[#027D88]" />
-                  Khóa học của tôi
-                </Link>
-              )}
+            <div className="flex items-center gap-3">
+              {/* My courses link (Text link, no box border, clean hover effect) */}
               <Link
-                href="/profile"
-                className={buttonVariants({ variant: 'outline', size: 'sm', className: 'border-neutral-700 text-white hover:bg-neutral-800' })}
-                title={user.email}
+                href="/instructor/courses"
+                className="hidden sm:inline-flex items-center text-sm font-medium text-neutral-300 transition-colors hover:text-white px-2 py-1.5 rounded-md hover:bg-neutral-800/50"
               >
-                <Icon icon="lucide:user" className="size-3.5 mr-1.5" />
-                <span className="max-w-[120px] truncate hidden sm:inline">
-                  {user.firstName ? `${user.firstName}` : user.email.split('@')[0]}
-                </span>
-                <span className="sm:hidden">Hồ sơ</span>
+                Khóa học của tôi
               </Link>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => logoutMutation.mutate()}
-                disabled={logoutMutation.isPending}
-                className="text-xs text-neutral-400 hover:text-white hover:bg-neutral-800"
-                aria-label="Đăng xuất"
-              >
-                <Icon icon="lucide:log-out" className="size-3.5" />
-                <span className="hidden sm:inline ml-1">Thoát</span>
-              </Button>
+
+              {/* User Avatar & Dropdown Popover */}
+              <Popover open={userMenuOpen} onOpenChange={setUserMenuOpen}>
+                <PopoverTrigger
+                  className="relative size-9 sm:size-10 rounded-full border border-neutral-700 hover:border-neutral-500 overflow-hidden bg-neutral-800 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 cursor-pointer flex items-center justify-center shrink-0"
+                  aria-label="Menu tài khoản cá nhân"
+                >
+                  {user.avatarUrl && !avatarError ? (
+                    <Image
+                      src={user.avatarUrl}
+                      alt={user.fullName || user.email}
+                      fill
+                      sizes="40px"
+                      className="object-cover rounded-full"
+                      onError={() => setAvatarError(true)}
+                    />
+                  ) : (
+                    <div className="size-full flex items-center justify-center bg-neutral-700 text-neutral-300">
+                      <Icon icon="lucide:user" className="size-5 text-neutral-300" />
+                    </div>
+                  )}
+                </PopoverTrigger>
+
+                <PopoverContent
+                  align="end"
+                  side="bottom"
+                  sideOffset={8}
+                  className="w-64 p-1.5 rounded-xl border border-neutral-800 bg-[#1e1e1e] text-neutral-200 shadow-2xl shadow-black/80"
+                >
+                  {/* Account Summary Header */}
+                  <div className="px-3 py-2.5 border-b border-neutral-800/80 mb-1">
+                    <p className="text-xs font-semibold text-white truncate">
+                      {user.fullName || (user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.email.split('@')[0])}
+                    </p>
+                    <p className="text-[11px] text-neutral-400 truncate mt-0.5">
+                      {user.email}
+                    </p>
+                  </div>
+
+                  {/* 1. Xem hồ sơ */}
+                  <Link
+                    href="/profile"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80 transition-colors"
+                  >
+                    <Icon icon="lucide:user" className="size-4 text-neutral-400" />
+                    <span>Xem hồ sơ</span>
+                  </Link>
+
+                  {/* 2. Khóa học của tôi */}
+                  <Link
+                    href="/instructor/courses"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80 transition-colors"
+                  >
+                    <Icon icon="lucide:bookmark" className="size-4 text-neutral-400" />
+                    <span>Khóa học của tôi</span>
+                  </Link>
+
+                  {/* 3. Cài đặt tài khoản */}
+                  <Link
+                    href="/profile"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80 transition-colors"
+                  >
+                    <Icon icon="lucide:settings" className="size-4 text-neutral-400" />
+                    <span>Cài đặt tài khoản</span>
+                  </Link>
+
+                  {/* Divider */}
+                  <div className="my-1 border-t border-neutral-800" />
+
+                  {/* 4. Đăng xuất */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      logoutMutation.mutate();
+                    }}
+                    disabled={logoutMutation.isPending}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-neutral-800/80 transition-colors text-left"
+                  >
+                    <Icon icon="lucide:log-out" className="size-4 text-red-400" />
+                    <span>Đăng xuất</span>
+                  </button>
+                </PopoverContent>
+              </Popover>
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -215,27 +272,52 @@ export function PublicHeader({
           </nav>
 
           {isMounted && user && (
-            <div data-ui="mobile-drawer-footer" className="pt-2 border-t border-border flex flex-col gap-2">
-              {user.role === RoleEnum.ADMIN && (
-                <Link
-                  href="/admin/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={buttonVariants({ variant: 'outline', size: 'sm', className: 'w-full justify-start' })}
-                >
-                  <Icon icon="lucide:shield" className="size-4 mr-2 text-primary" />
-                  Trang quản trị Admin
-                </Link>
-              )}
-              {(user.role === RoleEnum.INSTRUCTOR || user.role === RoleEnum.ADMIN) && (
-                <Link
-                  href="/instructor/courses"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={buttonVariants({ variant: 'outline', size: 'sm', className: 'w-full justify-start' })}
-                >
-                  <Icon icon="lucide:book-open" className="size-4 mr-2" />
-                  Khóa học của tôi
-                </Link>
-              )}
+            <div data-ui="mobile-drawer-footer" className="pt-2 border-t border-neutral-800 flex flex-col gap-1">
+              <div className="px-3 py-2 border-b border-neutral-800/60 mb-1">
+                <p className="text-xs font-semibold text-white truncate">
+                  {user.fullName || (user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.email.split('@')[0])}
+                </p>
+                <p className="text-[11px] text-neutral-400 truncate mt-0.5">
+                  {user.email}
+                </p>
+              </div>
+              <Link
+                href="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
+              >
+                <Icon icon="lucide:user" className="size-4 text-neutral-400" />
+                <span>Xem hồ sơ</span>
+              </Link>
+              <Link
+                href="/instructor/courses"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
+              >
+                <Icon icon="lucide:bookmark" className="size-4 text-neutral-400" />
+                <span>Khóa học của tôi</span>
+              </Link>
+              <Link
+                href="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
+              >
+                <Icon icon="lucide:settings" className="size-4 text-neutral-400" />
+                <span>Cài đặt tài khoản</span>
+              </Link>
+              <div className="my-1 border-t border-neutral-800" />
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  logoutMutation.mutate();
+                }}
+                disabled={logoutMutation.isPending}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-neutral-800/80 transition-colors text-left"
+              >
+                <Icon icon="lucide:log-out" className="size-4 text-red-400" />
+                <span>Đăng xuất</span>
+              </button>
             </div>
           )}
         </div>

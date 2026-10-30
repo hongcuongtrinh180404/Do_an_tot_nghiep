@@ -256,3 +256,14 @@ sequenceDiagram
 | 8 | Đăng ký tài khoản thường (Email + Mật khẩu) | Yêu cầu xác thực Gmail qua link kích hoạt (Dành riêng cho Giai đoạn 2) | `[x]` |
 | 9 | Đăng xuất từ Menu người dùng | Xóa token tại client, revoke session ở DB, đồng bộ toàn bộ tabs qua BroadcastChannel | `[x]` |
 | 10 | Kiểm tra Code Quality | Không có kiểu dữ liệu `any`, chạy `pnpm test` và `pnpm build` pass 100% | `[x]` |
+
+---
+
+## 7. Bổ Sung 2026-10-30: Tạo Thêm Mật Khẩu Mindly
+
+- Tài khoản Google-only ban đầu vẫn có `passwordHash: null`. Người dùng có thể chọn **“Quên mật khẩu?”** tại `/login`, nhập email đã đăng nhập Google và nhận link để tạo mật khẩu riêng cho Mindly.
+- Điều kiện: account active, chưa xóa mềm, `isEmailVerified: true`, có `googleSub` hợp lệ. Service và atomic repository claim đều cho phép Google-only qua cùng luồng reset; giữ cooldown 60 giây và rate limit theo IP.
+- Token tồn tại 15 phút, single-use; chỉ sau submit mới lưu bcrypt hash, thu hồi session cũ trong transaction, giữ `googleSub`, ID và role. Đăng nhập Google và email/mật khẩu đều dùng cùng user.
+- API giữ nguyên thông báo chung chống dò email; UI/email dùng “Thiết lập mật khẩu” cho cả tạo lần đầu và reset.
+- Kiểm tra tích hợp: `backend/test/auth/password-reset.e2e-spec.ts` — **11/11 pass** với MongoDB replica set thật, Google token verification/mail delivery mock. Chưa xác nhận browser + email thật trong checklist thủ công.
+- Chi tiết API, vận hành và kết quả kiểm thử: [PLAN-forgot-password.md](PLAN-forgot-password.md).

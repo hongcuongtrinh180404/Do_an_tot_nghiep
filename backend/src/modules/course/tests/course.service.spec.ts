@@ -21,6 +21,7 @@ import {
 } from 'share-lib';
 import { CourseService } from '../services/course.service.js';
 import { CourseRepository } from '../repositories/course.repository.js';
+import { CourseCategoryRepository } from '../repositories/course-category.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
@@ -54,6 +55,9 @@ describe('CourseService', () => {
     softDeleteBySectionId: ReturnType<typeof vi.fn>;
   };
   let mockUserRepository: {
+    findById: ReturnType<typeof vi.fn>;
+  };
+  let mockCourseCategoryRepository: {
     findById: ReturnType<typeof vi.fn>;
   };
   let mockStorageService: {
@@ -119,6 +123,10 @@ describe('CourseService', () => {
       findById: vi.fn(),
     };
 
+    mockCourseCategoryRepository = {
+      findById: vi.fn(),
+    };
+
     mockCls = {
       get: vi.fn().mockReturnValue('instructor_1'),
     };
@@ -131,6 +139,7 @@ describe('CourseService', () => {
 
     service = new CourseService(
       mockCourseRepository as unknown as CourseRepository,
+      mockCourseCategoryRepository as unknown as CourseCategoryRepository,
       mockSectionRepository as unknown as SectionRepository,
       mockLessonRepository as unknown as LessonRepository,
       mockUserRepository as unknown as UserRepository,

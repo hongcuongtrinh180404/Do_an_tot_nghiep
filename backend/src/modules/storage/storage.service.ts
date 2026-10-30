@@ -88,11 +88,16 @@ export class StorageService implements IStorageService {
     const width = options.width || 500;
     const height = options.height || 500;
     const quality = options.quality || 80;
+    const fit = options.fit || 'cover';
 
     let processedBuffer: Buffer;
     try {
       processedBuffer = await sharp(file.buffer)
-        .resize(width, height, { fit: 'cover', position: 'center' })
+        .resize(width, height, {
+          fit,
+          position: 'center',
+          background: { r: 255, g: 255, b: 255, alpha: 0 },
+        })
         .webp({ quality })
         .toBuffer();
     } catch (err) {

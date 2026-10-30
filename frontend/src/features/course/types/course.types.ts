@@ -6,6 +6,10 @@ export {
 
 export type {
   ICourse,
+  ICourseCategory,
+  ICourseCategorySummary,
+  ICreateCourseCategoryPayload,
+  IUpdateCourseCategoryPayload,
   ICreateCoursePayload,
   ISection,
   ILesson,

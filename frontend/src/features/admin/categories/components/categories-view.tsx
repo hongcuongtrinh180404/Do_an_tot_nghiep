@@ -1,69 +1,89 @@
 'use client';
 
 import * as React from 'react';
-import { toast } from 'sonner';
+import type { ICourseCategory } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { DeleteConfirmDialog } from '@/components/shared/dialog/delete-confirm-dialog';
 import {
-  MOCK_CATEGORIES,
-  type CategoryItem,
-} from '../constants/mock-categories';
+  useAdminCategoriesQuery,
+  useDeleteCategoryMutation,
+  useSaveCategoryMutation,
+} from '../api/categories-admin.api';
 import { CategoriesTable } from './categories-table';
-import { CategoryModal } from './category-modal';
+import { CategoryModal, type SaveCategoryFormData } from './category-modal';
 
 export function CategoriesView(): React.JSX.Element {
-  const [categories, setCategories] = React.useState<CategoryItem[]>(MOCK_CATEGORIES);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [editingCategory, setEditingCategory] = React.useState<ICourseCategory | null>(null);
+  const [deletingCategory, setDeletingCategory] = React.useState<ICourseCategory | null>(null);
 
-  // Lọc danh mục theo từ khóa tìm kiếm
+  const categoriesQuery = useAdminCategoriesQuery({});
+  const saveMutation = useSaveCategoryMutation();
+  const deleteMutation = useDeleteCategoryMutation();
+
+  const categories = React.useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
+
   const filteredCategories = React.useMemo(() => {
     if (!searchQuery.trim()) return categories;
     const query = searchQuery.trim().toLowerCase();
     return categories.filter(
-      (cat) =>
-        cat.name.toLowerCase().includes(query) ||
-        cat.slug.toLowerCase().includes(query),
+      (category) =>
+        category.name.toLowerCase().includes(query) ||
+        category.slug.toLowerCase().includes(query) ||
+        (category.description ?? '').toLowerCase().includes(query),
     );
   }, [categories, searchQuery]);
 
-  // Thêm danh mục mới
-  const handleSaveCategory = (data: {
-    name: string;
-    slug: string;
-    imageUrl?: string;
-  }) => {
-    const newCategory: CategoryItem = {
-      id: `cat-${Date.now()}`,
-      name: data.name,
-      slug: data.slug,
-      courseCount: 0,
-      iconName: 'lucide:folder',
-      colorScheme: {
-        bg: 'bg-primary/10',
-        border: 'border-primary/20',
-        text: 'text-primary',
+  const activeCount = React.useMemo(
+    () => categories.filter((category) => category.isActive).length,
+    [categories],
+  );
+
+  const openCreateModal = () => {
+    setEditingCategory(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (category: ICourseCategory) => {
+    setEditingCategory(category);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    if (saveMutation.isPending) return;
+    setIsModalOpen(false);
+    setEditingCategory(null);
+  };
+
+  const handleSaveCategory = async (data: SaveCategoryFormData) => {
+    const isEdit = Boolean(editingCategory);
+
+    await saveMutation.mutateAsync({
+      id: editingCategory?.id,
+      payload: {
+        name: data.name,
+        slug: data.slug || undefined,
+        description: isEdit ? data.description || null : data.description || undefined,
+        order: data.order,
+        isActive: data.isActive,
       },
-      imageUrl: data.imageUrl,
-    };
-
-    setCategories((prev) => [newCategory, ...prev]);
-    toast.success('Đã lưu danh mục thành công!', {
-      description: `Danh mục "${data.name}" đã được thêm vào hệ thống.`,
+      imageFile: data.imageFile,
     });
+
+    setIsModalOpen(false);
+    setEditingCategory(null);
   };
 
-  // Trải nghiệm mẫu khi bấm sửa
-  const handleEditCategory = (category: CategoryItem) => {
-    toast.info(`[Giao diện mẫu] Chỉnh sửa danh mục: "${category.name}".`);
-  };
+  const handleDeleteCategory = () => {
+    if (!deletingCategory) return;
 
-  // Xóa danh mục khỏi state mẫu trên client
-  const handleDeleteCategory = (categoryId: string) => {
-    const target = categories.find((c) => c.id === categoryId);
-    setCategories((prev) => prev.filter((c) => c.id !== categoryId));
-    toast.success('Đã xóa danh mục thành công', {
-      description: target ? `Đã gỡ "${target.name}" khỏi danh sách.` : undefined,
+    deleteMutation.mutate(deletingCategory.id, {
+      onSuccess: () => {
+        setDeletingCategory(null);
+      },
     });
   };
 
@@ -76,12 +96,12 @@ export function CategoriesView(): React.JSX.Element {
             Quản lý Danh mục
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Danh sách phân loại sản phẩm và số lượng khóa học liên kết.
+            Danh sách phân loại khóa học và số lượng khóa học liên kết.
           </p>
         </div>
         <button
           type="button"
-          onClick={() => setIsModalOpen(true)}
+          onClick={openCreateModal}
           className="px-4 py-2.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer self-start sm:self-auto"
         >
           <Icon icon="lucide:plus" className="size-4" />
@@ -89,7 +109,7 @@ export function CategoriesView(): React.JSX.Element {
         </button>
       </div>
 
-      {/* 2. Bảng Danh Mục 3 Cột */}
+      {/* 2. Bảng Danh Mục */}
       <div className="bg-card text-card-foreground rounded-2xl border border-border/80 shadow-xs overflow-hidden">
         {/* Toolbar Tìm kiếm & Đếm số lượng */}
         <div className="p-4 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -101,7 +121,7 @@ export function CategoriesView(): React.JSX.Element {
             <Input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Tìm kiếm danh mục..."
               className="w-full text-xs pl-8 pr-3 py-2 bg-muted/40 border border-input rounded-xl outline-none focus:ring-2 focus:ring-foreground h-9"
             />
@@ -117,24 +137,80 @@ export function CategoriesView(): React.JSX.Element {
             )}
           </div>
 
-          <span className="text-xs text-muted-foreground font-medium">
-            Tổng cộng: {filteredCategories.length} danh mục
-          </span>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground font-medium">
+            <span>
+              Tổng cộng: {filteredCategories.length} danh mục
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              {activeCount} đang hiển thị
+            </span>
+          </div>
         </div>
 
         {/* Bảng Danh mục */}
-        <CategoriesTable
-          categories={filteredCategories}
-          onEdit={handleEditCategory}
-          onDelete={handleDeleteCategory}
-        />
+        {categoriesQuery.isLoading ? (
+          <div className="py-12 px-4 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+            <Icon icon="lucide:loader-2" className="size-6 animate-spin" />
+            <p className="text-xs font-medium">Đang tải danh sách danh mục...</p>
+          </div>
+        ) : categoriesQuery.isError ? (
+          <div className="py-12 px-4 text-center flex flex-col items-center justify-center space-y-3">
+            <div className="size-12 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
+              <Icon icon="lucide:alert-circle" className="size-6" />
+            </div>
+            <p className="text-sm font-semibold text-foreground">Không thể tải danh mục</p>
+            <p className="text-xs text-muted-foreground">
+              Đã xảy ra lỗi khi kết nối máy chủ. Vui lòng thử lại sau.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => {
+                void categoriesQuery.refetch();
+              }}
+            >
+              <Icon icon="lucide:refresh-cw" className="size-3.5 mr-1.5" />
+              Thử lại
+            </Button>
+          </div>
+        ) : (
+          <CategoriesTable
+            categories={filteredCategories}
+            onEdit={openEditModal}
+            onDelete={setDeletingCategory}
+          />
+        )}
       </div>
 
-      {/* 3. Dialog / Modal Thêm Danh Mục Mới */}
-      <CategoryModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveCategory}
+      {/* 3. Dialog / Modal Thêm Hoặc Sửa Danh Mục */}
+      {isModalOpen ? (
+        <CategoryModal
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          category={editingCategory}
+          isSaving={saveMutation.isPending}
+          onSave={handleSaveCategory}
+        />
+      ) : null}
+
+      {/* 4. Dialog Xác nhận xóa */}
+      <DeleteConfirmDialog
+        open={Boolean(deletingCategory)}
+        onOpenChange={(open) => {
+          if (!open && !deleteMutation.isPending) setDeletingCategory(null);
+        }}
+        itemName={deletingCategory?.name}
+        description={
+          deletingCategory && (deletingCategory.courseCount ?? 0) > 0
+            ? `Danh mục "${deletingCategory.name}" đang có ${deletingCategory.courseCount} khóa học. Bạn cần chuyển các khóa học sang danh mục khác trước khi xóa.`
+            : undefined
+        }
+        onConfirm={handleDeleteCategory}
+        isLoading={deleteMutation.isPending}
+        confirmText="Xóa danh mục"
       />
     </div>
   );

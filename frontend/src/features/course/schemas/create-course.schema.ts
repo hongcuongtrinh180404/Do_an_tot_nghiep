@@ -45,6 +45,7 @@ export const createCourseSchema = z.object({
   level: z.nativeEnum(CourseLevelEnum, {
     message: 'Vui lòng chọn cấp độ khóa học hợp lệ',
   }),
+  categoryId: z.string().optional().or(z.literal('')),
 });
 
 export type CreateCourseFormData = z.infer<typeof createCourseSchema>;

@@ -22,6 +22,7 @@ import {
 import { slugify } from '../utils/slugify';
 import { useCreateCourseMutation } from '../api/course.api';
 import { CourseLevelSelect } from './course-level-select';
+import { CourseCategorySelect } from './course-category-select';
 
 export function CreateCourseForm(): React.JSX.Element {
   const isSlugManuallyModified = useRef(false);
@@ -44,6 +45,7 @@ export function CreateCourseForm(): React.JSX.Element {
       description: '',
       price: 0,
       level: CourseLevelEnum.ALL_LEVELS,
+      categoryId: '',
     },
   });
 
@@ -84,6 +86,7 @@ export function CreateCourseForm(): React.JSX.Element {
         description: data.description?.trim() || undefined,
         price: data.price !== undefined ? Number(data.price) : 0,
         level: data.level,
+        categoryId: data.categoryId || undefined,
       },
       {
         onError: (error: unknown) => {
@@ -185,8 +188,8 @@ export function CreateCourseForm(): React.JSX.Element {
             )}
           </div>
 
-          {/* Price & Level Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Price, Level & Category Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Price Field */}
             <div className="space-y-1.5">
               <Label htmlFor="price">
@@ -241,6 +244,36 @@ export function CreateCourseForm(): React.JSX.Element {
               {errors.level && (
                 <p className="text-xs font-medium text-destructive mt-1">
                   {errors.level.message}
+                </p>
+              )}
+            </div>
+
+            {/* Category Field */}
+            <div className="space-y-1.5">
+              <Label htmlFor="categoryId">
+                Danh mục <span className="text-xs text-muted-foreground">(Tùy chọn)</span>
+              </Label>
+              <Controller
+                control={control}
+                name="categoryId"
+                render={({ field, fieldState }) => (
+                  <CourseCategorySelect
+                    id="categoryId"
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    disabled={isPending}
+                    isInvalid={Boolean(fieldState.error)}
+                  />
+                )}
+              />
+              {errors.categoryId ? (
+                <p className="text-xs font-medium text-destructive mt-1">
+                  {errors.categoryId.message}
+                </p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Phân loại khóa học trên trang khám phá
                 </p>
               )}
             </div>

@@ -3,6 +3,7 @@ import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 import { CourseLevelEnum, CourseStatusEnum } from 'share-lib';
 import { BaseAbstractDocument } from '../../base/index.js';
 import { UserEntity } from '../../user/schemas/user.schema.js';
+import { CourseCategoryEntity } from './course-category.schema.js';
 
 export type CourseDocument = HydratedDocument<CourseEntity>;
 
@@ -55,6 +56,14 @@ export class CourseEntity extends BaseAbstractDocument {
     index: true,
   })
   level: CourseLevelEnum;
+
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: CourseCategoryEntity.name,
+    default: null,
+    index: true,
+  })
+  categoryId?: Types.ObjectId | null;
 }
 
 export const CourseSchema = SchemaFactory.createForClass(CourseEntity);
@@ -74,3 +83,6 @@ CourseSchema.index({ instructorId: 1, deletedAt: 1, createdAt: -1 });
 
 // 3. Published Catalog Query Index: Optimized for public course catalog filtering & sorting
 CourseSchema.index({ status: 1, deletedAt: 1, createdAt: -1 });
+
+// 4. Category Catalog Query Index: lọc khóa học theo danh mục cho catalog công khai
+CourseSchema.index({ categoryId: 1, status: 1, deletedAt: 1, createdAt: -1 });

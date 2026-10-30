@@ -1,5 +1,6 @@
 import { CourseStatusEnum } from '../enums/course-status.enum.js';
 import { CourseLevelEnum } from '../enums/course-level.enum.js';
+import type { ICourseCategorySummary } from './course-category.interface.js';
 
 export interface ICourse {
   id: string;
@@ -14,6 +15,8 @@ export interface ICourse {
   instructorId: string;
   status: CourseStatusEnum;
   level: CourseLevelEnum;
+  categoryId?: string | null;
+  category?: ICourseCategorySummary | null;
   createdAt: Date | string;
   updatedAt: Date | string;
   deletedAt?: Date | string | null;
@@ -29,6 +32,7 @@ export interface ICreateCoursePayload {
   thumbnailUrl?: string;
   price?: number;
   level?: CourseLevelEnum;
+  categoryId?: string;
 }
 
 export interface IUpdateCoursePayload {
@@ -42,4 +46,5 @@ export interface IUpdateCoursePayload {
   originalPrice?: number | null;
   status?: CourseStatusEnum;
   level?: CourseLevelEnum;
+  categoryId?: string | null;
 }

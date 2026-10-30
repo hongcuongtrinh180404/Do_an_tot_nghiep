@@ -340,3 +340,55 @@
   - Centered auth card container seamlessly in the viewport with optimized `max-w-[400px]`, rounded-xl inputs, high-contrast typography, and single switch link under the card footer.
   - Retained 50/50 responsive split showcase on wide desktop displays (`lg:` breakpoint) with graceful centered single column on mobile and tablet.
   - Unit tests updated and verified 100% passing (8/8 tests).
+
+### [2026-10-30] - Complete Forgot Password & Reset Password Flow with Anti-Enumeration
+
+- **Problem**: Mindly had no way for users who forgot their password to recover their account. The login page needed a right-aligned “Quên mật khẩu?” link opening an in-page modal, a 15-minute single-use reset link sent by email, a `/reset-password` page, resend cooldown, IP rate limiting, and protection against email enumeration. The flow also had to revoke old sessions after a successful reset and remain usable when SMTP delivery fails.
+- **Root Cause**: The auth module only supported login, registration, Google OAuth, and email verification. There was no reset-token model, no repository/service logic to claim or consume reset tokens, no reset email template, no reset UI, and no throttling on public auth endpoints. A naive implementation would leak whether an email exists, allow token reuse, or leave old sessions alive after a password change.
+- **Solution**:
+  - **Shared contracts (`share-lib`)**: Added `IForgotPasswordPayload`, `IForgotPasswordResponse`, `IResetPasswordPayload`, `IResetPasswordResponse`; added `passwordResetTokenHash`, `passwordResetExpires`, `passwordResetRequestedAt` to `IUser`; added reset TTL/cooldown/messages to `AUTH_CONSTANTS`.
+  - **User persistence**: Added the three reset fields to `UserEntity` with `select: false` and a partial index on `passwordResetTokenHash`. Deliberately did **not** add a TTL index on `passwordResetExpires` because MongoDB TTL would delete the whole user document. Added repository/service methods `findByEmailForPasswordReset`, `findByPasswordResetTokenHash`, `claimPasswordResetRequest`, `clearPasswordResetRequest`, `consumePasswordResetToken`, and `runInTransaction`.
+  - **Backend flow**: Created `PasswordResetService` with anti-enumeration logic (active + verified + local password only), 32-byte random token, SHA-256 storage, 15-minute expiry, atomic claim, 60-second per-account cooldown, atomic single-use consume inside a transaction, and `revokeAllUserSessions` after success. Added `ForgotPasswordDto` (lowercase/trim email) and `ResetPasswordDto` (64-hex token, min 6 password). Added `POST /auth/forgot-password` (5 req/15 min/IP) and `POST /auth/reset-password` (10 req/15 min/IP) with `@nestjs/throttler`. Added `MailService.sendPasswordResetEmail` with HTML template and terminal fallback when SMTP is not configured.
+  - **SMTP failure policy**: Always return HTTP 200 with the generic message; roll back the token hash/expiry/requestedAt so the user can retry immediately; log the failure server-side without the raw token.
+  - **Frontend**: Added Zod schemas, API methods, `useForgotPasswordMutation`, `useResetPasswordMutation`, `ForgotPasswordModal` (form/sent/error + 60s resend countdown), `ResetPasswordContent` (invalid token/success/form + 3s redirect), and `/reset-password` page with `Suspense` and `metadata.referrer = 'no-referrer'`. Added the right-aligned link and modal wiring to `LoginForm`. The modal is remounted via a `key` on each open to reset state without calling `setState` inside `useEffect`.
+  - **Tests & verification**: Added 11 backend unit tests in `password-reset.service.spec.ts` and 7 frontend schema/message tests in `password-reset-schema.spec.ts`. `pnpm --filter backend test` passes 605/605 tests across 52 files; backend build/lint pass; frontend schema tests 15/15 pass; frontend lint and build pass with `/reset-password` present.
+  - **Docs**: Added `docs/PLAN-forgot-password.md` and updated `tech-spec.md`, `rules-and-flows.md`, `dependencies.md`, `dev-history.md`, and `docs/PROJECT_STRUCTURE.md`. No new environment variables were introduced.
+- **Gotchas & Lessons**:
+  - Never add a TTL index on a user-owned expiry field (`passwordResetExpires`); use a partial index on the token hash and filter by expiry in queries instead.
+  - Always return the exact generic message `Nếu email đã được đăng ký, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.` for every account state, including SMTP failure and cooldown.
+  - Claim the request atomically before sending email; otherwise concurrent requests can send multiple emails and overwrite each other's tokens.
+  - Consume the token only on form submit, not on page load, to avoid email security scanners burning the link.
+  - Mongoose 9 `updateOne` options require `session?: ClientSession | undefined`; passing `session ?? null` causes `TS2769`. Use `session ? { session } : undefined`.
+  - React 19 ESLint rejects synchronous `setState` inside `useEffect`; remount the modal with a changing `key` when it opens instead of resetting state in an effect.
+  - Frontend schema tests cannot run with plain `node --test` because of extensionless TS imports; run them through backend's `tsx` binary.
+  - Rebuild `share-lib` before backend/frontend verification whenever shared contracts change.
+  - Do not touch the unrelated course/category work in progress when updating auth docs or code.
+
+### [2026-10-30] - Reconcile Password Reset Docs with Runtime Behavior
+
+- **Problem**: The initial reset documentation described token-log protection and immediate retry too broadly, used the wrong success response envelope, and lacked reproducible environment/test instructions.
+- **Root Cause**: Intended security rules were mixed with implementation behavior: missing SMTP credentials log a reset URL and return success, configured SMTP failure triggers rollback, and the UI cannot distinguish either outcome from the generic response. `ApiResponse` uses `success` and `timestamp`, not `statusCode`, in successful response bodies.
+- **Solution**: Corrected response examples in `tech-spec.md`; synchronized token fallback, hash-guarded rollback, backend cooldown versus UI countdown, route-specific throttle overrides, and transaction requirements across auth Living Docs. Added SMTP/local setup and targeted test commands to `docs/GETTING_STARTED.md`; expanded the plan's unrun manual checklist for SMTP fallback, concurrency and transaction rollback. Added deployment caveats for per-instance throttle storage, reverse-proxy IP handling and timing side channels. Updated `docs/PROJECT_STRUCTURE.md` links. This follow-up changes documentation only; previous build/test results are retained as historical results, not rerun claims.
+- **Gotchas & Lessons**:
+  - Missing SMTP credentials currently prints the raw reset URL without checking `NODE_ENV`. This is a **known unresolved production security gap**, not fixed by this docs update. Do not publish real tokens in logs, screenshots or test reports.
+  - Rollback clears only the matching failed request and does not restore an older overwritten link. Backend retry is still subject to IP throttling; the current modal keeps a 60-second resend countdown after generic success.
+  - Generic status/message does not prove delivery or timing-side-channel resistance. DTO validation, throttling and database errors are separate paths.
+  - Mock-based service tests do not establish real MongoDB concurrency/rollback or actual SMTP delivery. Manual E2E remains pending; do not mark the release checklist complete without evidence.
+
+### [2026-10-30] - Allow Google Accounts to Create a Mindly Password
+
+- **Problem**: A user who originally signed in with Google received the generic forgot-password response but no email, and requested the ability to establish a separate Mindly password while keeping Google login.
+- **Root Cause**: Google signup stores `passwordHash: null`. Both `PasswordResetService.isEligibleForPasswordReset` and `UserRepository.claimPasswordResetRequest` required a local password, so the request stopped before reaching `MailService`. This entry supersedes the initial local-password-only policy above.
+- **Solution**:
+  - Eligible active, email-verified accounts may have either a non-empty local password or a non-blank verified `googleSub`. Updated both service and atomic claim; combined credential and cooldown alternatives with `$and` so Google accounts cannot bypass cooldown.
+  - Reused the existing random/hash-only token, expiry, single-use consume and transaction. The first local bcrypt hash is stored on the same user only after token submission; `googleSub`, ID and role remain intact, and existing sessions are revoked.
+  - Updated modal guidance, reset page/metadata, email template and shared success message to support “Thiết lập mật khẩu”. The exact generic forgot-password response is unchanged and exposes no account type.
+  - Extended reset-service unit coverage to **17 tests** and added **11 integration tests** in `backend/test/auth/password-reset.e2e-spec.ts` using real MongoDB replica-set transactions and bcrypt with mocked Google verification/mail. Tests cover dual login on one account, old refresh-token revocation, account eligibility in both service and query, concurrent claim/cooldown, resend invalidation, SMTP retry, expiry, concurrent single-use and rollback on session-revocation failure.
+  - Verification: shared/backend/frontend builds pass; backend **611/611 tests in 52 files**, integration **11/11**, frontend schemas **15/15**, frontend lint clean, backend lint passes with existing unrelated warnings. Targeted TypeScript checks for the changed unit/integration tests also pass.
+  - Updated auth Living Docs, `docs/PLAN-forgot-password.md`, `docs/PLAN-google-auth.md`, `docs/GETTING_STARTED.md` and `docs/PROJECT_STRUCTURE.md`. No endpoint, schema or environment-variable additions.
+- **Gotchas & Lessons**:
+  - Changing only service eligibility leaves the repository's local-password filter blocking Google-only accounts; validate the real MongoDB path.
+  - Use the persisted Google identity (`googleSub`), not a client-provided provider flag. Continue requiring active/verified status and soft-delete/cooldown checks.
+  - Initial setup and reset share the same token lifecycle; requesting a link must never set a password or remove Google linkage.
+  - `OAuth2Client.verifyIdToken` has a callback overload returning `void`, so Vitest `mockResolvedValue(LoginTicket)` fails strict type checking. Use an async `mockImplementation` returning a real `LoginTicket` for the promise-based service call.
+  - Integration coverage confirms persistence and login behavior, not actual Google network verification or inbox delivery. Browser/real-mail E2E remains pending; the previously documented terminal-token fallback issue is still open.

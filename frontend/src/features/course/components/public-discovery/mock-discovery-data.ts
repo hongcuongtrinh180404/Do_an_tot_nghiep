@@ -19,14 +19,6 @@ export interface IPublicCourseCard extends ICourse {
   };
 }
 
-export interface ICourseCategory {
-  id: string;
-  name: string;
-  slug: string;
-  courseCount: number;
-  iconName: string;
-}
-
 export interface IHighlightCourseCard {
   id: string;
   title: string;
@@ -37,15 +29,6 @@ export interface IHighlightCourseCard {
   originalPrice?: number;
   badge?: string;
 }
-
-export const COURSE_CATEGORIES: ICourseCategory[] = [
-  { id: 'cat-all', name: 'Tất cả lĩnh vực', slug: 'all', courseCount: 48, iconName: 'lucide:sparkles' },
-  { id: 'cat-dev', name: 'Lập trình & Kỹ thuật', slug: 'lap-trinh', courseCount: 16, iconName: 'lucide:code-2' },
-  { id: 'cat-ai', name: 'AI & Khoa học Dữ liệu', slug: 'ai-data', courseCount: 12, iconName: 'lucide:cpu' },
-  { id: 'cat-design', name: 'Thiết kế UI/UX & Đồ họa', slug: 'thiet-ke', courseCount: 9, iconName: 'lucide:palette' },
-  { id: 'cat-video', name: 'Dựng Video & Đa phương tiện', slug: 'dung-video', courseCount: 6, iconName: 'lucide:film' },
-  { id: 'cat-biz', name: 'Kinh doanh & Marketing số', slug: 'kinh-doanh', courseCount: 5, iconName: 'lucide:trending-up' },
-];
 
 export const MOCK_PUBLIC_COURSES: IPublicCourseCard[] = [
   {

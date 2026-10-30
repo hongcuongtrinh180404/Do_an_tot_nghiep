@@ -11,6 +11,10 @@ import type {
   IGoogleAuthPayload,
   IVerifyEmailPayload,
   IResendVerificationPayload,
+  IForgotPasswordPayload,
+  IForgotPasswordResponse,
+  IResetPasswordPayload,
+  IResetPasswordResponse,
   IUserProfile,
 } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
@@ -61,6 +65,31 @@ export const authApi = {
       '/auth/resend-verification',
       {
         email: payload.email.trim(),
+      },
+    );
+    return res.data.data;
+  },
+
+  async forgotPassword(
+    payload: IForgotPasswordPayload,
+  ): Promise<IForgotPasswordResponse> {
+    const res = await apiClient.post<IApiResponse<IForgotPasswordResponse>>(
+      '/auth/forgot-password',
+      {
+        email: payload.email.trim(),
+      },
+    );
+    return res.data.data;
+  },
+
+  async resetPassword(
+    payload: IResetPasswordPayload,
+  ): Promise<IResetPasswordResponse> {
+    const res = await apiClient.post<IApiResponse<IResetPasswordResponse>>(
+      '/auth/reset-password',
+      {
+        token: payload.token.trim(),
+        password: payload.password,
       },
     );
     return res.data.data;
@@ -212,6 +241,31 @@ export function useResendVerificationMutation() {
           : 'Không thể gửi lại email xác thực. Vui lòng thử lại sau.';
       toast.error('Lỗi gửi email', {
         description: message,
+      });
+    },
+  });
+}
+
+export function useForgotPasswordMutation() {
+  return useMutation({
+    mutationFn: (payload: IForgotPasswordPayload) => authApi.forgotPassword(payload),
+  });
+}
+
+export function useResetPasswordMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: IResetPasswordPayload) => authApi.resetPassword(payload),
+    onSuccess: (data: IResetPasswordResponse) => {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+      }
+      queryClient.removeQueries({ queryKey: authKeys.all });
+      toast.success('Đặt lại mật khẩu thành công!', {
+        description: data.message || 'Vui lòng đăng nhập bằng mật khẩu mới.',
       });
     },
   });

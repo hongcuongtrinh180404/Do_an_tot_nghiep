@@ -13,6 +13,32 @@
 
 ## 2. Technical Notes & Gotchas
 
+- **Milestone 29 (Category Modal Redesign & Anti-Slop Admin Form Craft)**:
+  - Tái thiết kế toàn diện modal Thêm mới & Chỉnh sửa danh mục (`CategoryModal` tại `frontend/src/features/admin/categories/components/category-modal.tsx`) theo bộ kỹ năng `/design-taste-frontend` (App Screens) và thẩm định bằng `/web-design-guidelines`:
+    - **Loại bỏ trường "Thứ tự hiển thị"**: Ẩn hoàn toàn khỏi giao diện ở cả chế độ Thêm mới và Chỉnh sửa theo đúng quyết định Socratic Gate. Tự động gán `order = 0` khi tạo mới và giữ nguyên `category.order` khi chỉnh sửa, tinh giản trải nghiệm nhập liệu của Admin.
+    - **Status Bar Card**: Nâng cấp trường "Trạng thái hoạt động" thành thẻ ngang nguyên khối tinh tế: chấm chỉ báo màu ngọc lục bảo (`emerald-500`), nhãn trực quan kèm mô tả chi tiết, badge trạng thái ("Đang hiển thị" / "Tạm ẩn") và nút switch mượt mà đạt chuẩn accessibility (`role="switch"`, `aria-checked`, `htmlFor`).
+    - **Compact Media Uploader**: Thay thế khung viền nét đứt to cồng kềnh trước đây bằng cụm chọn ảnh nhỏ gọn (thumbnail bo góc mềm 1:1, thông tin ảnh trực quan, nút "Tải ảnh lên / Thay đổi" và nút "Gỡ bỏ" công thái học).
+    - **Live Slug Preview**: Hiển thị đường dẫn tĩnh dự kiến real-time ngay dưới ô tên danh mục khi tạo mới, giữ nút tạo lại slug khi chỉnh sửa.
+    - **Web Design Guidelines & Code Quality Compliance**:
+      - Vượt qua kiểm tra `audit-ui.mjs` đạt chuẩn Vercel Web Interface Guidelines (0 lỗi).
+      - Loại bỏ toàn bộ inline font classes (`font-mono`, `font-sans`) tuân thủ nghiêm ngặt Project Architecture Rules.
+      - Tương thích tối đa với React 19 & React Compiler: áp dụng `useWatch` và state derivation thay cho `useEffect(setState)`.
+      - Đạt 100% tiêu chuẩn chất lượng: ESLint 0 errors, TypeScript `tsc --noEmit` 0 errors, Monorepo 605/605 backend tests pass.
+
+- **Milestone 28 (Public Header User Dropdown & Domestika Minimalist Session Navigation)**:
+  - Tái cấu trúc khu vực User Session trên thanh Header trang chủ (`frontend/src/features/course/components/public-discovery/public-header.tsx`) theo chuẩn phong cách tối giản Domestika và tuân thủ nguyên tắc `/design-taste-frontend`:
+    - Loại bỏ hoàn toàn icon thông báo (chuông) và giỏ hàng (xe đẩy) theo yêu cầu.
+    - Chuyển nút "Khóa học của tôi" (My courses) từ button outline thô sang dạng text link tinh tế (`text-sm font-medium text-neutral-300 hover:text-white transition-colors`), ăn khớp liền mạch với typography của các mục điều hướng còn lại.
+    - Tích hợp Avatar người dùng dạng tròn (`size-9 sm:size-10 rounded-full border border-neutral-700 hover:border-neutral-500 overflow-hidden`), tự động hiển thị ảnh đại diện cá nhân hoặc icon fallback thanh lịch.
+    - Khi click vào Avatar, bung ra Dropdown Popover nổi (`@/components/ui/popover`) trên nền than tối `#1e1e1e`, viền `border-neutral-800` với shadow đa tầng `shadow-2xl shadow-black/80`.
+    - Menu dropdown tích hợp đúng 4 mục thiết yếu chuẩn UX:
+      1. **Xem hồ sơ** (See profile) -> `/profile`
+      2. **Khóa học của tôi** (My courses) -> `/instructor/courses`
+      3. **Cài đặt tài khoản** (Account settings) -> `/profile`
+      4. **Đăng xuất** (Log out) -> kích hoạt `logoutMutation` và dọn dẹp phiên làm việc.
+    - Đồng bộ hóa logic và giao diện cho cả bản Drawer trên thiết bị di động (Mobile Menu).
+    - Đảm bảo 100% tuân thủ Purple Ban, Clean Code, TypeScript check và ESLint không lỗi.
+
 - **Milestone 27 (News & Highlights Dark Mode Media Carousel - Domestika Editorial Style)**:
   - Thiết kế và triển khai Media Carousel dạng thẻ đứng (aspect 3:4) hiển thị trên nền tối `bg-[#141414]` đặt ngay dưới section "Khóa học nổi bật được cộng đồng đánh giá cao" (`FeaturedCourses`) trên trang chủ (`frontend/src/app/page.tsx`).
   - Xây dựng component `NewsHighlightsCarousel` (`frontend/src/features/course/components/public-discovery/news-highlights-carousel.tsx`):

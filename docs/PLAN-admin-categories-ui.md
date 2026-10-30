@@ -1,5 +1,10 @@
 # Kế Hoạch Triển Khai: Giao Diện Quản Lý Danh Mục & Phân Loại (Admin Categories)
 
+> [!NOTE]
+> **Tài liệu này đã được thay thế.** Kế hoạch mock UI bên dưới đã được thay bằng triển khai
+> thật với collection `course_categories`, upload ảnh MinIO và CRUD API. Xem
+> `C:\Users\cuong\.opencode\plan\PLAN-course-category-tag.md` cho kế hoạch hiện hành.
+
 > **Mục tiêu:**
 > Xây dựng lại hoàn chỉnh giao diện phân hệ **[Quản Lý Danh Mục & Phân Loại | DATN Portal Admin](http://localhost:3000/admin/categories)** theo đúng bản mẫu HTML/CSS do người dùng cung cấp.
 > 

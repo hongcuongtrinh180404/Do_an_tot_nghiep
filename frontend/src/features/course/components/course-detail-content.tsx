@@ -14,6 +14,7 @@ import {
   CourseTitleInlineEdit,
   CoursePriceInlinePopover,
   CourseLevelInlineSelect,
+  CourseCategoryInlineSelect,
   CourseShortDescInlineCard,
   CourseDescInlineCard,
 } from './inline';
@@ -181,6 +182,21 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
               <Icon icon="lucide:layers" className="size-3" />
               {levelText}
             </span>
+            {course.category ? (
+              <span className="inline-flex max-w-[220px] items-center gap-1 text-xs text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-md border border-border/40 font-medium">
+                {course.category.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={course.category.imageUrl}
+                    alt=""
+                    className="size-3.5 shrink-0 rounded object-contain"
+                  />
+                ) : (
+                  <Icon icon="lucide:tag" className="size-3 shrink-0" />
+                )}
+                <span className="truncate">{course.category.name}</span>
+              </span>
+            ) : null}
           </div>
 
           {/* Title */}
@@ -189,12 +205,15 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
 
         {/* Quick Stats Grid */}
         <CardContent className="pt-4 border-t border-border/40">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {/* Price Popover */}
             <CoursePriceInlinePopover course={course} />
 
             {/* Level Select */}
             <CourseLevelInlineSelect course={course} />
+
+            {/* Category Select */}
+            <CourseCategoryInlineSelect course={course} />
 
             {/* Status */}
             <div className="p-3 rounded-lg bg-muted/25 border border-border/30">

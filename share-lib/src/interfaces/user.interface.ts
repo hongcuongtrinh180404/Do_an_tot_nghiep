@@ -16,6 +16,9 @@ export interface IUser {
   isEmailVerified?: boolean;
   emailVerificationToken?: string | null;
   emailVerificationExpires?: Date | string | null;
+  passwordResetTokenHash?: string | null;
+  passwordResetExpires?: Date | string | null;
+  passwordResetRequestedAt?: Date | string | null;
   /** @deprecated Kept for backward compatibility during migration */
   password?: string | null;
   /** @deprecated Kept for backward compatibility during migration */

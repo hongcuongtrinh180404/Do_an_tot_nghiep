@@ -103,6 +103,27 @@ THROTTLE_TTL=60000
 THROTTLE_LIMIT=100
 ```
 
+#### Email xác thực và quên mật khẩu
+
+Luồng quên mật khẩu dùng lại các biến có sẵn trong `backend/.env.example`, không yêu cầu biến mới:
+
+```env
+FRONTEND_URL=http://localhost:3000
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+GMAIL_USER=your_email@gmail.com
+GMAIL_APP_PASSWORD=your_16_digit_app_password
+```
+
+- Thay placeholder bằng tài khoản/hòm thư thử nghiệm; dùng Gmail App Password, không dùng mật khẩu đăng nhập Gmail. Không commit thông tin xác thực.
+- `FRONTEND_URL` trỏ tới frontend mà người nhận email truy cập được; link reset dẫn tới `/reset-password?token=...`, không phải URL backend.
+- **Hành vi local hiện tại:** thiếu `GMAIL_USER` hoặc `GMAIL_APP_PASSWORD` thì backend in link reset ra terminal và coi là gửi thành công. Đây không phải email thật; token và cooldown vẫn được giữ.
+- **Cảnh báo production:** fallback trên chưa được giới hạn bằng `NODE_ENV`, có thể làm lộ token qua log. Cần xử lý nhánh này trước khi triển khai production; chỉ cấu hình `NODE_ENV=production` không tự tắt fallback.
+- Khi SMTP đã cấu hình nhưng gửi lỗi: API vẫn trả thông báo chung, backend xóa token/cooldown đúng request; UI vẫn chờ 60 giây để gửi lại. HTTP 200 không xác nhận email đã đến hộp thư.
+- Reset mật khẩu + thu hồi session dùng transaction: MongoDB phải chạy replica set/sharded cluster (local Compose đã dùng `rs0`).
+- `THROTTLE_TTL` / `THROTTLE_LIMIT` là mặc định của module; hai endpoint forgot/reset có giới hạn riêng 5/10 request mỗi 15 phút/IP. Xem [kế hoạch và checklist reset mật khẩu](PLAN-forgot-password.md).
+
 ### 3.2. Cấu hình Frontend (`frontend/.env.local` hoặc `frontend/.env`)
 
 Tạo file `frontend/.env`:
@@ -178,7 +199,9 @@ Sau khi khởi chạy thành công:
    * Bạn có thể test:
      * Trang chủ `/`: Giới thiệu hệ thống, trạng thái API, thông tin công nghệ.
      * Trang đăng ký `/register`: Đăng ký tài khoản sinh viên / giảng viên mới (có thanh đo độ mạnh mật khẩu và iconify).
-     * Trang đăng nhập `/login`: Đăng nhập lấy JWT Access Token và Cookie Refresh Token.
+      * Trang đăng nhập `/login`: Đăng nhập lấy JWT Access Token và Cookie Refresh Token.
+      * Luồng quên mật khẩu: bấm “Quên mật khẩu?” tại `/login`, dùng tài khoản active/đã verify có mật khẩu local **hoặc đã liên kết Google**, mở link email để tạo/đặt mật khẩu mới tại `/reset-password`. Không dùng tài khoản thật khi kiểm thử vì thao tác sẽ thu hồi toàn bộ session.
+      * Tài khoản Google-only: nhập đúng email từng dùng để đăng nhập Google → “Gửi liên kết” → mở email “Thiết lập mật khẩu” → nhập mật khẩu và xác nhận → “Lưu mật khẩu Mindly”. Sau đó email/mật khẩu và nút Google đều đăng nhập vào cùng tài khoản.
 
 2. **Backend Health Check**:
    * Truy cập trình duyệt hoặc Postman: [http://localhost:8000/api/v1](http://localhost:8000/api/v1)
@@ -204,6 +227,29 @@ pnpm test
 # Hoặc chỉ chạy test ở Backend
 pnpm --filter backend test
 ```
+
+Kiểm tra riêng reset service (từ thư mục gốc, sau khi build `share-lib`):
+
+```powershell
+pnpm --filter share-lib build
+pnpm --filter backend test -- src/modules/auth/tests/password-reset.service.spec.ts
+```
+
+Kiểm tra tích hợp Google → tạo mật khẩu → đăng nhập bằng hai cách (MongoDB phải hỗ trợ transaction; Google verification và mail delivery được mock):
+
+```powershell
+pnpm --filter backend test:e2e -- test/auth/password-reset.e2e-spec.ts
+```
+
+Suite tạo/xóa riêng database `mindly_password_setup_test_<pid>`, sử dụng `MONGODB_URI` của process hoặc mặc định `mongodb://localhost:27017`. Không cần cấu hình Gmail thật để chạy suite này.
+
+Schema tests của frontend hiện dùng `tsx` từ backend. Chạy từ thư mục `frontend` trên PowerShell:
+
+```powershell
+& "..\backend\node_modules\.bin\tsx.CMD" --test "src/features/auth/tests/auth-showcase-and-schema.spec.ts" "src/features/auth/tests/password-reset-schema.spec.ts"
+```
+
+Unit tests dùng mock không thay thế E2E với MongoDB/SMTP thật. Theo dõi các mục chưa chạy tại [PLAN-forgot-password.md, mục 8](PLAN-forgot-password.md#8-checklist-kiểm-thử-thủ-công-manual-e2e).
 
 ---
 

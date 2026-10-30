@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { SeedModule } from './seed.module.js';
 import { UserSeeder } from '../../modules/user/seeds/user.seeder.js';
+import { CourseCategorySeeder } from '../../modules/course/seeds/course-category.seeder.js';
 import { ISeeder } from './seeder.interface.js';
 
 async function bootstrap() {
@@ -21,7 +22,7 @@ async function bootstrap() {
   });
 
   try {
-    const seeders: ISeeder[] = [app.get(UserSeeder)];
+    const seeders: ISeeder[] = [app.get(UserSeeder), app.get(CourseCategorySeeder)];
 
     for (const seeder of seeders) {
       logger.log(`Executing ${seeder.name}...`);

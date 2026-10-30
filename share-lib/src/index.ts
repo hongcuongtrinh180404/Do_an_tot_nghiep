@@ -14,6 +14,7 @@ export * from './interfaces/auth.interface.js';
 export * from './interfaces/session.interface.js';
 export * from './interfaces/api-response.interface.js';
 export * from './interfaces/course.interface.js';
+export * from './interfaces/course-category.interface.js';
 export * from './interfaces/section.interface.js';
 export * from './interfaces/lesson.interface.js';
 export * from './interfaces/lesson-transcript.interface.js';

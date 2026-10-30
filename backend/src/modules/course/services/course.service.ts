@@ -19,6 +19,7 @@ import {
 } from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { CourseRepository } from '../repositories/course.repository.js';
+import { CourseCategoryRepository } from '../repositories/course-category.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
@@ -39,12 +40,14 @@ export interface CreateCourseInput {
   price?: number;
   status?: CourseStatusEnum;
   level?: CourseLevelEnum;
+  categoryId?: string | null;
 }
 
 @Injectable()
 export class CourseService extends BaseService<ICourse, string> {
   constructor(
     protected readonly courseRepository: CourseRepository,
+    protected readonly courseCategoryRepository: CourseCategoryRepository,
     protected readonly sectionRepository: SectionRepository,
     protected readonly lessonRepository: LessonRepository,
     protected readonly userRepository: UserRepository,
@@ -52,6 +55,24 @@ export class CourseService extends BaseService<ICourse, string> {
     cls: ClsService,
   ) {
     super(courseRepository, cls, CourseService.name);
+  }
+
+  private async validateCategoryForAssignment(
+    categoryId?: string | null,
+    session?: ClientSession,
+  ): Promise<void> {
+    if (!categoryId) return;
+
+    let category = null;
+    try {
+      category = await this.courseCategoryRepository.findById(categoryId, session);
+    } catch {
+      category = null;
+    }
+
+    if (!category || category.deletedAt || !category.isActive) {
+      throw new BadRequestException('Danh mục không tồn tại hoặc đã bị tạm ẩn');
+    }
   }
 
   async validateInstructor(instructorId: string, session?: ClientSession): Promise<IUser> {
@@ -128,10 +149,13 @@ export class CourseService extends BaseService<ICourse, string> {
       throw new BadRequestException('Course price must be greater than or equal to 0');
     }
 
-    // 3. Ensure slug uniqueness among active courses
+    // 3. Validate category assignment (if provided)
+    await this.validateCategoryForAssignment(input.categoryId, session);
+
+    // 4. Ensure slug uniqueness among active courses
     await this.ensureSlugNotTaken(normalizedSlug, session);
 
-    // 4. Create course using BaseService (inherits audit context from cls)
+    // 5. Create course using BaseService (inherits audit context from cls)
     return this.create(
       {
         title: input.title.trim(),
@@ -143,6 +167,7 @@ export class CourseService extends BaseService<ICourse, string> {
         price: input.price ?? 0,
         status: input.status ?? CourseStatusEnum.DRAFT,
         level: input.level ?? CourseLevelEnum.ALL_LEVELS,
+        categoryId: input.categoryId ?? null,
       } as unknown as Partial<ICourse>,
       session,
     );
@@ -559,6 +584,15 @@ export class CourseService extends BaseService<ICourse, string> {
     if (dto.originalPrice !== undefined) updateData.originalPrice = dto.originalPrice;
     if (dto.level !== undefined) updateData.level = dto.level;
     if (dto.status !== undefined) updateData.status = dto.status;
+
+    if (dto.categoryId !== undefined) {
+      if (dto.categoryId === null) {
+        updateData.categoryId = null;
+      } else {
+        await this.validateCategoryForAssignment(dto.categoryId, session);
+        updateData.categoryId = dto.categoryId;
+      }
+    }
 
     // 5. Execute update via BaseService
     return this.updateOrFail(courseId, updateData as unknown as Partial<ICourse>, session);

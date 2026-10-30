@@ -1,6 +1,10 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CourseEntity, CourseSchema } from './schemas/course.schema.js';
+import {
+  CourseCategoryEntity,
+  CourseCategorySchema,
+} from './schemas/course-category.schema.js';
 import { SectionEntity, SectionSchema } from './schemas/section.schema.js';
 import { LessonEntity, LessonSchema } from './schemas/lesson.schema.js';
 import { CourseMindmapEntity, CourseMindmapSchema } from './schemas/course-mindmap.schema.js';
@@ -10,12 +14,14 @@ import { LessonMindmapEntity, LessonMindmapSchema } from './schemas/lesson-mindm
 import { LessonSummaryEntity, LessonSummarySchema } from './schemas/lesson-summary.schema.js';
 import { LessonQuizDraftEntity, LessonQuizDraftSchema } from './schemas/lesson-quiz-draft.schema.js';
 import { CourseController } from './course.controller.js';
+import { CourseCategoryController } from './course-category.controller.js';
 import { CourseMindmapController } from './course-mindmap.controller.js';
 import { LessonController } from './lesson.controller.js';
 import { LessonsController } from './lessons.controller.js';
 import { LessonContentController } from './lesson-content.controller.js';
 import { LessonQuizController } from './lesson-quiz.controller.js';
 import { CourseRepository } from './repositories/course.repository.js';
+import { CourseCategoryRepository } from './repositories/course-category.repository.js';
 import { SectionRepository } from './repositories/section.repository.js';
 import { LessonRepository } from './repositories/lesson.repository.js';
 import { CourseMindmapRepository } from './repositories/course-mindmap.repository.js';
@@ -25,6 +31,7 @@ import { LessonMindmapRepository } from './repositories/lesson-mindmap.repositor
 import { LessonSummaryRepository } from './repositories/lesson-summary.repository.js';
 import { LessonQuizDraftRepository } from './repositories/lesson-quiz-draft.repository.js';
 import { CourseService } from './services/course.service.js';
+import { CourseCategoryService } from './services/course-category.service.js';
 import { LessonService } from './services/lesson.service.js';
 import { CourseMindmapService } from './services/course-mindmap.service.js';
 import { LessonTranscriptService } from './services/lesson-transcript.service.js';
@@ -38,6 +45,7 @@ import { AssemblyAiModule } from '../assemblyai/assemblyai.module.js';
   imports: [
     MongooseModule.forFeature([
       { name: CourseEntity.name, schema: CourseSchema },
+      { name: CourseCategoryEntity.name, schema: CourseCategorySchema },
       { name: SectionEntity.name, schema: SectionSchema },
       { name: LessonEntity.name, schema: LessonSchema },
       { name: CourseMindmapEntity.name, schema: CourseMindmapSchema },
@@ -53,6 +61,7 @@ import { AssemblyAiModule } from '../assemblyai/assemblyai.module.js';
   ],
   controllers: [
     CourseController,
+    CourseCategoryController,
     CourseMindmapController,
     LessonController,
     LessonsController,
@@ -61,6 +70,7 @@ import { AssemblyAiModule } from '../assemblyai/assemblyai.module.js';
   ],
   providers: [
     CourseRepository,
+    CourseCategoryRepository,
     SectionRepository,
     LessonRepository,
     CourseMindmapRepository,
@@ -70,6 +80,7 @@ import { AssemblyAiModule } from '../assemblyai/assemblyai.module.js';
     LessonSummaryRepository,
     LessonQuizDraftRepository,
     CourseService,
+    CourseCategoryService,
     LessonService,
     CourseMindmapService,
     LessonTranscriptService,
@@ -78,6 +89,7 @@ import { AssemblyAiModule } from '../assemblyai/assemblyai.module.js';
   ],
   exports: [
     CourseRepository,
+    CourseCategoryRepository,
     SectionRepository,
     LessonRepository,
     CourseMindmapRepository,
@@ -87,6 +99,7 @@ import { AssemblyAiModule } from '../assemblyai/assemblyai.module.js';
     LessonSummaryRepository,
     LessonQuizDraftRepository,
     CourseService,
+    CourseCategoryService,
     LessonService,
     CourseMindmapService,
     LessonTranscriptService,

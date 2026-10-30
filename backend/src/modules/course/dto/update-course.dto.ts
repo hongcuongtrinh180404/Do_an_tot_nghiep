@@ -7,6 +7,7 @@ import {
   IsNumber,
   Min,
   IsEnum,
+  IsMongoId,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { CourseLevelEnum, CourseStatusEnum } from 'share-lib';
@@ -83,4 +84,8 @@ export class UpdateCourseDto {
     message: `Trạng thái khóa học không hợp lệ. Các giá trị hợp lệ: ${Object.values(CourseStatusEnum).join(', ')}`,
   })
   status?: CourseStatusEnum;
+
+  @IsOptional()
+  @IsMongoId({ message: 'Danh mục khóa học không hợp lệ' })
+  categoryId?: string | null;
 }

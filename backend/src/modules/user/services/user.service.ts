@@ -56,6 +56,68 @@ export class UserService extends BaseService<IUser, string> {
     return this.userRepository.findByVerificationToken(token, session);
   }
 
+  async findByEmailForPasswordReset(
+    email: string,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    return this.userRepository.findByEmailForPasswordReset(email, session);
+  }
+
+  async findByPasswordResetTokenHash(
+    tokenHash: string,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    return this.userRepository.findByPasswordResetTokenHash(tokenHash, session);
+  }
+
+  async claimPasswordResetRequest(
+    userId: string,
+    tokenHash: string,
+    expiresAt: Date,
+    requestedAt: Date,
+    cooldownCutoff: Date,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    return this.userRepository.claimPasswordResetRequest(
+      userId,
+      tokenHash,
+      expiresAt,
+      requestedAt,
+      cooldownCutoff,
+      session,
+    );
+  }
+
+  async clearPasswordResetRequest(
+    userId: string,
+    tokenHash: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    return this.userRepository.clearPasswordResetRequest(userId, tokenHash, session);
+  }
+
+  async consumePasswordResetToken(
+    userId: string,
+    tokenHash: string,
+    passwordHash: string,
+    now: Date,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    return this.userRepository.consumePasswordResetToken(
+      userId,
+      tokenHash,
+      passwordHash,
+      now,
+      session,
+    );
+  }
+
+  async runInTransaction<R>(
+    operation: (session: ClientSession) => Promise<R>,
+  ): Promise<R> {
+    return this.userRepository.withTransaction(operation);
+  }
+
   async ensureEmailNotTaken(email: string, session?: ClientSession): Promise<void> {
     const existing = await this.findByEmail(email, false, session);
     if (existing) {

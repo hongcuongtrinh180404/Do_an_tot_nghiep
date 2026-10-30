@@ -6,6 +6,7 @@ export interface ImageUploadOptions {
   width?: number;
   height?: number;
   quality?: number;
+  fit?: 'cover' | 'contain';
 }
 
 export interface IStorageService {

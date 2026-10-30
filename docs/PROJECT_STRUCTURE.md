@@ -51,7 +51,7 @@ Do_an_tot_nghiep/
 ├── 💻 frontend/                       # [App] Web Client Portal (Next.js 16 App Router)
 │   ├── 📁 src/
 │   │   ├── 📁 app/                    # Next.js App Router (Layouts & Pages)
-│   │   │   ├── 📁 (auth)/             # Route group: Giao diện Đăng nhập / Đăng ký
+│   │   │   ├── 📁 (auth)/             # Route group: Đăng nhập / Đăng ký / Xác thực email / Đặt lại mật khẩu
 │   │   │   ├── 📁 (sites)/            # Route group: Cổng thông tin công khai & Catalog khóa học
 │   │   │   ├── 📁 (learn)/            # Route group: Trình phát video bài học & Markmap viewer
 │   │   │   ├── 📁 (admin)/            # Route group: Trang quản trị Hội đồng / Admin / Giảng viên
@@ -137,8 +137,17 @@ Mọi thực thể (Entity), Kho lưu trữ (Repository) và Dịch vụ (Servic
   * Refresh Token (JWT): Hạn dài (7 ngày), lưu trữ trong HttpOnly Cookie hoặc header bảo mật.
 * **Session Grace Period (30 giây)**:
   * Khi mở nhiều tab hoặc F5 đồng thời, các tab gửi cùng một refresh token cũ trong vòng 30 giây sẽ không bị coi là tấn công token reuse và không bị đăng xuất đột ngột.
+* **Quên mật khẩu & Đặt lại mật khẩu**:
+  * `POST /auth/forgot-password` (5 request/15 phút/IP) luôn trả về thông báo chung để chống dò email.
+  * `POST /auth/reset-password` (10 request/15 phút/IP) tiêu thụ token một lần, cập nhật mật khẩu và thu hồi toàn bộ phiên cũ.
+  * Token reset chỉ lưu dạng SHA-256, hết hạn sau 15 phút, có cooldown 60 giây/tài khoản.
+  * Tài khoản đã liên kết Google và verify email có thể dùng cùng luồng để tạo thêm mật khẩu Mindly, giữ `googleSub` và cả hai cách đăng nhập trên cùng user.
+  * Cập nhật mật khẩu + thu hồi session yêu cầu MongoDB hỗ trợ transaction (replica set/sharded cluster).
+  * Hướng dẫn SMTP, giới hạn vận hành và checklist E2E: [PLAN-forgot-password.md](PLAN-forgot-password.md). Lưu ý fallback thiếu SMTP hiện in raw reset URL ra terminal, chưa được chặn theo môi trường production.
 * **Quy chuẩn kiểm thử**:
   * 100% Service nghiệp vụ có file test `tests/auth.service.spec.ts` tương ứng theo mô hình AAA (Arrange-Act-Assert) và mock Abstract Repository hoàn toàn.
+  * Luồng quên mật khẩu có test riêng `tests/password-reset.service.spec.ts`.
+  * Luồng Google password setup có MongoDB integration suite `backend/test/auth/password-reset.e2e-spec.ts` (Google verification/mail được mock, repository/bcrypt/transaction thật).
 
 ---
 
@@ -150,7 +159,7 @@ Frontend được tổ chức theo triết lý **Feature-Driven Design** — gom
 
 Sử dụng tính năng Route Groups của Next.js (thư mục trong ngoặc tròn) để áp dụng các Layout khác nhau mà không làm thay đổi đường dẫn URL:
 
-* **`(auth)`**: Dành cho các trang xác thực (`/login`, `/register`). Layout chia 2 cột:
+* **`(auth)`**: Dành cho các trang xác thực (`/login`, `/register`, `/verify-email`, `/reset-password`). Layout chia 2 cột:
   * Bên trái: Branding Panel hiển thị thông tin giới thiệu, gradient chuyên nghiệp.
   * Bên phải: Form đăng nhập/đăng ký căn giữa, tối ưu trên cả desktop lẫn mobile.
 * **`(sites)`**: Cổng thông tin dành cho sinh viên và giảng viên xem đề tài, lịch bảo vệ.
@@ -161,14 +170,17 @@ Sử dụng tính năng Route Groups của Next.js (thư mục trong ngoặc tr�
 Ví dụ với `features/auth/`:
 ```
 features/auth/
-├── 📁 api/               # TanStack Query custom hooks (useLoginMutation, useRegisterMutation,...)
+├── 📁 api/               # TanStack Query custom hooks (useLoginMutation, useRegisterMutation, useForgotPasswordMutation,...)
 ├── 📁 components/        # Các UI Components riêng biệt:
 │   ├── auth-card-wrapper.tsx   # Card bọc form đăng nhập/đăng ký
-│   ├── login-form.tsx          # Form đăng nhập
+│   ├── login-form.tsx          # Form đăng nhập + link "Quên mật khẩu?"
 │   ├── register-form.tsx       # Form đăng ký (có thanh đo độ mạnh mật khẩu)
+│   ├── forgot-password-modal.tsx # Modal gửi yêu cầu đặt lại mật khẩu
+│   ├── reset-password-content.tsx # Form đặt mật khẩu mới tại /reset-password
 │   └── password-input.tsx      # Ô nhập mật khẩu có nút ẩn/hiển thị
 ├── 📁 hooks/             # Client Hooks (useAuth,...)
-├── 📁 schemas/           # Schema xác thực Zod (loginSchema, registerSchema)
+├── 📁 schemas/           # Schema xác thực Zod (loginSchema, registerSchema, forgotPasswordSchema, resetPasswordSchema)
+├── 📁 tests/             # Unit tests cho schema & contract (password-reset-schema.spec.ts,...)
 ├── 📁 types/             # Types nội bộ của Feature
 └── 📄 index.ts           # Barrel file export các thành phần công khai
 ```
@@ -199,9 +211,11 @@ share-lib/src/
 │   ├── role.enum.ts          # ADMIN, TEACHER, STUDENT
 │   ├── auth-provider.enum.ts # LOCAL, GOOGLE, MICROSOFT,...
 │   └── auth-status.enum.ts   # ACTIVE, INACTIVE, SUSPENDED,...
+├── constants/
+│   └── auth.constants.ts     # AUTH_CONSTANTS: token lifetimes, reset TTL/cooldown/messages
 ├── interfaces/
-│   ├── user.interface.ts     # IUser contract
-│   ├── auth.interface.ts     # ILoginResponse, ITokens,...
+│   ├── user.interface.ts     # IUser contract (bao gồm password reset fields)
+│   ├── auth.interface.ts     # ILoginResponse, ITokens, IForgotPasswordPayload, IResetPasswordPayload,...
 │   └── response.interface.ts # IApiResponse<T>
 └── index.ts                  # Barrel export
 ```
