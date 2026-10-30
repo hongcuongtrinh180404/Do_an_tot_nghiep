@@ -3,9 +3,9 @@
 import { RoleEnum } from 'share-lib';
 import { useCurrentUserQuery, useLogoutMutation } from '../api/auth.api';
 
-export function useAuth() {
+export function useAuth(options?: { logoutRedirectTo?: string }) {
   const { data: user, isLoading, isError, refetch } = useCurrentUserQuery();
-  const logoutMutation = useLogoutMutation();
+  const logoutMutation = useLogoutMutation({ redirectTo: options?.logoutRedirectTo });
 
   return {
     user,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import type {
   IApiResponse,
@@ -271,17 +272,22 @@ export function useResetPasswordMutation() {
   });
 }
 
-export function useLogoutMutation() {
+export function useLogoutMutation(options?: { redirectTo?: string }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   return useMutation({
     mutationFn: () => authApi.logout(),
-    onSettled: () => {
+    onSettled: async () => {
+      await queryClient.cancelQueries({ queryKey: authKeys.all });
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
       queryClient.removeQueries({ queryKey: authKeys.all });
       toast.info('Đã đăng xuất khỏi hệ thống');
+      if (options?.redirectTo) {
+        router.replace(options.redirectTo);
+      }
     },
   });
 }

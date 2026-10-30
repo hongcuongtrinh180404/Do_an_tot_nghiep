@@ -328,4 +328,58 @@
   animation: zoomInOut 1.8s ease-in-out infinite;
 }
 
-
+
+
+
+/* Animation lắc nhẹ thư trước khi gửi (Frame 0 idle wobble) */
+@keyframes mailIdleWobble {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-2px) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(0.5px) rotate(0.8deg);
+  }
+  75% {
+    transform: translateY(-1.5px) rotate(-0.8deg);
+  }
+}
+
+.animate-mail-idle-wobble {
+  animation: mailIdleWobble 3s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+
+/* Animation rung lắc rõ nét cho bức thư ở Frame 0 (Active Mail Shake) */
+@keyframes mailActiveShake {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  15% {
+    transform: translate3d(-5px, -2px, 0) rotate(-6deg) scale(1.03);
+  }
+  30% {
+    transform: translate3d(5px, 2px, 0) rotate(6deg) scale(1.03);
+  }
+  45% {
+    transform: translate3d(-4px, 1px, 0) rotate(-4.5deg);
+  }
+  60% {
+    transform: translate3d(4px, -1px, 0) rotate(4.5deg);
+  }
+  75% {
+    transform: translate3d(-2px, 1px, 0) rotate(-2deg);
+  }
+  90% {
+    transform: translate3d(2px, -1px, 0) rotate(2deg);
+  }
+}
+
+.animate-mail-active-shake {
+  animation: mailActiveShake 0.85s ease-in-out infinite;
+  transform-origin: center center;
+  will-change: transform;
+}

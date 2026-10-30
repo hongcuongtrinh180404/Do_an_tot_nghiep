@@ -392,3 +392,28 @@
   - Initial setup and reset share the same token lifecycle; requesting a link must never set a password or remove Google linkage.
   - `OAuth2Client.verifyIdToken` has a callback overload returning `void`, so Vitest `mockResolvedValue(LoginTicket)` fails strict type checking. Use an async `mockImplementation` returning a real `LoginTicket` for the promise-based service call.
   - Integration coverage confirms persistence and login behavior, not actual Google network verification or inbox delivery. Browser/real-mail E2E remains pending; the previously documented terminal-token fallback issue is still open.
+
+
+### [2026-10-30] - Integrate DotLottie Animation in Forgot Password Modal
+
+- **Problem**: The Forgot Password modal previously lacked visual feedback when requesting a password reset email. The user requested displaying a Mail Sent Lottie animation (`mail-sent.lottie`) in a two-column layout on desktop, responsive one-column on mobile, with a gentle idle wobble on frame 0 before submit, triggering playback only on backend success, and replaying with a 1.8s rest delay (Option B).
+- **Root Cause & Requirements**:
+  - The modal used `sm:max-w-md` single column.
+  - Needed a local lightweight player for `.lottie` format that works with Next.js 16 (App Router) and React 19 without external CDN dependencies.
+  - Animation must not autoplay on open. On submission success, it must play from frame 0 once and replay after a ~1.8s delay. On mobile, the animation must sit above the success confirmation.
+- **Solution**:
+  - Installed `@lottiefiles/dotlottie-react` (`v0.20.0`) in `frontend`.
+  - Normalized asset name from `public/animations/Mail Sent.lottie` to `public/animations/mail-sent.lottie` for reliable web URL resolution.
+  - Updated `ForgotPasswordModal` (`frontend/src/features/auth/components/forgot-password-modal.tsx`):
+    - Expanded modal width using `className="sm:max-w-xl md:max-w-2xl"` passed to `DialogLayout`.
+    - Created a responsive two-column grid (`md:grid-cols-12`): 7 columns on desktop for form/message, 5 columns for animation.
+    - Configured responsive order: Mobile displays form on top before sending, and animation on top when `mode === 'sent'`.
+    - Integrated `DotLottieReact` with `dotLottieRefCallback`, `autoplay={false}`, `loop={false}`.
+    - Added CSS keyframe `@keyframes mailIdleWobble` in `frontend/src/app/globals.css` to subtly rock the static mail on frame 0 prior to submission.
+    - Handled `complete` event with an 1800ms timeout for smooth pacing between replays (Option B).
+    - Preserved form handling, validation, loading spinner, error retry, anti-enumeration generic message, and 60-second resend cooldown.
+  - Verified: `tsc --noEmit` clean, ESLint clean, and Next.js webpack production build succeeded with 20/20 static pages generated.
+- **Gotchas & Lessons**:
+  - Next.js 16 defaults to Turbopack, but the project uses Webpack (`--webpack`). Building with Webpack requires running `next build --webpack`.
+  - In `dotLottie-web`, `setFrame(0)` before `play()` ensures the animation starts reliably from the first frame.
+  - Storing the replay timer in a ref/effect cleanup prevents memory leaks and race conditions if the modal is closed while waiting to replay.

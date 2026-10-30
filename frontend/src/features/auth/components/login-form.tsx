@@ -47,8 +47,6 @@ export function LoginForm(): React.JSX.Element {
         onSuccess: (authData) => {
           if (authData.user.role === RoleEnum.ADMIN) {
             router.push('/admin/dashboard');
-          } else if (authData.user.role === RoleEnum.INSTRUCTOR) {
-            router.push('/instructor/courses');
           } else {
             router.push('/');
           }

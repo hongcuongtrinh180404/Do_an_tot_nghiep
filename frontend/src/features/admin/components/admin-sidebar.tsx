@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ADMIN_NAV_ITEMS } from '../constants/admin-navigation';
 import { cn } from '@/lib/utils';
 import { MindlyLogo } from '@/components/brand';
+import { useAdminLogoutRedirect } from './admin-guard';
 
 interface AdminSidebarProps {
   isOpen?: boolean;
@@ -17,7 +18,8 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps): React.JSX.Element {
   const pathname = usePathname();
-  const { user, logout, isLoggingOut } = useAuth();
+  const { user, logout, isLoggingOut } = useAuth({ logoutRedirectTo: '/' });
+  const beginLogoutRedirect = useAdminLogoutRedirect();
 
   const userInitial = user?.firstName?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'A';
   const displayName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.email || 'Quản trị viên';
@@ -123,7 +125,10 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps): React.JSX.
           <Button
             variant="outline"
             size="sm"
-            onClick={() => logout()}
+            onClick={() => {
+              beginLogoutRedirect();
+              logout();
+            }}
             disabled={isLoggingOut}
             className="w-full justify-center text-xs text-muted-foreground hover:text-destructive hover:border-destructive/30 hover:bg-destructive/5 transition-colors"
           >

@@ -13,6 +13,28 @@
 
 ## 2. Technical Notes & Gotchas
 
+- **Milestone 30 (Public Category Grid Redesign - Domestika 1:1 Aspect Ratio & Deep-Link Filtering)**:
+  - Tái cấu trúc khu vực khám phá danh mục khóa học (`CategoryRail` tại `frontend/src/features/course/components/public-discovery/category-rail.tsx` và `frontend/src/app/page.tsx`) theo phong cách lưới thẻ nghệ thuật Domestika ("Courses by category") và quy chuẩn `/design-taste-frontend`:
+    - **Lưới card chuẩn tỉ lệ 1:1 (`aspect-square`)**: Hiển thị chính xác 6 card trên một hàng (`grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6`), bo góc mềm mại `rounded-2xl` tràn viền ảnh.
+    - **Dữ liệu thực tế 100%**: Chỉ hiển thị các danh mục chuyên môn thực tế lấy từ cơ sở dữ liệu (`usePublicCategoriesQuery()`). Loại bỏ hoàn toàn card "Tất cả lĩnh vực" ra khỏi lưới card để đảm bảo toàn bộ ô trong lưới đều là danh mục thật.
+    - **Nguồn ảnh & Fallback minh họa chất lượng cao**: Ưu tiên sử dụng `category.imageUrl` từ database; khi chưa có ảnh (`null`), hệ thống tự động ánh xạ sang kho ảnh minh họa nghệ thuật độ phân giải cao tỉ lệ 1:1 (Unsplash editorial photography) cho từng lĩnh vực chuyên môn (Lập trình, AI, Thiết kế UI/UX, Dựng video, Marketing, Tài chính, Ngoại ngữ).
+    - **Độ tương phản, Hiệu ứng & Typography tối giản**:
+      - **Giảm bóng mờ bên trong > 50% & đổ bóng lan tỏa ra viền ngoài**:
+        - Lớp gradient scrim bên trong card được thu gọn chỉ còn ở nửa dưới (`h-1/2 bottom-0 from-black/40 via-black/15 to-transparent`), giảm độ tối hơn 50% để ảnh minh họa bên trong sáng rõ, sống động và màu sắc tự nhiên, kết hợp text shadow `drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]` giữ chữ trắng sắc nét.
+        - Chuyển background nền dự phòng từ màu đen (`bg-neutral-900`) sang sáng (`bg-neutral-100 dark:bg-neutral-800`).
+        - Cơ chế đổ bóng mờ khuếch tán đa tầng bung tỏa ra viền ngoài: `shadow-[0_8px_24px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)]`, hover `hover:shadow-[0_16px_32px_rgba(0,0,0,0.14),0_4px_12px_rgba(0,0,0,0.06)] hover:-translate-y-1`, active `shadow-[0_16px_36px_rgba(0,0,0,0.18),0_4px_16px_rgba(0,0,0,0.08)] -translate-y-1`.
+        - Bổ sung đệm ngoài `p-1` và khoảng cách `gap-4 sm:gap-5` để bóng đổ lan tỏa ra xung quanh viền ngoài không bị cắt mép.
+    - **Điều hướng & Deep-linking (Phương án B.1)**:
+      - Click vào card danh mục sẽ đồng bộ cập nhật URL trang chủ dạng `/?category=[slug]#recent` và cuộn mượt xuống catalog khóa học `#recent`.
+      - Khử bỏ hoàn toàn render cascade: dùng `searchParams` làm single source of truth thay vì gọi `setState` trong `useEffect` (chuẩn React 19).
+      - Bọc `HomeContent` trong `<Suspense>` để đảm bảo Next.js App Router render tối ưu.
+      - Bổ sung nút bấm tinh tế "Xem tất cả lĩnh vực" trên thanh tiêu đề khi đang có danh mục được chọn để người dùng dễ dàng reset bộ lọc.
+    - **Kiểm định chất lượng**:
+      - Đạt 0 lỗi static audit từ `audit-ui.mjs`.
+      - Đạt 0 lỗi TypeScript (`tsc --noEmit`).
+      - Đạt 0 lỗi ESLint với cấu hình Next.js App Router & React 19.
+
+
 - **Milestone 29 (Category Modal Redesign & Anti-Slop Admin Form Craft)**:
   - Tái thiết kế toàn diện modal Thêm mới & Chỉnh sửa danh mục (`CategoryModal` tại `frontend/src/features/admin/categories/components/category-modal.tsx`) theo bộ kỹ năng `/design-taste-frontend` (App Screens) và thẩm định bằng `/web-design-guidelines`:
     - **Loại bỏ trường "Thứ tự hiển thị"**: Ẩn hoàn toàn khỏi giao diện ở cả chế độ Thêm mới và Chỉnh sửa theo đúng quyết định Socratic Gate. Tự động gán `order = 0` khi tạo mới và giữ nguyên `category.order` khi chỉnh sửa, tinh giản trải nghiệm nhập liệu của Admin.

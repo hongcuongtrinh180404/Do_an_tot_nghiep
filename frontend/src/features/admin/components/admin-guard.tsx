@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuth } from '@/features/auth';
@@ -11,14 +11,25 @@ interface AdminGuardProps {
   children: React.ReactNode;
 }
 
+const AdminLogoutContext = createContext<(() => void) | null>(null);
+
+export function useAdminLogoutRedirect(): () => void {
+  const beginLogout = useContext(AdminLogoutContext);
+  if (!beginLogout) {
+    throw new Error('useAdminLogoutRedirect must be used inside AdminGuard');
+  }
+  return beginLogout;
+}
+
 export function AdminGuard({ children }: AdminGuardProps): React.JSX.Element | null {
   const router = useRouter();
   const pathname = usePathname();
   const isMounted = useIsMounted();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { isLoading, isAuthenticated, isAdmin } = useAuth();
 
   useEffect(() => {
-    if (!isMounted || isLoading) return;
+    if (!isMounted || isLoading || isLoggingOut) return;
 
     if (!isAuthenticated) {
       const redirectUrl = pathname ? `/login?redirect=${encodeURIComponent(pathname)}` : '/login';
@@ -32,7 +43,7 @@ export function AdminGuard({ children }: AdminGuardProps): React.JSX.Element | n
       });
       router.replace('/');
     }
-  }, [isMounted, isLoading, isAuthenticated, isAdmin, router, pathname]);
+  }, [isMounted, isLoading, isLoggingOut, isAuthenticated, isAdmin, router, pathname]);
 
   if (!isMounted || isLoading) {
     return (
@@ -53,5 +64,9 @@ export function AdminGuard({ children }: AdminGuardProps): React.JSX.Element | n
     return null;
   }
 
-  return <>{children}</>;
+  return (
+    <AdminLogoutContext.Provider value={() => setIsLoggingOut(true)}>
+      {children}
+    </AdminLogoutContext.Provider>
+  );
 }
