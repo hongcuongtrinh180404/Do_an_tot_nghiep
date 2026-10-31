@@ -90,7 +90,7 @@ describe('CourseController', () => {
       mockCourseService.createCourse.mockResolvedValue(sampleCourse);
 
       // Act
-      const response = await controller.create(instructorId, payload);
+      const response = await controller.create(instructorId, RoleEnum.INSTRUCTOR, payload);
 
       // Assert
       expect(mockCourseService.createCourse).toHaveBeenCalledWith(
@@ -105,29 +105,46 @@ describe('CourseController', () => {
       expect(response.data).toEqual(sampleCourse);
     });
 
-    it('2. should allow ADMIN to create a course successfully', async () => {
-      // Arrange
+    it('2. should reject ADMIN even though RolesGuard allows the admin bypass', async () => {
       const adminId = 'admin_999';
       const payload = createSamplePayload() as unknown as CreateCourseDto;
-      const adminCourse: ICourse = {
-        ...sampleCourse,
-        instructorId: adminId,
-      };
-      mockCourseService.createCourse.mockResolvedValue(adminCourse);
-
-      // Act
-      const response = await controller.create(adminId, payload);
-
-      // Assert
-      expect(mockCourseService.createCourse).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: payload.title,
-          slug: payload.slug,
-          instructorId: adminId,
+      const guard = new RolesGuard(new Reflector());
+      const mockContext = {
+        // oxlint-disable-next-line typescript/unbound-method
+        getHandler: vi.fn().mockReturnValue(CourseController.prototype.create),
+        getClass: vi.fn().mockReturnValue(CourseController),
+        switchToHttp: vi.fn().mockReturnValue({
+          getRequest: vi.fn().mockReturnValue({ user: { id: adminId, role: RoleEnum.ADMIN } }),
         }),
+      } as unknown as ExecutionContext;
+
+      expect(guard.canActivate(mockContext)).toBe(true);
+      await expect(controller.create(adminId, RoleEnum.ADMIN, payload)).rejects.toThrow(
+        ForbiddenException,
       );
-      expect(response.success).toBe(true);
-      expect(response.data).toEqual(adminCourse);
+      expect(mockCourseService.createCourse).not.toHaveBeenCalled();
+    });
+
+    it.each([RoleEnum.STUDENT, undefined, 'unknown'])('should reject role %s before calling the service', async (role) => {
+      const payload = createSamplePayload() as unknown as CreateCourseDto;
+      await expect(controller.create('user_1', role as RoleEnum, payload)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockCourseService.createCourse).not.toHaveBeenCalled();
+    });
+
+    it('should allow INSTRUCTOR through RolesGuard', () => {
+      const guard = new RolesGuard(new Reflector());
+      const mockContext = {
+        // oxlint-disable-next-line typescript/unbound-method
+        getHandler: vi.fn().mockReturnValue(CourseController.prototype.create),
+        getClass: vi.fn().mockReturnValue(CourseController),
+        switchToHttp: vi.fn().mockReturnValue({
+          getRequest: vi.fn().mockReturnValue({ user: { role: RoleEnum.INSTRUCTOR } }),
+        }),
+      } as unknown as ExecutionContext;
+
+      expect(guard.canActivate(mockContext)).toBe(true);
     });
 
     it('3. should reject STUDENT access via @Roles configuration and RolesGuard', () => {
@@ -136,7 +153,7 @@ describe('CourseController', () => {
       // oxlint-disable-next-line typescript/unbound-method
       const handler = CourseController.prototype.create;
       const roles = reflector.get<RoleEnum[]>(ROLES_KEY, handler);
-      expect(roles).toEqual([RoleEnum.INSTRUCTOR, RoleEnum.ADMIN]);
+      expect(roles).toEqual([RoleEnum.INSTRUCTOR]);
 
       // Assert: verify RolesGuard rejects STUDENT role
       const guard = new RolesGuard(reflector);
@@ -168,7 +185,7 @@ describe('CourseController', () => {
       );
 
       // Act & Assert
-      await expect(controller.create('instructor_1', payload)).rejects.toThrow(
+      await expect(controller.create('instructor_1', RoleEnum.INSTRUCTOR, payload)).rejects.toThrow(
         ConflictException,
       );
     });
@@ -182,7 +199,7 @@ describe('CourseController', () => {
       mockCourseService.createCourse.mockResolvedValue(sampleCourse);
 
       // Act: Controller should always pass authenticated userId ('real_instructor_id')
-      await controller.create('real_instructor_id', injectedBody);
+      await controller.create('real_instructor_id', RoleEnum.INSTRUCTOR, injectedBody);
 
       // Assert: The service is called with the authenticated userId, never attacker_fake_id
       expect(mockCourseService.createCourse).toHaveBeenCalledWith(

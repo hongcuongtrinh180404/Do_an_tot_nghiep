@@ -1,6 +1,12 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  queryOptions,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -15,6 +21,7 @@ import {
   type ISection,
   type ILesson,
   type ILessonTranscript,
+  LessonContentTypeEnum,
   LessonTranscriptionStatusEnum,
 } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
@@ -229,11 +236,35 @@ export function useCourseSectionsQuery(courseId: string) {
   });
 }
 
-export function useSectionLessonsQuery(sectionId: string) {
-  return useQuery({
+function sectionLessonsQueryOptions(sectionId: string) {
+  return queryOptions({
     queryKey: courseKeys.lessons(sectionId),
     queryFn: () => courseApi.getLessons(sectionId),
     enabled: Boolean(sectionId),
+  });
+}
+
+export function useSectionLessonsQuery(sectionId: string) {
+  return useQuery(sectionLessonsQueryOptions(sectionId));
+}
+
+export function useCourseLessonQueries(sections: readonly ISection[]) {
+  return useQueries({
+    queries: sections.map((section) => queryOptions({
+      ...sectionLessonsQueryOptions(section.id),
+      // Only the course overview polls; chapter views share its updated cache.
+      // Video duration is populated asynchronously when transcription completes.
+      refetchInterval: (query) => {
+        if (query.state.status === 'error') return false;
+        const isWaitingForDuration = query.state.data?.some((lesson) =>
+          lesson.content?.type === LessonContentTypeEnum.VIDEO &&
+          (!Number.isFinite(lesson.content.duration) || (lesson.content.duration ?? 0) <= 0) &&
+          (lesson.transcriptionStatus === LessonTranscriptionStatusEnum.QUEUED ||
+            lesson.transcriptionStatus === LessonTranscriptionStatusEnum.TRANSCRIBING),
+        );
+        return isWaitingForDuration ? 5000 : false;
+      },
+    })),
   });
 }
 

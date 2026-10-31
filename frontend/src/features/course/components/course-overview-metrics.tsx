@@ -4,8 +4,8 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 
 interface CourseOverviewMetricsProps {
-  totalChapters: number;
-  totalLessons: number;
+  totalChapters: number | null;
+  totalLessons: number | null;
   totalDurationText: string;
 }
 
@@ -22,7 +22,7 @@ export function CourseOverviewMetrics({
           Tổng số chương
         </span>
         <p className="text-xl sm:text-2xl font-black text-foreground mt-1 tracking-tight">
-          {totalChapters}
+          {totalChapters ?? '—'}
         </p>
       </Card>
 
@@ -32,7 +32,7 @@ export function CourseOverviewMetrics({
           Tổng bài giảng
         </span>
         <p className="text-xl sm:text-2xl font-black text-foreground mt-1 tracking-tight">
-          {totalLessons}
+          {totalLessons ?? '—'}
         </p>
       </Card>
 

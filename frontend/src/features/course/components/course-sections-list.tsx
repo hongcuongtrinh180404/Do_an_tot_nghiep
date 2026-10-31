@@ -7,6 +7,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import {
   useCourseSectionsQuery,
+  useCourseLessonQueries,
   useSectionLessonsQuery,
   useReorderSectionsMutation,
 } from '../api/course.api';
@@ -27,20 +28,10 @@ import {
   type CourseViewMode,
 } from './course-view-mode-switcher';
 import { CourseMindmapView } from './mindmap/course-mindmap-view';
+import { formatVideoDuration, getVideoLessonStats } from '../utils/course-lesson-stats.util';
 
 interface CourseSectionsListProps {
   courseId: string;
-}
-
-function formatMinutes(seconds?: number | null): string {
-  if (seconds === undefined || seconds === null || seconds <= 0) return '0p';
-  const totalMins = Math.round(seconds / 60);
-  if (totalMins >= 60) {
-    const hours = Math.floor(totalMins / 60);
-    const remMins = totalMins % 60;
-    return remMins > 0 ? `${hours}h ${remMins}p` : `${hours}h`;
-  }
-  return `${totalMins}p`;
 }
 
 interface ChapterTreeItemProps {
@@ -91,13 +82,10 @@ function ChapterTreeItem({
   onDrop,
   onDragEnd,
 }: ChapterTreeItemProps): React.JSX.Element {
-  const { data: lessons, isLoading } = useSectionLessonsQuery(section.id);
+  const { data: lessons, isLoading, isError } = useSectionLessonsQuery(section.id);
   const lessonList = lessons ?? [];
-  const totalSeconds = lessonList.reduce(
-    (acc, curr) => acc + (curr.content?.duration ?? 0),
-    0,
-  );
-  const durationText = formatMinutes(totalSeconds);
+  const videoStats = getVideoLessonStats(lessonList);
+  const durationText = formatVideoDuration(videoStats);
   const displayChapterIndex = String(index + 1).padStart(2, '0');
 
   return (
@@ -163,7 +151,11 @@ function ChapterTreeItem({
                 {section.title}
               </h3>
               <span className="text-[10px] font-medium text-muted-foreground bg-muted/60 border border-border/50 px-2 py-0.5 rounded-full shrink-0">
-                {isLoading ? '...' : `${lessonList.length} bài • ${durationText}`}
+                {isError
+                  ? 'Không thể tải thống kê'
+                  : isLoading
+                    ? '...'
+                    : `${videoStats.videoCount} bài giảng • ${durationText}`}
               </span>
             </div>
           </div>
@@ -232,7 +224,9 @@ function ChapterTreeItem({
             lessonList.map((lesson) => {
               const isLessonSelected = selectedLessonId === lesson.id;
               const isVideo = lesson.content?.type === 'video';
-              const lessonDuration = formatMinutes(lesson.content?.duration);
+              const lessonDuration = isVideo
+                ? formatVideoDuration(getVideoLessonStats([lesson]))
+                : 'Tài liệu';
 
               return (
                 <div
@@ -362,6 +356,17 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
   const [selection, setSelection] = useState<ContextSelection>(null);
 
   const sectionList = React.useMemo(() => sections ?? [], [sections]);
+  const lessonQueries = useCourseLessonQueries(sectionList);
+  const isStatsLoading = isLoading || lessonQueries.some((query) => query.isPending);
+  const isStatsError = isError || lessonQueries.some((query) => query.isError);
+  const courseVideoStats = getVideoLessonStats(
+    lessonQueries.flatMap((query) => query.data ?? []),
+  );
+  const totalDurationText = isStatsError
+    ? 'Không thể tải'
+    : isStatsLoading
+      ? 'Đang tải...'
+      : formatVideoDuration(courseVideoStats);
   const nextOrder = sectionList.length;
 
   // Compute effective selection (fallback về chương đầu tiên nếu chưa có selection hoặc chapter bị xóa)
@@ -420,9 +425,9 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
     <div className="space-y-6">
       {/* 1. Top Overview Metrics Bar */}
       <CourseOverviewMetrics
-        totalChapters={sectionList.length}
-        totalLessons={sectionList.length * 3} // Dynamic visual default before deep summation
-        totalDurationText="2h 15p"
+        totalChapters={isLoading || isError ? null : sectionList.length}
+        totalLessons={isStatsLoading || isStatsError ? null : courseVideoStats.videoCount}
+        totalDurationText={totalDurationText}
       />
 
       {/* View Mode Switcher Centered in Whitespace */}

@@ -18,6 +18,7 @@ import {
 } from '../utils/lesson-key-points.util';
 import { UploadLessonDocDialog } from './upload-lesson-doc-dialog';
 import { DeleteLessonMaterialDialog } from './delete-lesson-material-dialog';
+import { formatVideoDuration, getVideoLessonStats } from '../utils/course-lesson-stats.util';
 
 export type ContextSelection =
   | { type: 'chapter'; chapterId: string }
@@ -30,17 +31,6 @@ interface ContextualInspectorPanelProps {
   courseId: string;
   onEditChapter: (section: ISection) => void;
   onAddLesson: (section: ISection) => void;
-}
-
-function formatMinutes(seconds?: number | null): string {
-  if (seconds === undefined || seconds === null || seconds <= 0) return '0 phút';
-  const totalMins = Math.round(seconds / 60);
-  if (totalMins >= 60) {
-    const hours = Math.floor(totalMins / 60);
-    const remMins = totalMins % 60;
-    return remMins > 0 ? `${hours} giờ ${remMins} phút` : `${hours} giờ`;
-  }
-  return `${totalMins} phút`;
 }
 
 function formatExactLessonDuration(seconds?: number | null): string {
@@ -313,13 +303,10 @@ function ChapterInspectorView({
   onEditChapter: (section: ISection) => void;
   onAddLesson: (section: ISection) => void;
 }): React.JSX.Element {
-  const { data: lessons, isLoading } = useSectionLessonsQuery(section.id);
-  const lessonCount = lessons ? lessons.length : 0;
-  const totalSeconds = (lessons ?? []).reduce(
-    (acc, curr) => acc + (curr.content?.duration ?? 0),
-    0,
-  );
-  const durationText = formatMinutes(totalSeconds);
+  const { data: lessons, isLoading, isError } = useSectionLessonsQuery(section.id);
+  const videoStats = getVideoLessonStats(lessons ?? []);
+  const lessonCount = videoStats.videoCount;
+  const durationText = formatVideoDuration(videoStats, 'long');
 
   // Lọc và tổng hợp tài liệu bài đọc & tài liệu đính kèm của chương
   const chapterDocuments = React.useMemo(() => {
@@ -373,7 +360,7 @@ function ChapterInspectorView({
           Tổng quan chương
         </span>
         <span className="text-xs text-muted-foreground font-medium">
-          {isLoading ? '...' : `${lessonCount} bài giảng`}
+          {isError ? 'Không thể tải thống kê' : isLoading ? '...' : `${lessonCount} bài giảng`}
         </span>
       </div>
 
@@ -394,7 +381,7 @@ function ChapterInspectorView({
             Số bài giảng thực tế
           </span>
           <p className="text-base font-bold text-foreground">
-            {isLoading ? '...' : `${lessonCount} bài`}
+            {isError ? '—' : isLoading ? '...' : `${lessonCount} bài`}
           </p>
         </div>
         <div className="bg-muted/30 p-2.5 rounded-xl border border-border/40 space-y-1">
@@ -402,7 +389,7 @@ function ChapterInspectorView({
             Tổng thời lượng
           </span>
           <p className="text-base font-bold text-sky-600 dark:text-sky-400">
-            {isLoading ? '...' : durationText}
+            {isError ? 'Không thể tải' : isLoading ? '...' : durationText}
           </p>
         </div>
       </div>

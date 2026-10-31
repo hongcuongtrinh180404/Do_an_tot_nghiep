@@ -156,11 +156,10 @@ describe('CourseService', () => {
       expect(result).toEqual(activeInstructor);
     });
 
-    it('should pass validation when user is an active ADMIN', async () => {
+    it('should reject an active ADMIN as a course creator', async () => {
       mockUserRepository.findById.mockResolvedValue(activeAdmin);
 
-      const result = await service.validateInstructor('admin_1');
-      expect(result).toEqual(activeAdmin);
+      await expect(service.validateInstructor('admin_1')).rejects.toThrow(ForbiddenException);
     });
 
     it('should throw NotFoundException if instructor does not exist', async () => {
@@ -236,6 +235,18 @@ describe('CourseService', () => {
   });
 
   describe('createCourse', () => {
+    it.each([RoleEnum.ADMIN, RoleEnum.STUDENT])('should reject %s without writing a course', async (role) => {
+      mockUserRepository.findById.mockResolvedValue({ ...activeInstructor, role });
+
+      await expect(service.createCourse({
+        title: 'Forbidden Course',
+        slug: 'forbidden-course',
+        instructorId: 'instructor_1',
+      })).rejects.toThrow(ForbiddenException);
+      expect(mockCourseRepository.create).not.toHaveBeenCalled();
+      expect(mockCourseRepository.findBySlug).not.toHaveBeenCalled();
+    });
+
     it('should reject when price is negative', async () => {
       mockUserRepository.findById.mockResolvedValue(activeInstructor);
       mockCourseRepository.findBySlug.mockResolvedValue(null);

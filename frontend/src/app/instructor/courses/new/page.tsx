@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import React from 'react';
 import { CreateCourseHeader, CreateCourseForm } from '@/features/course';
+import { InstructorCourseAccess } from '@/features/course/components/instructor-course-access';
 
 export const metadata: Metadata = {
   title: 'Tạo khóa học mới | DATN Portal',
@@ -10,10 +11,12 @@ export const metadata: Metadata = {
 export default function CreateCoursePage(): React.JSX.Element {
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
-      <div className="w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
-        <CreateCourseHeader />
-        <CreateCourseForm />
-      </div>
+      <InstructorCourseAccess>
+        <div className="w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+          <CreateCourseHeader />
+          <CreateCourseForm />
+        </div>
+      </InstructorCourseAccess>
     </main>
   );
 }

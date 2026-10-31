@@ -88,8 +88,7 @@ export class CourseService extends BaseService<ICourse, string> {
       );
     }
 
-    const authorizedRoles = [RoleEnum.INSTRUCTOR, RoleEnum.ADMIN];
-    if (!authorizedRoles.includes(instructor.role)) {
+    if (instructor.role !== RoleEnum.INSTRUCTOR) {
       throw new ForbiddenException(
         `User with ID '${instructorId}' is not authorized to create courses (role: ${instructor.role})`,
       );

@@ -11,6 +11,7 @@ import {
   HttpStatus,
   UseInterceptors,
   UploadedFile,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ICourse, ISection, RoleEnum } from 'share-lib';
@@ -69,11 +70,18 @@ export class CourseController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @Roles(RoleEnum.INSTRUCTOR)
   async create(
     @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: RoleEnum,
     @Body() dto: CreateCourseDto,
   ): Promise<ApiResponse<ICourse>> {
+    // RolesGuard allows ADMIN to bypass role restrictions for management APIs.
+    // Course creation is explicitly restricted to instructors, including here.
+    if (role !== RoleEnum.INSTRUCTOR) {
+      throw new ForbiddenException('Chỉ giảng viên được tạo khóa học');
+    }
+
     const course = await this.courseService.createCourse({
       title: dto.title,
       slug: dto.slug,

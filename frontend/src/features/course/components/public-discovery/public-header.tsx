@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { RoleEnum } from 'share-lib';
+import { toast } from 'sonner';
 import { useCurrentUserQuery, useLogoutMutation } from '@/features/auth/api/auth.api';
 import { buttonVariants } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
@@ -28,6 +30,13 @@ export function PublicHeader({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const [localSearch, setLocalSearch] = useState(searchQuery);
+  const isInstructor = user?.role === RoleEnum.INSTRUCTOR;
+
+  const handlePurchasedCoursesClick = (): void => {
+    setUserMenuOpen(false);
+    setMobileMenuOpen(false);
+    toast.info('Tính năng khóa học đã mua đang được phát triển.');
+  };
 
   const handleSearch = (e: React.FormEvent): void => {
     e.preventDefault();
@@ -104,13 +113,24 @@ export function PublicHeader({
         <div className="flex items-center gap-3">
           {isMounted && user ? (
             <div className="flex items-center gap-3">
-              {/* My courses link (Text link, no box border, clean hover effect) */}
-              <Link
-                href="/instructor/courses"
-                className="hidden sm:inline-flex items-center text-sm font-medium text-neutral-300 transition-colors hover:text-white px-2 py-1.5 rounded-md hover:bg-neutral-800/50"
-              >
-                Khóa học của tôi
-              </Link>
+              {/* Course shortcut for the current role */}
+              {isInstructor && (
+                <Link
+                  href="/instructor/courses"
+                  className="hidden sm:inline-flex items-center text-sm font-medium text-neutral-300 transition-colors hover:text-white px-2 py-1.5 rounded-md hover:bg-neutral-800/50"
+                >
+                  Khóa học của tôi
+                </Link>
+              )}
+              {user.role === RoleEnum.STUDENT && (
+                <button
+                  type="button"
+                  onClick={handlePurchasedCoursesClick}
+                  className="hidden sm:inline-flex items-center text-sm font-medium text-neutral-300 transition-colors hover:text-white px-2 py-1.5 rounded-md hover:bg-neutral-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 cursor-pointer"
+                >
+                  Khóa học đã mua
+                </button>
+              )}
 
               {/* User Avatar & Dropdown Popover */}
               <Popover open={userMenuOpen} onOpenChange={setUserMenuOpen}>
@@ -160,15 +180,25 @@ export function PublicHeader({
                     <span>Xem hồ sơ</span>
                   </Link>
 
-                  {/* 2. Khóa học của tôi */}
-                  <Link
-                    href="/instructor/courses"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80 transition-colors"
+                  {isInstructor && (
+                    <Link
+                      href="/instructor/courses"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80 transition-colors"
+                    >
+                      <Icon icon="lucide:bookmark" className="size-4 text-neutral-400" />
+                      <span>Khóa học của tôi</span>
+                    </Link>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handlePurchasedCoursesClick}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80 transition-colors text-left"
                   >
-                    <Icon icon="lucide:bookmark" className="size-4 text-neutral-400" />
-                    <span>Khóa học của tôi</span>
-                  </Link>
+                    <Icon icon="lucide:shopping-cart" className="size-4 text-neutral-400" />
+                    <span>Khóa học đã mua</span>
+                  </button>
 
                   {/* 3. Cài đặt tài khoản */}
                   <Link
@@ -233,9 +263,9 @@ export function PublicHeader({
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div data-ui="mobile-menu" className="md:hidden border-t border-border bg-background px-4 py-4 space-y-4">
+        <div data-ui="mobile-menu" className="md:hidden border-t border-neutral-800 bg-[#161616] text-white px-4 py-4 space-y-4">
           <form onSubmit={handleSearch} className="relative w-full">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-neutral-400">
               <Icon icon="lucide:search" className="size-4" />
             </div>
             <input
@@ -243,7 +273,7 @@ export function PublicHeader({
               value={localSearch}
               onChange={handleInputChange}
               placeholder="Tìm kiếm khóa học..."
-              className="w-full h-10 rounded-lg border border-input bg-muted/40 pl-9 pr-4 text-sm"
+              className="w-full h-11 rounded-lg border border-neutral-700 bg-[#282828] pl-9 pr-4 text-sm text-white placeholder:text-neutral-400"
             />
           </form>
 
@@ -251,21 +281,21 @@ export function PublicHeader({
             <Link
               href="#featured"
               onClick={() => setMobileMenuOpen(false)}
-              className="py-2 text-sm font-medium text-foreground hover:text-primary"
+              className="min-h-11 py-3 text-sm font-medium text-neutral-300 hover:text-white"
             >
               Khóa học nổi bật
             </Link>
             <Link
               href="#categories"
               onClick={() => setMobileMenuOpen(false)}
-              className="py-2 text-sm font-medium text-foreground hover:text-primary"
+              className="min-h-11 py-3 text-sm font-medium text-neutral-300 hover:text-white"
             >
               Danh mục lĩnh vực
             </Link>
             <Link
               href="#recent"
               onClick={() => setMobileMenuOpen(false)}
-              className="py-2 text-sm font-medium text-foreground hover:text-primary"
+              className="min-h-11 py-3 text-sm font-medium text-neutral-300 hover:text-white"
             >
               Khóa học mới nhất
             </Link>
@@ -284,23 +314,33 @@ export function PublicHeader({
               <Link
                 href="/profile"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
+                className="min-h-11 flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
               >
                 <Icon icon="lucide:user" className="size-4 text-neutral-400" />
                 <span>Xem hồ sơ</span>
               </Link>
-              <Link
-                href="/instructor/courses"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
+              {isInstructor && (
+                <Link
+                  href="/instructor/courses"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="min-h-11 flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
+                >
+                  <Icon icon="lucide:bookmark" className="size-4 text-neutral-400" />
+                  <span>Khóa học của tôi</span>
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={handlePurchasedCoursesClick}
+                className="min-h-11 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80 text-left"
               >
-                <Icon icon="lucide:bookmark" className="size-4 text-neutral-400" />
-                <span>Khóa học của tôi</span>
-              </Link>
+                <Icon icon="lucide:shopping-cart" className="size-4 text-neutral-400" />
+                <span>Khóa học đã mua</span>
+              </button>
               <Link
                 href="/profile"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
+                className="min-h-11 flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
               >
                 <Icon icon="lucide:settings" className="size-4 text-neutral-400" />
                 <span>Cài đặt tài khoản</span>
@@ -313,7 +353,7 @@ export function PublicHeader({
                   logoutMutation.mutate();
                 }}
                 disabled={logoutMutation.isPending}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-neutral-800/80 transition-colors text-left"
+                className="min-h-11 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-neutral-800/80 transition-colors text-left"
               >
                 <Icon icon="lucide:log-out" className="size-4 text-red-400" />
                 <span>Đăng xuất</span>
