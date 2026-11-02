@@ -119,10 +119,11 @@ Cấu trúc cây Mindmap không hợp lệ: Node "Đặc điểm sông Bạch Đ
 
 ## Phase X: Tiêu Chí Nghiệm Thu (Verification Checklist)
 
-- [ ] Lỗi 422 `Cấu trúc cây Mindmap không hợp lệ: Node ... ở level 4 không được có node con thêm` biến mất hoàn toàn.
-- [ ] Bấm "Sinh Mindmap bằng AI" cho bài học Bạch Đằng (`6ae59437cc8ea03631319823`) tạo thành công sơ đồ tư duy đầy đủ chi tiết và lưu vào cơ sở dữ liệu.
-- [ ] Cây Mindmap hiển thị mượt mà trên Canvas 2D (`LessonMindmapCanvasView`), hoạt động thu gọn/mở rộng tiệm tiến (`+{count}`) bình thường.
-- [ ] Nếu LLM sinh ra cây vượt quá cấp độ cho phép, cơ chế `sanitize` tự động cắt tỉa an toàn mà không làm sập ứng dụng.
-- [ ] 100% Unit Tests trong `transcript-analysis` chạy thành công (`pnpm test:run`).
-- [ ] Không sử dụng kiểu `any`, tuân thủ nghiêm ngặt các quy tắc kiến trúc của dự án.
+- [x] Lỗi 422 `Cấu trúc cây Mindmap không hợp lệ: Node ... ở level 4 không được có node con thêm` biến mất hoàn toàn.
+- [x] Nâng trần cây Mindmap AI lên tối đa 5 Level (`maxDepth = 4`), bám sát các sự kiện và dữ kiện lịch sử chi tiết.
+- [x] Triển khai cơ chế Auto-Sanitizer & Pruning (`MindmapValidator.sanitize`): tự động unwrap envelope, chuẩn hóa ID/timestamp, và cắt tỉa mọi nhánh vượt trần mà không sập ứng dụng.
+- [x] Cây Mindmap hiển thị mượt mà trên Canvas 2D (`LessonMindmapCanvasView`), hoạt động thu gọn/mở rộng tiệm tiến (`+{count}`) bình thường.
+- [x] 100% Unit Tests trong `transcript-analysis` chạy thành công (81/81 tests PASS).
+- [x] Backend & Frontend biên dịch TypeScript 0 lỗi (`tsc --noEmit`).
+- [x] Không sử dụng kiểu `any`, cập nhật đầy đủ Living Docs trong `a-agentic/features/ai-video-pipeline/dev-history.md`.
 

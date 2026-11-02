@@ -23,10 +23,11 @@ export interface LessonMindmapNodeData extends Record<string, unknown> {
  * Chiều cao 88px chừa đủ cho title 2 dòng (85.5px) + viền/padding.
  */
 export const LESSON_NODE_DIMENSIONS: Record<number, { width: number; height: number }> = {
-  0: { width: 340, height: 88 }, // Root
-  1: { width: 300, height: 88 }, // Cấp 1
-  2: { width: 300, height: 88 }, // Cấp 2
-  3: { width: 300, height: 88 }, // Cấp 3
+  0: { width: 340, height: 88 }, // Root (Cấp 1)
+  1: { width: 300, height: 88 }, // Cấp 2
+  2: { width: 300, height: 88 }, // Cấp 3
+  3: { width: 300, height: 88 }, // Cấp 4
+  4: { width: 300, height: 88 }, // Cấp 5
 };
 
 const DEFAULT_LESSON_NODE_DIMENSION = { width: 300, height: 88 };

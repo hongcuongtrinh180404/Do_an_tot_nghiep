@@ -510,6 +510,38 @@
   - **Phân biệt loại lỗi cho Cooldown**: Timeout mạng hoặc lỗi server 500/503 tạm thời không phạt Cooldown cho key (để có thể tái sử dụng ngay cho Model 2 hoặc request tiếp theo); chỉ đưa key vào Cooldown khi nhận đúng mã lỗi 429 Rate Limit.
   - **Constructor Backward Compatibility**: Khi thêm dependency mới vào Service, sử dụng `@Optional()` và fallback `riverKeyManager ?? new RiverKeyManager(configService)` trong constructor để không làm hỏng các test suite khởi tạo thủ công trước đó.
 
+---
+
+## 22. Dev History: Mindmap Depth Extension (Level 5) & Fail-Safe Defensive Auto-Sanitizer (2026-11-02)
+
+- **Bối cảnh & Hiện tượng lỗi**:
+  - Khi người dùng bấm "Sinh Mindmap bằng AI" tại bài học lịch sử (Trận Bạch Đằng năm 938: `/instructor/courses/6abf0202885b2bce17b4482e/lessons/6ae59437cc8ea03631319823`), request bị sập với mã lỗi `422 UnprocessableEntityException`:
+    `Cấu trúc cây Mindmap không hợp lệ: Node "Đặc điểm sông Bạch Đằng" ở level 4 (level tối đa: 4) không được có node con thêm.; Cây mindmap vượt quá độ sâu tối đa cho phép (tối đa 4 level). Node vi phạm: "Dài hơn 20 km, giữa Quảng Ninh và Hải Phòng" tại level 5.; ...` (tổng cộng 19 vi phạm).
+- **Nguyên nhân gốc rễ (Root Cause)**:
+  1. **Prompt Gemini mâu thuẫn**: Yêu cầu cây có tối đa 4 level nhưng đồng thời ép buộc phân tách các thông tin giá trị cốt lõi thành các node riêng. Với bài học có diễn biến phong phú, Gemini tự động phân rã tự nhiên xuống Level 5 (như số liệu chiều dài sông, vị trí giáp ranh, địa thế mai phục, diễn biến triều dâng/rút).
+  2. **Thiếu lớp phòng thủ Auto-Sanitizer**: Backend kiểm tra cứng `MindmapValidator.validateOrFail(geminiResult.data, durationSeconds, 3)` (0-indexed maxDepth = 3 tương đương 4 level). Do không có bước chuẩn hóa cắt tỉa (pruning) trước khi validate, bất kỳ nhánh nào vượt quá 4 level đều gây crash toàn bộ API.
+  3. **Mâu thuẫn kiến trúc với Frontend Canvas**: Frontend (`LessonMindmapCanvasView` + Dagre layout) đã tích hợp cơ chế mở rộng tiệm tiến (Progressive Disclosure - tự động thu gọn 2 cấp đầu, mở dần qua badge `+{count}`), hỗ trợ render mượt mà ở bất kỳ độ sâu nào. Khi giảng viên sửa thủ công, backend thậm chí cho phép độ sâu tới 20 level.
+- **Các giải pháp kỹ thuật đã triển khai**:
+  - **`MindmapValidator.sanitize` (Auto-Sanitizer & Pruning)**:
+    - Xây dựng tiện ích chuẩn hóa phòng thủ nhiều lớp (Fail-Safe):
+      1. *Envelope recovery*: Tự động bóc tách các dạng bao bọc JSON từ LLM (`{ root: ... }`, `{ mindmap: { root: ... } }`, `{ data: { root: ... } }` hoặc object root trực tiếp).
+      2. *Data normalization*: Làm sạch khoảng trắng (`trim`), sinh ID dự phòng nếu thiếu, chuẩn hóa timestamp nằm trong khoảng hợp lệ `[0, maxDurationSeconds]`.
+      3. *Tree pruning*: Cắt tỉa triệt để mọi nhánh con vượt quá `maxDepth` (mặc định `maxDepth = 4` tương đương 5 Level). Tại node lá ở `maxDepth`, xóa bỏ mảng `children`, đảm bảo 100% không bao giờ xảy ra lỗi vi phạm độ sâu.
+  - **Nâng trần cấu trúc Mindmap AI lên 5 Level (`maxDepth = 4`)**:
+    - `MindmapValidator.validate` & `validateOrFail`: Đổi tham số mặc định thành `maxDepth = 4` (Level 1: Root bài học $\rightarrow$ Level 2: Phân đoạn chủ đề $\rightarrow$ Level 3: Ý triển khai $\rightarrow$ Level 4: Chi tiết cụ thể $\rightarrow$ Level 5: Từ khóa cốt lõi, số liệu hoặc dẫn chứng minh họa).
+    - `MindmapAnalysisService.buildMindmapPrompt`: Cập nhật prompt tiếng Việt mô tả cấu trúc 5 Level và bổ sung schema JSON mẫu 5 cấp tương ứng.
+    - `MindmapAnalysisService.generateMindmap`: Gọi `MindmapValidator.sanitize(geminiResult.data, durationSeconds, 4, lesson.title)` trước khi validate và lưu vào MongoDB.
+  - **Frontend Polish**:
+    - `frontend/src/features/course/utils/lesson-mindmap-flow.util.ts`: Bổ sung kích thước chuẩn `LESSON_NODE_DIMENSIONS[4]` (`{ width: 300, height: 88 }`) cho node Cấp 5.
+  - **Testing & Quality Assurance**:
+    - `backend/src/modules/transcript-analysis/tests/mindmap.validator.spec.ts`: Mở rộng lên 12 test cases (kiểm thử 5 level, kiểm thử auto-sanitizer cắt tỉa cây 7 level xuống 5 level, unwrap envelope, sửa timestamp/id, và mô phỏng chính xác dữ liệu bài học Bạch Đằng).
+    - `backend/src/modules/transcript-analysis/tests/mindmap-analysis.service.spec.ts`: Mở rộng lên 15 test cases (bổ sung test case tự động cắt tỉa cây 6 level từ Gemini).
+    - 81/81 test cases trong `transcript-analysis` PASS 100%.
+    - Backend và Frontend đều biên dịch TypeScript thành công 0 lỗi (`tsc --noEmit`).
+- **Technical Notes & Gotchas**:
+  - LLM là mô hình xác suất sinh văn bản tự nhiên, không thể đảm bảo tuân thủ tuyệt đối cấu trúc cây chỉ bằng Prompt System. Bắt buộc mọi luồng phân tích dữ liệu AI dạng đồ thị/cây phân cấp phải có lớp Sanitizer/Pruner tự động để đảm bảo tính ổn định của hệ thống.
+
+
 
 
 
