@@ -2,7 +2,8 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ILesson, LessonContentTypeEnum, LessonTranscriptionStatusEnum } from 'share-lib';
+import { ILesson, LessonContentTypeEnum, LessonTranscriptionStatusEnum, RoleEnum } from 'share-lib';
+import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
 import {
   courseKeys,
   useCourseDetailQuery,
@@ -11,6 +12,7 @@ import {
   useRetryLessonTranscriptionMutation,
 } from '../../api/course.api';
 import { deserializeKeyPoints } from '../../utils/lesson-key-points.util';
+import { canManageCourse } from '../../utils/course-access.util';
 import { useVideoPlayer } from './use-video-player';
 import { LessonPlayerTopBar } from './lesson-player-top-bar';
 import { LessonVideoScreen, TimelineMarker } from './lesson-video-screen';
@@ -28,13 +30,19 @@ export function LessonPlayerStudio({
   courseId,
   lesson,
   backUrl,
-  isInstructor = true,
+  isInstructor: instructorMode = true,
 }: LessonPlayerStudioProps): React.JSX.Element {
   const queryClient = useQueryClient();
-  const defaultBackUrl = backUrl || `/instructor/courses/${courseId}`;
+  const defaultBackUrl = backUrl || `/courses/${courseId}`;
+  const { data: user, isError: isUserError } = useCurrentUserQuery();
+  const hasManagementRole = user?.role === RoleEnum.INSTRUCTOR || user?.role === RoleEnum.ADMIN;
 
   // Fetch Course details and Sections for curriculum navigation
-  const { data: course } = useCourseDetailQuery(courseId);
+  const { data: course, isError: isCourseError } = useCourseDetailQuery(
+    courseId,
+    hasManagementRole && !isUserError,
+  );
+  const isInstructor = instructorMode && !isUserError && !isCourseError && canManageCourse(user, course);
   const { data: sections } = useCourseSectionsQuery(courseId);
 
   // Fetch Transcript from Database (MongoDB collection: lesson_transcripts)

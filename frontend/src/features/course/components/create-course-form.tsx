@@ -334,7 +334,7 @@ export function CreateCourseForm(): React.JSX.Element {
       {/* Form Action Buttons */}
       <div className="flex items-center justify-end gap-3 pt-2">
         <Link
-          href="/instructor/courses"
+          href="/courses"
           className={buttonVariants({
             variant: 'outline',
             size: 'default',

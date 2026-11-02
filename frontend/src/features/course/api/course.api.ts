@@ -221,11 +221,11 @@ export function useMyCoursesQuery() {
   });
 }
 
-export function useCourseDetailQuery(id: string) {
+export function useCourseDetailQuery(id: string, enabled = true) {
   return useQuery({
     queryKey: courseKeys.detail(id),
     queryFn: () => courseApi.getCourseById(id),
-    enabled: Boolean(id),
+    enabled: Boolean(id) && enabled,
   });
 }
 
@@ -384,7 +384,7 @@ export function useCreateCourseMutation() {
       });
 
       // Redirect to courses management
-      router.push('/instructor/courses');
+      router.push('/courses');
     },
     onError: (error: unknown) => {
       const axiosError = error as {

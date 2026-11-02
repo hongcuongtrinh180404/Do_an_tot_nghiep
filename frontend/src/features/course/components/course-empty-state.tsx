@@ -23,7 +23,7 @@ export function CourseEmptyState(): React.JSX.Element {
 
         {/* Call to Action Button */}
         <Link
-          href="/instructor/courses/new"
+          href="/courses/new"
           className={buttonVariants()}
         >
           <Icon icon="lucide:plus" className="size-4 mr-1.5" />

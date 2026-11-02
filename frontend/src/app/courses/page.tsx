@@ -2,9 +2,10 @@ import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { PublicHeader, PublicFooter } from '@/features/course/components/public-discovery';
 import { CourseCatalogView } from '@/features/course/components/catalog/course-catalog-view';
+import { CourseLandingContent } from '@/features/course/components/course-landing-content';
 
 export const metadata: Metadata = {
-  title: 'Tất cả khóa học | Mindly - Nền tảng E-Learning AI',
+  title: 'Khóa học | Mindly - Nền tảng E-Learning AI',
   description:
     'Duyệt toàn bộ khóa học công nghệ thông tin, marketing, thiết kế đồ họa, ngoại ngữ... tích hợp bộ công cụ trợ lý AI thông minh: tóm tắt Mindmap trực quan và In-video Quiz.',
 };
@@ -48,8 +49,9 @@ function CoursesPageContent(): React.JSX.Element {
 export default function CoursesPage(): React.JSX.Element {
   return (
     <Suspense fallback={<CatalogSkeleton />}>
-      <CoursesPageContent />
+      <CourseLandingContent>
+        <CoursesPageContent />
+      </CourseLandingContent>
     </Suspense>
   );
 }
-

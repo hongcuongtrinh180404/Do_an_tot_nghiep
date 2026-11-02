@@ -141,7 +141,7 @@ export function LessonCurriculumTab({
     if (onSelectLesson) {
       onSelectLesson(lessonId);
     } else {
-      router.push(`/instructor/courses/${courseId}/lessons/${lessonId}`);
+      router.push(`/courses/${courseId}/lessons/${lessonId}`);
     }
   };
 

@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  redirects() {
+    return [
+      {
+        source: '/instructor/courses/:path*',
+        destination: '/courses/:path*',
+        permanent: true,
+      },
+    ];
+  },
   // Keep jsdom's CSS assets resolved from its package when rendering rich text on the server.
   serverExternalPackages: ['isomorphic-dompurify'],
   images: {

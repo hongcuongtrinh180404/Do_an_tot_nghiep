@@ -102,7 +102,7 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
     return (
       <div className="w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         <Link
-          href="/instructor/courses"
+          href="/courses"
           className={buttonVariants({ variant: 'outline', size: 'sm' })}
         >
           <Icon icon="lucide:arrow-left" className="size-3.5 mr-1.5" />
@@ -122,7 +122,7 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
             </div>
             <div className="flex items-center gap-2">
               <Link
-                href="/instructor/courses"
+                href="/courses"
                 className={buttonVariants({ variant: 'outline', size: 'sm' })}
               >
                 Về danh sách
@@ -157,7 +157,7 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
       {/* Navigation & Breadcrumb */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/40">
         <Link
-          href="/instructor/courses"
+          href="/courses"
           className={buttonVariants({ variant: 'outline', size: 'sm' })}
         >
           <Icon icon="lucide:arrow-left" className="size-3.5 mr-1.5" />
@@ -169,7 +169,7 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
             Trang Chủ
           </Link>
           <span>/</span>
-          <Link href="/instructor/courses" className="hover:text-foreground transition-colors">
+          <Link href="/courses" className="hover:text-foreground transition-colors">
             Khóa Học Của Tôi
           </Link>
           <span>/</span>

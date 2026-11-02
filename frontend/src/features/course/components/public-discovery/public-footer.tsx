@@ -43,7 +43,7 @@ export function PublicFooter(): React.JSX.Element {
               </h4>
               <ul className="space-y-2 text-xs text-neutral-300">
                 <li>
-                  <Link href="/courses" className="hover:text-white transition-colors font-semibold text-white">
+                  <Link href="/courses?view=catalog" className="hover:text-white transition-colors font-semibold text-white">
                     Tất cả khóa học
                   </Link>
                 </li>
@@ -86,7 +86,7 @@ export function PublicFooter(): React.JSX.Element {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/instructor/courses" className="hover:text-white transition-colors">
+                  <Link href="/courses" className="hover:text-white transition-colors">
                     Dành cho Giảng viên
                   </Link>
                 </li>

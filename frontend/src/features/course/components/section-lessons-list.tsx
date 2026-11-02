@@ -64,7 +64,7 @@ export function SectionLessonsList({
       {lessons.map((lesson) => {
         const lessonOrder = String(lesson.order + 1).padStart(2, '0');
         const lessonUrl = courseId
-          ? `/instructor/courses/${courseId}/lessons/${lesson.id}`
+          ? `/courses/${courseId}/lessons/${lesson.id}`
           : undefined;
 
         const iconName =

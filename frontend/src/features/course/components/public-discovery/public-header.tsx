@@ -62,12 +62,13 @@ export function PublicHeader({
         nextParams.delete('q');
       }
       nextParams.delete('page');
+      nextParams.set('view', 'catalog');
       const qs = nextParams.toString();
       router.push(qs ? `/courses?${qs}` : '/courses');
     } else if (onSearchSubmit) {
       onSearchSubmit(trimmed);
     } else {
-      router.push(trimmed ? `/courses?q=${encodeURIComponent(trimmed)}` : '/courses');
+      router.push(trimmed ? `/courses?view=catalog&q=${encodeURIComponent(trimmed)}` : '/courses?view=catalog');
     }
   };
 
@@ -111,7 +112,7 @@ export function PublicHeader({
               Danh mục
             </Link>
             <Link
-              href="/courses"
+              href="/courses?view=catalog"
               className="text-sm font-medium text-neutral-300 transition-colors hover:text-white"
             >
               Tất cả khóa học
@@ -142,7 +143,7 @@ export function PublicHeader({
               {/* Course shortcut for the current role */}
               {isInstructor && (
                 <Link
-                  href="/instructor/courses"
+                  href="/courses"
                   className="hidden sm:inline-flex items-center text-sm font-medium text-neutral-300 transition-colors hover:text-white px-2 py-1.5 rounded-md hover:bg-neutral-800/50"
                 >
                   Khóa học của tôi
@@ -208,7 +209,7 @@ export function PublicHeader({
 
                   {isInstructor && (
                     <Link
-                      href="/instructor/courses"
+                      href="/courses"
                       onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80 transition-colors"
                     >
@@ -319,7 +320,7 @@ export function PublicHeader({
               Danh mục lĩnh vực
             </Link>
             <Link
-              href="/courses"
+              href="/courses?view=catalog"
               onClick={() => setMobileMenuOpen(false)}
               className="min-h-11 py-3 text-sm font-medium text-neutral-300 hover:text-white"
             >
@@ -347,7 +348,7 @@ export function PublicHeader({
               </Link>
               {isInstructor && (
                 <Link
-                  href="/instructor/courses"
+                  href="/courses"
                   onClick={() => setMobileMenuOpen(false)}
                   className="min-h-11 flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
                 >

@@ -12,7 +12,7 @@ export function FeaturedCourses(): React.JSX.Element {
   return (
     <section id="featured" className="w-full bg-background py-14">
       <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
-        
+
         {/* Section Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-3 taste-enter">
           <div>
@@ -23,9 +23,9 @@ export function FeaturedCourses(): React.JSX.Element {
               Được giảng dạy bởi các chuyên gia đầu ngành với giáo trình thực chiến và tích hợp đầy đủ tính năng tóm tắt thông minh.
             </p>
           </div>
-          
+
           <Link
-            href="/courses"
+            href="/courses?view=catalog"
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#161616] hover:text-[#027D88] hover:underline shrink-0 transition-colors"
           >
             <span>Xem tất cả khóa học</span>

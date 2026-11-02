@@ -7,20 +7,20 @@ export const metadata: Metadata = {
   description: 'Xem thông tin chi tiết khóa học của giảng viên',
 };
 
-interface InstructorCourseDetailPageProps {
+interface CourseDetailPageProps {
   params: Promise<{
-    id: string;
+    courseId: string;
   }>;
 }
 
-export default async function InstructorCourseDetailPage({
+export default async function CourseDetailPage({
   params,
-}: InstructorCourseDetailPageProps): Promise<React.JSX.Element> {
-  const { id } = await params;
+}: CourseDetailPageProps): Promise<React.JSX.Element> {
+  const { courseId } = await params;
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
-      <CourseDetailContent courseId={id} />
+      <CourseDetailContent courseId={courseId} />
     </main>
   );
 }

@@ -17,8 +17,6 @@ export function CourseHeader(): React.JSX.Element {
             Trang Chủ
           </Link>
           <span>/</span>
-          <span>Giảng Viên</span>
-          <span>/</span>
           <span className="text-foreground font-medium">Khóa Học Của Tôi</span>
         </div>
 
@@ -41,7 +39,7 @@ export function CourseHeader(): React.JSX.Element {
           Về Trang Chủ
         </Link>
         <Link
-          href="/instructor/courses/new"
+          href="/courses/new"
           className={buttonVariants({ size: 'sm' })}
         >
           <Icon icon="lucide:plus" className="size-3.5 mr-1" />

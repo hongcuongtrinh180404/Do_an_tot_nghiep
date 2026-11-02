@@ -18,14 +18,7 @@ export function CreateCourseHeader(): React.JSX.Element {
           </Link>
           <span>/</span>
           <Link
-            href="/instructor/courses"
-            className="hover:text-foreground transition-colors"
-          >
-            Giảng Viên
-          </Link>
-          <span>/</span>
-          <Link
-            href="/instructor/courses"
+            href="/courses"
             className="hover:text-foreground transition-colors"
           >
             Khóa Học Của Tôi
@@ -46,7 +39,7 @@ export function CreateCourseHeader(): React.JSX.Element {
       {/* Action Buttons */}
       <div className="flex items-center gap-2.5 shrink-0">
         <Link
-          href="/instructor/courses"
+          href="/courses"
           className={buttonVariants({ variant: 'outline', size: 'sm' })}
         >
           <Icon icon="lucide:arrow-left" className="size-3.5 mr-1.5" />

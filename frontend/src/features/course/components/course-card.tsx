@@ -72,7 +72,7 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
   const createdDate = formatDate(course.createdAt);
 
   return (
-    <Link href={`/instructor/courses/${course.id}`} className="block group h-full">
+    <Link href={`/courses/${course.id}`} className="block group h-full">
       <Card className="cursor-pointer border-border/50 bg-card/60 shadow-xs group-hover:border-foreground/30 group-hover:shadow-sm transition-all flex flex-col justify-between h-full">
         <CardHeader className="space-y-2 pb-3">
           {/* Status & Level Badges */}

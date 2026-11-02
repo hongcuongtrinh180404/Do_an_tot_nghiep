@@ -92,6 +92,7 @@ export function CourseCatalogView(): React.JSX.Element {
     (updater: (params: URLSearchParams) => void, mode: 'push' | 'replace' = 'replace') => {
       const nextParams = new URLSearchParams(searchParams.toString());
       updater(nextParams);
+      nextParams.set('view', 'catalog');
       const qs = nextParams.toString();
       const nextUrl = qs ? `${pathname}?${qs}` : pathname;
       if (mode === 'push') {

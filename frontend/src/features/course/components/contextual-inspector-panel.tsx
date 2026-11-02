@@ -504,7 +504,7 @@ function LessonInspectorView({
     : durationText !== 'Chưa xác định'
       ? durationText
       : 'Video bài giảng';
-  const lessonViewUrl = `/instructor/courses/${courseId}/lessons/${lesson.id}`;
+  const lessonViewUrl = `/courses/${courseId}/lessons/${lesson.id}`;
 
   const keyPoints = deserializeKeyPoints(lesson.description);
   const materialsList = lesson.materials || [];
