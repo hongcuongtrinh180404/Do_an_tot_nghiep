@@ -77,6 +77,17 @@ export class LessonRepository extends BaseMongoRepository<ILesson, LessonEntity>
     return docs.map((doc) => this.toDomain(doc));
   }
 
+  async findBySectionIds(sectionIds: string[]): Promise<ILesson[]> {
+    if (sectionIds.length === 0) return [];
+
+    const docs = await this.model.find({
+      sectionId: { $in: sectionIds.map((id) => new Types.ObjectId(id)) },
+      deletedAt: null,
+    }).sort({ order: 1, _id: 1 }).exec();
+
+    return docs.map((doc) => this.toDomain(doc));
+  }
+
   async softDeleteBySectionId(
     sectionId: string,
     userId?: string,

@@ -500,7 +500,7 @@ export function CourseMediaPreview({
         {/* Thanh chân thẻ: 2 nút điều khiển độc lập ở hai bên */}
         <div className="px-6 py-4 border-t border-border/30 bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* Nhóm 1 (Trái): Quản lý Ảnh bìa (Thumbnail) */}
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start" data-approval-field="thumbnail" tabIndex={-1}>
             {!readOnly && (
               <Button
                 type="button"
@@ -508,6 +508,7 @@ export function CourseMediaPreview({
                 size="sm"
                 disabled={isUploadingThumbnail || isUploadingTrailer}
                 onClick={() => thumbnailInputRef.current?.click()}
+                data-approval-focus=""
                 className="rounded-xl text-xs font-semibold gap-2 border-border/60 shadow-xs hover:bg-muted/60 shrink-0"
               >
                 {isUploadingThumbnail ? (
@@ -550,7 +551,7 @@ export function CourseMediaPreview({
           </div>
 
           {/* Nhóm 2 (Phải): Quản lý Video Trailer */}
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end" data-approval-field="trailer" tabIndex={-1}>
             <span
               className="text-xs text-muted-foreground italic font-normal truncate max-w-[180px] sm:max-w-[220px]"
               title={trailerFileName || undefined}
@@ -577,6 +578,7 @@ export function CourseMediaPreview({
                 size="sm"
                 disabled={isUploadingThumbnail || isUploadingTrailer}
                 onClick={() => trailerInputRef.current?.click()}
+                data-approval-focus=""
                 className="rounded-xl text-xs font-semibold gap-2 border-border/60 shadow-xs hover:bg-muted/60 shrink-0"
               >
                 {isUploadingTrailer ? (

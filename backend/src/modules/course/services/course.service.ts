@@ -531,6 +531,18 @@ export class CourseService extends BaseService<ICourse, string> {
     // 1. Fetch course and check authorization
     const course = await this.getCourseDetailForInstructor(courseId, userId, role, session);
 
+    if (dto.status !== undefined) {
+      if (!Object.values(CourseStatusEnum).includes(dto.status)) {
+        throw new BadRequestException('Trạng thái khóa học không hợp lệ');
+      }
+      if (dto.status !== course.status && role !== RoleEnum.ADMIN) {
+        throw new ForbiddenException('Vui lòng sử dụng chức năng yêu cầu phê duyệt để gửi khóa học.');
+      }
+      if (dto.status === CourseStatusEnum.PENDING_APPROVAL && dto.status !== course.status) {
+        throw new BadRequestException('Cần kiểm tra điều kiện qua chức năng yêu cầu phê duyệt.');
+      }
+    }
+
     // 2. Validate price constraint
     const targetPrice = dto.price !== undefined ? dto.price : course.price;
     const targetOriginalPrice =

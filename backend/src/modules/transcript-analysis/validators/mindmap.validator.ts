@@ -11,12 +11,12 @@ export class MindmapValidator {
    * Kiểm tra toàn diện tính hợp lệ của cấu trúc cây Mindmap do Gemini sinh ra
    * @param data Dữ liệu cây Mindmap
    * @param maxDurationSeconds Thời lượng tối đa của video (giây) để chặn trên timestamp
-   * @param maxDepth Số cấp tối đa tính từ root (mặc định: 3 cấp)
+   * @param maxDepth Số cấp tối đa tính từ root (mặc định: 4 cấp - tức tối đa 5 level)
    */
   static validate(
     data: ILessonMindmapData,
     maxDurationSeconds: number,
-    maxDepth = 3,
+    maxDepth = 4,
   ): MindmapValidationResult {
     const errors: string[] = [];
 
@@ -45,7 +45,7 @@ export class MindmapValidator {
   static validateOrFail(
     data: ILessonMindmapData,
     maxDurationSeconds: number,
-    maxDepth = 3,
+    maxDepth = 4,
   ): void {
     const result = this.validate(data, maxDurationSeconds, maxDepth);
     if (!result.isValid) {
@@ -53,6 +53,154 @@ export class MindmapValidator {
         `Cấu trúc cây Mindmap không hợp lệ: ${result.errors.join('; ')}`,
       );
     }
+  }
+
+  /**
+   * Tự động chuẩn hóa và cắt tỉa (Auto-Sanitize / Pruning) cấu trúc cây Mindmap do AI sinh ra
+   * Đảm bảo an toàn tuyệt đối (Fail-safe):
+   * 1. Hỗ trợ bóc tách các dạng envelope khác nhau từ LLM (root, mindmap.root, data.root).
+   * 2. Chuẩn hóa ID, Title (trim whitespace, sinh fallback khi rỗng).
+   * 3. Ràng buộc timestamp hợp lệ trong khoảng [0, maxDurationSeconds].
+   * 4. Cắt tỉa (prune) triệt để các nhánh con vượt quá maxDepth (mặc định 4 = 5 Level),
+   *    xóa bỏ trường children tại node lá để bảo đảm 100% không vi phạm ràng buộc độ sâu.
+   *
+   * @param data Dữ liệu nhận từ AI
+   * @param maxDurationSeconds Thời lượng video tính bằng giây
+   * @param maxDepth Độ sâu tối đa tính từ root (mặc định: 4 - tương đương 5 level)
+   * @param fallbackTitle Tiêu đề bài học dự phòng cho root nếu bị thiếu
+   */
+  static sanitize(
+    data: unknown,
+    maxDurationSeconds: number,
+    maxDepth = 4,
+    fallbackTitle = 'Bài học',
+  ): ILessonMindmapData {
+    if (!data || typeof data !== 'object') {
+      return {
+        root: {
+          id: 'root',
+          title: fallbackTitle.trim() || 'Bài học',
+          timestamp: 0,
+        },
+      };
+    }
+
+    const rawRecord = data as Record<string, unknown>;
+
+    // 1. Phục hồi cấu trúc root nếu LLM bao bọc trong envelope { mindmap: { root: ... } } hoặc { data: { root: ... } }
+    let rawRoot: unknown = rawRecord.root;
+    if (!rawRoot && rawRecord.mindmap && typeof rawRecord.mindmap === 'object') {
+      rawRoot = (rawRecord.mindmap as Record<string, unknown>).root;
+    }
+    if (!rawRoot && rawRecord.data && typeof rawRecord.data === 'object') {
+      rawRoot = (rawRecord.data as Record<string, unknown>).root;
+    }
+    // Nếu LLM trả về trực tiếp đối tượng node gốc { id: 'root', title: '...', children: [...] }
+    if (!rawRoot && typeof rawRecord.title === 'string') {
+      rawRoot = rawRecord;
+    }
+
+    if (!rawRoot || typeof rawRoot !== 'object') {
+      return {
+        root: {
+          id: 'root',
+          title: fallbackTitle.trim() || 'Bài học',
+          timestamp: 0,
+        },
+      };
+    }
+
+    const sanitizedRoot = this.sanitizeNode(
+      rawRoot as Record<string, unknown>,
+      0,
+      maxDepth,
+      maxDurationSeconds,
+      0,
+      0,
+      fallbackTitle,
+    );
+
+    // Node root luôn có id là 'root' và timestamp là 0
+    sanitizedRoot.id = 'root';
+    sanitizedRoot.timestamp = 0;
+
+    return {
+      root: sanitizedRoot,
+    };
+  }
+
+  private static sanitizeNode(
+    rawNode: Record<string, unknown>,
+    currentDepth: number,
+    maxDepth: number,
+    maxDurationSeconds: number,
+    parentTimestamp: number,
+    index: number,
+    fallbackTitle?: string,
+  ): ILessonMindmapNode {
+    // 1. Chuẩn hóa ID
+    const id =
+      typeof rawNode.id === 'string' && rawNode.id.trim()
+        ? rawNode.id.trim()
+        : `node-${currentDepth}-${index}`;
+
+    // 2. Chuẩn hóa Title
+    const title =
+      typeof rawNode.title === 'string' && rawNode.title.trim()
+        ? rawNode.title.trim()
+        : fallbackTitle?.trim() || `Nội dung cấp ${currentDepth + 1}`;
+
+    // 3. Chuẩn hóa Timestamp
+    let timestamp =
+      typeof rawNode.timestamp === 'number' && !isNaN(rawNode.timestamp)
+        ? rawNode.timestamp
+        : parentTimestamp;
+
+    if (timestamp < 0) {
+      timestamp = 0;
+    }
+    if (maxDurationSeconds > 0 && timestamp > maxDurationSeconds) {
+      timestamp = maxDurationSeconds;
+    }
+
+    const node: ILessonMindmapNode = {
+      id,
+      title,
+      timestamp,
+    };
+
+    // 4. Cắt tỉa (Pruning) độ sâu cây:
+    // Nếu node đã ở cấp tối đa (currentDepth >= maxDepth), TUYỆT ĐỐI KHÔNG ĐƯỢC có children
+    if (currentDepth >= maxDepth) {
+      // Đã ở level tối đa (Level 5 khi maxDepth = 4), loại bỏ hoàn toàn children
+      return node;
+    }
+
+    // Nếu chưa ở cấp tối đa và có mảng children hợp lệ
+    if (Array.isArray(rawNode.children) && rawNode.children.length > 0) {
+      const sanitizedChildren: ILessonMindmapNode[] = [];
+
+      rawNode.children.forEach((child, childIndex) => {
+        if (child && typeof child === 'object') {
+          sanitizedChildren.push(
+            this.sanitizeNode(
+              child as Record<string, unknown>,
+              currentDepth + 1,
+              maxDepth,
+              maxDurationSeconds,
+              timestamp,
+              childIndex,
+            ),
+          );
+        }
+      });
+
+      if (sanitizedChildren.length > 0) {
+        node.children = sanitizedChildren;
+      }
+    }
+
+    return node;
   }
 
   private static validateNode(

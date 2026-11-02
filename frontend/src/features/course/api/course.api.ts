@@ -32,6 +32,7 @@ export const courseKeys = {
   myCourses: () => [...courseKeys.all, 'my-courses'] as const,
   detail: (id: string) => [...courseKeys.all, 'detail', id] as const,
   sections: (courseId: string) => [...courseKeys.detail(courseId), 'sections'] as const,
+  approvalChecklist: (courseId: string) => [...courseKeys.detail(courseId), 'approval-checklist'] as const,
   lessons: (sectionId: string) => ['sections', sectionId, 'lessons'] as const,
   lessonDetail: (lessonId: string) => ['lessons', 'detail', lessonId] as const,
   lessonTranscript: (lessonId: string) => ['lessons', 'transcript', lessonId] as const,
@@ -447,6 +448,7 @@ export function useUpdateCourseMutation(courseId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalCourseId: courseId },
     mutationFn: (payload: IUpdateCoursePayload) => courseApi.updateCourse(courseId, payload),
     onSuccess: (updatedCourse) => {
       queryClient.setQueryData(courseKeys.detail(courseId), updatedCourse);
@@ -475,6 +477,7 @@ export function useCreateSectionMutation(courseId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalCourseId: courseId },
     mutationFn: (payload: ICreateSectionPayload) => courseApi.createSection(courseId, payload),
     onSuccess: (data: ISection) => {
       // Invalidate course sections query so list automatically updates
@@ -542,6 +545,7 @@ export function useUpdateSectionMutation(courseId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalCourseId: courseId },
     mutationFn: ({
       sectionId,
       payload,
@@ -621,6 +625,7 @@ export function useDeleteSectionMutation(courseId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalCourseId: courseId },
     mutationFn: (sectionId: string) => courseApi.deleteSection(courseId, sectionId),
     onSuccess: (_, deletedSectionId) => {
       // 1. Cập nhật tức thì dữ liệu trong query cache: loại bỏ section bị xóa và dồn lại order
@@ -697,6 +702,7 @@ export function useDeleteLessonMutation(sectionId: string, courseId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalCourseId: courseId, approvalSectionId: sectionId },
     mutationFn: (lessonId: string) => courseApi.deleteLesson(lessonId),
     onSuccess: (_, deletedLessonId) => {
       // 1. Cập nhật tức thì dữ liệu trong query cache: loại bỏ bài học bị xóa và dồn lại order
@@ -776,6 +782,7 @@ export function useReorderSectionsMutation(courseId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalCourseId: courseId },
     mutationFn: (payload: IReorderSectionsPayload) =>
       courseApi.reorderSections(courseId, payload),
     onMutate: async (newOrderPayload) => {
@@ -824,6 +831,7 @@ export function useCreateLessonMutation(sectionId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalSectionId: sectionId },
     mutationFn: (payload: ICreateLessonPayload) => courseApi.createLesson(sectionId, payload),
     onSuccess: (data: ILesson) => {
       // Invalidate section lessons query so list automatically updates
@@ -891,6 +899,7 @@ export function useUploadCourseThumbnailMutation(courseId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalCourseId: courseId },
     mutationFn: ({
       file,
       onProgress,
@@ -935,6 +944,7 @@ export function useUploadCourseTrailerMutation(courseId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalCourseId: courseId },
     mutationFn: ({
       file,
       onProgress,

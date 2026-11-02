@@ -54,7 +54,7 @@ export function CourseDescInlineCard({
   };
 
   return (
-    <Card className="border-border/50 bg-card/60 shadow-xs">
+    <Card className="border-border/50 bg-card/60 shadow-xs" data-approval-field="description" tabIndex={-1}>
       <CardHeader className="pb-3 border-b border-border/30 flex flex-row items-center justify-between">
         <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
           <Icon icon="lucide:align-left" className="size-4 text-muted-foreground" />
@@ -67,6 +67,7 @@ export function CourseDescInlineCard({
             variant="ghost"
             size="sm"
             onClick={handleStartEdit}
+            data-approval-focus=""
             className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 px-2.5"
           >
             <Icon icon="lucide:pencil" className="size-3" />

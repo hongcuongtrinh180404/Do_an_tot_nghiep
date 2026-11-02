@@ -49,6 +49,12 @@ export class CourseEntity extends BaseAbstractDocument {
   })
   status: CourseStatusEnum;
 
+  @Prop({ type: Date, default: null })
+  approvalRequestedAt?: Date | null;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: UserEntity.name, default: null })
+  approvalRequestedById?: Types.ObjectId | null;
+
   @Prop({
     type: String,
     enum: Object.values(CourseLevelEnum),

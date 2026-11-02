@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Model, Types } from 'mongoose';
-import { CourseStatusEnum, CourseLevelEnum } from 'share-lib';
+import { CourseStatusEnum, CourseLevelEnum, type ICourse } from 'share-lib';
 import { CourseRepository } from '../repositories/course.repository.js';
 import { CourseEntity } from '../schemas/course.schema.js';
 
@@ -137,5 +137,24 @@ describe('CourseRepository', () => {
       expect(result).toHaveLength(1);
       expect(result[0].instructorId).toBe(instructorObjId.toString());
     });
+  });
+
+  it('atomically submits only the checked, non-deleted draft and records the requesting actor', async () => {
+    const course = {
+      id: new Types.ObjectId().toString(), updatedAt: '2026-10-31T00:00:00.000Z',
+    } as ICourse;
+    const userId = new Types.ObjectId().toString();
+    const exec = vi.fn().mockResolvedValue(null);
+    mockModel.findOneAndUpdate = vi.fn().mockReturnValue({ populate: vi.fn().mockReturnValue({ exec }) });
+
+    expect(await repository.requestApproval(course, userId)).toBeNull();
+    expect(mockModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: course.id, deletedAt: null, status: CourseStatusEnum.DRAFT, updatedAt: new Date(course.updatedAt) },
+      { $set: {
+        status: CourseStatusEnum.PENDING_APPROVAL, approvalRequestedAt: expect.any(Date),
+        approvalRequestedById: userId, updatedById: userId,
+      } },
+      { new: true, runValidators: true },
+    );
   });
 });

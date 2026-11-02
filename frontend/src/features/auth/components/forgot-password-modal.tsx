@@ -177,7 +177,7 @@ export function ForgotPasswordModal({
           const message =
             error && typeof error === 'object' && 'response' in error
               ? (error as { response?: { data?: { message?: string } } }).response?.data
-                  ?.message
+                ?.message
               : undefined;
           setErrorMessage(
             message || 'Không thể gửi yêu cầu đặt lại mật khẩu. Vui lòng thử lại sau.',
@@ -382,9 +382,9 @@ export function ForgotPasswordModal({
               style={
                 mode === 'form'
                   ? {
-                      animation: 'mailActiveShake 0.85s ease-in-out infinite',
-                      transformOrigin: 'center center',
-                    }
+                    animation: 'mailActiveShake 0.85s ease-in-out infinite',
+                    transformOrigin: 'center center',
+                  }
                   : undefined
               }
             >

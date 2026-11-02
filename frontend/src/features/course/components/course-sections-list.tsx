@@ -29,9 +29,11 @@ import {
 } from './course-view-mode-switcher';
 import { CourseMindmapView } from './mindmap/course-mindmap-view';
 import { formatVideoDuration, getVideoLessonStats } from '../utils/course-lesson-stats.util';
+import type { CourseCurriculumHandle } from '../hooks/use-course-approval-navigation';
 
 interface CourseSectionsListProps {
   courseId: string;
+  approvalRef?: React.Ref<CourseCurriculumHandle>;
 }
 
 interface ChapterTreeItemProps {
@@ -90,6 +92,10 @@ function ChapterTreeItem({
 
   return (
     <div
+      data-approval-section={section.id}
+      tabIndex={-1}
+      role="group"
+      aria-label={`Chương ${index + 1}: ${section.title}`}
       draggable
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -231,6 +237,10 @@ function ChapterTreeItem({
               return (
                 <div
                   key={lesson.id}
+                  data-approval-lesson={lesson.id}
+                  tabIndex={-1}
+                  role="group"
+                  aria-label={lesson.title}
                   onClick={() => onSelectLesson(lesson)}
                   className={`p-3 pl-8 sm:pl-10 flex items-center justify-between cursor-pointer transition-colors text-xs ${
                     isLessonSelected
@@ -314,7 +324,7 @@ function ChapterTreeItem({
   );
 }
 
-function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React.JSX.Element {
+function CourseSectionsListContent({ courseId, approvalRef }: CourseSectionsListProps): React.JSX.Element {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -421,6 +431,18 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
     }));
   };
 
+  React.useImperativeHandle(approvalRef, () => ({
+    revealApprovalTarget(target) {
+      if (viewMode !== 'tree') handleViewModeChange('tree');
+      if (target.sectionId) {
+        setExpandedChapters((previous) => ({ ...previous, [target.sectionId!]: true }));
+        setSelection(target.lessonId
+          ? { type: 'lesson', chapterId: target.sectionId, lessonId: target.lessonId }
+          : { type: 'chapter', chapterId: target.sectionId });
+      }
+    },
+  }));
+
   return (
     <div className="space-y-6">
       {/* 1. Top Overview Metrics Bar */}
@@ -450,7 +472,7 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
         {/* CỘT TRÁI (62%): CÂY PHÂN CẤP CHƯƠNG & BÀI HỌC */}
         <div className="min-w-0 space-y-4">
           {/* Header Card */}
-          <div className="flex items-center justify-between bg-card p-4 rounded-2xl border border-border/60 shadow-xs">
+          <div className="flex items-center justify-between bg-card p-4 rounded-2xl border border-border/60 shadow-xs" data-approval-field="curriculum" tabIndex={-1}>
             <div>
               <h2 className="text-sm font-bold text-foreground">Cấu trúc giáo trình</h2>
               <p className="text-[11px] text-muted-foreground">
@@ -460,6 +482,7 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
             <Button
               size="sm"
               onClick={() => setIsCreateDialogOpen(true)}
+              data-approval-focus=""
               className="text-xs font-semibold h-8 rounded-xl shadow-xs"
             >
               <Icon icon="lucide:plus" className="size-3.5 mr-1" />
@@ -648,7 +671,7 @@ function CourseSectionsListContent({ courseId }: CourseSectionsListProps): React
   );
 }
 
-export function CourseSectionsList({ courseId }: CourseSectionsListProps): React.JSX.Element {
+export function CourseSectionsList({ courseId, approvalRef }: CourseSectionsListProps): React.JSX.Element {
   return (
     <React.Suspense
       fallback={
@@ -663,7 +686,7 @@ export function CourseSectionsList({ courseId }: CourseSectionsListProps): React
         </div>
       }
     >
-      <CourseSectionsListContent courseId={courseId} />
+      <CourseSectionsListContent courseId={courseId} approvalRef={approvalRef} />
     </React.Suspense>
   );
 }

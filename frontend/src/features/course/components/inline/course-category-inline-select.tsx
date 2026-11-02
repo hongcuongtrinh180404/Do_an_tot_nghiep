@@ -64,6 +64,7 @@ export function CourseCategoryInlineSelect({
           <button
             type="button"
             aria-label="Chọn danh mục khóa học"
+            data-approval-field="category"
             className={cn(
               'w-full p-3 rounded-lg bg-muted/25 border border-border/30 hover:border-border/80 hover:bg-muted/40 transition-all cursor-pointer group outline-none select-none text-left',
               isOpen && 'border-ring ring-2 ring-ring/40 bg-muted/40',

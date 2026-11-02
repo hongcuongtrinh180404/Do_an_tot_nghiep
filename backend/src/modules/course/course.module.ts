@@ -14,6 +14,8 @@ import { LessonMindmapEntity, LessonMindmapSchema } from './schemas/lesson-mindm
 import { LessonSummaryEntity, LessonSummarySchema } from './schemas/lesson-summary.schema.js';
 import { LessonQuizDraftEntity, LessonQuizDraftSchema } from './schemas/lesson-quiz-draft.schema.js';
 import { CourseController } from './course.controller.js';
+import { CourseApprovalController } from './course-approval.controller.js';
+import { CourseApprovalService } from './services/course-approval.service.js';
 import { CourseCategoryController } from './course-category.controller.js';
 import { CourseMindmapController } from './course-mindmap.controller.js';
 import { LessonController } from './lesson.controller.js';
@@ -61,6 +63,7 @@ import { AssemblyAiModule } from '../assemblyai/assemblyai.module.js';
   ],
   controllers: [
     CourseController,
+    CourseApprovalController,
     CourseCategoryController,
     CourseMindmapController,
     LessonController,
@@ -69,6 +72,7 @@ import { AssemblyAiModule } from '../assemblyai/assemblyai.module.js';
     LessonQuizController,
   ],
   providers: [
+    CourseApprovalService,
     CourseRepository,
     CourseCategoryRepository,
     SectionRepository,

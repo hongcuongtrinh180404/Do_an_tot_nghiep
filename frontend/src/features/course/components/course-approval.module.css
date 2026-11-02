@@ -1,0 +1,33 @@
+.scope [data-approval-field],
+.scope [data-approval-section],
+.scope [data-approval-lesson] {
+  scroll-margin-block: 6rem;
+}
+
+.scope [data-approval-highlight] {
+  position: relative;
+  border-radius: 0.5rem;
+}
+
+.scope [data-approval-highlight]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: 2px solid var(--color-red-400);
+  border-radius: inherit;
+  pointer-events: none;
+  animation: missing-field-pulse 1s ease-in-out 2;
+}
+
+@keyframes missing-field-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scope [data-approval-highlight]::after {
+    animation: none;
+    opacity: 0.65;
+  }
+}

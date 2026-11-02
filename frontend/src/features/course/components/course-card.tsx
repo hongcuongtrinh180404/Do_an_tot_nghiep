@@ -14,6 +14,10 @@ const statusMap: Record<CourseStatusEnum, { label: string; className: string }> 
     label: 'Bản nháp',
     className: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
   },
+  [CourseStatusEnum.PENDING_APPROVAL]: {
+    label: 'Chờ duyệt',
+    className: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20',
+  },
   [CourseStatusEnum.PUBLISHED]: {
     label: 'Đã xuất bản',
     className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',

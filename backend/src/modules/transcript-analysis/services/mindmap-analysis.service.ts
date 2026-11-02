@@ -69,7 +69,7 @@ export class MindmapAnalysisService {
   }
 
   /**
-   * Xây dựng Prompt phân tích cấu trúc cây Mindmap tiếng Việt
+   * Xây dựng Prompt phân tích cấu trúc cây Mindmap tiếng Việt (tối đa 5 level)
    */
   public buildMindmapPrompt(
     lessonTitle: string,
@@ -86,15 +86,16 @@ THÔNG TIN BÀI GIẢNG:
 QUY TẮC CẤU TRÚC CÂY BẮT BUỘC:
 Phân tích dữ liệu transcript bài giảng (gồm các đoạn/câu kèm mốc thời gian "start", "end" tính bằng giây) để trích xuất thành cây sơ đồ tư duy phân cấp ngữ nghĩa.
 
-I. RÀNG BUỘC ĐỘ SÂU LEVEL (TỐI ĐA 4 LEVEL):
-1. Cấu trúc cây có TỐI ĐA 4 LEVEL tính từ node gốc "root":
+I. RÀNG BUỘC ĐỘ SÂU LEVEL (TỐI ĐA 5 LEVEL):
+1. Cấu trúc cây có TỐI ĐA 5 LEVEL tính từ node gốc "root":
    - Level 1 (Node Root duy nhất): Đại diện cho toàn bộ bài học, tiêu đề BẮT BUỘC là tên video bài giảng ("${lessonTitle}"), "id": "root", mốc thời gian "timestamp": 0.
    - Level 2: Các chủ đề / phân đoạn kiến thức chính của bài học (các nhánh con trực tiếp của root).
    - Level 3: Các ý chi tiết, cơ chế, phương pháp, quy trình triển khai cho từng chủ đề (các nhánh con của Level 2).
-   - Level 4: Các chi tiết cụ thể, từ khóa cốt lõi hoặc ví dụ minh họa điển hình (các nhánh con của Level 3). Đây là LEVEL TỐI ĐA của cây, TUYỆT ĐỐI KHÔNG ĐƯỢC có thêm node con ("children").
+   - Level 4: Các chi tiết cụ thể, nội dung thành phần, bối cảnh hoặc bước thực hiện (các nhánh con của Level 3).
+   - Level 5: Các từ khóa cốt lõi, số liệu cụ thể, ví dụ minh họa điển hình hoặc luận cứ (các nhánh con của Level 4). Đây là LEVEL TỐI ĐA của cây, TUYỆT ĐỐI KHÔNG ĐƯỢC có thêm node con ("children").
 2. KHÔNG CÓ MỨC TỐI THIỂU CHO MỖI NODE:
    - Độ sâu của từng nhánh hoàn toàn linh hoạt theo độ phong phú của nội dung bài giảng thực tế.
-   - KHÔNG bắt buộc một node phải có node con. Một nhánh có thể kết thúc ở Level 2, Level 3 hoặc Level 4 (không ép buộc mọi nhánh phải đạt đủ 4 level).
+   - KHÔNG bắt buộc một node phải có node con. Một nhánh có thể kết thúc ở Level 2, Level 3, Level 4 hoặc Level 5 (không ép buộc mọi nhánh phải đạt đủ 5 level).
    - Chỉ tạo thêm nhánh con khi thực sự cần phân tách làm rõ nội dung; nếu ý kiến thức đã rõ ràng thì dừng lại mà không cần đào sâu thêm.
 
 II. XỬ LÝ VĂN BẢN & SỬA LỖI NHẬN DIỆN GIỌNG NÓI (ASR CORRECTION):
@@ -139,8 +140,15 @@ V. QUY TẮC TÍNH MỐC THỜI GIAN ("timestamp" - Đơn vị: giây):
             "children": [
               {
                 "id": "node-1-1-1",
-                "title": "Từ khóa cốt lõi",
-                "timestamp": 50
+                "title": "Chi tiết cụ thể 1.1.1",
+                "timestamp": 50,
+                "children": [
+                  {
+                    "id": "node-1-1-1-1",
+                    "title": "Từ khóa cốt lõi / Số liệu",
+                    "timestamp": 65
+                  }
+                ]
               }
             ]
           }
@@ -218,22 +226,30 @@ ${formattedTranscript}`;
       },
     );
 
-    // 5. Kiểm tra chặt chẽ cấu trúc cây và mốc timestamp (MindmapValidator)
-    MindmapValidator.validateOrFail(geminiResult.data, durationSeconds, 3);
+    // 5. Tự động chuẩn hóa và cắt tỉa phòng thủ (Auto-Sanitize / Pruning) tối đa 5 Level (maxDepth = 4)
+    const sanitizedMindmap = MindmapValidator.sanitize(
+      geminiResult.data,
+      durationSeconds,
+      4,
+      lesson.title,
+    );
 
-    // 6. Lưu trực tiếp làm bản chính thức (mặc định: false) hoặc lưu bản nháp nếu yêu cầu
+    // 6. Kiểm tra cấu trúc cây và mốc timestamp (MindmapValidator)
+    MindmapValidator.validateOrFail(sanitizedMindmap, durationSeconds, 4);
+
+    // 7. Lưu trực tiếp làm bản chính thức (mặc định: false) hoặc lưu bản nháp nếu yêu cầu
     const shouldSaveDraft = dto?.saveAsDraft ?? false;
     if (shouldSaveDraft) {
       await this.lessonMindmapRepo.saveDraftByLessonId(
         trimmedLessonId,
-        geminiResult.data,
+        sanitizedMindmap,
         userId,
       );
       this.logger.log(`Đã lưu bản nháp Mindmap cho bài học ${trimmedLessonId}`);
     } else {
       await this.lessonMindmapRepo.upsertOfficialByLessonId(
         trimmedLessonId,
-        geminiResult.data,
+        sanitizedMindmap,
         userId,
       );
       this.logger.log(`Đã lưu bản sơ đồ tư duy chính thức cho bài học ${trimmedLessonId}`);
@@ -241,7 +257,7 @@ ${formattedTranscript}`;
 
     return {
       lessonId: trimmedLessonId,
-      mindmap: geminiResult.data,
+      mindmap: sanitizedMindmap,
       metadata: {
         model: geminiResult.model,
         keyIndex: geminiResult.keyIndex,

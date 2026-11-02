@@ -29,6 +29,10 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
         typeof rawInstructorId === 'string'
           ? rawInstructorId
           : (rawInstructorId as { toString?: () => string })?.toString?.();
+      const rawRequesterId = plain.approvalRequestedById;
+      const approvalRequestedById = typeof rawRequesterId === 'string'
+        ? rawRequesterId
+        : (rawRequesterId as { toString?: () => string } | null)?.toString?.() ?? null;
 
       const rawCategoryId = plain.categoryId as unknown;
       let categoryId: string | null = null;
@@ -72,6 +76,7 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
         ...plain,
         id: id as string,
         instructorId: (instructorId ?? '') as string,
+        approvalRequestedById,
         categoryId,
         category,
       } as unknown as ICourse;
@@ -97,6 +102,30 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
       .populate(CATEGORY_POPULATE)
       .session(session ?? null)
       .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  async requestApproval(course: ICourse, userId: string): Promise<ICourse | null> {
+    // A conditional write prevents two requests (or a concurrent course edit)
+    // from submitting the same checked draft twice.
+    const doc = await this.model.findOneAndUpdate(
+      {
+        _id: course.id,
+        deletedAt: null,
+        status: CourseStatusEnum.DRAFT,
+        updatedAt: new Date(course.updatedAt),
+      },
+      {
+        $set: {
+          status: CourseStatusEnum.PENDING_APPROVAL,
+          approvalRequestedAt: new Date(),
+          approvalRequestedById: userId,
+          updatedById: userId,
+        },
+      },
+      { new: true, runValidators: true },
+    ).populate(CATEGORY_POPULATE).exec();
 
     return doc ? this.toDomain(doc) : null;
   }

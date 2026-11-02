@@ -79,13 +79,14 @@ export function CourseTitleInlineEdit({ course }: CourseTitleInlineEditProps): R
   const isInvalid = titleValue.trim().length < 3 || titleValue.trim().length > 200;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-approval-field="title" tabIndex={-1}>
       {isEditing ? (
         <div ref={containerRef} onBlur={handleBlur} className="space-y-2 max-w-2xl">
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <input
                 ref={inputRef}
+                data-approval-focus=""
                 type="text"
                 value={titleValue}
                 onChange={(e) => setTitleValue(e.target.value)}
@@ -154,6 +155,7 @@ export function CourseTitleInlineEdit({ course }: CourseTitleInlineEditProps): R
               type="button"
               onClick={handleStartEdit}
               title="Chỉnh sửa tiêu đề"
+              data-approval-focus=""
               className="p-1.5 rounded-md bg-muted/50 border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer shrink-0"
             >
               <Icon icon="lucide:pencil" className="size-4" />

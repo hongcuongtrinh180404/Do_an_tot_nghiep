@@ -1032,6 +1032,23 @@ describe('CourseService', () => {
       updatedAt: new Date(),
     };
 
+    it.each([CourseStatusEnum.PENDING_APPROVAL, CourseStatusEnum.PUBLISHED, CourseStatusEnum.ARCHIVED])(
+      'prevents an instructor bypassing the approval flow through PATCH status=%s', async (status) => {
+        mockCourseRepository.findById.mockResolvedValue(existingCourse);
+        await expect(service.updateCourse(existingCourse.id, { status }, 'instructor_1', RoleEnum.INSTRUCTOR))
+          .rejects.toThrow(ForbiddenException);
+        expect(mockCourseRepository.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it('requires the checklist endpoint even for an admin entering pending approval', async () => {
+      mockCourseRepository.findById.mockResolvedValue(existingCourse);
+      await expect(service.updateCourse(existingCourse.id,
+        { status: CourseStatusEnum.PENDING_APPROVAL }, 'admin_1', RoleEnum.ADMIN))
+        .rejects.toThrow(BadRequestException);
+      expect(mockCourseRepository.update).not.toHaveBeenCalled();
+    });
+
     it('should successfully update course title and auto-generate unique slug', async () => {
       mockCourseRepository.findById.mockResolvedValue(existingCourse);
       mockCourseRepository.findConflictingSlugs.mockResolvedValue([]);

@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Keep jsdom's CSS assets resolved from its package when rendering rich text on the server.
+  serverExternalPackages: ['isomorphic-dompurify'],
   images: {
     dangerouslyAllowLocalIP: true,
     remotePatterns: [

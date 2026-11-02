@@ -14,6 +14,8 @@ export interface ICourse {
   originalPrice?: number | null;
   instructorId: string;
   status: CourseStatusEnum;
+  approvalRequestedAt?: Date | string | null;
+  approvalRequestedById?: string | null;
   level: CourseLevelEnum;
   categoryId?: string | null;
   category?: ICourseCategorySummary | null;

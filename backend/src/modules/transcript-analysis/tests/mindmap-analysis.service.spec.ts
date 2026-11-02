@@ -174,6 +174,89 @@ describe('MindmapAnalysisService', () => {
         'instructor-1',
       );
     });
+
+    it('should automatically sanitize and prune deeper levels when Gemini returns a 6-level tree', async () => {
+      mockLessonRepo.findById.mockResolvedValueOnce({
+        id: 'lesson-123',
+        title: 'Trận Bạch Đằng',
+        content: { duration: 600 },
+      });
+
+      mockLessonTranscriptRepo.findByLessonId.mockResolvedValueOnce({
+        status: LessonTranscriptionStatusEnum.READY,
+        durationSeconds: 600,
+        sentences: [{ text: 'Trận Bạch Đằng', start: 0, end: 5000 }],
+        rawTranscript: 'Trận Bạch Đằng',
+      });
+
+      const sixLevelTree = {
+        root: {
+          id: 'root',
+          title: 'Trận Bạch Đằng',
+          timestamp: 0,
+          children: [
+            {
+              id: 'n1',
+              title: 'Cấp 2',
+              timestamp: 10,
+              children: [
+                {
+                  id: 'n2',
+                  title: 'Cấp 3',
+                  timestamp: 20,
+                  children: [
+                    {
+                      id: 'n3',
+                      title: 'Cấp 4',
+                      timestamp: 30,
+                      children: [
+                        {
+                          id: 'n4',
+                          title: 'Cấp 5',
+                          timestamp: 40,
+                          children: [
+                            {
+                              id: 'n5',
+                              title: 'Cấp 6 vượt trần',
+                              timestamp: 50,
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      };
+
+      mockGeminiService.generateJson.mockResolvedValueOnce({
+        data: sixLevelTree,
+        rawText: JSON.stringify(sixLevelTree),
+        model: 'gemini-3.8-flash',
+        keyIndex: 0,
+        maskedKey: 'AIzaSy...1111',
+        executionTimeMs: 1200,
+      });
+
+      const response = await service.generateMindmap('lesson-123', { saveAsDraft: false }, 'instructor-1');
+
+      // Cấp 5 (n4) đã được cắt tỉa bỏ con cấp 6 (n5)
+      const level5Node = response.mindmap.root.children![0].children![0].children![0].children![0];
+      expect(level5Node.id).toBe('n4');
+      expect(level5Node.children).toBeUndefined();
+
+      // Database được lưu với sanitized mindmap
+      expect(mockLessonMindmapRepo.upsertOfficialByLessonId).toHaveBeenCalledWith(
+        'lesson-123',
+        expect.objectContaining({
+          root: expect.objectContaining({ id: 'root' }),
+        }),
+        'instructor-1',
+      );
+    });
   });
 
   describe('getMindmap & applyDraft', () => {

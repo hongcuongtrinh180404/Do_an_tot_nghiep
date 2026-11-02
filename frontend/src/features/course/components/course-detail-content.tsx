@@ -10,6 +10,9 @@ import { CourseLevelEnum, CourseStatusEnum } from '../types/course.types';
 import { CourseDetailSkeleton } from './course-detail-skeleton';
 import { CourseSectionsList } from './course-sections-list';
 import { CourseMediaPreview } from './course-media-preview';
+import { CourseApprovalDialog } from './course-approval-dialog';
+import { useCourseApprovalNavigation, type CourseCurriculumHandle } from '../hooks/use-course-approval-navigation';
+import approvalStyles from './course-approval.module.css';
 import {
   CourseTitleInlineEdit,
   CoursePriceInlinePopover,
@@ -27,6 +30,10 @@ const statusMap: Record<CourseStatusEnum, { label: string; className: string }> 
   [CourseStatusEnum.DRAFT]: {
     label: 'Bản nháp',
     className: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+  },
+  [CourseStatusEnum.PENDING_APPROVAL]: {
+    label: 'Chờ duyệt',
+    className: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20',
   },
   [CourseStatusEnum.PUBLISHED]: {
     label: 'Đã xuất bản',
@@ -61,6 +68,9 @@ function formatDate(dateValue: Date | string): string {
 
 export function CourseDetailContent({ courseId }: CourseDetailContentProps): React.JSX.Element {
   const { data: course, isLoading, isError, error, refetch } = useCourseDetailQuery(courseId);
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  const curriculumRef = React.useRef<CourseCurriculumHandle>(null);
+  const approvalNavigation = useCourseApprovalNavigation(rootRef, curriculumRef);
 
   if (isLoading) {
     return <CourseDetailSkeleton />;
@@ -142,7 +152,7 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
   const createdDate = formatDate(course.createdAt);
 
   return (
-    <div className="w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+    <div ref={rootRef} className={`${approvalStyles.scope} w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6`}>
       {/* Navigation & Breadcrumb */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/40">
         <Link
@@ -172,31 +182,41 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
       <Card className="border-border/50 bg-card/60 shadow-xs overflow-visible">
         <CardHeader className="space-y-4 pb-6">
           {/* Status & Level Badges */}
-          <div className="flex items-center gap-2">
-            <span
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusInfo.className}`}
-            >
-              {statusInfo.label}
-            </span>
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-md border border-border/40 font-medium">
-              <Icon icon="lucide:layers" className="size-3" />
-              {levelText}
-            </span>
-            {course.category ? (
-              <span className="inline-flex max-w-[220px] items-center gap-1 text-xs text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-md border border-border/40 font-medium">
-                {course.category.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={course.category.imageUrl}
-                    alt=""
-                    className="size-3.5 shrink-0 rounded object-contain"
-                  />
-                ) : (
-                  <Icon icon="lucide:tag" className="size-3 shrink-0" />
-                )}
-                <span className="truncate">{course.category.name}</span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                data-course-status=""
+                tabIndex={-1}
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusInfo.className}`}
+              >
+                {statusInfo.label}
               </span>
-            ) : null}
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-md border border-border/40 font-medium">
+                <Icon icon="lucide:layers" className="size-3" />
+                {levelText}
+              </span>
+              {course.category ? (
+                <span className="inline-flex max-w-[220px] items-center gap-1 text-xs text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-md border border-border/40 font-medium">
+                  {course.category.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={course.category.imageUrl}
+                      alt=""
+                      className="size-3.5 shrink-0 rounded object-contain"
+                    />
+                  ) : (
+                    <Icon icon="lucide:tag" className="size-3 shrink-0" />
+                  )}
+                  <span className="truncate">{course.category.name}</span>
+                </span>
+              ) : null}
+            </div>
+            <CourseApprovalDialog
+              key={course.id}
+              course={course}
+              onNavigateToMissing={approvalNavigation.navigate}
+              onOpenChecklist={approvalNavigation.cancel}
+            />
           </div>
 
           {/* Title */}
@@ -248,7 +268,7 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
       />
 
       {/* Course Curriculum / Sections Section */}
-      <CourseSectionsList courseId={courseId} />
+      <CourseSectionsList courseId={courseId} approvalRef={curriculumRef} />
     </div>
   );
 }
