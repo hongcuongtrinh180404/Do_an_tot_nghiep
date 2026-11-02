@@ -11,10 +11,12 @@ import { useUpdateCourseMutation } from '../../api/course.api';
 
 interface CourseDescInlineCardProps {
   course: ICourse;
+  disabled?: boolean;
 }
 
 export function CourseDescInlineCard({
   course,
+  disabled = false,
 }: CourseDescInlineCardProps): React.JSX.Element {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(course.description ?? '');
@@ -27,6 +29,7 @@ export function CourseDescInlineCard({
   }, [course.description]);
 
   const handleStartEdit = () => {
+    if (disabled) return;
     setContent(course.description ?? '');
     setIsEditing(true);
   };
@@ -61,7 +64,7 @@ export function CourseDescInlineCard({
           Nội dung mô tả chi tiết
         </CardTitle>
 
-        {!isEditing && (
+        {!isEditing && !disabled && (
           <Button
             type="button"
             variant="ghost"

@@ -3,11 +3,20 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
   Optional,
 } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
-import { ILesson, ISection, ILessonContent, RoleEnum, LessonContentTypeEnum, LessonTranscriptionStatusEnum } from 'share-lib';
+import {
+  ILesson,
+  ISection,
+  ILessonContent,
+  RoleEnum,
+  CourseStatusEnum,
+  LessonContentTypeEnum,
+  LessonTranscriptionStatusEnum,
+} from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
@@ -51,6 +60,15 @@ export class LessonService extends BaseService<ILesson, string> {
 
     if (!section || section.deletedAt) {
       throw new NotFoundException(`Không tìm thấy chương học với ID '${sectionId}'`);
+    }
+
+    if (this.courseRepository) {
+      const course = await this.courseRepository.findById(section.courseId, session);
+      if (course && course.status === CourseStatusEnum.PENDING_APPROVAL) {
+        throw new ConflictException(
+          'Khóa học đang trong quá trình chờ phê duyệt, không thể thêm bài học.',
+        );
+      }
     }
 
     if (input.order !== undefined && input.order < 0) {
@@ -134,12 +152,17 @@ export class LessonService extends BaseService<ILesson, string> {
   ): Promise<ILesson> {
     const lesson = await this.getLessonById(lessonId, session);
 
-    // Kiểm tra quyền sở hữu (IDOR)
-    if (this.courseRepository && userId && userRole !== RoleEnum.ADMIN) {
+    // Kiểm tra quyền sở hữu (IDOR) & trạng thái chờ duyệt
+    if (this.courseRepository) {
       const section = await this.sectionRepository.findById(lesson.sectionId, session);
       if (section) {
         const course = await this.courseRepository.findById(section.courseId, session);
-        if (course && course.instructorId !== userId) {
+        if (course && course.status === CourseStatusEnum.PENDING_APPROVAL) {
+          throw new ConflictException(
+            'Khóa học đang trong quá trình chờ phê duyệt, không thể đính kèm tài liệu.',
+          );
+        }
+        if (course && userId && userRole !== RoleEnum.ADMIN && course.instructorId !== userId) {
           throw new ForbiddenException('Bạn không có quyền thêm tài liệu vào bài học này');
         }
       }
@@ -187,12 +210,17 @@ export class LessonService extends BaseService<ILesson, string> {
   ): Promise<ILesson> {
     const lesson = await this.getLessonById(lessonId, session);
 
-    // Kiểm tra quyền sở hữu (IDOR)
-    if (this.courseRepository && userId && userRole !== RoleEnum.ADMIN) {
+    // Kiểm tra quyền sở hữu (IDOR) & trạng thái chờ duyệt
+    if (this.courseRepository) {
       const section = await this.sectionRepository.findById(lesson.sectionId, session);
       if (section) {
         const course = await this.courseRepository.findById(section.courseId, session);
-        if (course && course.instructorId !== userId) {
+        if (course && course.status === CourseStatusEnum.PENDING_APPROVAL) {
+          throw new ConflictException(
+            'Khóa học đang trong quá trình chờ phê duyệt, không thể xóa tài liệu.',
+          );
+        }
+        if (course && userId && userRole !== RoleEnum.ADMIN && course.instructorId !== userId) {
           throw new ForbiddenException('Bạn không có quyền xóa tài liệu của bài học này');
         }
       }
@@ -229,12 +257,17 @@ export class LessonService extends BaseService<ILesson, string> {
   ): Promise<boolean> {
     const lesson = await this.getLessonById(lessonId);
 
-    // Kiểm tra quyền sở hữu khóa học (IDOR)
-    if (this.courseRepository && userId && userRole !== RoleEnum.ADMIN) {
+    // Kiểm tra quyền sở hữu khóa học (IDOR) & trạng thái chờ duyệt
+    if (this.courseRepository) {
       const section = await this.sectionRepository.findById(lesson.sectionId);
       if (section) {
         const course = await this.courseRepository.findById(section.courseId);
-        if (course && course.instructorId !== userId) {
+        if (course && course.status === CourseStatusEnum.PENDING_APPROVAL) {
+          throw new ConflictException(
+            'Khóa học đang trong quá trình chờ phê duyệt, không thể xóa bài học.',
+          );
+        }
+        if (course && userId && userRole !== RoleEnum.ADMIN && course.instructorId !== userId) {
           throw new ForbiddenException('Bạn không có quyền xóa bài học này');
         }
       }

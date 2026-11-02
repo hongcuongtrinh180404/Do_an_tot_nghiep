@@ -7,6 +7,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   HttpCode,
   HttpStatus,
   UseInterceptors,
@@ -15,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ICourse, ISection, RoleEnum } from 'share-lib';
-import { ApiResponse, ParseObjectIdPipe } from '../base/index.js';
+import { ApiResponse, ParseObjectIdPipe, PaginationResult } from '../base/index.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { Public } from '../auth/decorators/public.decorator.js';
@@ -25,6 +26,8 @@ import { UpdateCourseDto } from './dto/update-course.dto.js';
 import { CreateSectionDto } from './dto/create-section.dto.js';
 import { UpdateSectionDto } from './dto/update-section.dto.js';
 import { ReorderSectionsDto } from './dto/reorder-sections.dto.js';
+import { QueryCoursesAdminDto } from './dto/query-courses-admin.dto.js';
+import { RejectCourseDto } from './dto/reject-course.dto.js';
 import { CourseImageValidationPipe } from './pipes/course-image-validation.pipe.js';
 import { CourseTrailerValidationPipe } from './pipes/course-trailer-validation.pipe.js';
 
@@ -39,6 +42,38 @@ export class CourseController {
   ): Promise<ApiResponse<ICourse[]>> {
     const courses = await this.courseService.findByInstructorId(userId);
     return ApiResponse.success(courses, 'Lấy danh sách khóa học thành công');
+  }
+
+  @Get('admin')
+  @Roles(RoleEnum.ADMIN)
+  async getAdminCourses(
+    @Query() query: QueryCoursesAdminDto,
+  ): Promise<ApiResponse<PaginationResult<ICourse>>> {
+    const result = await this.courseService.findAdminCourses(query);
+    return ApiResponse.success(result, 'Lấy danh sách khóa học quản trị thành công');
+  }
+
+  @Post(':id/approve')
+  @HttpCode(HttpStatus.OK)
+  @Roles(RoleEnum.ADMIN)
+  async approveCourse(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ): Promise<ApiResponse<ICourse>> {
+    const course = await this.courseService.approveCourse(id, userId);
+    return ApiResponse.success(course, 'Phê duyệt khóa học thành công');
+  }
+
+  @Post(':id/reject')
+  @HttpCode(HttpStatus.OK)
+  @Roles(RoleEnum.ADMIN)
+  async rejectCourse(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: RejectCourseDto,
+  ): Promise<ApiResponse<ICourse>> {
+    const course = await this.courseService.rejectCourse(id, userId, dto.reason);
+    return ApiResponse.success(course, 'Yêu cầu chỉnh sửa khóa học thành công');
   }
 
   @Get(':id')

@@ -34,6 +34,7 @@ import type { CourseCurriculumHandle } from '../hooks/use-course-approval-naviga
 interface CourseSectionsListProps {
   courseId: string;
   approvalRef?: React.Ref<CourseCurriculumHandle>;
+  readOnly?: boolean;
 }
 
 interface ChapterTreeItemProps {
@@ -51,6 +52,7 @@ interface ChapterTreeItemProps {
   onDeleteChapter?: () => void;
   isDeletingChapter?: boolean;
   onAddLesson: () => void;
+  readOnly?: boolean;
   // Drag & Drop
   isDragging?: boolean;
   isDragOver?: boolean;
@@ -76,6 +78,7 @@ function ChapterTreeItem({
   onDeleteChapter,
   isDeletingChapter = false,
   onAddLesson,
+  readOnly = false,
   isDragging,
   isDragOver,
   onDragStart,
@@ -96,11 +99,11 @@ function ChapterTreeItem({
       tabIndex={-1}
       role="group"
       aria-label={`Chương ${index + 1}: ${section.title}`}
-      draggable
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
+      draggable={!readOnly}
+      onDragStart={readOnly ? undefined : onDragStart}
+      onDragOver={readOnly ? undefined : onDragOver}
+      onDragLeave={readOnly ? undefined : onDragLeave}
+      onDrop={readOnly ? undefined : onDrop}
       onDragEnd={onDragEnd}
       className={`rounded-2xl border transition-all shadow-xs overflow-hidden ${
         isDragging
@@ -121,13 +124,15 @@ function ChapterTreeItem({
       >
         <div className="flex items-center space-x-2.5 flex-1 min-w-0">
           {/* Drag Handle Grip Icon */}
-          <div
-            className="text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing p-1 -ml-1 rounded-md hover:bg-muted/60 transition-colors shrink-0"
-            title="Kéo thả để sắp xếp thứ tự chương học"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Icon icon="lucide:grip-vertical" className="size-4" />
-          </div>
+          {!readOnly && (
+            <div
+              className="text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing p-1 -ml-1 rounded-md hover:bg-muted/60 transition-colors shrink-0"
+              title="Kéo thả để sắp xếp thứ tự chương học"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Icon icon="lucide:grip-vertical" className="size-4" />
+            </div>
+          )}
 
           {/* Chevron Collapse Toggle Button */}
           <button
@@ -168,47 +173,49 @@ function ChapterTreeItem({
         </div>
 
         {/* Action Buttons */}
-        <div
-          className="flex items-center space-x-1 shrink-0"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            onClick={onAddLesson}
-            className="px-2.5 py-1 text-[11px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/10 border border-sky-500/20 hover:bg-sky-500/20 rounded-lg transition"
+        {!readOnly && (
+          <div
+            className="flex items-center space-x-1 shrink-0"
+            onClick={(e) => e.stopPropagation()}
           >
-            <Icon icon="lucide:plus" className="size-3 inline mr-1" />
-            <span>Thêm bài</span>
-          </button>
+            <button
+              type="button"
+              onClick={onAddLesson}
+              className="px-2.5 py-1 text-[11px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/10 border border-sky-500/20 hover:bg-sky-500/20 rounded-lg transition"
+            >
+              <Icon icon="lucide:plus" className="size-3 inline mr-1" />
+              <span>Thêm bài</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={onEditChapter}
-            className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg transition"
-            title="Chỉnh sửa chương"
-          >
-            <Icon icon="lucide:pencil" className="size-3.5" />
-          </button>
+            <button
+              type="button"
+              onClick={onEditChapter}
+              className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg transition"
+              title="Chỉnh sửa chương"
+            >
+              <Icon icon="lucide:pencil" className="size-3.5" />
+            </button>
 
-          {/* Nút Xóa chương học (UI Only) */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeleteChapter?.();
-            }}
-            disabled={isDeletingChapter}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Xóa chương học"
-            aria-label="Xóa chương học"
-          >
-            {isDeletingChapter ? (
-              <Icon icon="lucide:loader-2" className="size-3.5 animate-spin" />
-            ) : (
-              <Icon icon="lucide:trash-2" className="size-3.5" />
-            )}
-          </button>
-        </div>
+            {/* Nút Xóa chương học (UI Only) */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteChapter?.();
+              }}
+              disabled={isDeletingChapter}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Xóa chương học"
+              aria-label="Xóa chương học"
+            >
+              {isDeletingChapter ? (
+                <Icon icon="lucide:loader-2" className="size-3.5 animate-spin" />
+              ) : (
+                <Icon icon="lucide:trash-2" className="size-3.5" />
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Child Lessons List (Cấp 3) */}
@@ -281,40 +288,42 @@ function ChapterTreeItem({
                   </div>
 
                   {/* Cụm nút thao tác bên phải (Đính kèm tài liệu & Thùng rác) */}
-                  <div
-                    className="flex items-center gap-0.5 ml-2.5 shrink-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {/* Nút đính kèm tài liệu cho bài học video (UI Only) */}
-                    {isVideo && (
+                  {!readOnly && (
+                    <div
+                      className="flex items-center gap-0.5 ml-2.5 shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Nút đính kèm tài liệu cho bài học video (UI Only) */}
+                      {isVideo && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAttachDocument?.(lesson);
+                          }}
+                          className="w-7 h-7 bg-transparent border-0 outline-none text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors duration-150 shrink-0"
+                          title="Đính kèm tài liệu cho video này"
+                          aria-label="Đính kèm tài liệu cho video này"
+                        >
+                          <Icon icon="lucide:paperclip" className="size-3.5" />
+                        </button>
+                      )}
+
+                      {/* Nút thùng rác xóa bài học / tài liệu (UI Only) */}
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onAttachDocument?.(lesson);
+                          onDeleteLesson?.(lesson);
                         }}
-                        className="w-7 h-7 bg-transparent border-0 outline-none text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors duration-150 shrink-0"
-                        title="Đính kèm tài liệu cho video này"
-                        aria-label="Đính kèm tài liệu cho video này"
+                        className="w-7 h-7 bg-transparent border-0 outline-none text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 flex items-center justify-center cursor-pointer transition-colors duration-150 shrink-0"
+                        title={isVideo ? 'Xóa bài học' : 'Xóa tài liệu'}
+                        aria-label={isVideo ? 'Xóa bài học' : 'Xóa tài liệu'}
                       >
-                        <Icon icon="lucide:paperclip" className="size-3.5" />
+                        <Icon icon="lucide:trash-2" className="size-3.5 sm:size-4" />
                       </button>
-                    )}
-
-                    {/* Nút thùng rác xóa bài học / tài liệu (UI Only) */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteLesson?.(lesson);
-                      }}
-                      className="w-7 h-7 bg-transparent border-0 outline-none text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 flex items-center justify-center cursor-pointer transition-colors duration-150 shrink-0"
-                      title={isVideo ? 'Xóa bài học' : 'Xóa tài liệu'}
-                      aria-label={isVideo ? 'Xóa bài học' : 'Xóa tài liệu'}
-                    >
-                      <Icon icon="lucide:trash-2" className="size-3.5 sm:size-4" />
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -324,7 +333,7 @@ function ChapterTreeItem({
   );
 }
 
-function CourseSectionsListContent({ courseId, approvalRef }: CourseSectionsListProps): React.JSX.Element {
+function CourseSectionsListContent({ courseId, approvalRef, readOnly = false }: CourseSectionsListProps): React.JSX.Element {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -479,15 +488,17 @@ function CourseSectionsListContent({ courseId, approvalRef }: CourseSectionsList
                 Kéo thả icon để đổi thứ tự. Click vào Chương hoặc Bài học để xem chi tiết bên phải.
               </p>
             </div>
-            <Button
-              size="sm"
-              onClick={() => setIsCreateDialogOpen(true)}
-              data-approval-focus=""
-              className="text-xs font-semibold h-8 rounded-xl shadow-xs"
-            >
-              <Icon icon="lucide:plus" className="size-3.5 mr-1" />
-              Thêm chương
-            </Button>
+            {!readOnly && (
+              <Button
+                size="sm"
+                onClick={() => setIsCreateDialogOpen(true)}
+                data-approval-focus=""
+                className="text-xs font-semibold h-8 rounded-xl shadow-xs"
+              >
+                <Icon icon="lucide:plus" className="size-3.5 mr-1" />
+                Thêm chương
+              </Button>
+            )}
           </div>
 
           {/* Loading State */}
@@ -576,6 +587,7 @@ function CourseSectionsListContent({ courseId, approvalRef }: CourseSectionsList
                         sectionTitle: section.title,
                       })
                     }
+                    readOnly={readOnly}
                     isDragging={draggedIndex === index}
                     isDragOver={dragOverIndex === index}
                     onDragStart={(e) => handleDragStart(index, e)}
@@ -603,6 +615,7 @@ function CourseSectionsListContent({ courseId, approvalRef }: CourseSectionsList
                 sectionTitle: s.title,
               })
             }
+            readOnly={readOnly}
           />
         </div>
       </div>
@@ -671,7 +684,11 @@ function CourseSectionsListContent({ courseId, approvalRef }: CourseSectionsList
   );
 }
 
-export function CourseSectionsList({ courseId, approvalRef }: CourseSectionsListProps): React.JSX.Element {
+export function CourseSectionsList({
+  courseId,
+  approvalRef,
+  readOnly = false,
+}: CourseSectionsListProps): React.JSX.Element {
   return (
     <React.Suspense
       fallback={
@@ -686,7 +703,11 @@ export function CourseSectionsList({ courseId, approvalRef }: CourseSectionsList
         </div>
       }
     >
-      <CourseSectionsListContent courseId={courseId} approvalRef={approvalRef} />
+      <CourseSectionsListContent
+        courseId={courseId}
+        approvalRef={approvalRef}
+        readOnly={readOnly}
+      />
     </React.Suspense>
   );
 }

@@ -9,12 +9,14 @@ import { useUpdateCourseMutation } from '../../api/course.api';
 
 interface CourseShortDescInlineCardProps {
   course: ICourse;
+  disabled?: boolean;
 }
 
 const MAX_CHARS = 200;
 
 export function CourseShortDescInlineCard({
   course,
+  disabled = false,
 }: CourseShortDescInlineCardProps): React.JSX.Element {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(course.shortDescription ?? '');
@@ -22,6 +24,7 @@ export function CourseShortDescInlineCard({
   const { mutate: updateCourse, isPending } = useUpdateCourseMutation(course.id);
 
   const handleStartEdit = () => {
+    if (disabled) return;
     setValue(course.shortDescription ?? '');
     setIsEditing(true);
   };
@@ -60,7 +63,7 @@ export function CourseShortDescInlineCard({
           Mô tả ngắn gọn
         </CardTitle>
 
-        {!isEditing && (
+        {!isEditing && !disabled && (
           <Button
             type="button"
             variant="ghost"
@@ -88,7 +91,7 @@ export function CourseShortDescInlineCard({
               />
               <div className="flex justify-end mt-1">
                 <span
-                  className={`text-xs font-mono font-medium ${
+                  className={`text-xs font-medium ${
                     isOverLimit
                       ? 'text-destructive font-bold'
                       : isNearLimit

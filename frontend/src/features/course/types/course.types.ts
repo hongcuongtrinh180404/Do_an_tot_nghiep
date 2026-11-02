@@ -6,6 +6,7 @@ export {
 
 export type {
   ICourse,
+  ICourseInstructorSummary,
   ICourseCategory,
   ICourseCategorySummary,
   ICreateCourseCategoryPayload,

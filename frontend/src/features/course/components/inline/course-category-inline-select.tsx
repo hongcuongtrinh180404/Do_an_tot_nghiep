@@ -10,6 +10,7 @@ import { usePublicCategoriesQuery } from '../../api/course-category.api';
 
 interface CourseCategoryInlineSelectProps {
   course: ICourse;
+  disabled?: boolean;
 }
 
 interface CategoryOption {
@@ -20,6 +21,7 @@ interface CategoryOption {
 
 export function CourseCategoryInlineSelect({
   course,
+  disabled = false,
 }: CourseCategoryInlineSelectProps): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const { mutate: updateCourse, isPending } = useUpdateCourseMutation(course.id);
@@ -50,12 +52,37 @@ export function CourseCategoryInlineSelect({
     options.find((option) => option.value === (course.categoryId ?? null)) ?? options[0];
 
   const handleSelect = (nextCategoryId: string | null) => {
-    if (isPending) return;
+    if (disabled || isPending) return;
     setIsOpen(false);
     if (nextCategoryId !== (course.categoryId ?? null)) {
       updateCourse({ categoryId: nextCategoryId });
     }
   };
+
+  if (disabled) {
+    return (
+      <div className="w-full p-3 rounded-lg bg-muted/25 border border-border/30 text-left select-none">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-muted-foreground">Danh mục</span>
+        </div>
+        <div className="flex items-center gap-1.5 min-w-0">
+          {selectedOption.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={selectedOption.imageUrl}
+              alt=""
+              className="size-4 shrink-0 rounded object-contain"
+            />
+          ) : (
+            <Icon icon="lucide:tag" className="size-3.5 shrink-0 text-muted-foreground" />
+          )}
+          <span className="text-sm sm:text-base font-semibold text-foreground truncate">
+            {selectedOption.label}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -66,7 +93,7 @@ export function CourseCategoryInlineSelect({
             aria-label="Chọn danh mục khóa học"
             data-approval-field="category"
             className={cn(
-              'w-full p-3 rounded-lg bg-muted/25 border border-border/30 hover:border-border/80 hover:bg-muted/40 transition-all cursor-pointer group outline-none select-none text-left',
+              'w-full p-3 rounded-lg bg-muted/25 border border-border/30 hover:border-border/80 hover:bg-muted/40 transition-all cursor-pointer group outline-none focus-visible:ring-2 focus-visible:ring-ring/40 select-none text-left',
               isOpen && 'border-ring ring-2 ring-ring/40 bg-muted/40',
               isPending && 'opacity-70 pointer-events-none',
             )}

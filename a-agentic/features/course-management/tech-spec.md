@@ -15,7 +15,13 @@
 - `price`: number (min: 0, default: 0)
 - `instructorId`: Types.ObjectId (ref: `User`, required, index)
 - `isPublished`: boolean (default: false, index)
+- `status`: CourseStatusEnum (`draft`, `pending_approval`, `published`, `archived`)
+- `approvalRequestedAt`: Date (optional, default: null)
+- `rejectionReason`: string (optional, default: null, 10-500 chars)
+- `reviewedAt`: Date (optional, default: null)
+- `reviewedById`: Types.ObjectId (ref: `User`, optional, default: null)
 - Inherits `BaseAbstractDocument` (`createdAt`, `updatedAt`, `deletedAt`, `createdById`, `updatedById`).
+- Compound Indexes: `{ status: 1, approvalRequestedAt: -1, deletedAt: 1 }`.
 
 ### B. Section Schema (`sections`)
 - `courseId`: Types.ObjectId (ref: `CourseEntity`, required, index)
@@ -55,10 +61,14 @@
 | Method | Endpoint | Description | Auth & Roles |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v1/courses` | Danh sách khóa học có phân trang & lọc | Public |
+| `GET` | `/api/v1/courses/admin` | Quản trị viên lấy danh sách khóa học kiểm duyệt (phân trang, search, status, category, instructor) | `ADMIN` |
 | `GET` | `/api/v1/courses/my-courses` | Danh sách khóa học của giảng viên hiện tại (chưa xóa mềm) | `INSTRUCTOR`, `ADMIN` |
 | `GET` | `/api/v1/courses/:slug` | Chi tiết khóa học và cấu trúc chương/bài | Public |
 | `POST` | `/api/v1/courses` | Tạo khóa học mới | `INSTRUCTOR`, `ADMIN` |
-| `PATCH` | `/api/v1/courses/:id` | Cập nhật thông tin khóa học | `INSTRUCTOR` (Owner), `ADMIN` |
+| `POST` | `/api/v1/courses/:id/request-approval` | Giảng viên gửi yêu cầu duyệt khóa học (reset `rejectionReason: null`) | `INSTRUCTOR` (Owner), `ADMIN` |
+| `POST` | `/api/v1/courses/:id/approve` | Quản trị viên duyệt xuất bản khóa học (`PENDING_APPROVAL` -> `PUBLISHED`) | `ADMIN` |
+| `POST` | `/api/v1/courses/:id/reject` | Quản trị viên yêu cầu chỉnh sửa (`PENDING_APPROVAL` -> `DRAFT`, lưu `rejectionReason`) | `ADMIN` |
+| `PATCH` | `/api/v1/courses/:id` | Cập nhật thông tin khóa học (chặn nếu `PENDING_APPROVAL`) | `INSTRUCTOR` (Owner), `ADMIN` |
 | `DELETE` | `/api/v1/courses/:id` | Xóa mềm khóa học | `INSTRUCTOR` (Owner), `ADMIN` |
 | `POST` | `/api/v1/courses/:id/chapters` | Thêm chương học mới (tự động gán thứ tự nếu không truyền order) | `INSTRUCTOR` (Owner), `ADMIN` |
 | `PUT` | `/api/v1/courses/:id/sections/reorder` | Sắp xếp lại thứ tự các chương học hàng loạt bằng transaction | `INSTRUCTOR` (Owner), `ADMIN` |

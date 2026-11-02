@@ -144,6 +144,7 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
     );
   }
 
+  const isLocked = course.status === CourseStatusEnum.PENDING_APPROVAL;
   const statusInfo = statusMap[course.status] ?? {
     label: course.status,
     className: 'bg-muted text-muted-foreground border-border/50',
@@ -177,6 +178,62 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
           </span>
         </div>
       </div>
+
+      {/* 1. Locked Status Alert Banner */}
+      {isLocked && (
+        <div
+          role="status"
+          className="flex items-start sm:items-center justify-between gap-3 p-4 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-950 dark:text-sky-100 shadow-xs"
+        >
+          <div className="flex items-center gap-3">
+            <div className="size-9 rounded-lg bg-sky-500/15 flex items-center justify-center shrink-0 text-sky-600 dark:text-sky-400">
+              <Icon icon="lucide:lock" className="size-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <span>Khóa học đang chờ phê duyệt</span>
+                <span className="text-[11px] font-medium bg-sky-500/20 text-sky-700 dark:text-sky-300 px-2 py-0.5 rounded-full border border-sky-500/30">
+                  Đang khóa chỉnh sửa
+                </span>
+              </h4>
+              <p className="text-xs text-sky-800/80 dark:text-sky-200/80 mt-0.5">
+                Khóa học đang trong quá trình kiểm duyệt của Quản trị viên. Tất cả chức năng chỉnh sửa nội dung tạm thời bị khóa cho đến khi có phản hồi hoặc kết quả phê duyệt.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Rejection / Changes Requested Alert Banner */}
+      {course.status === CourseStatusEnum.DRAFT && course.rejectionReason && (
+        <div
+          role="alert"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-950 dark:text-amber-100 shadow-xs"
+        >
+          <div className="flex items-start gap-3 w-full">
+            <div className="size-9 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-600 dark:text-amber-400 mt-0.5">
+              <Icon icon="lucide:alert-triangle" className="size-5" />
+            </div>
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                  Quản trị viên yêu cầu chỉnh sửa khóa học
+                </h4>
+                <span className="text-[11px] font-semibold bg-amber-500/20 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
+                  Cần cập nhật
+                </span>
+              </div>
+              <div className="text-xs sm:text-sm text-foreground bg-background/90 border border-amber-500/25 rounded-lg p-3 font-medium leading-relaxed">
+                <span className="font-semibold text-amber-800 dark:text-amber-300 mr-1.5">Lý do:</span>
+                {course.rejectionReason}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Vui lòng xem lại và cập nhật khóa học theo yêu cầu trên, sau đó nhấn nút <strong>&quot;Yêu cầu phê duyệt&quot;</strong> để gửi lại cho Quản trị viên.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero Overview Card */}
       <Card className="border-border/50 bg-card/60 shadow-xs overflow-visible">
@@ -220,20 +277,20 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
           </div>
 
           {/* Title */}
-          <CourseTitleInlineEdit course={course} />
+          <CourseTitleInlineEdit course={course} disabled={isLocked} />
         </CardHeader>
 
         {/* Quick Stats Grid */}
         <CardContent className="pt-4 border-t border-border/40">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {/* Price Popover */}
-            <CoursePriceInlinePopover course={course} />
+            <CoursePriceInlinePopover course={course} disabled={isLocked} />
 
             {/* Level Select */}
-            <CourseLevelInlineSelect course={course} />
+            <CourseLevelInlineSelect course={course} disabled={isLocked} />
 
             {/* Category Select */}
-            <CourseCategoryInlineSelect course={course} />
+            <CourseCategoryInlineSelect course={course} disabled={isLocked} />
 
             {/* Status */}
             <div className="p-3 rounded-lg bg-muted/25 border border-border/30">
@@ -255,20 +312,21 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
       </Card>
 
       {/* Short Description Section */}
-      <CourseShortDescInlineCard course={course} />
+      <CourseShortDescInlineCard course={course} disabled={isLocked} />
 
       {/* Full Description Section */}
-      <CourseDescInlineCard course={course} />
+      <CourseDescInlineCard course={course} disabled={isLocked} />
 
       {/* Course Media (Thumbnail & Trailer with MinIO Upload) */}
       <CourseMediaPreview
         courseId={course.id}
         thumbnailUrl={course.thumbnailUrl}
         trailerUrl={course.trailerUrl}
+        readOnly={isLocked}
       />
 
       {/* Course Curriculum / Sections Section */}
-      <CourseSectionsList courseId={courseId} approvalRef={curriculumRef} />
+      <CourseSectionsList courseId={courseId} approvalRef={curriculumRef} readOnly={isLocked} />
     </div>
   );
 }

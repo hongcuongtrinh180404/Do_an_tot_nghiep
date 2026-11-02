@@ -31,6 +31,7 @@ interface ContextualInspectorPanelProps {
   courseId: string;
   onEditChapter: (section: ISection) => void;
   onAddLesson: (section: ISection) => void;
+  readOnly?: boolean;
 }
 
 function formatExactLessonDuration(seconds?: number | null): string {
@@ -194,7 +195,7 @@ function getMaterialFileConfig(fileName: string, mimeType?: string | null) {
 interface LessonMaterialItemProps {
   material: ILessonMaterial;
   isPreview: boolean;
-  onDelete: (material: ILessonMaterial) => void;
+  onDelete?: (material: ILessonMaterial) => void;
 }
 
 function LessonMaterialItem({
@@ -279,15 +280,17 @@ function LessonMaterialItem({
         )}
 
         {/* Nút xóa tài liệu */}
-        <button
-          type="button"
-          onClick={() => onDelete(material)}
-          className="size-7 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex items-center justify-center transition-colors cursor-pointer"
-          title="Xóa tài liệu"
-          aria-label="Xóa tài liệu"
-        >
-          <Icon icon="lucide:trash-2" className="size-3.5" />
-        </button>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={() => onDelete(material)}
+            className="size-7 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex items-center justify-center transition-colors cursor-pointer"
+            title="Xóa tài liệu"
+            aria-label="Xóa tài liệu"
+          >
+            <Icon icon="lucide:trash-2" className="size-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -298,10 +301,12 @@ function ChapterInspectorView({
   section,
   onEditChapter,
   onAddLesson,
+  readOnly = false,
 }: {
   section: ISection;
   onEditChapter: (section: ISection) => void;
   onAddLesson: (section: ISection) => void;
+  readOnly?: boolean;
 }): React.JSX.Element {
   const { data: lessons, isLoading, isError } = useSectionLessonsQuery(section.id);
   const videoStats = getVideoLessonStats(lessons ?? []);
@@ -435,27 +440,29 @@ function ChapterInspectorView({
       </div>
 
       {/* Quick Action Buttons */}
-      <div className="pt-2 flex items-center gap-2 border-t border-border/40">
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => onAddLesson(section)}
-          className="flex-1 text-xs h-8.5 gap-1.5"
-        >
-          <Icon icon="lucide:plus" className="size-3.5" />
-          <span>Thêm bài học</span>
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onEditChapter(section)}
-          className="text-xs h-8.5 gap-1.5 border-border/60"
-        >
-          <Icon icon="lucide:pencil" className="size-3" />
-          <span>Sửa chương</span>
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="pt-2 flex items-center gap-2 border-t border-border/40">
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => onAddLesson(section)}
+            className="flex-1 text-xs h-8.5 gap-1.5"
+          >
+            <Icon icon="lucide:plus" className="size-3.5" />
+            <span>Thêm bài học</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onEditChapter(section)}
+            className="text-xs h-8.5 gap-1.5 border-border/60"
+          >
+            <Icon icon="lucide:pencil" className="size-3" />
+            <span>Sửa chương</span>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -465,10 +472,12 @@ function LessonInspectorView({
   lessonId,
   chapterTitle,
   courseId,
+  readOnly = false,
 }: {
   lessonId: string;
   chapterTitle: string;
   courseId: string;
+  readOnly?: boolean;
 }): React.JSX.Element {
   const { data: lesson, isLoading } = useLessonDetailQuery(lessonId);
 
@@ -595,16 +604,18 @@ function LessonInspectorView({
             )}
           </h4>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsUploadDialogOpen(true)}
-            className="h-6 text-[11px] px-2 text-sky-600 dark:text-sky-400 hover:text-sky-700 hover:bg-sky-500/10 gap-1 rounded-lg"
-          >
-            <Icon icon="lucide:plus" className="size-3" />
-            <span>Đính kèm tệp</span>
-          </Button>
+          {!readOnly && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsUploadDialogOpen(true)}
+              className="h-6 text-[11px] px-2 text-sky-600 dark:text-sky-400 hover:text-sky-700 hover:bg-sky-500/10 gap-1 rounded-lg"
+            >
+              <Icon icon="lucide:plus" className="size-3" />
+              <span>Đính kèm tệp</span>
+            </Button>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -622,7 +633,7 @@ function LessonInspectorView({
               key={mat.id}
               material={mat}
               isPreview={lesson.isPreview}
-              onDelete={(m) => setTargetDeleteMaterial(m)}
+              onDelete={readOnly ? undefined : (m) => setTargetDeleteMaterial(m)}
             />
           ))}
 
@@ -661,6 +672,7 @@ export function ContextualInspectorPanel({
   courseId,
   onEditChapter,
   onAddLesson,
+  readOnly = false,
 }: ContextualInspectorPanelProps): React.JSX.Element {
   let content: React.ReactNode;
 
@@ -672,6 +684,7 @@ export function ContextualInspectorPanel({
           section={section}
           onEditChapter={onEditChapter}
           onAddLesson={onAddLesson}
+          readOnly={readOnly}
         />
       );
     }
@@ -682,6 +695,7 @@ export function ContextualInspectorPanel({
         lessonId={selection.lessonId}
         chapterTitle={section?.title || 'Bài giảng khóa học'}
         courseId={courseId}
+        readOnly={readOnly}
       />
     );
   }

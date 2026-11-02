@@ -13,10 +13,12 @@ import {
 
 interface CourseLevelInlineSelectProps {
   course: ICourse;
+  disabled?: boolean;
 }
 
 export function CourseLevelInlineSelect({
   course,
+  disabled = false,
 }: CourseLevelInlineSelectProps): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const { mutate: updateCourse, isPending } = useUpdateCourseMutation(course.id);
@@ -26,12 +28,28 @@ export function CourseLevelInlineSelect({
     COURSE_LEVEL_OPTIONS[0];
 
   const handleSelect = (newLevel: CourseLevelEnum) => {
-    if (isPending) return;
+    if (disabled || isPending) return;
     setIsOpen(false);
     if (newLevel !== course.level) {
       updateCourse({ level: newLevel });
     }
   };
+
+  if (disabled) {
+    return (
+      <div className="w-full p-3 rounded-lg bg-muted/25 border border-border/30 text-left select-none">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-muted-foreground">Trình độ</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <LevelIndicator level={course.level} />
+          <span className="text-sm sm:text-base font-semibold text-foreground">
+            {currentOption.label}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -42,7 +60,7 @@ export function CourseLevelInlineSelect({
             aria-label="Chọn trình độ khóa học"
             data-approval-field="level"
             className={cn(
-              'w-full p-3 rounded-lg bg-muted/25 border border-border/30 hover:border-border/80 hover:bg-muted/40 transition-all cursor-pointer group outline-none select-none text-left',
+              'w-full p-3 rounded-lg bg-muted/25 border border-border/30 hover:border-border/80 hover:bg-muted/40 transition-all cursor-pointer group outline-none focus-visible:ring-2 focus-visible:ring-ring/40 select-none text-left',
               isOpen && 'border-ring ring-2 ring-ring/40 bg-muted/40',
               isPending && 'opacity-70 pointer-events-none',
             )}

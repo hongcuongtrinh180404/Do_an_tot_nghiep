@@ -17,7 +17,7 @@ import {
   CourseLevelEnum,
   slugify,
 } from 'share-lib';
-import { BaseService } from '../../base/index.js';
+import { BaseService, PaginationResult } from '../../base/index.js';
 import { CourseRepository } from '../repositories/course.repository.js';
 import { CourseCategoryRepository } from '../repositories/course-category.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
@@ -27,6 +27,7 @@ import { CreateSectionDto } from '../dto/create-section.dto.js';
 import { UpdateSectionDto } from '../dto/update-section.dto.js';
 import { ReorderSectionsDto } from '../dto/reorder-sections.dto.js';
 import { UpdateCourseDto } from '../dto/update-course.dto.js';
+import { QueryCoursesAdminDto } from '../dto/query-courses-admin.dto.js';
 import { StorageService } from '../../storage/index.js';
 
 export interface CreateCourseInput {
@@ -196,6 +197,12 @@ export class CourseService extends BaseService<ICourse, string> {
       );
     }
 
+    if (course.status === CourseStatusEnum.PENDING_APPROVAL) {
+      throw new ConflictException(
+        'Khóa học đang trong quá trình chờ phê duyệt, không thể thêm chương học.',
+      );
+    }
+
     let targetOrder = dto.order;
     if (targetOrder === undefined || targetOrder === null) {
       const existingSections = await this.sectionRepository.findByCourseId(courseId, session);
@@ -241,6 +248,12 @@ export class CourseService extends BaseService<ICourse, string> {
       );
     }
 
+    if (course.status === CourseStatusEnum.PENDING_APPROVAL) {
+      throw new ConflictException(
+        'Khóa học đang trong quá trình chờ phê duyệt, không thể sắp xếp lại chương học.',
+      );
+    }
+
     const uniqueIds = new Set(dto.sectionIds);
     if (uniqueIds.size !== dto.sectionIds.length) {
       throw new BadRequestException('Danh sách ID chương học chứa các phần tử trùng lặp');
@@ -281,6 +294,12 @@ export class CourseService extends BaseService<ICourse, string> {
     if (role !== RoleEnum.ADMIN && course.instructorId !== userId) {
       throw new ForbiddenException(
         'Bạn không có quyền chỉnh sửa chương học của khóa học này',
+      );
+    }
+
+    if (course.status === CourseStatusEnum.PENDING_APPROVAL) {
+      throw new ConflictException(
+        'Khóa học đang trong quá trình chờ phê duyệt, không thể chỉnh sửa chương học.',
       );
     }
 
@@ -346,6 +365,12 @@ export class CourseService extends BaseService<ICourse, string> {
     if (role !== RoleEnum.ADMIN && course.instructorId !== userId) {
       throw new ForbiddenException(
         'Bạn không có quyền xóa chương học của khóa học này',
+      );
+    }
+
+    if (course.status === CourseStatusEnum.PENDING_APPROVAL) {
+      throw new ConflictException(
+        'Khóa học đang trong quá trình chờ phê duyệt, không thể xóa chương học.',
       );
     }
 
@@ -432,6 +457,12 @@ export class CourseService extends BaseService<ICourse, string> {
   ): Promise<ICourse> {
     const course = await this.getCourseDetailForInstructor(courseId, userId, role, session);
 
+    if (course.status === CourseStatusEnum.PENDING_APPROVAL) {
+      throw new ConflictException(
+        'Khóa học đang trong quá trình chờ phê duyệt, không thể thay đổi ảnh bìa.',
+      );
+    }
+
     const oldThumbnailUrl = course.thumbnailUrl;
 
     const newThumbnailUrl = await this.storageService.uploadImage(file, {
@@ -464,6 +495,12 @@ export class CourseService extends BaseService<ICourse, string> {
     session?: ClientSession,
   ): Promise<ICourse> {
     const course = await this.getCourseDetailForInstructor(courseId, userId, role, session);
+
+    if (course.status === CourseStatusEnum.PENDING_APPROVAL) {
+      throw new ConflictException(
+        'Khóa học đang trong quá trình chờ phê duyệt, không thể thay đổi video trailer.',
+      );
+    }
 
     const oldTrailerUrl = course.trailerUrl;
 
@@ -531,6 +568,12 @@ export class CourseService extends BaseService<ICourse, string> {
     // 1. Fetch course and check authorization
     const course = await this.getCourseDetailForInstructor(courseId, userId, role, session);
 
+    if (course.status === CourseStatusEnum.PENDING_APPROVAL) {
+      throw new ConflictException(
+        'Khóa học đang trong quá trình chờ phê duyệt, không thể chỉnh sửa thông tin.',
+      );
+    }
+
     if (dto.status !== undefined) {
       if (!Object.values(CourseStatusEnum).includes(dto.status)) {
         throw new BadRequestException('Trạng thái khóa học không hợp lệ');
@@ -538,7 +581,7 @@ export class CourseService extends BaseService<ICourse, string> {
       if (dto.status !== course.status && role !== RoleEnum.ADMIN) {
         throw new ForbiddenException('Vui lòng sử dụng chức năng yêu cầu phê duyệt để gửi khóa học.');
       }
-      if (dto.status === CourseStatusEnum.PENDING_APPROVAL && dto.status !== course.status) {
+      if (dto.status === CourseStatusEnum.PENDING_APPROVAL) {
         throw new BadRequestException('Cần kiểm tra điều kiện qua chức năng yêu cầu phê duyệt.');
       }
     }
@@ -607,5 +650,49 @@ export class CourseService extends BaseService<ICourse, string> {
 
     // 5. Execute update via BaseService
     return this.updateOrFail(courseId, updateData as unknown as Partial<ICourse>, session);
+  }
+
+  async findAdminCourses(
+    query: QueryCoursesAdminDto,
+    session?: ClientSession,
+  ): Promise<PaginationResult<ICourse>> {
+    return this.courseRepository.findAdminCoursesWithPagination(query, session);
+  }
+
+  async approveCourse(
+    courseId: string,
+    adminId: string,
+    session?: ClientSession,
+  ): Promise<ICourse> {
+    const updated = await this.courseRepository.approveCourse(courseId, adminId, session);
+    if (!updated) {
+      const existing = await this.courseRepository.findById(courseId, session);
+      if (!existing) {
+        throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+      }
+      throw new ConflictException(
+        'Khóa học đã được xử lý bởi quản trị viên khác hoặc không ở trạng thái chờ duyệt.',
+      );
+    }
+    return updated;
+  }
+
+  async rejectCourse(
+    courseId: string,
+    adminId: string,
+    reason: string,
+    session?: ClientSession,
+  ): Promise<ICourse> {
+    const updated = await this.courseRepository.rejectCourse(courseId, adminId, reason, session);
+    if (!updated) {
+      const existing = await this.courseRepository.findById(courseId, session);
+      if (!existing) {
+        throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+      }
+      throw new ConflictException(
+        'Khóa học đã được xử lý bởi quản trị viên khác hoặc không ở trạng thái chờ duyệt.',
+      );
+    }
+    return updated;
   }
 }

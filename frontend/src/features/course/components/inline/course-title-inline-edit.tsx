@@ -8,9 +8,10 @@ import { slugify } from 'share-lib';
 
 interface CourseTitleInlineEditProps {
   course: ICourse;
+  disabled?: boolean;
 }
 
-export function CourseTitleInlineEdit({ course }: CourseTitleInlineEditProps): React.JSX.Element {
+export function CourseTitleInlineEdit({ course, disabled = false }: CourseTitleInlineEditProps): React.JSX.Element {
   const [isEditing, setIsEditing] = useState(false);
   const [titleValue, setTitleValue] = useState(course.title);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -27,6 +28,7 @@ export function CourseTitleInlineEdit({ course }: CourseTitleInlineEditProps): R
   }, [isEditing]);
 
   const handleStartEdit = () => {
+    if (disabled) return;
     setTitleValue(course.title);
     setIsEditing(true);
   };
@@ -132,7 +134,7 @@ export function CourseTitleInlineEdit({ course }: CourseTitleInlineEditProps): R
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Icon icon="lucide:link" className="size-3 shrink-0" />
             <span>Slug dự kiến:</span>
-            <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-[11px] text-foreground">
+            <code className="bg-muted px-1.5 py-0.5 rounded text-[11px] text-foreground">
               {previewSlug}
             </code>
             {previewSlug !== course.slug && (
@@ -147,24 +149,27 @@ export function CourseTitleInlineEdit({ course }: CourseTitleInlineEditProps): R
           <div className="flex items-center gap-2 group">
             <h1
               onClick={handleStartEdit}
-              className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight hover:text-foreground/90 cursor-pointer transition-colors"
+              className={`text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight ${disabled ? '' : 'hover:text-foreground/90 cursor-pointer'} transition-colors`}
             >
               {course.title}
             </h1>
-            <button
-              type="button"
-              onClick={handleStartEdit}
-              title="Chỉnh sửa tiêu đề"
-              data-approval-focus=""
-              className="p-1.5 rounded-md bg-muted/50 border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer shrink-0"
-            >
-              <Icon icon="lucide:pencil" className="size-4" />
-            </button>
+            {!disabled && (
+              <button
+                type="button"
+                onClick={handleStartEdit}
+                title="Chỉnh sửa tiêu đề"
+                aria-label="Chỉnh sửa tiêu đề"
+                data-approval-focus=""
+                className="p-1.5 rounded-md bg-muted/50 border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer shrink-0"
+              >
+                <Icon icon="lucide:pencil" className="size-4" />
+              </button>
+            )}
           </div>
 
           {/* Slug badge */}
           <div className="mt-2.5">
-            <span className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground bg-muted/60 border border-border/50 px-2.5 py-1 rounded-md">
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/60 border border-border/50 px-2.5 py-1 rounded-md">
               <Icon icon="lucide:link" className="size-3 text-muted-foreground/70 shrink-0" />
               <span>{course.slug}</span>
             </span>

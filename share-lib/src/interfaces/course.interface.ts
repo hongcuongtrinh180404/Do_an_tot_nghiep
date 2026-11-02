@@ -2,6 +2,13 @@ import { CourseStatusEnum } from '../enums/course-status.enum.js';
 import { CourseLevelEnum } from '../enums/course-level.enum.js';
 import type { ICourseCategorySummary } from './course-category.interface.js';
 
+export interface ICourseInstructorSummary {
+  id: string;
+  fullName: string;
+  email: string;
+  avatarUrl?: string | null;
+}
+
 export interface ICourse {
   id: string;
   title: string;
@@ -16,9 +23,13 @@ export interface ICourse {
   status: CourseStatusEnum;
   approvalRequestedAt?: Date | string | null;
   approvalRequestedById?: string | null;
+  rejectionReason?: string | null;
+  reviewedAt?: Date | string | null;
+  reviewedById?: string | null;
   level: CourseLevelEnum;
   categoryId?: string | null;
   category?: ICourseCategorySummary | null;
+  instructor?: ICourseInstructorSummary | null;
   createdAt: Date | string;
   updatedAt: Date | string;
   deletedAt?: Date | string | null;
@@ -49,4 +60,5 @@ export interface IUpdateCoursePayload {
   status?: CourseStatusEnum;
   level?: CourseLevelEnum;
   categoryId?: string | null;
+  rejectionReason?: string | null;
 }

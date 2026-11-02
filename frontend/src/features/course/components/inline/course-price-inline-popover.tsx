@@ -15,6 +15,7 @@ import { useUpdateCourseMutation } from '../../api/course.api';
 
 interface CoursePriceInlinePopoverProps {
   course: ICourse;
+  disabled?: boolean;
 }
 
 function formatVND(value: number): string {
@@ -26,6 +27,7 @@ function formatVND(value: number): string {
 
 export function CoursePriceInlinePopover({
   course,
+  disabled = false,
 }: CoursePriceInlinePopoverProps): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const isCurrentlyFree = course.price === 0;
@@ -117,13 +119,43 @@ export function CoursePriceInlinePopover({
     course.price > 0 &&
     course.originalPrice > course.price;
 
+  if (disabled) {
+    return (
+      <div className="w-full p-3 rounded-lg bg-muted/25 border border-border/30 text-left select-none">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-muted-foreground">Học phí</span>
+        </div>
+        <div>
+          {course.price === 0 ? (
+            <span className="text-sm sm:text-base font-semibold text-emerald-600 dark:text-emerald-400">
+              Miễn phí
+            </span>
+          ) : hasDiscount ? (
+            <div className="flex flex-col">
+              <span className="text-sm sm:text-base font-semibold text-foreground">
+                {formatVND(course.price)}
+              </span>
+              <span className="text-xs text-muted-foreground line-through">
+                {formatVND(course.originalPrice!)}
+              </span>
+            </div>
+          ) : (
+            <span className="text-sm sm:text-base font-semibold text-foreground">
+              {formatVND(course.price)}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger
         render={
           <button
             type="button"
-            className="w-full p-3 rounded-lg bg-muted/25 border border-border/30 hover:border-border/80 hover:bg-muted/40 transition-all cursor-pointer group text-left outline-none"
+            className="w-full p-3 rounded-lg bg-muted/25 border border-border/30 hover:border-border/80 hover:bg-muted/40 transition-all cursor-pointer group text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           />
         }
       >

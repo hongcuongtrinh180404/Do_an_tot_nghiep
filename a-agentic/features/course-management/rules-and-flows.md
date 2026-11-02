@@ -33,3 +33,25 @@
    - Nhằm tối ưu hóa tốc độ tải trang sơ đồ tư duy cho học viên mà không phải thực hiện các phép JOIN / `$lookup` qua 4 collection (`courses` -> `sections` -> `lessons` -> `keypoints`), hệ thống duy trì một document store `course_mindmaps` với khóa chính `courseId`.
    - **Ghi (Upsert)**: Khi Giảng viên nhấn nút "Cập nhật Mindmap", backend nhận toàn bộ chuỗi JSON và thực hiện upsert ghi đè (`findOneAndUpdate` với `upsert: true`). Chỉ Giảng viên sở hữu khóa học hoặc Quản trị viên (`ADMIN`) mới có quyền ghi đè.
    - **Đọc (Query)**: Endpoint `GET /api/v1/courses/:courseId/mindmap` mở công khai (Public), cho phép học viên và khách vãng lai truy vấn trực tiếp cây phân cấp JSON trong vài mili-giây để vẽ giao diện sơ đồ tư duy 4 cấp độ.
+5. **Khóa Chỉnh Sửa Khóa Học Khi Chờ Duyệt (PENDING_APPROVAL Locking)**:
+   - Khi khóa học ở trạng thái `PENDING_APPROVAL`, hệ thống kích hoạt cơ chế khóa toàn diện (Read-only lock):
+     - Không cho phép cập nhật tiêu đề, mô tả, slug, học phí, thumbnail, video trailer.
+     - Không cho phép thêm, sửa, xóa, hoặc sắp xếp lại thứ tự chương học (`Section`).
+     - Không cho phép thêm, sửa, xóa bài học (`Lesson`), tài liệu đính kèm (`material`), quiz tương tác video, hay mindmap.
+     - Mọi yêu cầu ghi vi phạm sẽ bị chặn ở cấp Service và trả về `409 ConflictException`.
+     - Phía giao diện giảng viên chuyển sang trạng thái tĩnh (disabled/read-only), ẩn các nút thao tác chỉnh sửa/xóa, và hiển thị banner thông báo đang chờ Admin duyệt.
+6. **Quy Trình Phê Duyệt & Yêu Cầu Chỉnh Sửa Của Admin**:
+   - **Phê duyệt (`PUBLISHED`)**:
+     - Admin kiểm tra chất lượng khóa học và xác nhận qua Dialog phê duyệt.
+     - Khóa học chuyển sang `PUBLISHED`, mở khóa cho học viên đăng ký/thanh toán.
+   - **Yêu cầu chỉnh sửa (`DRAFT` kèm `rejectionReason`)**:
+     - Admin bắt buộc phải nhập lý do (tối thiểu 10 ký tự, tối đa 500 ký tự) qua Dialog từ chối (ví dụ: *"Video bài giảng thứ 2 bị mất âm thanh. Vui lòng kiểm tra và gửi phê duyệt lại."*).
+     - Khóa học chuyển về trạng thái `DRAFT`, lưu vết `rejectionReason`, `reviewedAt`, `reviewedById`.
+     - Phía giảng viên: Giao diện mở khóa toàn bộ quyền chỉnh sửa, hiển thị Banner cảnh báo màu Amber chứa nội dung phản hồi của Admin.
+     - Sau khi chỉnh sửa xong, giảng viên gửi lại phê duyệt (`requestApproval`): hệ thống tự động reset `rejectionReason: null` và chuyển trạng thái về `PENDING_APPROVAL`.
+7. **Kiểm Soát Tranh Chấp Đồng Thời Của Admin (Optimistic Concurrency Control)**:
+   - Khi 2 Admin cùng mở và bấm phê duyệt hoặc từ chối cùng một khóa học đồng thời:
+     - MongoDB thực thi câu lệnh atomic `findOneAndUpdate` có điều kiện `{ _id: courseId, deletedAt: null, status: CourseStatusEnum.PENDING_APPROVAL }`.
+     - Nhờ cơ chế Document-level lock của WiredTiger engine, chỉ đúng 1 câu lệnh cập nhật thành công.
+     - Admin thứ hai sẽ không match được bản ghi nào (vì trạng thái đã đổi khác `PENDING_APPROVAL`), backend trả về ngay `409 ConflictException` ("Khóa học không ở trạng thái chờ duyệt hoặc đã được xử lý bởi quản trị viên khác.").
+     - Giao diện Admin hiển thị toast lỗi rõ ràng và tự động refetch bảng dữ liệu.

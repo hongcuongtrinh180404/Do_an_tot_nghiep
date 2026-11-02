@@ -1323,3 +1323,64 @@
   - Kiểm thử & Chất lượng:
     - Độ tương phản đạt chuẩn WCAG AAA.
     - TypeScript: Typecheck `tsc --noEmit` đạt 0 lỗi (Exit Code 0).
+
+---
+
+## [Milestone] Khóa Chỉnh Sửa Khóa Học Chờ Phê Duyệt & Hệ Thống Quản Lý Kiểm Duyệt Thực Tế Cho Admin (2026-11-02)
+
+### 1. Bối cảnh & Yêu cầu (Context & Requirements)
+- Khóa toàn bộ quyền chỉnh sửa khi khóa học ở trạng thái `PENDING_APPROVAL` (thông tin khóa học, giá, media, chương học, bài học, tài liệu, quiz, mindmap).
+- Triển khai API quản trị và kiểm duyệt thực tế cho Admin:
+  - Phê duyệt (`approve`): Chuyển sang `PUBLISHED`.
+  - Yêu cầu chỉnh sửa (`reject`): Bắt buộc nhập lý do (tối thiểu 10 ký tự, tối đa 500 ký tự), chuyển trạng thái về `DRAFT` và lưu `rejectionReason`.
+  - Danh sách quản trị (`GET /api/v1/courses/admin`): Tìm kiếm, lọc theo status, category, instructor, phân trang.
+- Thay dữ liệu mock trong `/admin/courses` bằng dữ liệu thực tế từ backend với `BaseDataTable`, TanStack Table, stat cards, bộ lọc tabs trạng thái, và dialog phê duyệt / từ chối.
+- Đồng bộ trải nghiệm Giảng viên:
+  - Giảng viên thấy lý do từ chối trên banner cảnh báo Amber khi khóa học về `DRAFT`.
+  - Mở khóa chỉnh sửa để giảng viên khắc phục.
+  - Gửi lại phê duyệt thành công (tự động xóa lý do từ chối cũ).
+- 2 trường hợp kiểm thử bắt buộc:
+  1. Hai Admin cùng bấm duyệt đồng thời: Chỉ duy nhất 1 thao tác thành công, Admin còn lại nhận 409 ConflictException.
+  2. Admin yêu cầu chỉnh sửa: Giảng viên xem được lý do và gửi lại phê duyệt thành công.
+- Tuân thủ `/web-design-guidelines` (a11y, focus states, cấm inline Tailwind font classes, semantic HTML).
+
+### 2. Các thay đổi kỹ thuật (Technical Implementation)
+- **Share-lib**:
+  - `share-lib/src/interfaces/course.interface.ts`: Thêm `rejectionReason`, `reviewedAt`, `reviewedById`, `ICourseInstructorSummary`. Build `dist` sạch.
+- **Backend**:
+  - `course.schema.ts`: Bổ sung fields `rejectionReason`, `reviewedAt`, `reviewedById` và compound index `{ status: 1, approvalRequestedAt: -1, deletedAt: 1 }`.
+  - `query-courses-admin.dto.ts`: DTO truy vấn quản trị mở rộng từ `PaginationParamsDto`.
+  - `reject-course.dto.ts`: Validate lý do từ chối (`@MinLength(10)`, `@MaxLength(500)`, trim whitespace).
+  - `course.repository.ts`:
+    - `approveCourse`: Atomic `findOneAndUpdate` với condition `{ _id: courseId, deletedAt: null, status: CourseStatusEnum.PENDING_APPROVAL }`.
+    - `rejectCourse`: Atomic `findOneAndUpdate` với condition `{ _id: courseId, deletedAt: null, status: CourseStatusEnum.PENDING_APPROVAL }`.
+    - `requestApproval`: Reset `rejectionReason: null`.
+    - `findAdminCoursesWithPagination`: Populate category và instructor (fullName, email, avatarUrl).
+  - Khóa chỉnh sửa (`PENDING_APPROVAL` check) tại Service Layer:
+    - `course.service.ts`: Chặn `updateCourse`, `updateCourseThumbnail`, `updateCourseTrailer`, `createSection`, `updateSection`, `deleteSection`, `reorderSections`.
+    - `lesson.service.ts`: Chặn `createLesson`, `addMaterial`, `deleteMaterial`, `deleteLesson`.
+    - `course-mindmap.service.ts`: Chặn `upsertMindmap`.
+    - `lesson-quiz.service.ts`: Chặn `syncQuizzesAtTimestamp`, `deleteQuiz`, `deleteQuizzesAtTimestamp`.
+  - Controller: `GET /api/v1/courses/admin`, `POST /api/v1/courses/:id/approve`, `POST /api/v1/courses/:id/reject`.
+  - Kiểm thử: Tạo 12 unit tests trong `course-moderation.service.spec.ts` kiểm tra kiểm soát đồng thời (race condition 2 admins), từ chối khóa học, và toàn bộ các điểm khóa chỉnh sửa. 47/47 tests pass.
+- **Frontend**:
+  - `frontend/src/features/admin/courses/`:
+    - `api/admin-courses.api.ts`: React Query hooks cho Admin courses và mutations duyệt/từ chối.
+    - `components/admin-course-columns.tsx`: TanStack column definitions chuẩn UX, hiển thị avatar giảng viên, badge trạng thái, giá, danh mục, action buttons.
+    - `components/course-approval-dialog.tsx`: Confirm dialog xuất bản qua `DialogLayout`.
+    - `components/course-rejection-dialog.tsx`: Dialog từ chối bắt buộc lý do (React Hook Form + Zod, đếm ký tự).
+    - `components/admin-courses-view.tsx`: Giao diện Admin quản trị tích hợp `BaseDataTable`, thống kê chỉ số, bộ lọc tabs trạng thái, tìm kiếm tức thì.
+  - `frontend/src/features/course/components/course-detail-content.tsx`:
+    - Sky lock banner khi `PENDING_APPROVAL`.
+    - Amber rejection feedback banner khi `DRAFT` kèm `rejectionReason`.
+    - Khóa tương tác tất cả inline edit components và section/lesson inspector (`disabled`, `readOnly`).
+  - Giao diện Admin: Thay thế mock table tại `frontend/src/app/(admin)/admin/courses/page.tsx` bằng `<AdminCoursesView />`.
+
+### 3. Kiểm thử & Thẩm định Web Design Guidelines
+- **TypeScript**: 0 lỗi trên cả `frontend` và `backend` (`tsc --noEmit` exit code 0).
+- **Backend Tests**: 47/47 vitest test cases passed (`course-moderation` và `course-approval`).
+- **Static UI Audit (`audit-ui.mjs`)**:
+  - `frontend/src/features/admin/courses`: 6/6 files pass.
+  - `frontend/src/features/course/components/inline`: 7/7 files pass.
+  - `frontend/src/features/course/components/course-detail-content.tsx`: 1/1 file pass.
+  - Loại bỏ các class font cấm (`font-mono`), chuẩn hóa thuộc tính `aria-label`, và đảm bảo focus visible rings.

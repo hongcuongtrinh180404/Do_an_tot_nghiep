@@ -2,9 +2,10 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
-import { ICourseMindmap, RoleEnum } from 'share-lib';
+import { ICourseMindmap, RoleEnum, CourseStatusEnum } from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { CourseMindmapRepository } from '../repositories/course-mindmap.repository.js';
 import { CourseRepository } from '../repositories/course.repository.js';
@@ -54,6 +55,12 @@ export class CourseMindmapService extends BaseService<ICourseMindmap, string> {
 
     if (!isOwner && !isAdmin) {
       throw new ForbiddenException('Bạn không có quyền cập nhật sơ đồ tư duy của khóa học này');
+    }
+
+    if (course.status === CourseStatusEnum.PENDING_APPROVAL) {
+      throw new ConflictException(
+        'Khóa học đang trong quá trình chờ phê duyệt, không thể cập nhật sơ đồ tư duy.',
+      );
     }
 
     this.logger.log(`Upserting mindmap for courseId=${courseId} by userId=${userId}`);

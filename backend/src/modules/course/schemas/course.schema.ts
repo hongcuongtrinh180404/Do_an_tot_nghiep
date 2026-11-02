@@ -55,6 +55,15 @@ export class CourseEntity extends BaseAbstractDocument {
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: UserEntity.name, default: null })
   approvalRequestedById?: Types.ObjectId | null;
 
+  @Prop({ type: String, default: null, trim: true })
+  rejectionReason?: string | null;
+
+  @Prop({ type: Date, default: null })
+  reviewedAt?: Date | null;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: UserEntity.name, default: null })
+  reviewedById?: Types.ObjectId | null;
+
   @Prop({
     type: String,
     enum: Object.values(CourseLevelEnum),
@@ -92,3 +101,6 @@ CourseSchema.index({ status: 1, deletedAt: 1, createdAt: -1 });
 
 // 4. Category Catalog Query Index: lọc khóa học theo danh mục cho catalog công khai
 CourseSchema.index({ categoryId: 1, status: 1, deletedAt: 1, createdAt: -1 });
+
+// 5. Admin Moderation Query Index: Optimized for querying courses pending approval
+CourseSchema.index({ status: 1, approvalRequestedAt: -1, deletedAt: 1 });

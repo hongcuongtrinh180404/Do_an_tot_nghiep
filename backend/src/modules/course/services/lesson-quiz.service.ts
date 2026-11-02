@@ -3,12 +3,16 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
-import { ILessonQuiz } from 'share-lib';
+import { ILessonQuiz, CourseStatusEnum } from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { LessonQuizRepository } from '../repositories/lesson-quiz.repository.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
+import { SectionRepository } from '../repositories/section.repository.js';
+import { CourseRepository } from '../repositories/course.repository.js';
 import { SyncLessonQuizzesAtTimestampDto } from '../dto/sync-lesson-quizzes.dto.js';
 
 @Injectable()
@@ -19,8 +23,27 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
     private readonly lessonQuizRepo: LessonQuizRepository,
     private readonly lessonRepo: LessonRepository,
     cls: ClsService,
+    @Optional() private readonly sectionRepo?: SectionRepository,
+    @Optional() private readonly courseRepo?: CourseRepository,
   ) {
     super(lessonQuizRepo, cls, LessonQuizService.name);
+  }
+
+  private async assertNotPendingApproval(lessonId: string): Promise<void> {
+    if (this.sectionRepo && this.courseRepo) {
+      const lesson = await this.lessonRepo.findById(lessonId);
+      if (lesson) {
+        const section = await this.sectionRepo.findById(lesson.sectionId);
+        if (section) {
+          const course = await this.courseRepo.findById(section.courseId);
+          if (course && course.status === CourseStatusEnum.PENDING_APPROVAL) {
+            throw new ConflictException(
+              'Khóa học đang trong quá trình chờ phê duyệt, không thể chỉnh sửa câu hỏi video.',
+            );
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -56,6 +79,8 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
     if (!lesson) {
       throw new NotFoundException(`Không tìm thấy bài học với ID: ${trimmedLessonId}`);
     }
+
+    await this.assertNotPendingApproval(trimmedLessonId);
 
     if (dto.timestamp < 0) {
       throw new BadRequestException('Mốc thời gian (timestamp) không hợp lệ');
@@ -111,6 +136,8 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
       throw new NotFoundException(`Không tìm thấy câu hỏi với ID: ${trimmedId}`);
     }
 
+    await this.assertNotPendingApproval(existing.lessonId);
+
     await this.lessonQuizRepo.softDelete(trimmedId);
     return true;
   }
@@ -131,6 +158,8 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
     if (!lesson) {
       throw new NotFoundException(`Không tìm thấy bài học với ID: ${trimmedLessonId}`);
     }
+
+    await this.assertNotPendingApproval(trimmedLessonId);
 
     if (timestamp < 0) {
       throw new BadRequestException('Mốc thời gian (timestamp) không hợp lệ');

@@ -8,3 +8,4 @@ export * from './components/admin-users-placeholder';
 export * from './components/admin-tab-placeholder';
 export * from './users';
 export * from './categories';
+export * from './courses';

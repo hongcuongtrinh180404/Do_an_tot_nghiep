@@ -1,13 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession } from 'mongoose';
-import { ICourse, ICourseCategorySummary, CourseStatusEnum } from 'share-lib';
-import { BaseMongoRepository } from '../../base/index.js';
+import {
+  ICourse,
+  ICourseCategorySummary,
+  ICourseInstructorSummary,
+  CourseStatusEnum,
+} from 'share-lib';
+import { BaseMongoRepository, PaginationResult } from '../../base/index.js';
 import { CourseEntity } from '../schemas/course.schema.js';
+import { QueryCoursesAdminDto } from '../dto/query-courses-admin.dto.js';
 
 const CATEGORY_POPULATE = {
   path: 'categoryId',
   select: 'name slug imageUrl isActive',
+};
+
+const INSTRUCTOR_POPULATE = {
+  path: 'instructorId',
+  select: 'fullName email avatarUrl',
 };
 
 @Injectable()
@@ -24,22 +35,54 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
 
       const rawId = plain._id;
       const id = typeof rawId === 'string' ? rawId : (rawId as { toString?: () => string })?.toString?.();
-      const rawInstructorId = plain.instructorId;
-      const instructorId =
-        typeof rawInstructorId === 'string'
-          ? rawInstructorId
-          : (rawInstructorId as { toString?: () => string })?.toString?.();
+
+      const rawInstructor = plain.instructorId as unknown;
+      let instructorId = '';
+      let instructor: ICourseInstructorSummary | null = null;
+
+      if (
+        rawInstructor !== null &&
+        typeof rawInstructor === 'object' &&
+        'email' in rawInstructor
+      ) {
+        const popInst = rawInstructor as {
+          _id?: unknown;
+          fullName?: string;
+          email?: string;
+          avatarUrl?: string | null;
+        };
+        const popId = popInst._id;
+        instructorId =
+          typeof popId === 'string'
+            ? popId
+            : ((popId as { toString?: () => string })?.toString?.() ?? '');
+        instructor = {
+          id: instructorId,
+          fullName: popInst.fullName ?? '',
+          email: popInst.email ?? '',
+          avatarUrl: popInst.avatarUrl ?? null,
+        };
+      } else if (rawInstructor !== null && rawInstructor !== undefined) {
+        instructorId =
+          typeof rawInstructor === 'string'
+            ? rawInstructor
+            : ((rawInstructor as { toString?: () => string }).toString?.() ?? '');
+      }
+
       const rawRequesterId = plain.approvalRequestedById;
       const approvalRequestedById = typeof rawRequesterId === 'string'
         ? rawRequesterId
         : (rawRequesterId as { toString?: () => string } | null)?.toString?.() ?? null;
 
+      const rawReviewedById = plain.reviewedById;
+      const reviewedById = typeof rawReviewedById === 'string'
+        ? rawReviewedById
+        : (rawReviewedById as { toString?: () => string } | null)?.toString?.() ?? null;
+
       const rawCategoryId = plain.categoryId as unknown;
       let categoryId: string | null = null;
       let category: ICourseCategorySummary | null = null;
 
-      // Populated category documents have a `name` field; a raw Mongoose
-      // ObjectId is also an object but must not be treated as populated data.
       const isPopulatedCategory =
         rawCategoryId !== null &&
         typeof rawCategoryId === 'object' &&
@@ -75,10 +118,14 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
       return {
         ...plain,
         id: id as string,
-        instructorId: (instructorId ?? '') as string,
+        instructorId,
+        instructor,
         approvalRequestedById,
+        reviewedById,
         categoryId,
         category,
+        rejectionReason: (plain.rejectionReason as string | undefined) ?? null,
+        reviewedAt: (plain.reviewedAt as Date | undefined) ?? null,
       } as unknown as ICourse;
     });
   }
@@ -87,6 +134,7 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
     const doc = await this.model
       .findOne({ _id: id, deletedAt: null })
       .populate(CATEGORY_POPULATE)
+      .populate(INSTRUCTOR_POPULATE)
       .session(session ?? null)
       .exec();
 
@@ -100,6 +148,7 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
         deletedAt: null,
       })
       .populate(CATEGORY_POPULATE)
+      .populate(INSTRUCTOR_POPULATE)
       .session(session ?? null)
       .exec();
 
@@ -107,8 +156,6 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
   }
 
   async requestApproval(course: ICourse, userId: string): Promise<ICourse | null> {
-    // A conditional write prevents two requests (or a concurrent course edit)
-    // from submitting the same checked draft twice.
     const doc = await this.model.findOneAndUpdate(
       {
         _id: course.id,
@@ -122,12 +169,132 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
           approvalRequestedAt: new Date(),
           approvalRequestedById: userId,
           updatedById: userId,
+          rejectionReason: null,
         },
       },
       { new: true, runValidators: true },
-    ).populate(CATEGORY_POPULATE).exec();
+    )
+      .populate(CATEGORY_POPULATE)
+      .populate(INSTRUCTOR_POPULATE)
+      .exec();
 
     return doc ? this.toDomain(doc) : null;
+  }
+
+  async approveCourse(
+    courseId: string,
+    adminId: string,
+    session?: ClientSession,
+  ): Promise<ICourse | null> {
+    const doc = await this.model.findOneAndUpdate(
+      {
+        _id: courseId,
+        deletedAt: null,
+        status: CourseStatusEnum.PENDING_APPROVAL,
+      },
+      {
+        $set: {
+          status: CourseStatusEnum.PUBLISHED,
+          reviewedAt: new Date(),
+          reviewedById: adminId,
+          updatedById: adminId,
+          rejectionReason: null,
+        },
+      },
+      { new: true, runValidators: true },
+    )
+      .populate(CATEGORY_POPULATE)
+      .populate(INSTRUCTOR_POPULATE)
+      .session(session ?? null)
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  async rejectCourse(
+    courseId: string,
+    adminId: string,
+    reason: string,
+    session?: ClientSession,
+  ): Promise<ICourse | null> {
+    const doc = await this.model.findOneAndUpdate(
+      {
+        _id: courseId,
+        deletedAt: null,
+        status: CourseStatusEnum.PENDING_APPROVAL,
+      },
+      {
+        $set: {
+          status: CourseStatusEnum.DRAFT,
+          rejectionReason: reason.trim(),
+          reviewedAt: new Date(),
+          reviewedById: adminId,
+          updatedById: adminId,
+        },
+      },
+      { new: true, runValidators: true },
+    )
+      .populate(CATEGORY_POPULATE)
+      .populate(INSTRUCTOR_POPULATE)
+      .session(session ?? null)
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  async findAdminCoursesWithPagination(
+    queryDto: QueryCoursesAdminDto,
+    session?: ClientSession,
+  ): Promise<PaginationResult<ICourse>> {
+    const filterQuery: Record<string, unknown> = {
+      deletedAt: null,
+    };
+
+    if (queryDto.search) {
+      const escaped = queryDto.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filterQuery.title = { $regex: escaped, $options: 'i' };
+    }
+
+    if (queryDto.status) {
+      filterQuery.status = queryDto.status;
+    }
+
+    if (queryDto.categoryId) {
+      filterQuery.categoryId = queryDto.categoryId;
+    }
+
+    if (queryDto.instructorId) {
+      filterQuery.instructorId = queryDto.instructorId;
+    }
+
+    const page = queryDto.page || 1;
+    const limit = queryDto.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const sortObj = this.buildSortObject(queryDto.sort);
+
+    const [total, docs] = await Promise.all([
+      this.model.countDocuments(filterQuery).session(session ?? null).exec(),
+      this.model
+        .find(filterQuery)
+        .sort(sortObj)
+        .skip(skip)
+        .limit(limit)
+        .populate(CATEGORY_POPULATE)
+        .populate(INSTRUCTOR_POPULATE)
+        .session(session ?? null)
+        .exec(),
+    ]);
+
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    return {
+      items: docs.map((doc) => this.toDomain(doc)),
+      total,
+      page,
+      limit,
+      totalPages,
+    };
   }
 
   async findByInstructorId(
@@ -141,6 +308,7 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
       })
       .sort({ createdAt: -1 })
       .populate(CATEGORY_POPULATE)
+      .populate(INSTRUCTOR_POPULATE)
       .session(session ?? null)
       .exec();
 
