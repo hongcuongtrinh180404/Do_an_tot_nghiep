@@ -43,22 +43,27 @@ export function PublicFooter(): React.JSX.Element {
               </h4>
               <ul className="space-y-2 text-xs text-neutral-300">
                 <li>
-                  <Link href="#featured" className="hover:text-white transition-colors">
+                  <Link href="/courses" className="hover:text-white transition-colors font-semibold text-white">
+                    Tất cả khóa học
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/#featured" className="hover:text-white transition-colors">
                     Khóa học nổi bật
                   </Link>
                 </li>
                 <li>
-                  <Link href="#categories" className="hover:text-white transition-colors">
+                  <Link href="/#categories" className="hover:text-white transition-colors">
                     Lĩnh vực đào tạo
                   </Link>
                 </li>
                 <li>
-                  <Link href="#recent" className="hover:text-white transition-colors">
+                  <Link href="/#recent" className="hover:text-white transition-colors">
                     Khóa học mới nhất
                   </Link>
                 </li>
                 <li>
-                  <Link href="#ai-experience" className="hover:text-white transition-colors">
+                  <Link href="/#ai-experience" className="hover:text-white transition-colors">
                     Trải nghiệm AI
                   </Link>
                 </li>

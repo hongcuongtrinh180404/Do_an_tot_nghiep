@@ -1,13 +1,26 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { toast } from 'sonner';
 import { Icon } from '@/components/ui/icon';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { UseVideoPlayerReturn } from './use-video-player';
 import { TimelinePinMarker } from './lesson-timeline-pin-marker';
 import { CreateQuizMarkerModal } from './create-quiz-marker-modal';
 import { InVideoQuizPromptOverlay } from './in-video-quiz-prompt-overlay';
 import { StudentInVideoQuizModal } from './student-in-video-quiz-modal';
-import { useLessonQuizzesQuery } from '../../api/lesson-quiz.api';
+import {
+  useLessonQuizzesQuery,
+  useMoveMergeLessonQuizClusterMutation,
+} from '../../api/lesson-quiz.api';
 
 export interface TimelineMarker {
   time: number;
@@ -71,18 +84,53 @@ export function LessonVideoScreen({
     percent: number;
     time: number;
   } | null>(null);
+
   // Checkpoint dot directly hovered by cursor (chỉ kích hoạt khi đưa chuột trúng vòng tròn vàng)
   const [hoveredDotCheckpoint, setHoveredDotCheckpoint] = useState<{
     timestamp: number;
     percent: number;
     questions: typeof dbQuizzes;
   } | null>(null);
+
   const [isQuizModalOpen, setIsQuizModalOpen] = useState<boolean>(false);
   const [selectedQuizTime, setSelectedQuizTime] = useState<number>(0);
   const [autoAddNewQuestion, setAutoAddNewQuestion] = useState<boolean>(false);
 
   // Real quizzes query from backend
   const { data: dbQuizzes = [] } = useLessonQuizzesQuery(lessonId);
+
+  // Mutation to move or merge quiz clusters
+  const moveMergeMutation = useMoveMergeLessonQuizClusterMutation(lessonId);
+
+  // Ref to seekbar track for accurate pointer coordinates
+  const sliderTrackRef = useRef<HTMLDivElement | null>(null);
+
+  // Long-press (1.5s) & Drag & Drop Cluster States
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const holdProgressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isHoldingBadge, setIsHoldingBadge] = useState<boolean>(false);
+  const [holdProgress, setHoldProgress] = useState<number>(0);
+  const [isDraggingCluster, setIsDraggingCluster] = useState<boolean>(false);
+  const [dragSource, setDragSource] = useState<{
+    timestamp: number;
+    percent: number;
+    questions: typeof dbQuizzes;
+  } | null>(null);
+  const [currentDragTime, setCurrentDragTime] = useState<number>(0);
+  const [currentDragPercent, setCurrentDragPercent] = useState<number>(0);
+  const [snapTarget, setSnapTarget] = useState<{
+    timestamp: number;
+    percent: number;
+    questions: typeof dbQuizzes;
+  } | null>(null);
+
+  // Merge Confirmation Modal State (Option B requested by User)
+  const [mergeConfirmData, setMergeConfirmData] = useState<{
+    sourceTimestamp: number;
+    targetTimestamp: number;
+    sourceCount: number;
+    targetCount: number;
+  } | null>(null);
 
   // Grouped unique quiz checkpoints: cluster checkpoints within 2 seconds into a single marker!
   const quizCheckpoints = useMemo(() => {
@@ -118,7 +166,9 @@ export function LessonVideoScreen({
       !isPlaying ||
       activePromptTimestamp !== null ||
       isStudentQuizModalOpen ||
-      isQuizModalOpen
+      isQuizModalOpen ||
+      isDraggingCluster ||
+      mergeConfirmData !== null
     ) {
       return;
     }
@@ -144,13 +194,15 @@ export function LessonVideoScreen({
     activePromptTimestamp,
     isStudentQuizModalOpen,
     isQuizModalOpen,
+    isDraggingCluster,
+    mergeConfirmData,
     videoRef,
   ]);
 
   const handleSkipPrompt = () => {
     setActivePromptTimestamp(null);
     if (videoRef.current) {
-      videoRef.current.play().catch(() => {});
+      videoRef.current.play().catch(() => { });
     }
   };
 
@@ -167,13 +219,13 @@ export function LessonVideoScreen({
     setIsStudentQuizModalOpen(false);
     setStudentQuizTimestamp(null);
     if (videoRef.current) {
-      videoRef.current.play().catch(() => {});
+      videoRef.current.play().catch(() => { });
     }
   };
 
   // Calculate mouse position and timestamp on hover over timeline slider
   const handleSliderMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isInstructor || !duration) return;
+    if (!isInstructor || !duration || isDraggingCluster) return;
     const rect = e.currentTarget.getBoundingClientRect();
     if (rect.width <= 0) return;
     const offsetX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
@@ -181,7 +233,7 @@ export function LessonVideoScreen({
     const currentPercent = ratio * 100;
 
     // Khi di chuyển chuột trên thanh tua xa khỏi vòng tròn vàng (> 1.2% bề rộng), hủy focus hiển thị nút "Thêm câu hỏi"
-    if (hoveredDotCheckpoint) {
+    if (hoveredDotCheckpoint && !isHoldingBadge) {
       if (Math.abs(hoveredDotCheckpoint.percent - currentPercent) > 1.2) {
         if (hoverLeaveTimeoutRef.current) {
           clearTimeout(hoverLeaveTimeoutRef.current);
@@ -199,6 +251,7 @@ export function LessonVideoScreen({
   };
 
   const handleSliderMouseLeave = () => {
+    if (isHoldingBadge || isDraggingCluster) return;
     setHoverSlider(null);
   };
 
@@ -230,7 +283,7 @@ export function LessonVideoScreen({
   };
 
   // Click on "Thêm câu hỏi" button when hovering on existing checkpoint: auto append next question
-  const handleAddQuestionToExistingCheckpoint = (e: React.MouseEvent, ts: number) => {
+  const handleAddQuestionToExistingCheckpoint = (e: React.MouseEvent | React.PointerEvent, ts: number) => {
     e.stopPropagation();
     e.preventDefault();
     if (hoverLeaveTimeoutRef.current) {
@@ -245,6 +298,218 @@ export function LessonVideoScreen({
     setSelectedQuizTime(ts);
     setAutoAddNewQuestion(true);
     setIsQuizModalOpen(true);
+  };
+
+  // 1.5s Hold (Long-press) on "Thêm câu hỏi" Badge
+  const handleBadgePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return; // Only trigger for primary mouse button
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!hoveredDotCheckpoint) return;
+
+    const source = {
+      timestamp: hoveredDotCheckpoint.timestamp,
+      percent: hoveredDotCheckpoint.percent,
+      questions: hoveredDotCheckpoint.questions,
+    };
+
+    setIsHoldingBadge(true);
+    setHoldProgress(0);
+
+    const HOLD_DURATION = 1500; // 1.5 seconds
+    const startTime = Date.now();
+
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    if (holdProgressIntervalRef.current) clearInterval(holdProgressIntervalRef.current);
+
+    holdProgressIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const pct = Math.min(100, (elapsed / HOLD_DURATION) * 100);
+      setHoldProgress(pct);
+    }, 30);
+
+    longPressTimerRef.current = setTimeout(() => {
+      if (holdProgressIntervalRef.current) {
+        clearInterval(holdProgressIntervalRef.current);
+        holdProgressIntervalRef.current = null;
+      }
+      setIsHoldingBadge(false);
+      setHoldProgress(100);
+
+      // Pause playback while dragging
+      if (videoRef.current) {
+        videoRef.current.pause();
+      }
+
+      // Enter Drag Mode!
+      setIsDraggingCluster(true);
+      setDragSource(source);
+      setCurrentDragTime(source.timestamp);
+      setCurrentDragPercent(source.percent);
+      setSnapTarget(null);
+      setHoveredDotCheckpoint(null);
+    }, HOLD_DURATION);
+  };
+
+  const handleBadgePointerUp = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const wasHolding = isHoldingBadge;
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    if (holdProgressIntervalRef.current) {
+      clearInterval(holdProgressIntervalRef.current);
+      holdProgressIntervalRef.current = null;
+    }
+    setIsHoldingBadge(false);
+    setHoldProgress(0);
+
+    // If released before 1.5s and not in drag mode, treat as regular quick click:
+    if (wasHolding && !isDraggingCluster && hoveredDotCheckpoint) {
+      handleAddQuestionToExistingCheckpoint(e, hoveredDotCheckpoint.timestamp);
+    }
+  };
+
+  const handleBadgePointerCancel = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    if (holdProgressIntervalRef.current) {
+      clearInterval(holdProgressIntervalRef.current);
+      holdProgressIntervalRef.current = null;
+    }
+    setIsHoldingBadge(false);
+    setHoldProgress(0);
+  };
+
+  // Global window listeners for Dragging Mode
+  useEffect(() => {
+    if (!isDraggingCluster || !dragSource || !duration) return;
+
+    const handleWindowPointerMove = (e: PointerEvent) => {
+      const sliderEl = sliderTrackRef.current;
+      if (!sliderEl) return;
+      const rect = sliderEl.getBoundingClientRect();
+      if (rect.width <= 0) return;
+
+      const offsetX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+      const ratio = offsetX / rect.width;
+      const rawTime = ratio * duration;
+      const rawPercent = ratio * 100;
+
+      // Find snap target among other checkpoints (excluding the current dragged cluster)
+      let foundTarget: {
+        timestamp: number;
+        percent: number;
+        questions: typeof dbQuizzes;
+      } | null = null;
+
+      for (const [ts, qs] of quizCheckpoints.entries()) {
+        if (Math.abs(ts - dragSource.timestamp) <= 1) {
+          continue; // skip the dragged source cluster itself
+        }
+        const targetPercent = (ts / duration) * 100;
+        // Snap threshold: within 2.5s or within 2.5% timeline width
+        if (Math.abs(ts - rawTime) <= 2.5 || Math.abs(targetPercent - rawPercent) <= 2.5) {
+          foundTarget = { timestamp: ts, percent: targetPercent, questions: qs };
+          break;
+        }
+      }
+
+      if (foundTarget) {
+        setSnapTarget(foundTarget);
+        setCurrentDragTime(foundTarget.timestamp);
+        setCurrentDragPercent(foundTarget.percent);
+      } else {
+        setSnapTarget(null);
+        setCurrentDragTime(rawTime);
+        setCurrentDragPercent(rawPercent);
+      }
+    };
+
+    const handleWindowPointerUp = () => {
+      const sourceTs = dragSource.timestamp;
+      const sourceCount = dragSource.questions.length;
+      const target = snapTarget;
+      const droppedTime = Math.round(currentDragTime);
+
+      setIsDraggingCluster(false);
+      setDragSource(null);
+      setSnapTarget(null);
+
+      // 1. Dropped on another cluster -> Prompt Confirmation Dialog (Option B)
+      if (target && Math.abs(target.timestamp - sourceTs) > 1) {
+        setMergeConfirmData({
+          sourceTimestamp: sourceTs,
+          targetTimestamp: target.timestamp,
+          sourceCount,
+          targetCount: target.questions.length,
+        });
+      } else if (!target && Math.abs(droppedTime - sourceTs) > 1) {
+        // 2. Dropped on empty timeline area -> Reposition cluster (Move)
+        moveMergeMutation.mutate(
+          { sourceTimestamp: sourceTs, targetTimestamp: droppedTime },
+          {
+            onSuccess: () => {
+              toast.success(
+                `Đã di chuyển cụm ${sourceCount} câu hỏi sang mốc ${formatTime(droppedTime)}!`,
+              );
+            },
+          },
+        );
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDraggingCluster(false);
+        setDragSource(null);
+        setSnapTarget(null);
+        toast.info('Đã hủy thao tác kéo cụm câu hỏi');
+      }
+    };
+
+    window.addEventListener('pointermove', handleWindowPointerMove);
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      window.removeEventListener('pointerup', handleWindowPointerUp);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [
+    isDraggingCluster,
+    dragSource,
+    snapTarget,
+    currentDragTime,
+    duration,
+    quizCheckpoints,
+    moveMergeMutation,
+    formatTime,
+  ]);
+
+  // Execute Merge when confirmed in Dialog
+  const handleConfirmMerge = async () => {
+    if (!mergeConfirmData) return;
+    const { sourceTimestamp, targetTimestamp, sourceCount, targetCount } = mergeConfirmData;
+    try {
+      await moveMergeMutation.mutateAsync({
+        sourceTimestamp,
+        targetTimestamp,
+      });
+      toast.success('Gộp cụm câu hỏi thành công!', {
+        description: `Đã gộp ${sourceCount} câu hỏi vào mốc ${formatTime(targetTimestamp)} (Tổng: ${sourceCount + targetCount} câu hỏi).`,
+      });
+      setMergeConfirmData(null);
+    } catch {
+      // Error handled by mutation onError
+    }
   };
 
   // Controls are always visible when paused; auto-hides after 2.5s when playing
@@ -272,6 +537,12 @@ export function LessonVideoScreen({
       if (hoverLeaveTimeoutRef.current) {
         clearTimeout(hoverLeaveTimeoutRef.current);
       }
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+      if (holdProgressIntervalRef.current) {
+        clearInterval(holdProgressIntervalRef.current);
+      }
     };
   }, []);
 
@@ -286,8 +557,14 @@ export function LessonVideoScreen({
         return;
       }
 
-      // Don't intercept video controls if quiz prompt or quiz modal is active
-      if (activePromptTimestamp !== null || isStudentQuizModalOpen || isQuizModalOpen) {
+      // Don't intercept video controls if quiz prompt, quiz modal, drag mode, or merge confirm is active
+      if (
+        activePromptTimestamp !== null ||
+        isStudentQuizModalOpen ||
+        isQuizModalOpen ||
+        isDraggingCluster ||
+        mergeConfirmData !== null
+      ) {
         return;
       }
 
@@ -319,10 +596,13 @@ export function LessonVideoScreen({
     activePromptTimestamp,
     isStudentQuizModalOpen,
     isQuizModalOpen,
+    isDraggingCluster,
+    mergeConfirmData,
   ]);
 
   // Handle Seek from timeline slider
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isDraggingCluster) return;
     const nextTime = parseFloat(e.target.value);
     seek(nextTime);
   };
@@ -394,9 +674,8 @@ export function LessonVideoScreen({
           setIsSpeedMenuOpen(false);
         }
       }}
-      className={`relative w-full h-full flex items-center justify-center bg-black overflow-hidden select-none ${
-        isFullscreen ? 'fixed inset-0 z-50' : ''
-      }`}
+      className={`relative w-full h-full flex items-center justify-center bg-black overflow-hidden select-none ${isFullscreen ? 'fixed inset-0 z-50' : ''
+        }`}
     >
       {/* 16:9 Video Canvas Container */}
       <div className="relative w-full aspect-video max-h-full flex items-center justify-center bg-black">
@@ -422,19 +701,18 @@ export function LessonVideoScreen({
 
         {/* Top Gradient Vignette */}
         <div
-          className={`absolute top-0 inset-x-0 h-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent pointer-events-none transition-opacity duration-300 z-10 ${
-            isControlsVisible ? 'opacity-100' : 'opacity-0'
-          }`}
+          className={`absolute top-0 inset-x-0 h-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent pointer-events-none transition-opacity duration-300 z-10 ${isControlsVisible ? 'opacity-100' : 'opacity-0'
+            }`}
         />
 
         {/* Bottom Cinema Controls Overlay */}
         <div
-          className={`absolute bottom-0 inset-x-0 p-3 sm:p-4 bg-gradient-to-t from-black/95 via-black/75 to-transparent transition-opacity duration-300 z-20 space-y-2.5 ${
-            isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
+          className={`absolute bottom-0 inset-x-0 p-3 sm:p-4 bg-gradient-to-t from-black/95 via-black/75 to-transparent transition-opacity duration-300 z-20 space-y-2.5 ${isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
         >
           {/* Progress Slider Bar with Buffer, Timeline Markers & Pin Marker */}
           <div
+            ref={sliderTrackRef}
             onMouseMove={handleSliderMouseMove}
             onMouseLeave={handleSliderMouseLeave}
             className="relative w-full group/slider flex items-center h-4 cursor-pointer"
@@ -475,13 +753,18 @@ export function LessonVideoScreen({
                 const quizPercent = (ts / duration) * 100;
                 if (quizPercent > 100) return null;
                 const sampleQ = questions[0]?.question || 'Câu hỏi tương tác';
+                const isSnapTarget = snapTarget?.timestamp === ts;
+                const isSourceBeingDragged = isDraggingCluster && dragSource?.timestamp === ts;
+
                 return (
                   <div
                     key={`quiz-db-${ts}`}
                     title={`[${formatTime(ts)}] ${questions.length} câu hỏi: ${sampleQ}`}
                     style={{ left: `${quizPercent}%` }}
-                    className="absolute top-1/2 -translate-y-1/2 -ml-2 size-4 flex items-center justify-center z-30 pointer-events-auto cursor-pointer group/checkpoint"
+                    className={`absolute top-1/2 -translate-y-1/2 -ml-2 size-4 flex items-center justify-center z-30 pointer-events-auto cursor-pointer group/checkpoint transition-all ${isSourceBeingDragged ? 'opacity-30 scale-75' : ''
+                      }`}
                     onMouseEnter={() => {
+                      if (isDraggingCluster) return;
                       if (hoverLeaveTimeoutRef.current) {
                         clearTimeout(hoverLeaveTimeoutRef.current);
                         hoverLeaveTimeoutRef.current = null;
@@ -495,6 +778,7 @@ export function LessonVideoScreen({
                       }
                     }}
                     onMouseLeave={() => {
+                      if (isDraggingCluster || isHoldingBadge) return;
                       if (hoverLeaveTimeoutRef.current) {
                         clearTimeout(hoverLeaveTimeoutRef.current);
                       }
@@ -503,6 +787,7 @@ export function LessonVideoScreen({
                       }, 350);
                     }}
                     onClick={(e) => {
+                      if (isDraggingCluster) return;
                       e.stopPropagation();
                       e.preventDefault();
                       if (isInstructor) {
@@ -513,7 +798,12 @@ export function LessonVideoScreen({
                     }}
                   >
                     {/* Vòng tròn vàng (Yellow Circle) */}
-                    <div className="size-2.5 rounded-full bg-amber-400 border border-white dark:border-zinc-950 shadow-sm flex items-center justify-center group-hover/checkpoint:scale-125 transition-transform">
+                    <div
+                      className={`size-2.5 rounded-full bg-amber-400 border border-white dark:border-zinc-950 shadow-sm flex items-center justify-center transition-all ${isSnapTarget
+                          ? 'scale-175 ring-4 ring-emerald-400 ring-offset-2 ring-offset-zinc-950 bg-emerald-400 animate-pulse'
+                          : 'group-hover/checkpoint:scale-125'
+                        }`}
+                    >
                       <div className="size-1 rounded-full bg-slate-900 pointer-events-none" />
                     </div>
                   </div>
@@ -521,7 +811,7 @@ export function LessonVideoScreen({
               })}
 
             {/* Interactive Pin Marker on Hover (Instructor Mode): Chỉ hiện khi hover vào điểm CHƯA có câu hỏi */}
-            {isInstructor && hoverSlider?.isHovering && !hoveredDotCheckpoint && (
+            {isInstructor && !isDraggingCluster && hoverSlider?.isHovering && !hoveredDotCheckpoint && (
               <TimelinePinMarker
                 percent={hoverSlider.percent}
                 time={hoverSlider.time}
@@ -532,7 +822,7 @@ export function LessonVideoScreen({
             )}
 
             {/* Nút "Thêm câu hỏi" hiện ra ở dưới thanh timeline CHỈ KHI đưa chuột vào vòng tròn vàng */}
-            {isInstructor && hoveredDotCheckpoint && (
+            {isInstructor && !isDraggingCluster && hoveredDotCheckpoint && (
               <div
                 style={{
                   left: `${Math.min(90, Math.max(10, hoveredDotCheckpoint.percent))}%`,
@@ -544,6 +834,7 @@ export function LessonVideoScreen({
                   }
                 }}
                 onMouseLeave={() => {
+                  if (isHoldingBadge) return;
                   if (hoverLeaveTimeoutRef.current) {
                     clearTimeout(hoverLeaveTimeoutRef.current);
                   }
@@ -561,25 +852,89 @@ export function LessonVideoScreen({
 
                 <button
                   type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleAddQuestionToExistingCheckpoint(e, hoveredDotCheckpoint.timestamp);
-                  }}
-                  title={`Thêm câu hỏi tiếp theo vào bộ câu hỏi tại mốc ${formatTime(hoveredDotCheckpoint.timestamp)}`}
-                  className="relative z-10 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-bold text-xs shadow-xl shadow-amber-500/30 border border-amber-300 dark:border-amber-400 flex items-center gap-1.5 cursor-pointer transform hover:scale-105 active:scale-95 transition-all duration-150 whitespace-nowrap"
+                  onPointerDown={handleBadgePointerDown}
+                  onPointerUp={handleBadgePointerUp}
+                  onPointerLeave={handleBadgePointerCancel}
+                  onPointerCancel={handleBadgePointerCancel}
+                  title="Nhấn để thêm câu hỏi • Nhấn giữ 1.5s để kéo và gộp cụm câu hỏi"
+                  className={`relative overflow-hidden z-10 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-bold text-xs shadow-xl shadow-amber-500/30 border border-amber-300 dark:border-amber-400 flex items-center gap-1.5 cursor-grab active:cursor-grabbing transform transition-all duration-150 whitespace-nowrap select-none ${isHoldingBadge
+                      ? 'scale-105 ring-2 ring-amber-300 ring-offset-1 ring-offset-zinc-950'
+                      : 'hover:scale-105 active:scale-95'
+                    }`}
                 >
-                  <Icon icon="lucide:plus-circle" className="size-3.5 stroke-[2.5]" />
-                  <span>Thêm câu hỏi</span>
+                  {/* Thanh nạp tiến trình 1.5s (Progress fill bar) */}
+                  {isHoldingBadge && (
+                    <div
+                      className="absolute inset-y-0 left-0 bg-amber-700/50 pointer-events-none transition-[width] duration-75"
+                      style={{ width: `${holdProgress}%` }}
+                    />
+                  )}
+
+                  <Icon
+                    icon={isHoldingBadge ? 'lucide:grip-horizontal' : 'lucide:plus-circle'}
+                    className={`size-3.5 stroke-[2.5] relative z-10 ${isHoldingBadge ? 'animate-pulse' : ''}`}
+                  />
+                  <span className="relative z-10">
+                    {isHoldingBadge ? 'Giữ để kéo...' : 'Thêm câu hỏi'}
+                  </span>
+                  {!isHoldingBadge && (
+                    <span className="relative z-10 text-[10px] font-medium text-slate-800/80 border-l border-slate-950/20 pl-1 hidden sm:inline">
+                      Giữ 1.5s kéo gộp
+                    </span>
+                  )}
                 </button>
               </div>
             )}
 
-            {/* Interactive Range Input */}
+            {/* Guide line & Floating card when dragging cluster */}
+            {isInstructor && isDraggingCluster && (
+              <>
+                {/* Vertical Guide Line across timeline slider */}
+                <div
+                  style={{ left: `${currentDragPercent}%` }}
+                  className={`absolute top-0 bottom-0 w-0.5 -ml-px pointer-events-none z-40 transition-none ${snapTarget
+                      ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]'
+                      : 'bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.9)]'
+                    }`}
+                />
+
+                {/* Floating Indicator Card following the cursor/snap point */}
+                <div
+                  style={{
+                    left: `${Math.min(85, Math.max(15, currentDragPercent))}%`,
+                  }}
+                  className="absolute bottom-full mb-3 -translate-x-1/2 z-50 pointer-events-none select-none transition-none animate-in fade-in-0 zoom-in-95 duration-100"
+                >
+                  <div
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold shadow-2xl flex items-center gap-2 border whitespace-nowrap backdrop-blur-md ${snapTarget
+                        ? 'bg-emerald-950/95 text-emerald-200 border-emerald-400 shadow-emerald-500/40 ring-2 ring-emerald-400/50'
+                        : 'bg-zinc-950/95 text-sky-200 border-sky-400 shadow-sky-500/40'
+                      }`}
+                  >
+                    <Icon
+                      icon={snapTarget ? 'lucide:git-merge' : 'lucide:move-horizontal'}
+                      className="size-4 shrink-0 text-current"
+                    />
+                    <span>
+                      {snapTarget
+                        ? `Thả để gộp ${dragSource?.questions.length} câu vào mốc ${formatTime(snapTarget.timestamp)} (Tổng: ${(dragSource?.questions.length || 0) + snapTarget.questions.length} câu)`
+                        : `Di chuyển ${dragSource?.questions.length} câu hỏi đến ${formatTime(currentDragTime)}`}
+                    </span>
+                    <span className="text-[10px] text-zinc-400 font-normal border-l border-zinc-700 pl-1.5">
+                      Esc để hủy
+                    </span>
+                  </div>
+
+                  {/* Arrow pointer down to seekbar */}
+                  <div
+                    className={`size-2 rotate-45 mx-auto -mt-1 shadow-xs ${snapTarget ? 'bg-emerald-400' : 'bg-sky-400'
+                      }`}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Interactive Range Input (disabled during drag) */}
             <input
               type="range"
               min={0}
@@ -588,12 +943,14 @@ export function LessonVideoScreen({
               value={currentTime}
               onChange={handleSliderChange}
               aria-label="Thanh tua video"
-              className="absolute inset-x-0 w-full h-full opacity-0 cursor-pointer z-20"
+              className={`absolute inset-x-0 w-full h-full opacity-0 cursor-pointer z-20 ${isDraggingCluster ? 'pointer-events-none' : ''
+                }`}
             />
 
             {/* Scrubber thumb circle */}
             <div
-              className="absolute top-1/2 -translate-y-1/2 size-2.5 rounded-full bg-sky-400 shadow-md ring-2 ring-sky-500/40 opacity-0 group-hover/slider:opacity-100 transition-all duration-150 pointer-events-none -ml-[5px]"
+              className={`absolute top-1/2 -translate-y-1/2 size-2.5 rounded-full bg-sky-400 shadow-md ring-2 ring-sky-500/40 opacity-0 group-hover/slider:opacity-100 transition-all duration-150 pointer-events-none -ml-[5px] ${isDraggingCluster ? 'hidden' : ''
+                }`}
               style={{ left: `${Math.min(100, Math.max(0, progressPercent))}%` }}
             />
           </div>
@@ -703,11 +1060,10 @@ export function LessonVideoScreen({
                           setRate(speed);
                           setIsSpeedMenuOpen(false);
                         }}
-                        className={`w-full text-left px-2 py-1 rounded-md text-xs font-medium transition cursor-pointer flex items-center justify-between ${
-                          playbackRate === speed
+                        className={`w-full text-left px-2 py-1 rounded-md text-xs font-medium transition cursor-pointer flex items-center justify-between ${playbackRate === speed
                             ? 'bg-sky-500/15 text-sky-400 font-bold'
                             : 'text-zinc-300 hover:bg-zinc-800'
-                        }`}
+                          }`}
                       >
                         <span>{speed}x</span>
                         {playbackRate === speed && (
@@ -769,6 +1125,82 @@ export function LessonVideoScreen({
           existingQuizzes={dbQuizzes}
           initialAddNewQuestion={autoAddNewQuestion}
         />
+
+        {/* Merge Confirmation Dialog (Option B requested by User) */}
+        <Dialog
+          open={mergeConfirmData !== null}
+          onOpenChange={(open) => {
+            if (!open) setMergeConfirmData(null);
+          }}
+        >
+          <DialogContent className="sm:max-w-md bg-card border-border shadow-2xl text-foreground">
+            <DialogHeader>
+              <div className="flex items-center gap-2 text-foreground font-bold text-base">
+                <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20">
+                  <Icon icon="lucide:git-merge" className="size-4" />
+                </div>
+                <DialogTitle>Xác nhận gộp câu hỏi tương tác</DialogTitle>
+              </div>
+              <DialogDescription className="text-xs text-muted-foreground pt-2 leading-relaxed">
+                Bạn có chắc chắn muốn gộp{' '}
+                <span className="font-bold text-foreground">
+                  {mergeConfirmData?.sourceCount} câu hỏi
+                </span>{' '}
+                ở mốc{' '}
+                <span className="font-bold text-foreground">
+                  {formatTime(mergeConfirmData?.sourceTimestamp || 0)}
+                </span>{' '}
+                vào cụm{' '}
+                <span className="font-bold text-foreground">
+                  {mergeConfirmData?.targetCount} câu hỏi
+                </span>{' '}
+                ở mốc{' '}
+                <span className="font-bold text-foreground">
+                  {formatTime(mergeConfirmData?.targetTimestamp || 0)}
+                </span>{' '}
+                không?
+                <br />
+                <span className="text-amber-500 dark:text-amber-400 mt-2 block font-medium">
+                  Tổng cộng sau khi gộp sẽ là{' '}
+                  <span className="font-bold">
+                    {(mergeConfirmData?.sourceCount || 0) + (mergeConfirmData?.targetCount || 0)} câu hỏi
+                  </span>{' '}
+                  tại mốc {formatTime(mergeConfirmData?.targetTimestamp || 0)}.
+                </span>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0 pt-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setMergeConfirmData(null)}
+                disabled={moveMergeMutation.isPending}
+              >
+                Hủy bỏ
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleConfirmMerge}
+                disabled={moveMergeMutation.isPending}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold cursor-pointer shadow-md shadow-emerald-600/30"
+              >
+                {moveMergeMutation.isPending ? (
+                  <>
+                    <Icon icon="lucide:loader-2" className="size-3.5 mr-1.5 animate-spin" />
+                    Đang gộp...
+                  </>
+                ) : (
+                  <>
+                    <Icon icon="lucide:check" className="size-3.5 mr-1.5" />
+                    Xác nhận gộp
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

@@ -169,26 +169,26 @@ export function CoursePriceInlinePopover({
           </span>
         </div>
 
-          <div>
-            {course.price === 0 ? (
-              <span className="text-sm sm:text-base font-semibold text-emerald-600 dark:text-emerald-400">
-                Miễn phí
-              </span>
-            ) : hasDiscount ? (
-              <div className="flex items-baseline gap-1.5 flex-wrap">
-                <span className="text-sm sm:text-base font-semibold text-foreground">
-                  {formatVND(course.price)}
-                </span>
-                <span className="text-xs text-muted-foreground line-through">
-                  {formatVND(course.originalPrice!)}
-                </span>
-              </div>
-            ) : (
+        <div>
+          {course.price === 0 ? (
+            <span className="text-sm sm:text-base font-semibold text-emerald-600 dark:text-emerald-400">
+              Miễn phí
+            </span>
+          ) : hasDiscount ? (
+            <div className="flex items-baseline gap-1.5 flex-wrap">
               <span className="text-sm sm:text-base font-semibold text-foreground">
                 {formatVND(course.price)}
               </span>
-            )}
-          </div>
+              <span className="text-xs text-muted-foreground line-through">
+                {formatVND(course.originalPrice!)}
+              </span>
+            </div>
+          ) : (
+            <span className="text-sm sm:text-base font-semibold text-foreground">
+              {formatVND(course.price)}
+            </span>
+          )}
+        </div>
       </PopoverTrigger>
 
       <PopoverContent align="start" className="w-80 space-y-4">
@@ -209,11 +209,10 @@ export function CoursePriceInlinePopover({
                 setIsFree(true);
                 setErrorMsg(null);
               }}
-              className={`py-1.5 px-2 rounded-md font-medium transition-all ${
-                isFree
+              className={`py-1.5 px-2 rounded-md font-medium transition-all ${isFree
                   ? 'bg-background text-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground'
-              }`}
+                }`}
             >
               Miễn phí
             </button>
@@ -223,11 +222,10 @@ export function CoursePriceInlinePopover({
                 setIsFree(false);
                 setErrorMsg(null);
               }}
-              className={`py-1.5 px-2 rounded-md font-medium transition-all ${
-                !isFree
+              className={`py-1.5 px-2 rounded-md font-medium transition-all ${!isFree
                   ? 'bg-background text-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground'
-              }`}
+                }`}
             >
               Có phí
             </button>

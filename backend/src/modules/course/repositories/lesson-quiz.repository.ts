@@ -231,5 +231,99 @@ export class LessonQuizRepository extends BaseMongoRepository<
 
     return insertedDocs.map((d) => this.toDomain(d as unknown as LessonQuizEntity));
   }
-}
 
+  /**
+   * Di chuyển hoặc gộp cụm câu hỏi từ sourceTimestamp sang targetTimestamp
+   */
+  async moveOrMergeCluster(
+    lessonId: string,
+    sourceTimestamp: number,
+    targetTimestamp: number,
+    rangeSeconds: number = 2,
+    session?: ClientSession,
+  ): Promise<ILessonQuiz[]> {
+    const lessonObjectId = Types.ObjectId.isValid(lessonId)
+      ? new Types.ObjectId(lessonId)
+      : lessonId;
+
+    const sourceMin = Math.max(0, sourceTimestamp - rangeSeconds);
+    const sourceMax = sourceTimestamp + rangeSeconds;
+
+    // 1. Tìm các câu hỏi tại cụm nguồn
+    const sourceDocs = await this.model
+      .find({
+        lessonId: lessonObjectId,
+        timestamp: { $gte: sourceMin, $lte: sourceMax },
+        deletedAt: null,
+      } as Record<string, unknown>)
+      .sort({ order: 1 })
+      .session(session ?? null)
+      .exec();
+
+    if (sourceDocs.length === 0) {
+      return this.findByLessonId(lessonId, session);
+    }
+
+    const sourceIds = sourceDocs.map((doc) => doc._id);
+
+    // 2. Tìm các câu hỏi tại cụm đích (loại trừ các câu hỏi thuộc cụm nguồn)
+    const targetMin = Math.max(0, targetTimestamp - rangeSeconds);
+    const targetMax = targetTimestamp + rangeSeconds;
+
+    const targetDocs = await this.model
+      .find({
+        lessonId: lessonObjectId,
+        _id: { $nin: sourceIds },
+        timestamp: { $gte: targetMin, $lte: targetMax },
+        deletedAt: null,
+      } as Record<string, unknown>)
+      .sort({ order: 1 })
+      .session(session ?? null)
+      .exec();
+
+    const isMerge = targetDocs.length > 0;
+    const finalTargetTimestamp = isMerge
+      ? targetDocs[0].timestamp
+      : Math.round(targetTimestamp);
+
+    // 3. Cập nhật câu hỏi nguồn
+    if (isMerge) {
+      const maxTargetOrder = targetDocs.reduce(
+        (max, doc) => Math.max(max, doc.order || 0),
+        0,
+      );
+
+      for (let i = 0; i < sourceDocs.length; i++) {
+        await this.model
+          .updateOne(
+            { _id: sourceDocs[i]._id },
+            {
+              $set: {
+                timestamp: finalTargetTimestamp,
+                order: maxTargetOrder + i + 1,
+              },
+            },
+          )
+          .session(session ?? null)
+          .exec();
+      }
+    } else {
+      for (let i = 0; i < sourceDocs.length; i++) {
+        await this.model
+          .updateOne(
+            { _id: sourceDocs[i]._id },
+            {
+              $set: {
+                timestamp: finalTargetTimestamp,
+                order: i + 1,
+              },
+            },
+          )
+          .session(session ?? null)
+          .exec();
+      }
+    }
+
+    return this.findByLessonId(lessonId, session);
+  }
+}

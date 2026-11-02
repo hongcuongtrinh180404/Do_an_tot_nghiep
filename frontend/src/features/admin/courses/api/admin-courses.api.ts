@@ -60,7 +60,7 @@ export const adminCoursesApi = {
     }
 
     const response = await apiClient.get<IApiResponse<AdminCoursesPaginationResult<ICourse>>>(
-      '/courses/admin',
+      '/api/v1/courses/admin',
       { params: queryParams },
     );
     return response.data.data;
@@ -68,14 +68,14 @@ export const adminCoursesApi = {
 
   async approveCourse(courseId: string): Promise<ICourse> {
     const response = await apiClient.post<IApiResponse<ICourse>>(
-      `/courses/${courseId}/approve`,
+      `/api/v1/courses/${courseId}/approve`,
     );
     return response.data.data;
   },
 
   async rejectCourse(courseId: string, reason: string): Promise<ICourse> {
     const response = await apiClient.post<IApiResponse<ICourse>>(
-      `/courses/${courseId}/reject`,
+      `/api/v1/courses/${courseId}/reject`,
       { reason },
     );
     return response.data.data;

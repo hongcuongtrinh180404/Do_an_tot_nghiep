@@ -13,6 +13,38 @@
 
 ## 2. Technical Notes & Gotchas
 
+- **Milestone 31 (Public Courses Catalog Page - 2-Column Responsive Layout, URL State Sync & Service Boundary)**:
+  - Hiện thực trang công khai độc lập `/courses` ("Tất cả khóa học") theo phong cách e-learning hiện đại chuẩn `/design-taste-frontend` và quy tắc thiết kế `/web-design-guidelines`:
+    - **Kiến trúc 2 cột độc lập (2-Column Responsive Layout)**:
+      - **Sidebar bộ lọc bên trái (`CourseCatalogFilters`)**: Cố định (`sticky top-20`) trên desktop gồm 3 nhóm bộ lọc cốt lõi:
+        1. **Nhóm Giá (Multi-select, khoảng giá nửa mở)**: Miễn phí (`0đ`), Dưới 200.000đ (`0 < price < 200k`), 200.000đ – 500.000đ (`200k <= price < 500k`), Từ 500.000đ trở lên (`>= 500k`), và Đang giảm giá (`originalPrice > price`).
+        2. **Nhóm Danh mục**: Tích hợp trực tiếp dữ liệu thực từ `GET /api/v1/course-categories` qua hook `usePublicCategoriesQuery()`, hỗ trợ lọc đa danh mục.
+        3. **Nhóm Trình độ**: Cơ bản, Trung cấp, Nâng cao, Mọi trình độ với đồ họa chấm chỉ báo trực quan.
+      - **Mobile Filter Drawer**: Drawer trượt mượt mà trên thiết bị di động kèm nút bấm "Xem N kết quả" và nút "Đặt lại".
+    - **Lưới hiển thị & Phân trang (`CourseCatalogView`, `CourseCatalogPagination`)**:
+      - Lưới hiển thị khóa học 3 cột cân đối (`grid-cols-1 sm:grid-cols-2 xl:grid-cols-3`), tái sử dụng component thẻ công khai `CourseCard` tích hợp huy hiệu Best Seller, cấp độ, thời lượng, đánh giá và giá.
+      - Thanh phân trang toán học hỗ trợ dấu chấm lửng `...` cho danh sách nhiều trang, đồng bộ `?page=N` trên URL và cuộn mượt lên đầu catalog.
+      - Sắp xếp linh hoạt (`CourseCatalogSort`): Mới nhất, Đánh giá cao nhất, Phổ biến nhất, Giá thấp đến cao, Giá cao đến thấp.
+      - Dải chips hiển thị bộ lọc đang chọn (`CourseCatalogActiveChips`) với nút `×` xóa từng điều kiện và nút "Xóa tất cả".
+      - Trạng thái trống tinh tế (`CourseCatalogEmpty`) khi không có kết quả phù hợp.
+    - **Đồng bộ URL Search Parameters 2 chiều (URL State Synchronization)**:
+      - Sử dụng Next.js App Router hooks (`useSearchParams`, `useRouter`, `usePathname`).
+      - Dùng `router.replace` khi người dùng tick/untick bộ lọc để tránh spam lịch sử trình duyệt; dùng `router.push` khi đổi trang hoặc submit tìm kiếm.
+      - Hỗ trợ deep-link trực tiếp (ví dụ `/courses?category=marketing` tự động tick chọn danh mục tương ứng).
+      - Bọc toàn bộ trang `/courses` trong `<Suspense>` chống deopt prerender.
+    - **Tích hợp điểm vào hệ thống (System Entry Points)**:
+      - Nút CTA "Xem tất cả khóa học" ở `FeaturedCourses`: chuyển từ `<a href="#recent">` sang `<Link href="/courses">` kèm icon mũi tên ngang.
+      - Header điều hướng (`PublicHeader`): Cập nhật mục "Mới nhất" thành "Tất cả khóa học" (`/courses`) trên cả desktop nav và mobile drawer; ô tìm kiếm khi ở `/courses` tự động ghi vào `?q=` của catalog thay vì cuộn trang chủ.
+      - Footer (`PublicFooter`): Bổ sung liên kết `/courses` tại cột "Khám phá" và chuẩn hóa các anchor link sang đường dẫn tuyệt đối.
+    - **Service Layer Boundary & Mock Data Store**:
+      - Tạo `public-courses.service.ts` và `public-courses.api.ts` đóng gói logic truy vấn, tìm kiếm không dấu/có dấu, lọc đa điều kiện và phân trang. Sẵn sàng thay thế mock data bằng endpoint `GET /api/v1/courses` trong tương lai mà không ảnh hưởng UI.
+      - Nâng cấp mock data lên 15 khóa học phong phú, khớp chuẩn xác với 7 category slugs thực tế trong database.
+    - **Kiểm định chất lượng**:
+      - Đạt 100% chuẩn static audit UI: 0 lỗi từ `audit-ui.mjs` trên toàn bộ 7 component mới và trang `/courses`.
+      - Đạt 0 lỗi TypeScript (`tsc --noEmit`).
+      - Đạt 0 lỗi ESLint (bao gồm tuân thủ quy tắc React 19 `react-hooks/set-state-in-effect`).
+      - Tuân thủ tuyệt đối quy tắc cấm màu tím (Purple Ban) và các tiêu chuẩn Clean Code.
+
 - **Milestone 30 (Public Category Grid Redesign - Domestika 1:1 Aspect Ratio & Deep-Link Filtering)**:
   - Tái cấu trúc khu vực khám phá danh mục khóa học (`CategoryRail` tại `frontend/src/features/course/components/public-discovery/category-rail.tsx` và `frontend/src/app/page.tsx`) theo phong cách lưới thẻ nghệ thuật Domestika ("Courses by category") và quy chuẩn `/design-taste-frontend`:
     - **Lưới card chuẩn tỉ lệ 1:1 (`aspect-square`)**: Hiển thị chính xác 6 card trên một hàng (`grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6`), bo góc mềm mại `rounded-2xl` tràn viền ảnh.

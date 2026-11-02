@@ -178,3 +178,23 @@
     - `tsc --noEmit` đạt 0 lỗi TypeScript strict.
     - Toàn bộ 43 test suites / 513 unit tests backend pass 100%.
     - Tuân thủ tuyệt đối quy tắc Purple Ban và Clean Code.
+
+- **Cơ Chế Nhấn Giữ 1.5s Để Kéo Di Chuyển & Gộp Cụm Câu Hỏi Trên Timeline Video (Drag & Merge Quiz Clusters)**:
+  - *Mục tiêu:* Cho phép giảng viên kéo di chuyển hoặc gộp các điểm câu hỏi (quiz checkpoints) vào nhau trực tiếp trên thanh timeline video tại trang Chi tiết bài học (`/instructor/courses/[id]/lessons/[lessonId]`).
+  - *Cơ chế Nhấn giữ (Long-press 1.5s) trên Badge "Thêm câu hỏi":*
+    1. Khi hover vào mốc điểm câu hỏi vàng (`quizCheckpoints`), badge "Thêm câu hỏi" hiện ra bên dưới như bình thường.
+    2. Nếu click thả nhanh (< 1.5s): Mở modal thêm câu hỏi vào mốc hiện tại như trước.
+    3. Nếu nhấn giữ chuột (`onPointerDown`): Khởi chạy bộ đếm 1500ms kèm thanh nạp tiến trình mượt mà (`holdProgress` 0% -> 100%) ngay trong lòng badge.
+    4. Khi đủ 1.5s: Kích hoạt Drag Mode (`isDraggingCluster = true`), tạm dừng video playback và chuyển con trỏ chuột sang `cursor-grabbing`.
+  - *Kéo thả trên Seekbar & Snap Collision Detection:*
+    1. Đường chỉ dẫn (Guide line) và thẻ nổi (Floating Card) đi theo con trỏ chuột trên thanh tua video thời gian thực.
+    2. Tự động hít (Snap) khi kéo gần điểm câu hỏi khác ($\pm 2.5$ giây hoặc $\pm 2.5\%$ chiều rộng seekbar): Điểm đích phát sáng viền xanh ngọc bích `emerald-400` kèm hiệu ứng nhịp thở (`animate-pulse`), thẻ nổi báo *"Thả để gộp X câu vào mốc MM:SS (Tổng: X+Y câu)"*.
+    3. Phím `Escape` cho phép hủy kéo thả tức thì an toàn.
+  - *Xử lý Thả chuột (Drop Behavior):*
+    1. **Thả vào điểm câu hỏi khác (Merge Target):** Kích hoạt Dialog xác nhận gộp (Phương án B) hiển thị chi tiết số câu hỏi nguồn, mốc nguồn, số câu hỏi đích, mốc đích. Khi xác nhận, gọi API gộp và tự động đánh lại số thứ tự `order` liên tục.
+    2. **Thả vào khoảng trống trên timeline (Move Reposition):** Tự động di chuyển toàn bộ câu hỏi của cụm sang mốc thời gian mới với thông báo toast thành công.
+  - *Backend & Repository:*
+    1. DTO `MoveMergeLessonQuizzesDto` kiểm tra hợp lệ `sourceTimestamp` và `targetTimestamp`.
+    2. `LessonQuizRepository.moveOrMergeCluster` xử lý atomic cập nhật timestamp và order trong MongoDB ClientSession transaction.
+    3. `LessonQuizController` mở endpoint `@Put(':id/quizzes/move-merge')` có phân quyền bảo vệ `INSTRUCTOR, ADMIN`.
+    4. Bộ unit test AAA cho `moveOrMergeQuizCluster` trong `lesson-quiz.service.spec.ts`.

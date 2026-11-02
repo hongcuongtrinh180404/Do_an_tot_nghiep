@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { RoleEnum } from 'share-lib';
 import { toast } from 'sonner';
 import { useCurrentUserQuery, useLogoutMutation } from '@/features/auth/api/auth.api';
@@ -23,6 +24,9 @@ export function PublicHeader({
   searchQuery = '',
   setSearchQuery,
 }: PublicHeaderProps): React.JSX.Element {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isMounted = useIsMounted();
   const { data: user } = useCurrentUserQuery();
   const logoutMutation = useLogoutMutation();
@@ -30,7 +34,15 @@ export function PublicHeader({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const [localSearch, setLocalSearch] = useState(searchQuery);
+  const [prevUrlQuery, setPrevUrlQuery] = useState('');
   const isInstructor = user?.role === RoleEnum.INSTRUCTOR;
+
+  // Sync search input when at /courses if URL ?q= changes
+  const qFromUrl = pathname === '/courses' ? (searchParams.get('q') || '') : '';
+  if (pathname === '/courses' && prevUrlQuery !== qFromUrl) {
+    setPrevUrlQuery(qFromUrl);
+    setLocalSearch(qFromUrl);
+  }
 
   const handlePurchasedCoursesClick = (): void => {
     setUserMenuOpen(false);
@@ -40,8 +52,22 @@ export function PublicHeader({
 
   const handleSearch = (e: React.FormEvent): void => {
     e.preventDefault();
-    if (onSearchSubmit) {
-      onSearchSubmit(localSearch.trim());
+    const trimmed = localSearch.trim();
+
+    if (pathname === '/courses') {
+      const nextParams = new URLSearchParams(searchParams.toString());
+      if (trimmed) {
+        nextParams.set('q', trimmed);
+      } else {
+        nextParams.delete('q');
+      }
+      nextParams.delete('page');
+      const qs = nextParams.toString();
+      router.push(qs ? `/courses?${qs}` : '/courses');
+    } else if (onSearchSubmit) {
+      onSearchSubmit(trimmed);
+    } else {
+      router.push(trimmed ? `/courses?q=${encodeURIComponent(trimmed)}` : '/courses');
     }
   };
 
@@ -73,22 +99,22 @@ export function PublicHeader({
           {/* Desktop Nav Links */}
           <nav className="hidden md:flex items-center gap-6" aria-label="Điều hướng chính">
             <Link
-              href="#featured"
+              href="/#featured"
               className="text-sm font-medium text-neutral-300 transition-colors hover:text-white"
             >
               Khóa học nổi bật
             </Link>
             <Link
-              href="#categories"
+              href="/#categories"
               className="text-sm font-medium text-neutral-300 transition-colors hover:text-white"
             >
               Danh mục
             </Link>
             <Link
-              href="#recent"
+              href="/courses"
               className="text-sm font-medium text-neutral-300 transition-colors hover:text-white"
             >
-              Mới nhất
+              Tất cả khóa học
             </Link>
           </nav>
         </div>
@@ -279,25 +305,25 @@ export function PublicHeader({
 
           <nav className="flex flex-col space-y-2">
             <Link
-              href="#featured"
+              href="/#featured"
               onClick={() => setMobileMenuOpen(false)}
               className="min-h-11 py-3 text-sm font-medium text-neutral-300 hover:text-white"
             >
               Khóa học nổi bật
             </Link>
             <Link
-              href="#categories"
+              href="/#categories"
               onClick={() => setMobileMenuOpen(false)}
               className="min-h-11 py-3 text-sm font-medium text-neutral-300 hover:text-white"
             >
               Danh mục lĩnh vực
             </Link>
             <Link
-              href="#recent"
+              href="/courses"
               onClick={() => setMobileMenuOpen(false)}
               className="min-h-11 py-3 text-sm font-medium text-neutral-300 hover:text-white"
             >
-              Khóa học mới nhất
+              Tất cả khóa học
             </Link>
           </nav>
 

@@ -20,6 +20,8 @@ describe('LessonQuizService (Unit Tests - AAA Pattern)', () => {
       syncQuizzesAtTimestamp: vi.fn(),
       findById: vi.fn(),
       softDelete: vi.fn(),
+      moveOrMergeCluster: vi.fn(),
+      withTransaction: vi.fn((callback: (session: unknown) => Promise<unknown>) => callback(null)),
     };
 
     mockLessonRepo = {
@@ -254,5 +256,90 @@ describe('LessonQuizService (Unit Tests - AAA Pattern)', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
-});
 
+  describe('moveOrMergeQuizCluster', () => {
+    const lessonId = '660f1c2d9b1d8b2e3f4a5b6c';
+    const dto = { sourceTimestamp: 30, targetTimestamp: 90 };
+
+    it('Arrange - Act - Assert: should move or merge cluster when lesson exists', async () => {
+      // Arrange
+      mockLessonRepo.findById!.mockResolvedValue({ id: lessonId });
+      const expectedResult = [
+        {
+          id: 'quiz-1',
+          lessonId,
+          timestamp: 90,
+          order: 1,
+          question: 'Câu hỏi đã di chuyển',
+          questionType: QuizQuestionTypeEnum.SINGLE,
+          options: [{ id: 'opt-1', label: 'A', text: 'Đáp án A', isCorrect: true }],
+        },
+      ];
+      mockLessonQuizRepo.moveOrMergeCluster!.mockResolvedValue(expectedResult);
+
+      // Act
+      const result = await service.moveOrMergeQuizCluster(lessonId, dto);
+
+      // Assert
+      expect(result).toEqual(expectedResult);
+      expect(mockLessonRepo.findById).toHaveBeenCalledWith(lessonId);
+      expect(mockLessonQuizRepo.moveOrMergeCluster).toHaveBeenCalledWith(
+        lessonId,
+        dto.sourceTimestamp,
+        dto.targetTimestamp,
+        2,
+        null,
+      );
+    });
+
+    it('Arrange - Act - Assert: should fallback when withTransaction fails', async () => {
+      // Arrange
+      mockLessonRepo.findById!.mockResolvedValue({ id: lessonId });
+      mockLessonQuizRepo.withTransaction = vi.fn().mockRejectedValue(new Error('No replica set'));
+      const expectedResult = [
+        {
+          id: 'quiz-1',
+          lessonId,
+          timestamp: 90,
+          order: 1,
+          question: 'Câu hỏi đã gộp',
+          questionType: QuizQuestionTypeEnum.SINGLE,
+          options: [{ id: 'opt-1', label: 'A', text: 'Đáp án A', isCorrect: true }],
+        },
+      ];
+      mockLessonQuizRepo.moveOrMergeCluster!.mockResolvedValue(expectedResult);
+
+      // Act
+      const result = await service.moveOrMergeQuizCluster(lessonId, dto);
+
+      // Assert
+      expect(result).toEqual(expectedResult);
+      expect(mockLessonQuizRepo.moveOrMergeCluster).toHaveBeenCalledWith(
+        lessonId,
+        dto.sourceTimestamp,
+        dto.targetTimestamp,
+        2,
+      );
+    });
+
+    it('Arrange - Act - Assert: should throw NotFoundException if lesson not found', async () => {
+      // Arrange
+      mockLessonRepo.findById!.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(service.moveOrMergeQuizCluster('not-exist', dto)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('Arrange - Act - Assert: should throw BadRequestException if timestamps are negative', async () => {
+      // Arrange
+      mockLessonRepo.findById!.mockResolvedValue({ id: lessonId });
+
+      // Act & Assert
+      await expect(
+        service.moveOrMergeQuizCluster(lessonId, { sourceTimestamp: -1, targetTimestamp: 90 }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+});

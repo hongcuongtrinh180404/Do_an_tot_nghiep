@@ -14,6 +14,7 @@ import { LessonRepository } from '../repositories/lesson.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
 import { CourseRepository } from '../repositories/course.repository.js';
 import { SyncLessonQuizzesAtTimestampDto } from '../dto/sync-lesson-quizzes.dto.js';
+import { MoveMergeLessonQuizzesDto } from '../dto/move-merge-lesson-quizzes.dto.js';
 
 @Injectable()
 export class LessonQuizService extends BaseService<ILessonQuiz, string> {
@@ -174,5 +175,53 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
       timestamp,
       2,
     );
+  }
+
+  /**
+   * Di chuyển hoặc gộp cụm câu hỏi từ mốc thời gian nguồn sang mốc đích
+   */
+  async moveOrMergeQuizCluster(
+    lessonId: string,
+    dto: MoveMergeLessonQuizzesDto,
+  ): Promise<ILessonQuiz[]> {
+    const trimmedLessonId = lessonId?.trim();
+    if (!trimmedLessonId) {
+      throw new BadRequestException('ID bài học không được để trống');
+    }
+
+    const lesson = await this.lessonRepo.findById(trimmedLessonId);
+    if (!lesson) {
+      throw new NotFoundException(`Không tìm thấy bài học với ID: ${trimmedLessonId}`);
+    }
+
+    await this.assertNotPendingApproval(trimmedLessonId);
+
+    if (dto.sourceTimestamp < 0 || dto.targetTimestamp < 0) {
+      throw new BadRequestException('Mốc thời gian (timestamp) không hợp lệ');
+    }
+
+    this.logger.log(
+      `Di chuyển/Gộp cụm câu hỏi từ mốc ${dto.sourceTimestamp}s sang ${dto.targetTimestamp}s cho bài học ${trimmedLessonId}`,
+    );
+
+    try {
+      return await this.lessonQuizRepo.withTransaction(async (session) => {
+        return this.lessonQuizRepo.moveOrMergeCluster(
+          trimmedLessonId,
+          dto.sourceTimestamp,
+          dto.targetTimestamp,
+          2,
+          session,
+        );
+      });
+    } catch {
+      // Fallback nếu database chưa bật Replica Set transaction
+      return this.lessonQuizRepo.moveOrMergeCluster(
+        trimmedLessonId,
+        dto.sourceTimestamp,
+        dto.targetTimestamp,
+        2,
+      );
+    }
   }
 }

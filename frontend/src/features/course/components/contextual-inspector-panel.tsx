@@ -565,9 +565,8 @@ function LessonInspectorView({
         <div className="flex items-center justify-between text-xs">
           <span className="text-zinc-400">Trạng thái phát</span>
           <span
-            className={`${
-              lesson.isPreview ? 'text-emerald-400' : 'text-amber-400'
-            } font-semibold flex items-center gap-1`}
+            className={`${lesson.isPreview ? 'text-emerald-400' : 'text-amber-400'
+              } font-semibold flex items-center gap-1`}
           >
             <Icon
               icon={lesson.isPreview ? 'lucide:lock-open' : 'lucide:lock'}

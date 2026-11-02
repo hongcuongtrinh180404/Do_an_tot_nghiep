@@ -33,7 +33,7 @@ import { CourseTrailerValidationPipe } from './pipes/course-trailer-validation.p
 
 @Controller('courses')
 export class CourseController {
-  constructor(private readonly courseService: CourseService) {}
+  constructor(private readonly courseService: CourseService) { }
 
   @Get('my-courses')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)

@@ -12,6 +12,7 @@ import { Public } from '../auth/decorators/public.decorator.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { LessonQuizService } from './services/lesson-quiz.service.js';
 import { SyncLessonQuizzesAtTimestampDto } from './dto/sync-lesson-quizzes.dto.js';
+import { MoveMergeLessonQuizzesDto } from './dto/move-merge-lesson-quizzes.dto.js';
 
 @Controller('lessons')
 export class LessonQuizController {
@@ -34,6 +35,16 @@ export class LessonQuizController {
   ): Promise<ApiResponse<ILessonQuiz[]>> {
     const synced = await this.lessonQuizService.syncQuizzesAtTimestamp(id, dto);
     return ApiResponse.success(synced, 'Đồng bộ câu hỏi video thành công');
+  }
+
+  @Put(':id/quizzes/move-merge')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN, RoleEnum.STUDENT, RoleEnum.USER)
+  async moveOrMergeQuizzes(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() dto: MoveMergeLessonQuizzesDto,
+  ): Promise<ApiResponse<ILessonQuiz[]>> {
+    const quizzes = await this.lessonQuizService.moveOrMergeQuizCluster(id, dto);
+    return ApiResponse.success(quizzes, 'Cập nhật vị trí câu hỏi video thành công');
   }
 
   @Delete('quizzes/:quizId')

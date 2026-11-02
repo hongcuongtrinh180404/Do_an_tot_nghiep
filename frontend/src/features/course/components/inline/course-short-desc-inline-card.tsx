@@ -91,13 +91,12 @@ export function CourseShortDescInlineCard({
               />
               <div className="flex justify-end mt-1">
                 <span
-                  className={`text-xs font-medium ${
-                    isOverLimit
+                  className={`text-xs font-medium ${isOverLimit
                       ? 'text-destructive font-bold'
                       : isNearLimit
                         ? 'text-amber-600 dark:text-amber-400'
                         : 'text-muted-foreground'
-                  }`}
+                    }`}
                 >
                   {charCount}/{MAX_CHARS}
                 </span>

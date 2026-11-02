@@ -54,7 +54,7 @@ export function AdminCoursesView(): React.JSX.Element {
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
 
   // Query Backend with real server-side parameters
-  const { data, isLoading, isError, refetch } = useAdminCoursesQuery({
+  const { data, isLoading, refetch } = useAdminCoursesQuery({
     page,
     limit,
     search: searchValue,
@@ -148,7 +148,6 @@ export function AdminCoursesView(): React.JSX.Element {
           size="sm"
           onClick={() => {
             void refetch();
-            void pendingCountQuery.refetch();
           }}
           disabled={isLoading}
           className="h-8.5 text-xs gap-1.5 cursor-pointer self-start sm:self-auto"
@@ -175,11 +174,10 @@ export function AdminCoursesView(): React.JSX.Element {
 
         <Card
           onClick={() => handleStatusChange(CourseStatusEnum.PENDING_APPROVAL)}
-          className={`p-3.5 border transition-all cursor-pointer ${
-            currentStatus === CourseStatusEnum.PENDING_APPROVAL
+          className={`p-3.5 border transition-all cursor-pointer ${currentStatus === CourseStatusEnum.PENDING_APPROVAL
               ? 'bg-sky-500/10 border-sky-500/40 ring-1 ring-sky-500/30'
               : 'bg-card/60 border-border/60 hover:border-sky-500/30 hover:bg-sky-500/5'
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between text-sky-700 dark:text-sky-300 mb-1">
             <span className="text-xs font-medium">Chờ phê duyệt</span>
@@ -192,11 +190,10 @@ export function AdminCoursesView(): React.JSX.Element {
 
         <Card
           onClick={() => handleStatusChange(CourseStatusEnum.PUBLISHED)}
-          className={`p-3.5 border transition-all cursor-pointer ${
-            currentStatus === CourseStatusEnum.PUBLISHED
+          className={`p-3.5 border transition-all cursor-pointer ${currentStatus === CourseStatusEnum.PUBLISHED
               ? 'bg-emerald-500/10 border-emerald-500/40 ring-1 ring-emerald-500/30'
               : 'bg-card/60 border-border/60 hover:border-emerald-500/30 hover:bg-emerald-500/5'
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-300 mb-1">
             <span className="text-xs font-medium">Đang xuất bản</span>
@@ -209,11 +206,10 @@ export function AdminCoursesView(): React.JSX.Element {
 
         <Card
           onClick={() => handleStatusChange(CourseStatusEnum.DRAFT)}
-          className={`p-3.5 border transition-all cursor-pointer ${
-            currentStatus === CourseStatusEnum.DRAFT
+          className={`p-3.5 border transition-all cursor-pointer ${currentStatus === CourseStatusEnum.DRAFT
               ? 'bg-amber-500/10 border-amber-500/40 ring-1 ring-amber-500/30'
               : 'bg-card/60 border-border/60 hover:border-amber-500/30 hover:bg-amber-500/5'
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between text-amber-700 dark:text-amber-300 mb-1">
             <span className="text-xs font-medium">Bản nháp / Cần sửa</span>
@@ -236,11 +232,10 @@ export function AdminCoursesView(): React.JSX.Element {
                 key={tab.value}
                 type="button"
                 onClick={() => handleStatusChange(tab.value)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer ${
-                  isActive
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer ${isActive
                     ? 'bg-background text-foreground shadow-xs border border-border/60'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                }`}
+                  }`}
               >
                 <Icon icon={tab.icon} className="size-3.5" />
                 <span>{tab.label}</span>
@@ -297,11 +292,6 @@ export function AdminCoursesView(): React.JSX.Element {
 
       {/* 4. Table Container with Fixed Viewport & Unified Scroll */}
       <div className="flex-1 min-h-0 flex flex-col">
-        {isError && (
-          <p role="alert" className="mb-3 text-sm text-destructive">
-            Không thể tải danh sách khóa học. Vui lòng thử làm mới.
-          </p>
-        )}
         <BaseDataTable
           table={table}
           isLoading={isLoading}

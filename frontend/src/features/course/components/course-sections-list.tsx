@@ -105,22 +105,20 @@ function ChapterTreeItem({
       onDragLeave={readOnly ? undefined : onDragLeave}
       onDrop={readOnly ? undefined : onDrop}
       onDragEnd={onDragEnd}
-      className={`rounded-2xl border transition-all shadow-xs overflow-hidden ${
-        isDragging
+      className={`rounded-2xl border transition-all shadow-xs overflow-hidden ${isDragging
           ? 'opacity-40 scale-[0.99] border-dashed border-sky-500/60 shadow-lg'
           : isDragOver
             ? 'border-2 border-dashed border-sky-500 ring-2 ring-sky-500/20 bg-sky-500/5'
             : isChapterSelected
               ? 'border-sky-500 ring-2 ring-sky-500/15 bg-card'
               : 'border-border/60 bg-card hover:border-border/80'
-      }`}
+        }`}
     >
       {/* Chapter Header Row */}
       <div
         onClick={onSelectChapter}
-        className={`p-3.5 sm:p-4 cursor-pointer border-b border-border/30 flex items-center justify-between gap-3 transition-colors ${
-          isChapterSelected ? 'bg-sky-500/5' : 'bg-muted/15 hover:bg-muted/25'
-        }`}
+        className={`p-3.5 sm:p-4 cursor-pointer border-b border-border/30 flex items-center justify-between gap-3 transition-colors ${isChapterSelected ? 'bg-sky-500/5' : 'bg-muted/15 hover:bg-muted/25'
+          }`}
       >
         <div className="flex items-center space-x-2.5 flex-1 min-w-0">
           {/* Drag Handle Grip Icon */}
@@ -146,9 +144,8 @@ function ChapterTreeItem({
           >
             <Icon
               icon="lucide:chevron-right"
-              className={`size-3.5 transition-transform duration-200 ${
-                isExpanded ? 'rotate-90 text-sky-600 dark:text-sky-400' : ''
-              }`}
+              className={`size-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-sky-600 dark:text-sky-400' : ''
+                }`}
             />
           </button>
 
@@ -249,20 +246,18 @@ function ChapterTreeItem({
                   role="group"
                   aria-label={lesson.title}
                   onClick={() => onSelectLesson(lesson)}
-                  className={`p-3 pl-8 sm:pl-10 flex items-center justify-between cursor-pointer transition-colors text-xs ${
-                    isLessonSelected
+                  className={`p-3 pl-8 sm:pl-10 flex items-center justify-between cursor-pointer transition-colors text-xs ${isLessonSelected
                       ? 'bg-sky-500/10 border-l-4 border-sky-600 text-sky-950 dark:text-sky-100 font-semibold'
                       : 'hover:bg-muted/30 text-foreground'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center space-x-3 min-w-0 flex-1">
                     {/* Lesson Type Icon */}
                     <span
-                      className={`size-6 rounded-lg flex items-center justify-center text-xs shrink-0 ${
-                        isVideo
+                      className={`size-6 rounded-lg flex items-center justify-center text-xs shrink-0 ${isVideo
                           ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
                           : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                      }`}
+                        }`}
                     >
                       <Icon
                         icon={isVideo ? 'lucide:video' : 'lucide:file-text'}
@@ -478,147 +473,147 @@ function CourseSectionsListContent({ courseId, approvalRef, readOnly = false }: 
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[62fr_38fr] gap-6 items-start">
-        {/* CỘT TRÁI (62%): CÂY PHÂN CẤP CHƯƠNG & BÀI HỌC */}
-        <div className="min-w-0 space-y-4">
-          {/* Header Card */}
-          <div className="flex items-center justify-between bg-card p-4 rounded-2xl border border-border/60 shadow-xs" data-approval-field="curriculum" tabIndex={-1}>
-            <div>
-              <h2 className="text-sm font-bold text-foreground">Cấu trúc giáo trình</h2>
-              <p className="text-[11px] text-muted-foreground">
-                Kéo thả icon để đổi thứ tự. Click vào Chương hoặc Bài học để xem chi tiết bên phải.
-              </p>
+          {/* CỘT TRÁI (62%): CÂY PHÂN CẤP CHƯƠNG & BÀI HỌC */}
+          <div className="min-w-0 space-y-4">
+            {/* Header Card */}
+            <div className="flex items-center justify-between bg-card p-4 rounded-2xl border border-border/60 shadow-xs" data-approval-field="curriculum" tabIndex={-1}>
+              <div>
+                <h2 className="text-sm font-bold text-foreground">Cấu trúc giáo trình</h2>
+                <p className="text-[11px] text-muted-foreground">
+                  Kéo thả icon để đổi thứ tự. Click vào Chương hoặc Bài học để xem chi tiết bên phải.
+                </p>
+              </div>
+              {!readOnly && (
+                <Button
+                  size="sm"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  data-approval-focus=""
+                  className="text-xs font-semibold h-8 rounded-xl shadow-xs"
+                >
+                  <Icon icon="lucide:plus" className="size-3.5 mr-1" />
+                  Thêm chương
+                </Button>
+              )}
             </div>
-            {!readOnly && (
-              <Button
-                size="sm"
-                onClick={() => setIsCreateDialogOpen(true)}
-                data-approval-focus=""
-                className="text-xs font-semibold h-8 rounded-xl shadow-xs"
-              >
-                <Icon icon="lucide:plus" className="size-3.5 mr-1" />
-                Thêm chương
-              </Button>
+
+            {/* Loading State */}
+            {isLoading && (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="p-4 rounded-2xl border border-border/40 bg-card/50 animate-pulse space-y-2"
+                  >
+                    <div className="h-4 w-1/3 bg-muted rounded" />
+                    <div className="h-3 w-1/2 bg-muted/60 rounded" />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Error State */}
+            {!isLoading && isError && (
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-destructive/5 border border-destructive/20 text-destructive text-xs">
+                <span className="flex items-center gap-2">
+                  <Icon icon="lucide:alert-circle" className="size-4 shrink-0" />
+                  Không thể tải danh sách chương học từ máy chủ.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void refetch();
+                  }}
+                  className={buttonVariants({ variant: 'outline', size: 'sm', className: 'text-xs' })}
+                >
+                  Thử lại
+                </button>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!isLoading && !isError && sectionList.length === 0 && (
+              <div className="text-center py-12 bg-card rounded-2xl border-2 border-dashed border-border/60 p-6 space-y-2">
+                <Icon icon="lucide:box" className="size-8 text-muted-foreground/60 mx-auto" />
+                <p className="text-xs font-semibold text-muted-foreground">
+                  Chưa có nội dung giảng dạy. Bắt đầu bằng cách thêm chương đầu tiên.
+                </p>
+              </div>
+            )}
+
+            {/* Success State: Dynamic Collapsible Tree */}
+            {!isLoading && !isError && sectionList.length > 0 && (
+              <div className="space-y-3">
+                {sectionList.map((section, index) => {
+                  const isChapterSelected =
+                    effectiveSelection?.type === 'chapter' && effectiveSelection.chapterId === section.id;
+                  const selectedLessonId =
+                    effectiveSelection?.type === 'lesson' && effectiveSelection.chapterId === section.id
+                      ? effectiveSelection.lessonId
+                      : undefined;
+
+                  return (
+                    <ChapterTreeItem
+                      key={section.id}
+                      section={section}
+                      index={index}
+                      isExpanded={Boolean(expandedChapters[section.id])}
+                      onToggleExpand={() => toggleChapter(section.id)}
+                      isChapterSelected={isChapterSelected}
+                      selectedLessonId={selectedLessonId}
+                      onSelectChapter={() =>
+                        setSelection({ type: 'chapter', chapterId: section.id })
+                      }
+                      onSelectLesson={(lesson) =>
+                        setSelection({
+                          type: 'lesson',
+                          lessonId: lesson.id,
+                          chapterId: section.id,
+                        })
+                      }
+                      onAttachDocument={(lesson) => setUploadDocTargetLesson(lesson)}
+                      onDeleteLesson={(lesson) =>
+                        setDeleteLessonTarget({ lesson, sectionId: section.id })
+                      }
+                      onEditChapter={() => setEditSectionTarget(section)}
+                      onDeleteChapter={() => setDeleteSectionTarget(section)}
+                      onAddLesson={() =>
+                        setCreateLessonTarget({
+                          sectionId: section.id,
+                          sectionTitle: section.title,
+                        })
+                      }
+                      readOnly={readOnly}
+                      isDragging={draggedIndex === index}
+                      isDragOver={dragOverIndex === index}
+                      onDragStart={(e) => handleDragStart(index, e)}
+                      onDragOver={(e) => handleDragOver(index, e)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(index, e)}
+                      onDragEnd={handleDragEnd}
+                    />
+                  );
+                })}
+              </div>
             )}
           </div>
 
-          {/* Loading State */}
-          {isLoading && (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="p-4 rounded-2xl border border-border/40 bg-card/50 animate-pulse space-y-2"
-                >
-                  <div className="h-4 w-1/3 bg-muted rounded" />
-                  <div className="h-3 w-1/2 bg-muted/60 rounded" />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Error State */}
-          {!isLoading && isError && (
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-destructive/5 border border-destructive/20 text-destructive text-xs">
-              <span className="flex items-center gap-2">
-                <Icon icon="lucide:alert-circle" className="size-4 shrink-0" />
-                Không thể tải danh sách chương học từ máy chủ.
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  void refetch();
-                }}
-                className={buttonVariants({ variant: 'outline', size: 'sm', className: 'text-xs' })}
-              >
-                Thử lại
-              </button>
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!isLoading && !isError && sectionList.length === 0 && (
-            <div className="text-center py-12 bg-card rounded-2xl border-2 border-dashed border-border/60 p-6 space-y-2">
-              <Icon icon="lucide:box" className="size-8 text-muted-foreground/60 mx-auto" />
-              <p className="text-xs font-semibold text-muted-foreground">
-                Chưa có nội dung giảng dạy. Bắt đầu bằng cách thêm chương đầu tiên.
-              </p>
-            </div>
-          )}
-
-          {/* Success State: Dynamic Collapsible Tree */}
-          {!isLoading && !isError && sectionList.length > 0 && (
-            <div className="space-y-3">
-              {sectionList.map((section, index) => {
-                const isChapterSelected =
-                  effectiveSelection?.type === 'chapter' && effectiveSelection.chapterId === section.id;
-                const selectedLessonId =
-                  effectiveSelection?.type === 'lesson' && effectiveSelection.chapterId === section.id
-                    ? effectiveSelection.lessonId
-                    : undefined;
-
-                return (
-                  <ChapterTreeItem
-                    key={section.id}
-                    section={section}
-                    index={index}
-                    isExpanded={Boolean(expandedChapters[section.id])}
-                    onToggleExpand={() => toggleChapter(section.id)}
-                    isChapterSelected={isChapterSelected}
-                    selectedLessonId={selectedLessonId}
-                    onSelectChapter={() =>
-                      setSelection({ type: 'chapter', chapterId: section.id })
-                    }
-                    onSelectLesson={(lesson) =>
-                      setSelection({
-                        type: 'lesson',
-                        lessonId: lesson.id,
-                        chapterId: section.id,
-                      })
-                    }
-                    onAttachDocument={(lesson) => setUploadDocTargetLesson(lesson)}
-                    onDeleteLesson={(lesson) =>
-                      setDeleteLessonTarget({ lesson, sectionId: section.id })
-                    }
-                    onEditChapter={() => setEditSectionTarget(section)}
-                    onDeleteChapter={() => setDeleteSectionTarget(section)}
-                    onAddLesson={() =>
-                      setCreateLessonTarget({
-                        sectionId: section.id,
-                        sectionTitle: section.title,
-                      })
-                    }
-                    readOnly={readOnly}
-                    isDragging={draggedIndex === index}
-                    isDragOver={dragOverIndex === index}
-                    onDragStart={(e) => handleDragStart(index, e)}
-                    onDragOver={(e) => handleDragOver(index, e)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(index, e)}
-                    onDragEnd={handleDragEnd}
-                  />
-                );
-              })}
-            </div>
-          )}
+          {/* CỘT PHẢI (38%): BẢNG THÔNG TIN NGỮ CẢNH (CONTEXTUAL INSPECTOR PANEL) */}
+          <div className="min-w-0 sticky top-20">
+            <ContextualInspectorPanel
+              selection={effectiveSelection}
+              sections={sectionList}
+              courseId={courseId}
+              onEditChapter={(s) => setEditSectionTarget(s)}
+              onAddLesson={(s) =>
+                setCreateLessonTarget({
+                  sectionId: s.id,
+                  sectionTitle: s.title,
+                })
+              }
+              readOnly={readOnly}
+            />
+          </div>
         </div>
-
-        {/* CỘT PHẢI (38%): BẢNG THÔNG TIN NGỮ CẢNH (CONTEXTUAL INSPECTOR PANEL) */}
-        <div className="min-w-0 sticky top-20">
-          <ContextualInspectorPanel
-            selection={effectiveSelection}
-            sections={sectionList}
-            courseId={courseId}
-            onEditChapter={(s) => setEditSectionTarget(s)}
-            onAddLesson={(s) =>
-              setCreateLessonTarget({
-                sectionId: s.id,
-                sectionTitle: s.title,
-              })
-            }
-            readOnly={readOnly}
-          />
-        </div>
-      </div>
       )}
 
       {/* Modal: Thêm chương mới */}

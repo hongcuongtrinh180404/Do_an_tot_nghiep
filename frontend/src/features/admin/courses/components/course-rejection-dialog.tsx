@@ -140,11 +140,10 @@ export function CourseRejectionDialog({
             placeholder="Ví dụ: Video bài giảng thứ 2 bị mất âm thanh. Vui lòng kiểm tra và gửi phê duyệt lại."
             {...register('reason')}
             disabled={rejectMutation.isPending}
-            className={`w-full rounded-xl border bg-background p-3 text-xs sm:text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground/60 focus-visible:ring-2 disabled:opacity-50 resize-y leading-relaxed ${
-              errors.reason
+            className={`w-full rounded-xl border bg-background p-3 text-xs sm:text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground/60 focus-visible:ring-2 disabled:opacity-50 resize-y leading-relaxed ${errors.reason
                 ? 'border-destructive focus-visible:ring-destructive/30'
                 : 'border-input focus-visible:border-ring focus-visible:ring-ring/30'
-            }`}
+              }`}
           />
 
           {errors.reason && (

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Icon } from '@/components/ui/icon';
 import { CourseCard } from './course-card';
 import { MOCK_PUBLIC_COURSES } from './mock-discovery-data';
@@ -23,13 +24,13 @@ export function FeaturedCourses(): React.JSX.Element {
             </p>
           </div>
           
-          <a
-            href="#recent"
-            className="inline-flex items-center gap-1 text-sm font-semibold text-[#161616] hover:underline shrink-0"
+          <Link
+            href="/courses"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#161616] hover:text-[#027D88] hover:underline shrink-0 transition-colors"
           >
             <span>Xem tất cả khóa học</span>
-            <Icon icon="lucide:arrow-down" className="size-4" />
-          </a>
+            <Icon icon="lucide:arrow-right" className="size-4" />
+          </Link>
         </div>
 
         {/* Featured Courses Grid: 3 columns on desktop */}

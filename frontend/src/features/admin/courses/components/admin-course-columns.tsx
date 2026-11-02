@@ -174,11 +174,10 @@ export function createAdminCourseColumns({
         const isFree = price === 0;
         return (
           <span
-            className={`text-xs font-semibold ${
-              isFree
+            className={`text-xs font-semibold ${isFree
                 ? 'text-emerald-600 dark:text-emerald-400'
                 : 'text-foreground'
-            }`}
+              }`}
           >
             {formatVND(price)}
           </span>

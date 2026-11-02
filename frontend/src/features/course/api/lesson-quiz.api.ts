@@ -20,6 +20,11 @@ export interface ISyncLessonQuizzesPayload {
   quizzes?: IQuizQuestionPayloadItem[];
 }
 
+export interface IMoveMergeLessonQuizzesPayload {
+  sourceTimestamp: number;
+  targetTimestamp: number;
+}
+
 export const lessonQuizKeys = {
   all: ['lesson-quizzes'] as const,
   byLesson: (lessonId: string) => [...lessonQuizKeys.all, lessonId] as const,
@@ -42,6 +47,17 @@ export const lessonQuizApi = {
         timestamp: payload.timestamp,
         questions,
       },
+    );
+    return res.data.data;
+  },
+
+  async moveOrMergeQuizzes(
+    lessonId: string,
+    payload: IMoveMergeLessonQuizzesPayload,
+  ): Promise<ILessonQuiz[]> {
+    const res = await apiClient.put<IApiResponse<ILessonQuiz[]>>(
+      `/lessons/${lessonId}/quizzes/move-merge`,
+      payload,
     );
     return res.data.data;
   },
@@ -97,6 +113,34 @@ export function useSyncLessonQuizzesMutation(lessonId: string | undefined) {
   });
 }
 
+export function useMoveMergeLessonQuizClusterMutation(lessonId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: IMoveMergeLessonQuizzesPayload) => {
+      if (!lessonId) throw new Error('lessonId is required to move or merge quizzes');
+      return lessonQuizApi.moveOrMergeQuizzes(lessonId, payload);
+    },
+    onSuccess: () => {
+      if (lessonId) {
+        queryClient.invalidateQueries({ queryKey: lessonQuizKeys.byLesson(lessonId) });
+      }
+    },
+    onError: (error: unknown) => {
+      const responseData = (error as { response?: { data?: { message?: string | string[] } } })?.response?.data;
+      const rawMessage = responseData?.message;
+      const message = Array.isArray(rawMessage)
+        ? rawMessage.join(', ')
+        : typeof rawMessage === 'string'
+          ? rawMessage
+          : 'Không thể di chuyển hoặc gộp cụm câu hỏi.';
+      toast.error('Lỗi cập nhật mốc câu hỏi', {
+        description: message,
+      });
+    },
+  });
+}
+
 export function useDeleteLessonQuizMutation(lessonId: string | undefined) {
   const queryClient = useQueryClient();
 
@@ -145,4 +189,3 @@ export function useDeleteLessonQuizClusterMutation(lessonId: string | undefined)
     },
   });
 }
-
