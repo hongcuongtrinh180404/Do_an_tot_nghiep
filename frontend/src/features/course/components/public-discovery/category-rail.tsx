@@ -8,8 +8,8 @@ import type { ICourseCategory } from 'share-lib';
 import { usePublicCategoriesQuery } from '../../api/course-category.api';
 
 interface CategoryRailProps {
-  selectedCategorySlug: string;
-  onSelectCategory: (slug: string) => void;
+  selectedCategorySlug?: string;
+  onSelectCategory?: (slug: string) => void;
 }
 
 /**
@@ -72,7 +72,7 @@ function resolveCategoryImage(category: ICourseCategory): string {
 }
 
 export function CategoryRail({
-  selectedCategorySlug,
+  selectedCategorySlug = 'all',
   onSelectCategory,
 }: CategoryRailProps): React.JSX.Element {
   const { data: categories = [], isLoading, isError, refetch } = usePublicCategoriesQuery();
@@ -101,16 +101,13 @@ export function CategoryRail({
             </p>
           </div>
 
-          {selectedCategorySlug !== 'all' ? (
-            <button
-              type="button"
-              onClick={() => onSelectCategory('all')}
-              className="self-start md:self-auto inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-neutral-800 hover:text-black underline underline-offset-4 transition-colors"
-            >
-              <Icon icon="lucide:rotate-ccw" className="size-3.5" />
-              <span>Xem tất cả lĩnh vực</span>
-            </button>
-          ) : null}
+          <Link
+            href="/courses"
+            className="self-start md:self-auto inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-neutral-800 hover:text-black hover:underline underline-offset-4 transition-colors"
+          >
+            <span>Xem tất cả khóa học</span>
+            <Icon icon="lucide:arrow-right" className="size-3.5" />
+          </Link>
         </div>
 
         {/* 6-column Responsive Grid (Domestika 1:1 Aspect Ratio Style) */}
@@ -139,10 +136,12 @@ export function CategoryRail({
               return (
                 <Link
                   key={category.id}
-                  href={`/?category=${category.slug}#recent`}
+                  href={`/courses?category=${encodeURIComponent(category.slug)}`}
                   onClick={(e) => {
-                    e.preventDefault();
-                    onSelectCategory(category.slug);
+                    if (onSelectCategory) {
+                      e.preventDefault();
+                      onSelectCategory(category.slug);
+                    }
                   }}
                   aria-label={`Khám phá danh mục ${category.name}`}
                   aria-selected={isSelected}

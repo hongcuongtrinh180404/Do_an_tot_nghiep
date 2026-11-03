@@ -33,25 +33,13 @@ function HomeContent(): React.JSX.Element {
 
   const handleSelectCategory = useCallback(
     (slug: string): void => {
-      // Deep-linking & URL update (Option B.1)
-      const params = new URLSearchParams(searchParams.toString());
       if (slug && slug !== 'all') {
-        params.set('category', slug);
+        router.push(`/courses?category=${encodeURIComponent(slug)}`);
       } else {
-        params.delete('category');
-      }
-
-      const queryString = params.toString();
-      const targetUrl = queryString ? `/?${queryString}#recent` : '/#recent';
-      router.push(targetUrl, { scroll: false });
-
-      // Smooth scroll to recent courses catalog
-      const recentEl = document.getElementById('recent');
-      if (recentEl) {
-        recentEl.scrollIntoView({ behavior: 'smooth' });
+        router.push('/courses');
       }
     },
-    [router, searchParams],
+    [router],
   );
 
   const handleClearFilters = useCallback((): void => {

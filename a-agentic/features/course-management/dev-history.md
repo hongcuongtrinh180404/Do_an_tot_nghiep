@@ -13,6 +13,19 @@
 
 ## 2. Technical Notes & Gotchas
 
+- **Milestone 32 (Home Category Rail Navigation Transition to Public Catalog `/courses?category=...`)**:
+  - **Root Cause & Yêu cầu**: Trước đây, khi click vào thẻ danh mục ở trang chủ (`CategoryRail`), hệ thống chỉ cập nhật URL `/?category=${slug}#recent` và cuộn nội bộ xuống phần Khóa học mới nhất (`RecentCourses`). Người dùng mong muốn khi click vào danh mục ở trang chủ sẽ điều hướng thẳng sang trang Tất cả khóa học (`/courses?category=...`) và hiển thị các khóa thuộc danh mục đó.
+  - **Giải pháp**:
+    - **`CategoryRail` (`category-rail.tsx`)**:
+      - Cập nhật liên kết thẻ danh mục thành Next.js `<Link href={`/courses?category=${encodeURIComponent(category.slug)}`}>`.
+      - Khi click, gọi `onSelectCategory(category.slug)` chuyển hướng SPA, đồng thời cho phép mở tab mới tự nhiên bằng chuột giữa hoặc Ctrl/Cmd + click.
+      - Thay thế nút *"Xem tất cả lĩnh vực"* ở tiêu đề section bằng liên kết cố định **"Xem tất cả khóa học"** (`href="/courses"`), tạo điểm nhấn CTA điều hướng rõ ràng sang catalog đầy đủ.
+    - **`HomeContent` (`app/page.tsx`)**:
+      - Tinh gọn hàm `handleSelectCategory` để chuyển tiếp sang `/courses?category=${encodeURIComponent(slug)}` qua `router.push()`.
+  - **Kết quả xác minh**:
+    - TypeScript compile sạch 100% (`tsc --noEmit`).
+    - Khi click danh mục ở trang chủ, trình duyệt chuyển mượt mà sang `/courses?category=slug`, tự động tick chọn checkbox danh mục, kích hoạt chip lọc và lọc đúng danh sách khóa học tương ứng.
+
 - **Milestone 31 (Public Courses Catalog Page - 2-Column Responsive Layout, URL State Sync & Service Boundary)**:
   - Hiện thực trang công khai độc lập `/courses` ("Tất cả khóa học") theo phong cách e-learning hiện đại chuẩn `/design-taste-frontend` và quy tắc thiết kế `/web-design-guidelines`:
     - **Kiến trúc 2 cột độc lập (2-Column Responsive Layout)**:

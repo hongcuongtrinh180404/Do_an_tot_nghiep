@@ -806,10 +806,10 @@ export function LessonVideoScreen({
                     {/* Micro-gem marker on track (Subtle Amber Notch / Gem) */}
                     <div
                       className={`transition-all duration-150 ${isSnapTarget
-                          ? 'size-3 rounded-full bg-emerald-400 ring-4 ring-emerald-400/50 scale-125'
-                          : isMultiple
-                            ? 'w-2.5 h-1.5 rounded-full bg-amber-400 border border-zinc-950 ring-1 ring-amber-300 group-hover/checkpoint:scale-125'
-                            : 'size-1.5 rounded-full bg-amber-400 border border-zinc-950 group-hover/checkpoint:scale-125'
+                        ? 'size-3 rounded-full bg-emerald-400 ring-4 ring-emerald-400/50 scale-125'
+                        : isMultiple
+                          ? 'w-2.5 h-1.5 rounded-full bg-amber-400 border border-zinc-950 ring-1 ring-amber-300 group-hover/checkpoint:scale-125'
+                          : 'size-1.5 rounded-full bg-amber-400 border border-zinc-950 group-hover/checkpoint:scale-125'
                         }`}
                     />
                   </div>
@@ -864,8 +864,8 @@ export function LessonVideoScreen({
                   onPointerCancel={handleBadgePointerCancel}
                   title="Nhấn để thêm câu hỏi • Nhấn giữ 1s để kéo và gộp cụm câu hỏi"
                   className={`relative overflow-hidden z-10 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-bold text-xs shadow-xl shadow-amber-500/30 border border-amber-300 dark:border-amber-400 flex items-center gap-1.5 cursor-grab active:cursor-grabbing transform transition-all duration-150 whitespace-nowrap select-none ${isHoldingBadge
-                      ? 'scale-105 ring-2 ring-amber-300 ring-offset-1 ring-offset-zinc-950'
-                      : 'hover:scale-105 active:scale-95'
+                    ? 'scale-105 ring-2 ring-amber-300 ring-offset-1 ring-offset-zinc-950'
+                    : 'hover:scale-105 active:scale-95'
                     }`}
                 >
                   {/* Thanh nạp tiến trình 1s (Progress fill bar) */}
@@ -899,8 +899,8 @@ export function LessonVideoScreen({
                 <div
                   style={{ left: `${currentDragPercent}%` }}
                   className={`absolute top-0 bottom-0 w-0.5 -ml-px pointer-events-none z-40 transition-none ${snapTarget
-                      ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
-                      : 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]'
+                    ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
+                    : 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]'
                     }`}
                 />
 
@@ -913,8 +913,8 @@ export function LessonVideoScreen({
                 >
                   <div
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold shadow-2xl flex items-center gap-2 border whitespace-nowrap backdrop-blur-md ${snapTarget
-                        ? 'bg-emerald-950/95 text-emerald-200 border-emerald-400'
-                        : 'bg-zinc-950/95 text-white border-white/40'
+                      ? 'bg-emerald-950/95 text-emerald-200 border-emerald-400'
+                      : 'bg-zinc-950/95 text-white border-white/40'
                       }`}
                   >
                     <Icon
@@ -1065,8 +1065,8 @@ export function LessonVideoScreen({
                           setIsSpeedMenuOpen(false);
                         }}
                         className={`w-full text-left px-2 py-1 rounded-md text-xs font-medium transition cursor-pointer flex items-center justify-between ${playbackRate === speed
-                            ? 'bg-white/15 text-white font-bold'
-                            : 'text-zinc-300 hover:bg-zinc-800'
+                          ? 'bg-white/15 text-white font-bold'
+                          : 'text-zinc-300 hover:bg-zinc-800'
                           }`}
                       >
                         <span className="tabular-nums">{speed}x</span>
