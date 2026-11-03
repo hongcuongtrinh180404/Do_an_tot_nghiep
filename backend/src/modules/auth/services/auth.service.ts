@@ -73,6 +73,7 @@ export class AuthService {
       status: user.status,
       googleSub: user.googleSub ?? null,
       isEmailVerified: !!user.isEmailVerified,
+      hasPassword: !!(user.passwordHash || (user as { password?: string }).password),
       firstName: user.firstName,
       lastName: user.lastName,
       avatar: user.avatarUrl || user.avatar || null,
@@ -186,7 +187,13 @@ export class AuthService {
     if (!user || user.status !== UserStatusEnum.ACTIVE) {
       throw new UnauthorizedException('User not found or inactive');
     }
-    return this.mapToProfile(user);
+    const userWithPassword = await this.userService.findByEmail(user.email, true);
+    const profile = this.mapToProfile(user);
+    profile.hasPassword = !!(
+      userWithPassword?.passwordHash ||
+      (userWithPassword as { password?: string })?.password
+    );
+    return profile;
   }
 
   /**

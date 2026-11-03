@@ -9,3 +9,4 @@ export * from './components/profile-info-card';
 export * from './components/profile-page-content';
 export * from './components/change-email-modal';
 export * from './components/account-settings-content';
+export * from './components/settings-page-content';

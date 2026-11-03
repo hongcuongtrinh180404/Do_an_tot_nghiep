@@ -81,6 +81,8 @@ export function AccountSettingsContent({
   };
 
   const isEmailVerified = user.isEmailVerified !== false;
+  const hasLocalPassword =
+    user.hasPassword !== false && (user.provider !== 'GOOGLE' || !!user.hasPassword);
 
   return (
     <div className="space-y-6">
@@ -153,165 +155,194 @@ export function AccountSettingsContent({
           </div>
         </CardHeader>
         <CardContent>
-          {errorMessage && (
-            <div className="mb-5 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-start gap-2.5">
-              <Icon icon="lucide:alert-circle" className="size-4 shrink-0 mt-0.5" />
-              <div className="leading-relaxed">{errorMessage}</div>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Field: Current Password */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label
-                  htmlFor="currentPassword"
-                  className="text-xs font-medium text-foreground"
-                >
-                  Mật khẩu hiện tại <span className="text-destructive">*</span>
-                </Label>
-                <button
-                  type="button"
-                  onClick={() => setIsForgotModalOpen(true)}
-                  className="text-[11px] text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
-                >
-                  Quên mật khẩu?
-                </button>
-              </div>
-              <div className="relative">
-                <Input
-                  id="currentPassword"
-                  type={showCurrentPassword ? 'text' : 'password'}
-                  placeholder="Nhập mật khẩu đang sử dụng"
-                  autoComplete="current-password"
-                  disabled={isSubmitting || changePasswordMutation.isPending}
-                  className="h-10 text-xs pr-10 bg-background"
-                  {...register('currentPassword')}
+          {!hasLocalPassword ? (
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 space-y-3">
+              <div className="flex items-center gap-2 font-semibold text-xs">
+                <Icon
+                  icon="lucide:alert-triangle"
+                  className="size-4 text-amber-600 dark:text-amber-400 shrink-0"
                 />
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => setShowCurrentPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={showCurrentPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                >
-                  <Icon
-                    icon={showCurrentPassword ? 'lucide:eye-off' : 'lucide:eye'}
-                    className="size-4"
-                  />
-                </button>
+                <span>Tài khoản chưa thiết lập mật khẩu riêng</span>
               </div>
-              {errors.currentPassword && (
-                <p className="text-[11px] text-destructive flex items-center gap-1">
-                  <Icon icon="lucide:alert-circle" className="size-3" />
-                  {errors.currentPassword.message}
-                </p>
-              )}
-            </div>
-
-            {/* Field: New Password */}
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="newPassword"
-                className="text-xs font-medium text-foreground"
-              >
-                Mật khẩu mới <span className="text-destructive">*</span>
-              </Label>
-              <div className="relative">
-                <Input
-                  id="newPassword"
-                  type={showNewPassword ? 'text' : 'password'}
-                  placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
-                  autoComplete="new-password"
-                  disabled={isSubmitting || changePasswordMutation.isPending}
-                  className="h-10 text-xs pr-10 bg-background"
-                  {...register('newPassword')}
-                />
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => setShowNewPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={showNewPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                >
-                  <Icon
-                    icon={showNewPassword ? 'lucide:eye-off' : 'lucide:eye'}
-                    className="size-4"
-                  />
-                </button>
-              </div>
-              {errors.newPassword ? (
-                <p className="text-[11px] text-destructive flex items-center gap-1">
-                  <Icon icon="lucide:alert-circle" className="size-3" />
-                  {errors.newPassword.message}
-                </p>
-              ) : (
-                <p className="text-[11px] text-muted-foreground">
-                  Mật khẩu phải có ít nhất 6 ký tự và khác mật khẩu hiện tại.
-                </p>
-              )}
-            </div>
-
-            {/* Field: Confirm Password */}
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="confirmPassword"
-                className="text-xs font-medium text-foreground"
-              >
-                Xác nhận mật khẩu mới <span className="text-destructive">*</span>
-              </Label>
-              <div className="relative">
-                <Input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="Nhập lại mật khẩu mới"
-                  autoComplete="new-password"
-                  disabled={isSubmitting || changePasswordMutation.isPending}
-                  className="h-10 text-xs pr-10 bg-background"
-                  {...register('confirmPassword')}
-                />
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                >
-                  <Icon
-                    icon={showConfirmPassword ? 'lucide:eye-off' : 'lucide:eye'}
-                    className="size-4"
-                  />
-                </button>
-              </div>
-              {errors.confirmPassword && (
-                <p className="text-[11px] text-destructive flex items-center gap-1">
-                  <Icon icon="lucide:alert-circle" className="size-3" />
-                  {errors.confirmPassword.message}
-                </p>
-              )}
-            </div>
-
-            {/* Submit Button */}
-            <div className="pt-2 flex justify-end">
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Tài khoản của bạn hiện đang đăng nhập qua Google và chưa có mật khẩu Mindly riêng. Bạn có thể sử dụng chức năng Quên mật khẩu để thiết lập mật khẩu đăng nhập trực tiếp.
+              </p>
               <Button
-                type="submit"
-                disabled={isSubmitting || changePasswordMutation.isPending}
-                className="bg-foreground text-background hover:bg-foreground/90 h-9 px-5 text-xs font-medium"
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsForgotModalOpen(true)}
+                className="h-8 text-xs font-medium border-amber-500/30 hover:bg-amber-500/10"
               >
-                {isSubmitting || changePasswordMutation.isPending ? (
-                  <>
-                    <div className="size-3.5 border-2 border-background border-t-transparent rounded-full animate-spin mr-2" />
-                    Đang cập nhật...
-                  </>
-                ) : (
-                  <>
-                    <Icon icon="lucide:save" className="size-3.5 mr-2" />
-                    Cập nhật mật khẩu
-                  </>
-                )}
+                <Icon icon="lucide:key-round" className="size-3.5 mr-1.5" />
+                Thiết lập mật khẩu ngay
               </Button>
             </div>
-          </form>
+          ) : (
+            <>
+              {errorMessage && (
+                <div className="mb-5 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-start gap-2.5">
+                  <Icon icon="lucide:alert-circle" className="size-4 shrink-0 mt-0.5" />
+                  <div className="leading-relaxed">{errorMessage}</div>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                {/* Field: Current Password (chống browser autofill) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label
+                      htmlFor="currentPassword"
+                      className="text-xs font-medium text-foreground"
+                    >
+                      Mật khẩu hiện tại <span className="text-destructive">*</span>
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => setIsForgotModalOpen(true)}
+                      className="text-[11px] text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+                    >
+                      Quên mật khẩu?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="currentPassword"
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      placeholder="Nhập mật khẩu đang sử dụng"
+                      autoComplete="new-password"
+                      data-lpignore="true"
+                      data-form-type="other"
+                      disabled={isSubmitting || changePasswordMutation.isPending}
+                      className="h-10 text-xs pr-10 bg-background"
+                      {...register('currentPassword')}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowCurrentPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label={showCurrentPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    >
+                      <Icon
+                        icon={showCurrentPassword ? 'lucide:eye-off' : 'lucide:eye'}
+                        className="size-4"
+                      />
+                    </button>
+                  </div>
+                  {errors.currentPassword && (
+                    <p className="text-[11px] text-destructive flex items-center gap-1">
+                      <Icon icon="lucide:alert-circle" className="size-3" />
+                      {errors.currentPassword.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Field: New Password */}
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="newPassword"
+                    className="text-xs font-medium text-foreground"
+                  >
+                    Mật khẩu mới <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="newPassword"
+                      type={showNewPassword ? 'text' : 'password'}
+                      placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                      autoComplete="new-password"
+                      disabled={isSubmitting || changePasswordMutation.isPending}
+                      className="h-10 text-xs pr-10 bg-background"
+                      {...register('newPassword')}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowNewPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label={showNewPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    >
+                      <Icon
+                        icon={showNewPassword ? 'lucide:eye-off' : 'lucide:eye'}
+                        className="size-4"
+                      />
+                    </button>
+                  </div>
+                  {errors.newPassword ? (
+                    <p className="text-[11px] text-destructive flex items-center gap-1">
+                      <Icon icon="lucide:alert-circle" className="size-3" />
+                      {errors.newPassword.message}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">
+                      Mật khẩu phải có ít nhất 6 ký tự và khác mật khẩu hiện tại.
+                    </p>
+                  )}
+                </div>
+
+                {/* Field: Confirm Password */}
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="confirmPassword"
+                    className="text-xs font-medium text-foreground"
+                  >
+                    Xác nhận mật khẩu mới <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="Nhập lại mật khẩu mới"
+                      autoComplete="new-password"
+                      disabled={isSubmitting || changePasswordMutation.isPending}
+                      className="h-10 text-xs pr-10 bg-background"
+                      {...register('confirmPassword')}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    >
+                      <Icon
+                        icon={showConfirmPassword ? 'lucide:eye-off' : 'lucide:eye'}
+                        className="size-4"
+                      />
+                    </button>
+                  </div>
+                  {errors.confirmPassword && (
+                    <p className="text-[11px] text-destructive flex items-center gap-1">
+                      <Icon icon="lucide:alert-circle" className="size-3" />
+                      {errors.confirmPassword.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Submit Button */}
+                <div className="pt-2 flex justify-end">
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || changePasswordMutation.isPending}
+                    className="bg-foreground text-background hover:bg-foreground/90 h-9 px-5 text-xs font-medium"
+                  >
+                    {isSubmitting || changePasswordMutation.isPending ? (
+                      <>
+                        <div className="size-3.5 border-2 border-background border-t-transparent rounded-full animate-spin mr-2" />
+                        Đang cập nhật...
+                      </>
+                    ) : (
+                      <>
+                        <Icon icon="lucide:save" className="size-3.5 mr-2" />
+                        Cập nhật mật khẩu
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -362,6 +393,7 @@ export function AccountSettingsContent({
         open={isChangeEmailOpen}
         onOpenChange={setIsChangeEmailOpen}
         currentEmail={user.email}
+        hasLocalPassword={hasLocalPassword}
         onOpenForgotPassword={() => {
           setIsChangeEmailOpen(false);
           setIsForgotModalOpen(true);
@@ -376,4 +408,3 @@ export function AccountSettingsContent({
     </div>
   );
 }
-

@@ -94,6 +94,7 @@ export function ChangeEmailModal({
       setMode('form');
       setErrorMessage('');
       setSentEmail('');
+      setShowPassword(false);
       reset({ newEmail: '', currentPassword: '' });
     }
   }, [open, reset]);
@@ -347,36 +348,27 @@ export function ChangeEmailModal({
               className="space-y-3.5 text-left"
               noValidate
             >
-              {/* Email hiện tại (Read-only) */}
-              <div className="space-y-1.5">
-                <Label htmlFor="current-email" className="text-xs font-medium text-foreground/80">
-                  Email hiện tại
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="current-email"
-                    type="email"
-                    value={currentEmail}
-                    disabled
-                    className="h-10 text-xs rounded-xl bg-muted/40 cursor-not-allowed border-border/70 pr-8"
-                  />
-                  <Icon
-                    icon="lucide:lock"
-                    className="size-3.5 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                  />
+              {/* Email hiện tại (Static display - tránh Browser Autofill) */}
+              <div className="p-3 rounded-xl bg-muted/40 border border-border/60 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-[11px] text-muted-foreground block font-medium">Email hiện tại</span>
+                  <span className="text-xs font-mono font-medium text-foreground select-all">{currentEmail}</span>
+                </div>
+                <div className="size-7 rounded-lg bg-background/80 border border-border/50 flex items-center justify-center">
+                  <Icon icon="lucide:lock" className="size-3.5 text-muted-foreground" />
                 </div>
               </div>
 
               {/* Email mới */}
               <div className="space-y-1.5">
                 <Label htmlFor="new-email" className="text-xs font-medium text-foreground/85">
-                  Email mới cần thay đổi
+                  Email mới cần thay đổi <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="new-email"
                   type="email"
                   placeholder="name@example.com"
-                  autoComplete="email"
+                  autoComplete="off"
                   autoCapitalize="none"
                   spellCheck={false}
                   disabled={changeEmailMutation.isPending}
@@ -391,17 +383,36 @@ export function ChangeEmailModal({
                 )}
               </div>
 
-              {/* Mật khẩu hiện tại */}
+              {/* Mật khẩu hiện tại (Bắt buộc nhập tay - chặn Browser Autofill) */}
               <div className="space-y-1.5">
-                <Label htmlFor="current-password" className="text-xs font-medium text-foreground/85">
-                  Mật khẩu hiện tại
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="current-password" className="text-xs font-medium text-foreground/85">
+                    Mật khẩu hiện tại <span className="text-destructive">*</span>
+                  </Label>
+                  {onOpenForgotPassword && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenChange(false);
+                        onOpenForgotPassword();
+                      }}
+                      className="text-[11px] text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+                    >
+                      Quên mật khẩu?
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <Input
                     id="current-password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Nhập mật khẩu để xác minh"
-                    autoComplete="current-password"
+                    placeholder="Nhập mật khẩu hiện tại để xác minh"
+                    autoComplete="new-password"
+                    data-lpignore="true"
+                    data-form-type="other"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     disabled={changeEmailMutation.isPending}
                     aria-invalid={!!errors.currentPassword}
                     className="h-10 text-sm rounded-xl border-border/80 pr-10 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary"

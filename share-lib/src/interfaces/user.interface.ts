@@ -40,6 +40,7 @@ export interface IUser {
   deletedAt?: Date | string | null;
   createdById?: string | null;
   updatedById?: string | null;
+  hasPassword?: boolean;
 }
 
 export interface IUserProfile {
@@ -53,6 +54,7 @@ export interface IUserProfile {
   status: UserStatusEnum;
   googleSub?: string | null;
   isEmailVerified?: boolean;
+  hasPassword?: boolean;
   createdAt?: Date | string;
   updatedAt?: Date | string;
   /** @deprecated Kept for backward compatibility during migration */

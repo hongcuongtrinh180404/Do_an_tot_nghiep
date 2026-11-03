@@ -494,9 +494,16 @@
       - Card 1: Email management displaying current email, verified badge, and "Thay đổi email" button triggering `ChangeEmailModal`.
       - Card 2: Password change form with visibility eye toggles, helper link to `ForgotPasswordModal`, loading indicator, and sonner toast feedback.
       - Card 3: Account security and privacy guidelines.
-    - Updated `ProfilePageContent` with tab navigation (`Hồ sơ cá nhân` vs `Cài đặt tài khoản`) synced to URL search param `?tab=account`, wrapped with `<Suspense>`.
-    - Updated `ProfileForm` to remove email fields and `ChangeEmailModal`, keeping it focused strictly on public profile info (`fullName`, `username`, `bio`).
-    - Updated `PublicHeader` dropdown (desktop and mobile) so "Xem hồ sơ" links to `/profile?tab=profile` and "Cài đặt tài khoản" links directly to `/profile?tab=account`.
+    - Created dedicated `/settings` page (`frontend/src/app/settings/page.tsx` + `SettingsPageContent`) for Account Settings, completely independent from `/profile`.
+    - Simplified `ProfilePageContent` on `/profile` to focus strictly on public personal info (`fullName`, `username`, `bio`), removing tabs.
+    - Added clean cross-navigation between `/profile` and `/settings`.
+    - Updated `PublicHeader` dropdown (desktop and mobile): "Xem hồ sơ" links to `/profile` and "Cài đặt tài khoản" links to `/settings`.
 - **Gotchas & Lessons**:
     - Using `useSearchParams()` in Next.js 16 App Router requires wrapping the consumer in a `<Suspense>` boundary to prevent de-opting static site generation.
     - Keeping the current password verification strictly on the server-side with `bcrypt.compare` prevents client-side password leaks or spoofing.
+    - **Gotcha 14 (Browser Credential Autofill in Sensitive Verification Modals)**:
+      - Placing a disabled `<Input type="email" value={currentEmail} />` inside the same `<form>` as `<Input type="password" />` causes modern browsers (Chrome, Edge, Safari) and password managers to classify the modal as a credential sign-in form and automatically inject saved passwords into the input field.
+      - **Resolution**:
+        1. Replaced the email input with a non-input display card (`div`) so browsers do not pair it with the password field.
+        2. Set `autoComplete="new-password"`, `data-lpignore="true"`, and `data-form-type="other"` on the verification password input, ensuring it starts strictly empty and requires active user entry.
+        3. Added `hasPassword: boolean` to `IUserProfile` from backend based on `!!user.passwordHash` to distinguish between accounts with local passwords and Google-only accounts.

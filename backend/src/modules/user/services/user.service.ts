@@ -187,7 +187,13 @@ export class UserService extends BaseService<IUser, string> {
 
   async getProfile(userId: string): Promise<IUserProfile> {
     const user = await this.findByIdOrFail(userId);
-    return this.toUserProfile(user);
+    const userWithPassword = await this.userRepository.findByEmail(user.email, true);
+    const profile = this.toUserProfile(user);
+    profile.hasPassword = !!(
+      userWithPassword?.passwordHash ||
+      (userWithPassword as { password?: string })?.password
+    );
+    return profile;
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<IUserProfile> {
@@ -318,6 +324,7 @@ export class UserService extends BaseService<IUser, string> {
       status: user.status,
       googleSub: user.googleSub ?? null,
       isEmailVerified: !!user.isEmailVerified,
+      hasPassword: !!(user.passwordHash || (user as { password?: string }).password),
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       firstName: user.firstName,
