@@ -23,6 +23,7 @@ import { SectionRepository } from '../repositories/section.repository.js';
 import { CourseRepository } from '../repositories/course.repository.js';
 import { StorageService } from '../../storage/index.js';
 import { LessonTranscriptService } from './lesson-transcript.service.js';
+import { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
 
 export interface CreateLessonInput {
   title: string;
@@ -42,6 +43,7 @@ export class LessonService extends BaseService<ILesson, string> {
     @Optional() protected readonly storageService?: StorageService,
     @Optional() protected readonly courseRepository?: CourseRepository,
     @Optional() protected readonly lessonTranscriptService?: LessonTranscriptService,
+    @Optional() protected readonly enrollmentRepository?: EnrollmentRepository,
   ) {
     super(lessonRepository, cls, LessonService.name);
   }
@@ -140,6 +142,54 @@ export class LessonService extends BaseService<ILesson, string> {
     }
 
     return lesson;
+  }
+
+  async getLessonForUser(
+    id: string,
+    userId?: string,
+    userRole?: RoleEnum,
+    session?: ClientSession,
+  ): Promise<ILesson> {
+    const lesson = await this.getLessonById(id, session);
+
+    // 1. Bài học xem thử cho phép truy cập công khai
+    if (lesson.isPreview) {
+      return lesson;
+    }
+
+    // 2. Quản trị viên được xem toàn bộ
+    if (userRole === RoleEnum.ADMIN) {
+      return lesson;
+    }
+
+    // Lấy courseId từ section
+    let courseId: string | null = null;
+    if (lesson.sectionId && this.sectionRepository) {
+      const section = await this.sectionRepository.findById(lesson.sectionId, session);
+      courseId = section?.courseId ?? null;
+    }
+
+    // 3. Giảng viên sở hữu khóa học được xem
+    if (courseId && this.courseRepository && userId) {
+      const course = await this.courseRepository.findById(courseId, session);
+      if (course && course.instructorId === userId) {
+        return lesson;
+      }
+    }
+
+    // 4. Học viên đã sở hữu khóa học
+    if (this.enrollmentRepository && userId && courseId) {
+      const enrollment = await this.enrollmentRepository.findByUserAndCourse(
+        userId,
+        courseId,
+        session,
+      );
+      if (enrollment && !enrollment.deletedAt) {
+        return lesson;
+      }
+    }
+
+    throw new ForbiddenException('Bạn cần mua khóa học để xem nội dung bài học này');
   }
 
   async addMaterial(

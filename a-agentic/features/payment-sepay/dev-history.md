@@ -1,17 +1,29 @@
 # Payment SePay — Development History & Gotchas
 
-> **Module:** Payment SePay
+> **Module:** Payment SePay & Enrollment Management
 
 ---
 
 ## 1. Milestone & Feature Status
 
-- **Trạng thái hiện tại:** `PLANNING` (Thiết kế luồng VietQR và Webhook Idempotency).
-- **Kế hoạch triển khai:** Sprint 4 (Giai đoạn 3: Cài đặt & Lập trình).
+- **Trạng thái hiện tại:** `IN_PROGRESS` (Đã hoàn thiện Order & Enrollment Domain Foundation, Mock Purchase Transactional Activation, và My Purchased Courses).
+- **Kế hoạch triển khai:** Sprint 4 — Tích hợp SePay VietQR webhook và QR code checkout modal.
 
 ---
 
 ## 2. Technical Notes & Gotchas
 
-- **Nội dung chuyển khoản (Content Matching)**: Khi sinh mã QR, nội dung chuyển khoản phải chứa tiền tố nhận diện và mã đơn hàng (ví dụ: `DH123456`). Khi nhận webhook, dùng Regex để bóc tách chính xác mã đơn hàng `orderCode` từ chuỗi nội dung chuyển khoản (`transaction.content`).
-- **Xử lý số tiền chênh lệch**: Nếu học viên chuyển thiếu tiền so với giá khóa học, không tự động kích hoạt Enrollment mà đổi trạng thái đơn hàng thành `PARTIALLY_PAID` hoặc ghi log cảnh báo để admin xử lý.
+- **Milestone 1 (Mock Purchase & Enrollment Architecture Foundation)**:
+  - **Mục tiêu**: Xây dựng nền tảng sở hữu khóa học (`Enrollment`), ghi nhận giao dịch (`Order`) bằng MongoDB Session Transactions, phục vụ chức năng mua khóa học giả lập trước khi kết nối SePay thật.
+  - **Kiến trúc triển khai**:
+    - **Schema & Indexes**:
+      - `OrderEntity` (`orders`): Lưu `orderCode` (unique), `userId`, `courseId`, `amount`, `status` (`OrderStatusEnum.PAID`).
+      - `EnrollmentEntity` (`enrollments`): Lưu `userId`, `courseId`, `orderId`, `enrolledAt`. Compound unique index `{ userId: 1, courseId: 1, deletedAt: 1 }` triệt tiêu triệt để race condition mua trùng lặp.
+    - **Transaction Idempotency**:
+      - `mockPurchase` chạy toàn bộ trong MongoDB `ClientSession` (`withTransaction`).
+      - Kiểm tra trùng lặp lần 2 ngay bên trong session transaction trước khi ghi nhận đơn hàng.
+    - **Đặc quyền Giảng viên (Instructor Ownership)**:
+      - Giảng viên tự động sở hữu các khóa học do mình xuất bản (`status === PUBLISHED`).
+      - Endpoint `GET /api/v1/enrollments/my-courses` tự động UNION các khóa học do giảng viên tạo đã xuất bản vào danh sách khóa học đã mua.
+    - **Kiểm thử tự động**:
+      - 12/12 unit tests đạt chuẩn AAA trong `enrollment.service.spec.ts`.

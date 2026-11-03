@@ -10,6 +10,7 @@ import {
 import { BaseMongoRepository, PaginationResult } from '../../base/index.js';
 import { CourseEntity } from '../schemas/course.schema.js';
 import { QueryCoursesAdminDto } from '../dto/query-courses-admin.dto.js';
+import { QueryPublicCoursesDto } from '../dto/query-public-courses.dto.js';
 
 const CATEGORY_POPULATE = {
   path: 'categoryId',
@@ -366,5 +367,108 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
       .exec();
 
     return docs.map((d) => (d as unknown as { slug: string }).slug);
+  }
+
+  async findPublicCoursesWithPagination(
+    queryDto: QueryPublicCoursesDto,
+    categoryId?: string | null,
+    session?: ClientSession,
+  ): Promise<PaginationResult<ICourse>> {
+    const filterQuery: Record<string, unknown> = {
+      status: CourseStatusEnum.PUBLISHED,
+      deletedAt: null,
+    };
+
+    if (queryDto.q) {
+      const escaped = queryDto.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filterQuery.$or = [
+        { title: { $regex: escaped, $options: 'i' } },
+        { shortDescription: { $regex: escaped, $options: 'i' } },
+      ];
+    }
+
+    if (categoryId) {
+      filterQuery.categoryId = categoryId;
+    }
+
+    if (queryDto.level) {
+      filterQuery.level = queryDto.level;
+    }
+
+    if (queryDto.priceRange) {
+      switch (queryDto.priceRange) {
+        case 'free':
+          filterQuery.price = 0;
+          break;
+        case 'under-200':
+          filterQuery.price = { $gt: 0, $lt: 200000 };
+          break;
+        case '200-500':
+          filterQuery.price = { $gte: 200000, $lt: 500000 };
+          break;
+        case 'above-500':
+          filterQuery.price = { $gte: 500000 };
+          break;
+        case 'discount':
+          filterQuery.originalPrice = { $gt: 0 };
+          filterQuery.$expr = { $gt: ['$originalPrice', '$price'] };
+          break;
+      }
+    }
+
+    const page = queryDto.page || 1;
+    const limit = queryDto.limit || 10;
+    const skip = (page - 1) * limit;
+
+    let sortObj: Record<string, 1 | -1> = { createdAt: -1 };
+    if (queryDto.sort === 'price-asc') {
+      sortObj = { price: 1, createdAt: -1 };
+    } else if (queryDto.sort === 'price-desc') {
+      sortObj = { price: -1, createdAt: -1 };
+    }
+
+    const [total, docs] = await Promise.all([
+      this.model.countDocuments(filterQuery).session(session ?? null).exec(),
+      this.model
+        .find(filterQuery)
+        .sort(sortObj)
+        .skip(skip)
+        .limit(limit)
+        .populate(CATEGORY_POPULATE)
+        .populate(INSTRUCTOR_POPULATE)
+        .session(session ?? null)
+        .exec(),
+    ]);
+
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    return {
+      items: docs.map((doc) => this.toDomain(doc)),
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
+
+  async findPublicCourseDetail(
+    idOrSlug: string,
+    session?: ClientSession,
+  ): Promise<ICourse | null> {
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(idOrSlug);
+    const filterQuery: Record<string, unknown> = {
+      status: CourseStatusEnum.PUBLISHED,
+      deletedAt: null,
+      ...(isObjectId ? { $or: [{ _id: idOrSlug }, { slug: idOrSlug }] } : { slug: idOrSlug }),
+    };
+
+    const doc = await this.model
+      .findOne(filterQuery)
+      .populate(CATEGORY_POPULATE)
+      .populate(INSTRUCTOR_POPULATE)
+      .session(session ?? null)
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
   }
 }

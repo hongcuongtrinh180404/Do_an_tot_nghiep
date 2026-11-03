@@ -1,4 +1,4 @@
-import { Injectable, ExecutionContext } from '@nestjs/common';
+import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { Observable } from 'rxjs';
@@ -10,16 +10,42 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     super();
   }
 
-  canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
+  override canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
     if (isPublic) {
-      return true;
+      const request = context.switchToHttp().getRequest<{ headers?: Record<string, string> }>();
+      const authHeader = request.headers?.authorization;
+      if (!authHeader) {
+        return true;
+      }
     }
 
     return super.canActivate(context);
+  }
+
+  override handleRequest<TUser = unknown>(
+    err: unknown,
+    user: unknown,
+    _info: unknown,
+    context: ExecutionContext,
+  ): TUser {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return (user || null) as TUser;
+    }
+
+    if (err || !user) {
+      throw (err as Error) || new UnauthorizedException();
+    }
+
+    return user as TUser;
   }
 }

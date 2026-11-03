@@ -28,6 +28,7 @@ import { UpdateSectionDto } from '../dto/update-section.dto.js';
 import { ReorderSectionsDto } from '../dto/reorder-sections.dto.js';
 import { UpdateCourseDto } from '../dto/update-course.dto.js';
 import { QueryCoursesAdminDto } from '../dto/query-courses-admin.dto.js';
+import { QueryPublicCoursesDto } from '../dto/query-public-courses.dto.js';
 import { StorageService } from '../../storage/index.js';
 
 export interface CreateCourseInput {
@@ -694,5 +695,56 @@ export class CourseService extends BaseService<ICourse, string> {
       );
     }
     return updated;
+  }
+
+  async findPublicCourses(
+    query: QueryPublicCoursesDto,
+    session?: ClientSession,
+  ): Promise<PaginationResult<ICourse>> {
+    let categoryId: string | null = null;
+    if (query.category) {
+      const isObjectId = /^[0-9a-fA-F]{24}$/.test(query.category);
+      if (isObjectId) {
+        categoryId = query.category;
+      } else {
+        const cat = await this.courseCategoryRepository.findBySlug(query.category, session);
+        categoryId = cat?.id ?? null;
+      }
+    }
+
+    return this.courseRepository.findPublicCoursesWithPagination(query, categoryId, session);
+  }
+
+  async getPublicCourseDetail(
+    idOrSlug: string,
+    session?: ClientSession,
+  ): Promise<ICourse & { sections: unknown[] }> {
+    const course = await this.courseRepository.findPublicCourseDetail(idOrSlug, session);
+    if (!course) {
+      throw new NotFoundException('Không tìm thấy khóa học công khai');
+    }
+
+    const sections = await this.sectionRepository.findByCourseId(course.id, session);
+    const sectionsWithLessons = await Promise.all(
+      sections.map(async (sec) => {
+        const lessons = await this.lessonRepository.findBySectionId(sec.id, session);
+        return {
+          ...sec,
+          lessons: lessons.map((l) => ({
+            id: l.id,
+            title: l.title,
+            order: l.order,
+            duration: l.content?.duration ?? 0,
+            isPreview: l.isPreview,
+            type: l.content?.type ?? null,
+          })),
+        };
+      }),
+    );
+
+    return {
+      ...course,
+      sections: sectionsWithLessons,
+    };
   }
 }

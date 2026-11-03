@@ -31,8 +31,10 @@ export class LessonsController {
   @Public()
   async getLessonDetail(
     @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser('id') userId?: string,
+    @CurrentUser('role') userRole?: RoleEnum,
   ): Promise<ApiResponse<ILesson>> {
-    const lesson = await this.lessonService.getLessonById(id);
+    const lesson = await this.lessonService.getLessonForUser(id, userId, userRole);
     return ApiResponse.success(lesson, 'Lấy thông tin bài học thành công');
   }
 

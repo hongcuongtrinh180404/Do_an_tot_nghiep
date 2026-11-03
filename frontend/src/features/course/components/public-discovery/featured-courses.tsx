@@ -4,15 +4,19 @@ import React from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/icon';
 import { CourseCard } from './course-card';
-import { MOCK_PUBLIC_COURSES } from './mock-discovery-data';
+import { usePublicCoursesCatalogQuery } from '../../api/public-courses.api';
 
 export function FeaturedCourses(): React.JSX.Element {
-  const featuredCourses = MOCK_PUBLIC_COURSES.filter((c) => c.isFeatured);
+  const { data, isLoading } = usePublicCoursesCatalogQuery({
+    limit: 6,
+    sort: 'popular',
+  });
+
+  const featuredCourses = data?.items || [];
 
   return (
     <section id="featured" className="w-full bg-background py-14">
       <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
-
         {/* Section Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-3 taste-enter">
           <div>
@@ -34,14 +38,24 @@ export function FeaturedCourses(): React.JSX.Element {
         </div>
 
         {/* Featured Courses Grid: 3 columns on desktop */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredCourses.map((course, idx) => (
-            <div key={course.id} className={`taste-enter taste-enter-delay-${idx + 1}`}>
-              <CourseCard course={course} />
-            </div>
-          ))}
-        </div>
-
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="h-80 w-full animate-pulse rounded-lg border border-[#e5e7eb] bg-muted/40"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {featuredCourses.map((course, idx) => (
+              <div key={course.id} className={`taste-enter taste-enter-delay-${idx + 1}`}>
+                <CourseCard course={course} />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

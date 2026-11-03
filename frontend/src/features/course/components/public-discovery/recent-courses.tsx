@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { CourseLevelEnum } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { CourseCard } from './course-card';
-import { MOCK_PUBLIC_COURSES, type IPublicCourseCard } from './mock-discovery-data';
+import { usePublicCoursesCatalogQuery } from '../../api/public-courses.api';
+import type { PublicSortOption } from '../../services/public-courses.service';
 
 interface RecentCoursesProps {
   selectedCategorySlug: string;
@@ -22,44 +23,24 @@ export function RecentCourses({
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
 
-  // Filter & Sort Logic
-  const filteredCourses = useMemo(() => {
-    return MOCK_PUBLIC_COURSES.filter((course: IPublicCourseCard) => {
-      // Category filter
-      if (selectedCategorySlug !== 'all' && course.categorySlug !== selectedCategorySlug) {
-        return false;
-      }
-      // Level filter
-      if (selectedLevel !== 'all' && course.level !== selectedLevel) {
-        return false;
-      }
-      // Search filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        const matchTitle = course.title.toLowerCase().includes(query);
-        const matchInstructor = course.instructorName.toLowerCase().includes(query);
-        const matchDesc = (course.shortDescription ?? '').toLowerCase().includes(query);
-        if (!matchTitle && !matchInstructor && !matchDesc) {
-          return false;
-        }
-      }
-      return true;
-    }).sort((a, b) => {
-      if (sortBy === 'rating') {
-        return b.rating - a.rating;
-      }
-      if (sortBy === 'students') {
-        return b.studentCount - a.studentCount;
-      }
-      // newest default
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-  }, [selectedCategorySlug, selectedLevel, searchQuery, sortBy]);
+  const mappedSort: PublicSortOption =
+    sortBy === 'rating' ? 'rating' : sortBy === 'students' ? 'popular' : 'newest';
+
+  const { data, isLoading } = usePublicCoursesCatalogQuery({
+    q: searchQuery,
+    categories:
+      selectedCategorySlug && selectedCategorySlug !== 'all' ? [selectedCategorySlug] : undefined,
+    levels:
+      selectedLevel && selectedLevel !== 'all' ? [selectedLevel as CourseLevelEnum] : undefined,
+    sort: mappedSort,
+    limit: 12,
+  });
+
+  const courses = data?.items || [];
 
   return (
     <section id="recent" className="w-full bg-background py-14">
       <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
-        
         {/* Section Header */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-8 gap-4 taste-enter">
           <div>
@@ -78,44 +59,40 @@ export function RecentCourses({
               <button
                 type="button"
                 onClick={() => setSelectedLevel('all')}
-                className={`rounded px-2.5 py-1 font-medium transition-colors ${
-                  selectedLevel === 'all'
+                className={`rounded px-2.5 py-1 font-medium transition-colors ${selectedLevel === 'all'
                     ? 'bg-[#161616] text-white font-semibold'
                     : 'text-[#666666] hover:text-[#161616]'
-                }`}
+                  }`}
               >
                 Mọi trình độ
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedLevel(CourseLevelEnum.BEGINNER)}
-                className={`rounded px-2.5 py-1 font-medium transition-colors ${
-                  selectedLevel === CourseLevelEnum.BEGINNER
+                className={`rounded px-2.5 py-1 font-medium transition-colors ${selectedLevel === CourseLevelEnum.BEGINNER
                     ? 'bg-[#161616] text-white font-semibold'
                     : 'text-[#666666] hover:text-[#161616]'
-                }`}
+                  }`}
               >
                 Cơ bản
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedLevel(CourseLevelEnum.INTERMEDIATE)}
-                className={`rounded px-2.5 py-1 font-medium transition-colors ${
-                  selectedLevel === CourseLevelEnum.INTERMEDIATE
+                className={`rounded px-2.5 py-1 font-medium transition-colors ${selectedLevel === CourseLevelEnum.INTERMEDIATE
                     ? 'bg-[#161616] text-white font-semibold'
                     : 'text-[#666666] hover:text-[#161616]'
-                }`}
+                  }`}
               >
                 Trung cấp
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedLevel(CourseLevelEnum.ADVANCED)}
-                className={`rounded px-2.5 py-1 font-medium transition-colors ${
-                  selectedLevel === CourseLevelEnum.ADVANCED
+                className={`rounded px-2.5 py-1 font-medium transition-colors ${selectedLevel === CourseLevelEnum.ADVANCED
                     ? 'bg-[#161616] text-white font-semibold'
                     : 'text-[#666666] hover:text-[#161616]'
-                }`}
+                  }`}
               >
                 Nâng cao
               </button>
@@ -167,9 +144,18 @@ export function RecentCourses({
         )}
 
         {/* Course Grid: 3 columns on desktop, 2 on tablet, 1 on mobile */}
-        {filteredCourses.length > 0 ? (
+        {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCourses.map((course) => (
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="h-80 w-full animate-pulse rounded-lg border border-[#e5e7eb] bg-muted/40"
+              />
+            ))}
+          </div>
+        ) : courses.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {courses.map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}
           </div>
@@ -191,7 +177,6 @@ export function RecentCourses({
             </button>
           </div>
         )}
-
       </div>
     </section>
   );

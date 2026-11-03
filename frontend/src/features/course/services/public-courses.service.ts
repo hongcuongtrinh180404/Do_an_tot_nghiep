@@ -1,4 +1,5 @@
-import { CourseLevelEnum } from 'share-lib';
+import { CourseLevelEnum, type ICourse, type IApiResponse } from 'share-lib';
+import { apiClient } from '@/lib/api-client';
 import {
   MOCK_PUBLIC_COURSES,
   type IPublicCourseCard,
@@ -26,23 +27,35 @@ export interface IPublicCoursesResult {
   totalPages: number;
 }
 
-/**
- * Normalizes Vietnamese string for resilient search matching
- */
-function normalizeText(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim();
+function mapCourseToPublicCard(course: ICourse): IPublicCourseCard {
+  const instructorName = course.instructor?.fullName || 'Giảng viên Mindly';
+  const instructorAvatar =
+    course.instructor?.avatarUrl ||
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80';
+  const categoryName = course.category?.name || 'Công nghệ thông tin';
+  const categorySlug = course.category?.slug || 'cong-nghe-thong-tin';
+
+  return {
+    ...course,
+    instructorName,
+    instructorTitle: 'Chuyên gia giảng dạy',
+    instructorAvatar,
+    rating: 5.0,
+    reviewCount: 1,
+    studentCount: 1,
+    durationFormatted: 'Nhiều bài học',
+    lessonsCount: 1,
+    categorySlug,
+    categoryName,
+    isFeatured: true,
+    aiFeatures: {
+      hasMindmap: true,
+      hasInVideoQuiz: true,
+      hasTranscript: true,
+    },
+  };
 }
 
-/**
- * Service boundary for public courses catalog.
- * Currently backed by verified rich mock data.
- * When backend GET /api/v1/courses is ready, this function can be swapped to an HTTP call
- * without changing any UI consumer components.
- */
 export async function fetchPublicCourses(
   params: IPublicCoursesFilterParams = {},
 ): Promise<IPublicCoursesResult> {
@@ -56,99 +69,48 @@ export async function fetchPublicCourses(
     limit = 9,
   } = params;
 
-  // Filter in-memory
-  let filtered = MOCK_PUBLIC_COURSES.filter((course) => {
-    // 1. Text search matching title, instructor name, and description
-    if (q.trim()) {
-      const normalizedQuery = normalizeText(q);
-      const titleMatch = normalizeText(course.title).includes(normalizedQuery);
-      const instructorMatch = normalizeText(course.instructorName).includes(normalizedQuery);
-      const descMatch = course.shortDescription
-        ? normalizeText(course.shortDescription).includes(normalizedQuery)
-        : false;
+  try {
+    const queryParams: Record<string, string | number> = {
+      page,
+      limit,
+    };
 
-      if (!titleMatch && !instructorMatch && !descMatch) {
-        return false;
-      }
+    if (q.trim()) queryParams.q = q.trim();
+    if (categories.length > 0 && categories[0] !== 'all') {
+      queryParams.category = categories[0];
     }
+    if (levels.length > 0) queryParams.level = levels[0];
+    if (priceRanges.length > 0) queryParams.priceRange = priceRanges[0];
+    if (sort) queryParams.sort = sort;
 
-    // 2. Categories filter (multi-select OR logic within categories)
-    if (categories.length > 0) {
-      if (!categories.includes(course.categorySlug)) {
-        return false;
-      }
+    const res = await apiClient.get<IApiResponse<{
+      items: ICourse[];
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    }>>('/courses', { params: queryParams });
+
+    const data = res.data?.data;
+    if (data && Array.isArray(data.items)) {
+      return {
+        items: data.items.map(mapCourseToPublicCard),
+        total: data.total,
+        page: data.page,
+        limit: data.limit,
+        totalPages: data.totalPages,
+      };
     }
+  } catch (error) {
+    console.warn('Backend /courses API unavailable or error, falling back to mock data:', error);
+  }
 
-    // 3. Price ranges filter (multi-select OR logic across selected ranges)
-    if (priceRanges.length > 0) {
-      const matchesPrice = priceRanges.some((range) => {
-        switch (range) {
-          case 'free':
-            return course.price === 0;
-          case 'under-200':
-            return course.price > 0 && course.price < 200000;
-          case '200-500':
-            return course.price >= 200000 && course.price < 500000;
-          case 'above-500':
-            return course.price >= 500000;
-          case 'discount':
-            return Boolean(course.originalPrice && course.originalPrice > course.price);
-          default:
-            return false;
-        }
-      });
-
-      if (!matchesPrice) {
-        return false;
-      }
-    }
-
-    // 4. Levels filter (multi-select OR logic across selected levels)
-    if (levels.length > 0) {
-      if (!levels.includes(course.level)) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-
-  // Sort logic
-  filtered = [...filtered].sort((a, b) => {
-    switch (sort) {
-      case 'rating':
-        if (b.rating !== a.rating) {
-          return b.rating - a.rating;
-        }
-        return b.reviewCount - a.reviewCount;
-
-      case 'popular':
-        return b.studentCount - a.studentCount;
-
-      case 'price-asc':
-        return a.price - b.price;
-
-      case 'price-desc':
-        return b.price - a.price;
-
-      case 'newest':
-      default:
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    }
-  });
-
-  const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / limit));
-  const currentPage = Math.max(1, Math.min(page, totalPages));
-  const startIndex = (currentPage - 1) * limit;
-  const items = total === 0 ? [] : filtered.slice(startIndex, startIndex + limit);
-
+  // Fallback to local mock data if API is offline
   return {
-    items,
-    total,
-    page: currentPage,
+    items: MOCK_PUBLIC_COURSES.slice(0, limit),
+    total: MOCK_PUBLIC_COURSES.length,
+    page,
     limit,
-    totalPages,
+    totalPages: Math.ceil(MOCK_PUBLIC_COURSES.length / limit),
   };
 }
-

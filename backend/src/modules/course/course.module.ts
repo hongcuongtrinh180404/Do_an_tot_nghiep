@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CourseEntity, CourseSchema } from './schemas/course.schema.js';
 import {
@@ -42,6 +42,7 @@ import { AudioExtractorService } from './services/audio-extractor.service.js';
 import { UserModule } from '../user/user.module.js';
 import { StorageModule } from '../storage/storage.module.js';
 import { AssemblyAiModule } from '../assemblyai/assemblyai.module.js';
+import { EnrollmentModule } from '../enrollment/enrollment.module.js';
 
 @Module({
   imports: [

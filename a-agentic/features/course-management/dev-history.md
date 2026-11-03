@@ -13,6 +13,25 @@
 
 ## 2. Technical Notes & Gotchas
 
+- **Milestone 33 (Public Course Catalog Database Integration, Mock Purchase with Transaction, Purchased Courses Page `/my-courses`, and Lesson Paywall Protection)**:
+  - **Mục tiêu**: Xóa bỏ toàn bộ mock data ở phía người học, kết nối API backend thực tế để hiển thị các khóa học công khai (`PUBLISHED`), cung cấp chức năng Mua khóa học giả lập (Mock Purchase), trang Khóa học đã mua (`/my-courses`) và bảo vệ nội dung bài giảng.
+  - **Backend API & Service**:
+    - `GET /api/v1/courses`: Endpoint Public có phân trang, tìm kiếm regex theo tiêu đề/mô tả, lọc theo danh mục, cấp độ, khoảng giá, và sắp xếp. Bắt buộc điều kiện `{ status: CourseStatusEnum.PUBLISHED, deletedAt: null }`.
+    - `GET /api/v1/courses/public/:idOrSlug`: Trả về chi tiết khóa học công khai kèm danh sách chương và bài giảng (tên, thứ tự, thời lượng, cờ `isPreview`).
+    - `getLessonForUser`: Chặn truy cập bài giảng trả phí nếu người xem chưa mua (trả về 403 Forbidden). Miễn trừ cho bài học xem thử (`isPreview: true`), quản trị viên (`ADMIN`), hoặc giảng viên sở hữu khóa học.
+  - **Frontend UI & State**:
+    - `fetchPublicCourses`: Gọi trực tiếp `GET /api/v1/courses` qua `apiClient`, tự động map sang `IPublicCourseCard`.
+    - `recent-courses.tsx` & `featured-courses.tsx`: Chuyển sang dùng hook `usePublicCoursesCatalogQuery` với dữ liệu thực tế từ Database.
+    - `PublicCourseDetailView`: Giao diện chi tiết khóa học chuẩn Domestika; sticky buy box hiển thị giá và nút hành động thích ứng theo trạng thái đăng nhập và quyền sở hữu. Giảng viên có phím tắt "Chỉnh sửa khóa học".
+    - `app/courses/[courseId]/page.tsx`: Mặc định mở giao diện học viên; hỗ trợ `?mode=edit` để giảng viên/admin chuyển sang chế độ biên tập.
+    - `app/my-courses/page.tsx`: Trang "Khóa học đã mua" hiển thị danh sách khóa học thực tế mà học viên/giảng viên sở hữu, kèm nút "Vào học".
+    - `public-header.tsx`: Cập nhật mục "Khóa học đã mua" trong menu người dùng điều hướng trực tiếp sang `/my-courses`.
+    - `lesson-detail-content.tsx`: Hiển thị Paywall Card lịch sự khi gặp lỗi 403 với nút điều hướng sang trang mua khóa học.
+  - **Kết quả xác minh**:
+    - TypeScript compile sạch 100% cả Backend (`tsc -p backend/tsconfig.json`) và Frontend (`tsc -p frontend/tsconfig.json`).
+    - ESLint đạt 0 lỗi 0 cảnh báo.
+    - 52/52 unit tests backend vượt qua thành công.
+
 - **Milestone 32 (Home Category Rail Navigation Transition to Public Catalog `/courses?category=...`)**:
   - **Root Cause & Yêu cầu**: Trước đây, khi click vào thẻ danh mục ở trang chủ (`CategoryRail`), hệ thống chỉ cập nhật URL `/?category=${slug}#recent` và cuộn nội bộ xuống phần Khóa học mới nhất (`RecentCourses`). Người dùng mong muốn khi click vào danh mục ở trang chủ sẽ điều hướng thẳng sang trang Tất cả khóa học (`/courses?category=...`) và hiển thị các khóa thuộc danh mục đó.
   - **Giải pháp**:

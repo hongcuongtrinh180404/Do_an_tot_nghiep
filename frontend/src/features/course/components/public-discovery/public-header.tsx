@@ -75,7 +75,7 @@ export function PublicHeader({
   const handlePurchasedCoursesClick = (): void => {
     setUserMenuOpen(false);
     setMobileMenuOpen(false);
-    toast.info('Tính năng khóa học đã mua đang được phát triển.');
+    router.push('/my-courses');
   };
 
   const handleSearch = (e: React.FormEvent): void => {
@@ -111,9 +111,8 @@ export function PublicHeader({
   return (
     <header
       data-ui="header"
-      className={`sticky top-0 z-40 w-full border-b border-[#2b2b2b] bg-[#161616] text-white transition-transform duration-300 ease-in-out ${
-        showHeader ? 'translate-y-0' : '-translate-y-full'
-      }`}
+      className={`sticky top-0 z-40 w-full border-b border-[#2b2b2b] bg-[#161616] text-white transition-transform duration-300 ease-in-out ${showHeader ? 'translate-y-0' : '-translate-y-full'
+        }`}
     >
       <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Left: Brand Logo */}

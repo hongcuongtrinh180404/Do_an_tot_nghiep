@@ -28,12 +28,32 @@ import { UpdateSectionDto } from './dto/update-section.dto.js';
 import { ReorderSectionsDto } from './dto/reorder-sections.dto.js';
 import { QueryCoursesAdminDto } from './dto/query-courses-admin.dto.js';
 import { RejectCourseDto } from './dto/reject-course.dto.js';
+import { QueryPublicCoursesDto } from './dto/query-public-courses.dto.js';
 import { CourseImageValidationPipe } from './pipes/course-image-validation.pipe.js';
 import { CourseTrailerValidationPipe } from './pipes/course-trailer-validation.pipe.js';
 
 @Controller('courses')
 export class CourseController {
   constructor(private readonly courseService: CourseService) { }
+
+  @Get()
+  @Public()
+  async getPublicCourses(
+    @Query() query: QueryPublicCoursesDto,
+  ): Promise<ApiResponse<PaginationResult<ICourse>>> {
+    const result = await this.courseService.findPublicCourses(query);
+    return ApiResponse.success(result, 'Lấy danh sách khóa học thành công');
+  }
+
+  @Get('public/:idOrSlug')
+  @Public()
+  async getPublicCourseDetail(
+    @Param('idOrSlug') idOrSlug: string,
+  ): Promise<ApiResponse<unknown>> {
+    const result = await this.courseService.getPublicCourseDetail(idOrSlug);
+    return ApiResponse.success(result, 'Lấy chi tiết khóa học thành công');
+  }
+
 
   @Get('my-courses')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)

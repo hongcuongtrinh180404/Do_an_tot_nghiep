@@ -30,10 +30,52 @@ export function LessonDetailContent({
     return <LessonDetailSkeleton />;
   }
 
-  // 2. Error / 404 State
+  // 2. Error / 403 Paywall / 404 State
   if (isError || !lesson) {
-    const is404 =
-      (error as { response?: { status?: number } })?.response?.status === 404 || !lesson;
+    const status = (error as { response?: { status?: number } })?.response?.status;
+    const is403 = status === 403;
+    const is404 = status === 404 || !lesson;
+
+    if (is403) {
+      return (
+        <div className="h-screen w-full flex items-center justify-center p-6 bg-[#fbfbfb] text-[#161616]">
+          <Card className="max-w-md w-full border border-neutral-200 bg-white text-center p-8 shadow-sm rounded-2xl">
+            <CardContent className="space-y-4 pt-2">
+              <div className="size-16 rounded-full bg-[#f3fcfc] text-[#027D88] flex items-center justify-center mx-auto border border-[#027D88]/20">
+                <Icon icon="lucide:lock" className="size-8" />
+              </div>
+
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-bold text-[#161616]">
+                  Nội dung bài học có tính phí
+                </h3>
+                <p className="text-xs sm:text-sm text-[#666666] max-w-sm mx-auto leading-relaxed">
+                  Bài giảng này thuộc phạm vi yêu cầu quyền sở hữu khóa học. Vui lòng mua hoặc đăng ký khóa học để mở khóa toàn bộ bài giảng và tài liệu học tập.
+                </p>
+              </div>
+
+              <div className="pt-3 space-y-2">
+                <Link
+                  href={`/courses/${courseId}`}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-3 px-4 text-sm transition-colors shadow-xs"
+                >
+                  <Icon icon="lucide:shopping-cart" className="size-4" />
+                  <span>Xem thông tin & Mua khóa học</span>
+                </Link>
+
+                <Link
+                  href={defaultBackUrl}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl text-xs text-[#666666] hover:text-[#161616] py-2 transition-colors"
+                >
+                  <Icon icon="lucide:arrow-left" className="size-3.5" />
+                  <span>Quay lại trang trước</span>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
 
     return (
       <div className="h-screen w-full flex items-center justify-center p-6 bg-background text-foreground">
