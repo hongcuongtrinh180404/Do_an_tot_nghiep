@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
@@ -36,6 +36,34 @@ export function PublicHeader({
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [prevUrlQuery, setPrevUrlQuery] = useState('');
   const isInstructor = user?.role === RoleEnum.INSTRUCTOR;
+  const [isVisible, setIsVisible] = useState(true);
+  const prevScrollY = useRef(0);
+
+  // Smart Autohide Header on scroll down, show on scroll up / top
+  useEffect(() => {
+    const handleScroll = (): void => {
+      const currentScrollY = window.scrollY;
+      const prev = prevScrollY.current;
+
+      // Always show when near the very top of the page
+      if (currentScrollY <= 20) {
+        setIsVisible(true);
+      } else if (currentScrollY > prev && currentScrollY > 70) {
+        // Scrolling down past header -> hide
+        setIsVisible(false);
+      } else if (currentScrollY < prev - 5) {
+        // Scrolling up -> show
+        setIsVisible(true);
+      }
+
+      prevScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const showHeader = !isMounted || isVisible || mobileMenuOpen || userMenuOpen;
 
   // Sync search input when at /courses if URL ?q= changes
   const qFromUrl = pathname === '/courses' ? (searchParams.get('q') || '') : '';
@@ -81,7 +109,12 @@ export function PublicHeader({
   };
 
   return (
-    <header data-ui="header" className="sticky top-0 z-40 w-full border-b border-[#2b2b2b] bg-[#161616] text-white">
+    <header
+      data-ui="header"
+      className={`sticky top-0 z-40 w-full border-b border-[#2b2b2b] bg-[#161616] text-white transition-transform duration-300 ease-in-out ${
+        showHeader ? 'translate-y-0' : '-translate-y-full'
+      }`}
+    >
       <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Left: Brand Logo */}
         <div className="flex items-center gap-8">

@@ -507,3 +507,22 @@
         1. Replaced the email input with a non-input display card (`div`) so browsers do not pair it with the password field.
         2. Set `autoComplete="new-password"`, `data-lpignore="true"`, and `data-form-type="other"` on the verification password input, ensuring it starts strictly empty and requires active user entry.
         3. Added `hasPassword: boolean` to `IUserProfile` from backend based on `!!user.passwordHash` to distinguish between accounts with local passwords and Google-only accounts.
+
+### [2026-11-03] - Public Header Smart Autohide & Settings/Profile Header UI Cleanup
+
+- **Problem / Requirements**:
+  - The sticky header was hard-pinned at the top (`sticky top-0`), consuming screen viewport estate when scrolling down.
+  - The user requested that when scrolling down, the header should hide/disappear instead of staying fixed; when scrolling back up or reaching the top of the page, it should reappear smoothly.
+  - Removed redundant breadcrumb `Trang chủ / Cài đặt tài khoản` and button `Hồ sơ cá nhân` from the top of the Account Settings page (`/settings`).
+  - Synchronously streamlined the Profile page (`/profile`) by removing its breadcrumb and cross-link button for consistent, clean typography.
+- **Solution**:
+  - **Public Header (`public-header.tsx`)**:
+    - Implemented high-performance smart autohide (Headroom pattern) using passive scroll event listener and `useRef(0)` for previous scroll coordinates.
+    - Added threshold checks (`scrollY <= 20` always shows header, scroll down past 70px hides with `-translate-y-full`, scroll up restores with `translate-y-0`).
+    - Guarded with `mobileMenuOpen` and `userMenuOpen` so active popovers/drawers keep the header visible.
+    - Used CSS transitions `transition-transform duration-300 ease-in-out` for fluid 60fps animations.
+  - **Settings & Profile Headers (`settings-page-content.tsx`, `profile-page-content.tsx`)**:
+    - Removed the breadcrumbs and secondary navigation buttons since users can navigate directly via the `PublicHeader` avatar dropdown.
+    - Cleaned up title headers to focus on clear typography and concise descriptions.
+- **Gotchas & Lessons**:
+  - Storing `prevScrollY` inside a React `useRef` rather than state inside the scroll listener avoids re-registering event listeners on every frame and eliminates scroll jitter.

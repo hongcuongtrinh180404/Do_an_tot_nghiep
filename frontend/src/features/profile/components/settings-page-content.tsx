@@ -58,35 +58,14 @@ export function SettingsPageContent(): React.JSX.Element {
 
   return (
     <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
-      {/* Page Title & Breadcrumb */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border/60 pb-6">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Link href="/" className="hover:text-foreground transition-colors">
-              Trang chủ
-            </Link>
-            <span>/</span>
-            <span className="text-foreground font-medium">Cài đặt tài khoản</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Cài Đặt Tài Khoản
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
-            Quản lý bảo mật tài khoản, thông tin địa chỉ email và mật khẩu đăng nhập.
-          </p>
-        </div>
-
-        <Link
-          href="/profile"
-          className={buttonVariants({
-            variant: 'outline',
-            size: 'sm',
-            className: 'h-9 px-3.5 text-xs font-medium shrink-0',
-          })}
-        >
-          <Icon icon="lucide:user" className="size-3.5 mr-1.5 text-muted-foreground" />
-          Hồ sơ cá nhân
-        </Link>
+      {/* Page Title */}
+      <div className="border-b border-border/60 pb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          Cài Đặt Tài Khoản
+        </h1>
+        <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed mt-1.5">
+          Quản lý bảo mật tài khoản, thông tin địa chỉ email và mật khẩu đăng nhập.
+        </p>
       </div>
 
       {/* Main Grid: Left (Identity Summary) + Right (Account Settings & Security) */}
