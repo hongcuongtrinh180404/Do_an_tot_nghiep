@@ -114,7 +114,7 @@ function TreeNode({
     // Level 0 (Root)
     'bg-sky-500/10 border-sky-500/30 text-sky-950 dark:text-sky-200 font-bold text-sm sm:text-base shadow-2xs',
     // Level 1
-    'bg-indigo-500/10 border-indigo-500/25 text-indigo-950 dark:text-indigo-200 font-semibold text-xs sm:text-sm',
+    'bg-sky-500/10 border-sky-500/20 text-sky-950 dark:text-sky-200 font-semibold text-xs sm:text-sm',
     // Level 2
     'bg-card border-border/80 text-foreground font-medium text-xs',
     // Level 3 (Leaf tag)
@@ -509,21 +509,18 @@ export function LessonMindmapTab({
 
   return (
     <div className="w-full flex flex-col space-y-4 p-4 sm:p-6">
-      {/* Top action header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4">
-        <div>
-          <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-            <Icon icon="lucide:network" className="size-5 text-sky-500" />
-            <span>Sơ đồ tư duy bài học (Mindmap)</span>
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Cấu trúc phân cấp kiến thức bài học. Nhấp vào mốc thời gian để tua video.
-          </p>
-        </div>
+      {/* Compact Mindmap Controls Toolbar */}
+      {localTree && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+              <Icon icon="lucide:network" className="size-3.5 text-sky-600 dark:text-sky-400" />
+              <span>Chế độ hiển thị</span>
+            </span>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Segmented Control Chuyển đổi Dạng cây / Sơ đồ Canvas */}
-          {localTree && (
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Segmented Control Chuyển đổi Dạng cây / Sơ đồ Canvas */}
             <div className="flex items-center p-0.5 rounded-lg border border-border/80 bg-muted/50 text-muted-foreground shadow-2xs">
               <button
                 type="button"
@@ -552,45 +549,24 @@ export function LessonMindmapTab({
                 <span>Sơ đồ Mindmap</span>
               </button>
             </div>
-          )}
 
-          {localTree && viewMode === 'tree' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleToggleExpandAll}
-              className="text-xs h-8 cursor-pointer"
-            >
-              <Icon
-                icon={isAllExpanded ? 'lucide:minimize-2' : 'lucide:maximize-2'}
-                className="size-3.5 mr-1"
-              />
-              {isAllExpanded ? 'Thu gọn tất cả' : 'Mở rộng tất cả'}
-            </Button>
-          )}
-
-          {isInstructor && (
-            <Button
-              size="sm"
-              onClick={() => generateMindmap({ saveAsDraft: false })}
-              disabled={isGenerating}
-              className="h-8 text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white cursor-pointer shadow-2xs"
-            >
-              {isGenerating ? (
-                <>
-                  <Icon icon="lucide:loader-2" className="size-3.5 mr-1.5 animate-spin" />
-                  Đang phân tích AI...
-                </>
-              ) : (
-                <>
-                  <Icon icon="lucide:sparkles" className="size-3.5 mr-1.5" />
-                  {localTree ? 'Sinh lại Mindmap AI' : 'Tạo Mindmap bằng AI'}
-                </>
-              )}
-            </Button>
-          )}
+            {viewMode === 'tree' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleToggleExpandAll}
+                className="text-xs h-8 cursor-pointer"
+              >
+                <Icon
+                  icon={isAllExpanded ? 'lucide:minimize-2' : 'lucide:maximize-2'}
+                  className="size-3.5 mr-1"
+                />
+                {isAllExpanded ? 'Thu gọn tất cả' : 'Mở rộng tất cả'}
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Mindmap Content Display */}
       {isLoading ? (

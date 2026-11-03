@@ -35,42 +35,6 @@ export function LessonQuizTab({
 
   return (
     <div className="w-full flex flex-col space-y-4 p-4 sm:p-6">
-      {/* Top action header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4">
-        <div>
-          <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-            <Icon icon="lucide:help-circle" className="size-5 text-sky-500" />
-            <span>Câu hỏi trắc nghiệm kiểm tra (Quizz)</span>
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {officialQuizzes.length > 0
-              ? `Tổng số ${officialQuizzes.length} câu hỏi được phân bổ theo dòng thời gian video.`
-              : 'Bộ câu hỏi củng cố kiến thức theo mốc thời gian bài học (tối đa 10 câu chất lượng cao).'}
-          </p>
-        </div>
-
-        {isInstructor && (
-          <Button
-            size="sm"
-            onClick={() => generateQuiz({ count: 10, saveAsDraft: false })}
-            disabled={isGenerating}
-            className="h-8 text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white cursor-pointer shadow-2xs"
-          >
-            {isGenerating ? (
-              <>
-                <Icon icon="lucide:loader-2" className="size-3.5 mr-1.5 animate-spin" />
-                Đang phân tích & tạo câu hỏi...
-              </>
-            ) : (
-              <>
-                <Icon icon="lucide:sparkles" className="size-3.5 mr-1.5" />
-                {officialQuizzes.length > 0 ? 'Sinh lại câu hỏi AI' : 'Sinh câu hỏi bằng AI'}
-              </>
-            )}
-          </Button>
-        )}
-      </div>
-
       {/* Quiz List Display */}
       {isLoading ? (
         <div className="py-16 flex flex-col items-center justify-center space-y-3">
@@ -78,7 +42,7 @@ export function LessonQuizTab({
           <p className="text-xs text-muted-foreground">Đang tải danh sách câu hỏi...</p>
         </div>
       ) : officialQuizzes.length > 0 ? (
-        <div className="space-y-4 max-w-4xl mx-auto py-2 w-full">
+        <div className="space-y-4 max-w-4xl mx-auto w-full">
           {officialQuizzes.map((quiz: ILessonQuiz, index: number) => {
             const isNearCurrentTime = Math.abs(currentTime - quiz.timestamp) < 5;
             const quizKey = ('id' in quiz && quiz.id) ? quiz.id : `quiz-${index}`;
@@ -95,7 +59,7 @@ export function LessonQuizTab({
                 {/* Header question */}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center justify-center size-6 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold text-xs">
+                    <span className="inline-flex items-center justify-center size-6 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold text-xs font-mono">
                       #{quiz.order || index + 1}
                     </span>
                     <span className="text-xs font-semibold text-muted-foreground">
@@ -108,7 +72,7 @@ export function LessonQuizTab({
                     type="button"
                     onClick={() => onSeek?.(quiz.timestamp)}
                     title={`Tua video tới mốc câu hỏi ${formatTime(quiz.timestamp)}`}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-muted hover:bg-sky-500/15 hover:text-sky-600 transition-colors text-foreground cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold font-mono bg-muted hover:bg-sky-500/15 hover:text-sky-600 transition-colors text-foreground cursor-pointer"
                   >
                     <Icon icon="lucide:play-circle" className="size-3.5 text-sky-500" />
                     <span>{formatTime(quiz.timestamp)}</span>
@@ -179,7 +143,7 @@ export function LessonQuizTab({
             <h4 className="text-sm font-bold text-foreground">Chưa có câu hỏi trắc nghiệm</h4>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               {isInstructor
-                ? 'Nhấn nút "Sinh câu hỏi bằng AI" để tự động tạo bộ câu hỏi chất lượng cao kèm đáp án và giải thích từ video.'
+                ? 'Nhấn nút "Tạo lại 10 câu hỏi AI" ở góc trên bên phải để trích xuất câu hỏi tự động từ video bài giảng.'
                 : 'Giảng viên chưa tạo câu hỏi trắc nghiệm cho bài học này.'}
             </p>
           </div>
@@ -199,7 +163,7 @@ export function LessonQuizTab({
                 ) : (
                   <>
                     <Icon icon="lucide:sparkles" className="size-3.5 mr-1.5" />
-                    Sinh câu hỏi bằng AI
+                    Tạo 10 câu hỏi bằng AI
                   </>
                 )}
               </Button>

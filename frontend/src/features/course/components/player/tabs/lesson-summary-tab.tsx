@@ -30,7 +30,6 @@ function formatTime(seconds?: number): string {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-
 export function LessonSummaryTab({
   lessonId,
   isInstructor = false,
@@ -54,7 +53,6 @@ export function LessonSummaryTab({
   const [overviewContent, setOverviewContent] = useState('');
 
   // State chỉnh sửa các ý chính (Key Points)
-  // -1 nếu không sửa, >= 0 là index của ý chính đang được sửa
   const [editingKeyPointIdx, setEditingKeyPointIdx] = useState<number | null>(null);
   const [isNewKeyPoint, setIsNewKeyPoint] = useState(false);
   const [keyPointTitle, setKeyPointTitle] = useState('');
@@ -116,7 +114,6 @@ export function LessonSummaryTab({
 
   const handleAddKeyPoint = () => {
     if (!currentSummaryData) return;
-    // Khởi tạo ý mới với mốc thời gian mặc định 00:00 theo Socratic Gate
     const newIdx = currentSummaryData.keyPoints.length;
     setKeyPointTitle('');
     setKeyPointContent('');
@@ -146,7 +143,6 @@ export function LessonSummaryTab({
       return;
     }
 
-    // Kiểm tra ràng buộc thời lượng video theo quyết định Socratic Gate
     if (duration && duration > 0 && keyPointSeconds > duration) {
       const maxFormatted = formatTime(duration);
       setKeyPointTimeError(
@@ -229,61 +225,27 @@ export function LessonSummaryTab({
   };
 
   return (
-    <div className="w-full flex flex-col space-y-4 p-4 sm:p-6">
-      {/* Top action header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4">
-        <div>
-          <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-            <Icon icon="lucide:file-text" className="size-5 text-sky-500" />
-            <span>Tóm tắt nội dung bài học (Summary)</span>
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Tổng quan nội dung và các điểm cốt lõi then chốt được trích xuất từ video bài giảng.
-          </p>
-        </div>
-
-        {isInstructor && (
-          <Button
-            size="sm"
-            onClick={() => generateSummary({ saveAsDraft: false })}
-            disabled={isGenerating || isUpdating}
-            className="h-8 text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white cursor-pointer shadow-2xs"
-          >
-            {isGenerating ? (
-              <>
-                <Icon icon="lucide:loader-2" className="size-3.5 mr-1.5 animate-spin" />
-                Đang tóm tắt bài học AI...
-              </>
-            ) : (
-              <>
-                <Icon icon="lucide:sparkles" className="size-3.5 mr-1.5" />
-                {currentSummaryData ? 'Tóm tắt lại bằng AI' : 'Tạo tóm tắt bằng AI'}
-              </>
-            )}
-          </Button>
-        )}
-      </div>
-
+    <div className="w-full flex flex-col space-y-6 p-4 sm:p-6 max-w-4xl mx-auto">
       {/* Summary Content Display */}
       {isLoading ? (
         <div className="py-16 flex flex-col items-center justify-center space-y-3">
-          <Icon icon="lucide:loader-2" className="size-8 text-sky-500 animate-spin" />
+          <Icon icon="lucide:loader-2" className="size-7 text-sky-600 dark:text-sky-400 animate-spin" />
           <p className="text-xs text-muted-foreground">Đang tải bản tóm tắt bài học...</p>
         </div>
       ) : currentSummaryData ? (
-        <div className="w-full max-w-4xl mx-auto space-y-6 py-2">
-          {/* 1. Title & Overview Card */}
-          <div className="p-5 rounded-2xl bg-card border border-border/80 shadow-2xs transition-all space-y-3">
+        <div className="w-full space-y-6">
+          {/* 1. Title & Overview Editorial Card */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-muted/30 dark:bg-muted/15 border border-border/70 space-y-3 transition-all">
             {isEditingOverview ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-sky-600 dark:text-sky-400">
+                  <span className="text-xs font-semibold text-sky-700 dark:text-sky-300">
                     Chỉnh sửa thông tin tổng quan
                   </span>
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                    Tiêu đề tóm tắt:
+                    Tiêu đề bài học / tóm tắt:
                   </label>
                   <Input
                     value={overviewTitle}
@@ -338,11 +300,12 @@ export function LessonSummaryTab({
               </div>
             ) : (
               <div>
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 font-medium text-[11px] border border-sky-500/20">
+                <div className="flex items-start justify-between gap-3 mb-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] font-semibold text-sky-700 dark:text-sky-300 uppercase tracking-wider">
                       Tổng quan
                     </span>
+                    <span className="text-muted-foreground/40">•</span>
                     <h4 className="text-base sm:text-lg font-bold text-foreground">
                       {currentSummaryData.title}
                     </h4>
@@ -354,24 +317,29 @@ export function LessonSummaryTab({
                       title="Chỉnh sửa tổng quan"
                       className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
                     >
-                      <Icon icon="lucide:pencil" className="size-4" />
+                      <Icon icon="lucide:pencil" className="size-3.5" />
                     </button>
                   )}
                 </div>
-                <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
+                <p className="text-xs sm:text-sm text-foreground/85 leading-relaxed">
                   {currentSummaryData.overview}
                 </p>
               </div>
             )}
           </div>
 
-          {/* 2. Key Points Section */}
-          <div className="space-y-3">
+          {/* 2. Key Points Section — Option A: Vertical Interactive Timeline */}
+          <div className="space-y-4 pt-1">
             <div className="flex items-center justify-between px-1">
-              <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <Icon icon="lucide:layers" className="size-3.5 text-sky-500" />
-                <span>Các ý chính then chốt (Key Points)</span>
-              </h5>
+              <div className="flex items-center gap-2">
+                <h5 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Icon icon="lucide:layers" className="size-3.5 text-sky-600 dark:text-sky-400" />
+                  <span>Mốc kiến thức then chốt (Key Points)</span>
+                </h5>
+                <span className="px-2 py-0.5 rounded-full bg-muted text-[11px] font-mono text-muted-foreground font-medium">
+                  {currentSummaryData.keyPoints.length} ý
+                </span>
+              </div>
 
               {isInstructor && (
                 <Button
@@ -380,7 +348,7 @@ export function LessonSummaryTab({
                   size="sm"
                   onClick={handleAddKeyPoint}
                   disabled={editingKeyPointIdx !== null || isUpdating}
-                  className="h-7 text-xs font-medium border-dashed border-sky-500/50 text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 cursor-pointer"
+                  className="h-7 text-xs font-medium text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 border-border/80 cursor-pointer"
                 >
                   <Icon icon="lucide:plus" className="size-3.5 mr-1" />
                   <span>Thêm ý chính</span>
@@ -388,21 +356,22 @@ export function LessonSummaryTab({
               )}
             </div>
 
-            <div className="grid grid-cols-1 gap-3">
+            {/* Vertical Timeline Track */}
+            <div className="relative border-l-2 border-border/70 ml-3 sm:ml-4 pl-6 sm:pl-8 space-y-6 sm:space-y-7 py-2">
               {currentSummaryData.keyPoints.map((point, idx) => {
                 const isEditingThis = editingKeyPointIdx === idx;
                 const hasTimestamp = point.timestamp !== undefined && point.timestamp !== null;
                 const isNearCurrentTime =
-                  hasTimestamp && Math.abs(currentTime - point.timestamp!) < 5;
+                  hasTimestamp && Math.abs(currentTime - point.timestamp!) < 6;
 
                 if (isEditingThis) {
                   return (
                     <div
                       key={`edit-point-${idx}`}
-                      className="p-4 rounded-xl border border-sky-500 ring-2 ring-sky-500/20 bg-card shadow-sm space-y-3"
+                      className="relative p-4 rounded-xl border border-sky-500 ring-2 ring-sky-500/20 bg-card shadow-sm space-y-3 -ml-2"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-sky-600 dark:text-sky-400">
+                        <span className="text-xs font-semibold text-sky-700 dark:text-sky-300">
                           Chỉnh sửa ý chính #{idx + 1}
                         </span>
                       </div>
@@ -495,42 +464,68 @@ export function LessonSummaryTab({
                 return (
                   <div
                     key={`point-${idx}`}
-                    className={`p-4 rounded-xl border transition-all bg-card ${
-                      isNearCurrentTime
-                        ? 'border-sky-500 shadow-md ring-2 ring-sky-500/20'
-                        : 'border-border/80 hover:border-border'
-                    }`}
+                    className="relative group transition-all"
                   >
-                    <div className="flex items-start justify-between gap-3 mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="size-5 rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400 font-mono text-[11px] font-bold flex items-center justify-center shrink-0">
-                          {idx + 1}
-                        </span>
-                        <h6 className="text-xs sm:text-sm font-semibold text-foreground">
-                          {point.title}
-                        </h6>
-                      </div>
+                    {/* Timeline Node Bullet on the track line */}
+                    <div
+                      className={`absolute -left-[31px] sm:-left-[39px] top-3 size-3 rounded-full border-2 transition-all ${
+                        isNearCurrentTime
+                          ? 'border-sky-500 bg-sky-500 ring-4 ring-sky-500/30 scale-125'
+                          : 'border-border bg-background group-hover:border-sky-500 group-hover:bg-sky-500/20'
+                      }`}
+                    />
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        {hasTimestamp && (
-                          <button
-                            type="button"
-                            onClick={() => onSeek?.(point.timestamp!)}
-                            title={`Tua video tới ${formatTime(point.timestamp!)}`}
-                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-muted/60 hover:bg-sky-500 hover:text-white border border-border text-muted-foreground transition-all cursor-pointer shadow-2xs"
-                          >
-                            <Icon icon="lucide:play" className="size-2.5" />
-                            <span>{formatTime(point.timestamp!)}</span>
-                          </button>
-                        )}
+                    {/* Content Item Box */}
+                    <div
+                      className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
+                        isNearCurrentTime
+                          ? 'border-sky-500/60 bg-sky-50/40 dark:bg-sky-950/20 shadow-xs ring-1 ring-sky-500/20'
+                          : 'border-border/60 bg-card hover:border-border hover:shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2 mb-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* Timestamp seek button */}
+                          {hasTimestamp && (
+                            <button
+                              type="button"
+                              onClick={() => onSeek?.(point.timestamp!)}
+                              title={`Tua video tới mốc ${formatTime(point.timestamp)}`}
+                              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-mono font-semibold transition-all cursor-pointer ${
+                                isNearCurrentTime
+                                  ? 'bg-sky-600 text-white shadow-2xs'
+                                  : 'bg-muted/80 text-foreground hover:bg-sky-600 hover:text-white'
+                              }`}
+                            >
+                              <Icon
+                                icon={isNearCurrentTime ? 'lucide:volume-2' : 'lucide:play'}
+                                className="size-3 shrink-0"
+                              />
+                              <span>{formatTime(point.timestamp)}</span>
+                            </button>
+                          )}
 
+                          {/* Active playing indicator badge */}
+                          {isNearCurrentTime && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-500/15 text-sky-700 dark:text-sky-300">
+                              <span className="size-1.5 rounded-full bg-sky-500 animate-ping" />
+                              Đang giảng đoạn này
+                            </span>
+                          )}
+
+                          <h6 className="text-sm sm:text-base font-semibold text-foreground">
+                            {point.title}
+                          </h6>
+                        </div>
+
+                        {/* Instructor Action Buttons (visible on hover) */}
                         {isInstructor && (
-                          <div className="flex items-center gap-1 pl-1">
+                          <div className="flex items-center gap-1 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               type="button"
                               onClick={() => handleStartEditKeyPoint(idx)}
                               title="Chỉnh sửa ý chính"
-                              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
+                              className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-sky-600 hover:bg-sky-500/10 transition-colors cursor-pointer"
                             >
                               <Icon icon="lucide:pencil" className="size-3.5" />
                             </button>
@@ -538,27 +533,28 @@ export function LessonSummaryTab({
                               type="button"
                               onClick={() => handleDeleteKeyPoint(idx)}
                               title="Xóa ý chính"
-                              className="p-1 rounded-md text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                              className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 transition-colors cursor-pointer"
                             >
                               <Icon icon="lucide:trash-2" className="size-3.5" />
                             </button>
                           </div>
                         )}
                       </div>
-                    </div>
 
-                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed pl-7">
-                      {point.content}
-                    </p>
+                      {/* Point description */}
+                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                        {point.content}
+                      </p>
+                    </div>
                   </div>
                 );
               })}
 
               {/* Form thêm mới một ý chính (khi bấm dấu +) */}
               {isNewKeyPoint && editingKeyPointIdx === currentSummaryData.keyPoints.length && (
-                <div className="p-4 rounded-xl border border-dashed border-sky-500 ring-2 ring-sky-500/20 bg-sky-500/5 shadow-sm space-y-3">
+                <div className="relative p-4 rounded-xl border border-dashed border-sky-500 ring-2 ring-sky-500/20 bg-sky-500/5 shadow-sm space-y-3 -ml-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-sky-600 dark:text-sky-400 flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
                       <Icon icon="lucide:plus" className="size-3.5" />
                       <span>Thêm ý chính mới #{currentSummaryData.keyPoints.length + 1}</span>
                     </span>
@@ -567,7 +563,7 @@ export function LessonSummaryTab({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="sm:col-span-2">
                       <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                        Tiêu đề ý chính:
+                            Tiêu đề ý chính:
                       </label>
                       <Input
                         value={keyPointTitle}
@@ -648,6 +644,21 @@ export function LessonSummaryTab({
                   </div>
                 </div>
               )}
+
+              {/* Button at the end of timeline */}
+              {isInstructor && !isNewKeyPoint && (
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={handleAddKeyPoint}
+                    disabled={editingKeyPointIdx !== null || isUpdating}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-sky-600 dark:hover:text-sky-400 hover:bg-sky-500/10 border border-dashed border-border/80 hover:border-sky-500/50 transition-all cursor-pointer"
+                  >
+                    <Icon icon="lucide:plus" className="size-3.5" />
+                    <span>Thêm mốc ý chính tiếp theo</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -660,7 +671,7 @@ export function LessonSummaryTab({
             <h4 className="text-sm font-bold text-foreground">Chưa có bản tóm tắt cho bài học</h4>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               {isInstructor
-                ? 'Nhấn nút "Tạo tóm tắt bằng AI" để tự động sinh bản tóm tắt tổng quan và các ý chính cốt lõi.'
+                ? 'Nhấn nút "Tạo lại tóm tắt AI" ở thanh công cụ góc trên bên phải để tự động sinh bản tóm tắt tổng quan và các ý chính cốt lõi.'
                 : 'Giảng viên chưa cập nhật bản tóm tắt cho bài học này.'}
             </p>
           </div>

@@ -225,3 +225,24 @@
     2. `LessonQuizRepository.moveOrMergeCluster` xử lý atomic cập nhật timestamp và order trong MongoDB ClientSession transaction.
     3. `LessonQuizController` mở endpoint `@Put(':id/quizzes/move-merge')` có phân quyền bảo vệ `INSTRUCTOR, ADMIN`.
     4. Bộ unit test AAA cho `moveOrMergeQuizCluster` trong `lesson-quiz.service.spec.ts`.
+
+- **Tái Thiết Kế Hệ Thống Tabs & Dòng Thời Gian Bài Học (Lesson Tabs & Interactive Timeline Redesign - `/design-taste-frontend`)**:
+  - *Bối cảnh & Vấn đề:*
+    - Tab bar cũ chia `grid-cols-3` kéo dãn 100% bề ngang (~1440px) làm tab bị bè như thanh tiến trình (progress bar).
+    - Các nút "Test AI" bị nhồi nhét thô kệch vào bên trong từng tab trigger, phá vỡ cấu trúc phân tầng điều hướng.
+    - Đánh số index `[1]`, `[2]`, `[3]` vi phạm nguyên tắc *No index numbering* của `design-taste-frontend`.
+    - Tab Summary cũ lặp lại quá nhiều card viền xám lồng nhau ("box in box"), badge thừa thãi và tiêu đề viết hoa.
+  - *Giải pháp Kiến trúc & Thẩm mỹ:*
+    1. **Segmented Pill Track (Phương án 2):** Nằm gọn bên trái card (`inline-flex p-1 bg-muted/60 rounded-xl`), tab kích hoạt là pill phẳng nổi bật `bg-background text-foreground shadow-2xs`, bỏ toàn bộ đánh số `1`, `2`, `3`.
+    2. **Toolbar AI Ngữ cảnh Hợp nhất (Right Toolbar):** Chuyển nút kích hoạt AI sang góc phải của Tab Bar, tự động hiển thị nút tạo lại dữ liệu AI của tab hiện tại (`[✨ Tóm tắt lại bằng AI]`, `[✨ Tạo lại Mindmap AI]`, `[✨ Tạo lại 10 câu hỏi AI]`) kèm loading spinner khi mutation đang pending, giải phóng tab trigger khỏi nút bấm thừa.
+    3. **Vertical Interactive Timeline (Lựa chọn A):** Dựng trục dòng thời gian nối liền liên tục cho các ý chính (Key Points). Mốc thời gian dạng `00:27` số tabular đơn trục (`tabular-nums font-mono`) nhấp vào tua video tức thì (`onSeek`). Tự động phát sáng và hiện badge "Đang giảng đoạn này" khi video chạy qua (`isNearCurrentTime`). Nút sửa và xóa ý chính ẩn hiện tinh tế khi hover.
+    4. **Tuân thủ Purple Ban:** Quét sạch toàn bộ các lớp màu tím/indigo (`bg-indigo-500/10`) trong `LessonMindmapTab` chuyển sang tông màu xanh Cyan/Sky chuẩn hệ thống.
+  - *Kiểm định Chất lượng:* `tsc --noEmit` và ESLint kiểm tra cú pháp và kiểu dữ liệu đều đạt 0 lỗi.
+
+- **Tối Giản Hóa Giao Diện — Loại Bỏ Sub-header Banners Dư Thừa**:
+  - *Vấn đề:* Sau khi gom nút kích hoạt AI của từng tab lên thanh công cụ góc phải của Tab Bar, các thanh banner phụ bên dưới (ví dụ banner `[?] Câu hỏi trắc nghiệm kiểm tra (Quizz)` kèm nút `Sinh lại câu hỏi AI`) trở nên trùng lặp, lãng phí không gian hiển thị theo phương đứng.
+  - *Giải pháp:*
+    1. Đã xóa bỏ hoàn toàn dải banner phụ màu đỏ/trùng lặp trong `LessonQuizTab`, danh sách câu hỏi trắc nghiệm hiển thị trực tiếp, thoáng đãng.
+    2. Đồng bộ loại bỏ dải sub-header dư thừa tương tự trong `LessonSummaryTab` (mở thẳng vào phần Tổng quan và Dòng thời gian).
+    3. Tinh gọn thanh điều khiển trong `LessonMindmapTab`, chỉ giữ lại bộ chuyển đổi Dạng cây / Sơ đồ Canvas và Mở rộng/Thu gọn.
+  - *Kiểm định:* TypeScript (`tsc --noEmit`) và ESLint 100% đạt chuẩn 0 lỗi.

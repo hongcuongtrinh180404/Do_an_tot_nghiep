@@ -13,9 +13,9 @@ import {
 
 export interface TabConfig {
   id: 'summary' | 'mindmap' | 'quiz';
-  tabNumber: string;
   title: string;
   icon: string;
+  badge?: string;
   heading: string;
   description: string;
 }
@@ -23,24 +23,21 @@ export interface TabConfig {
 const TABS: TabConfig[] = [
   {
     id: 'summary',
-    tabNumber: '1',
-    title: 'Summary',
+    title: 'Tóm tắt (Summary)',
     icon: 'lucide:file-text',
     heading: 'Summary (Tóm tắt bài học)',
     description: 'Tóm tắt nội dung bài giảng, các điểm ghi nhớ cốt lõi (Key Points) và đúc kết sư phạm.',
   },
   {
     id: 'mindmap',
-    tabNumber: '2',
-    title: 'Mindmap',
+    title: 'Sơ đồ tư duy (Mindmap)',
     icon: 'lucide:network',
     heading: 'Mindmap (Sơ đồ tư duy)',
     description: 'Trực quan hóa kiến thức bài học dưới dạng sơ đồ tư duy phân nhánh có gắn mốc thời gian.',
   },
   {
     id: 'quiz',
-    tabNumber: '3',
-    title: 'Quizz',
+    title: 'Trắc nghiệm (Quiz)',
     icon: 'lucide:help-circle',
     heading: 'Quizz (Câu hỏi trắc nghiệm)',
     description: 'Bộ 10 câu hỏi trắc nghiệm củng cố kiến thức xuất hiện theo dòng thời gian video.',
@@ -74,19 +71,18 @@ export function LessonTabsContainer({
   const { mutate: generateSummary, isPending: isSummaryGenerating } =
     useGenerateSummaryMutation(lessonId);
 
-  const handleTestAi = (tabId: TabConfig['id']) => {
-    setActiveTabId(tabId);
+  const handleTriggerAiForActiveTab = (tabId: TabConfig['id']) => {
     if (onTestGemini) {
       onTestGemini(tabId);
       return;
     }
 
     if (tabId === 'mindmap') {
-      generateMindmap({ saveAsDraft: true });
+      generateMindmap({ saveAsDraft: false });
     } else if (tabId === 'quiz') {
-      generateQuiz({ count: 10, saveAsDraft: true });
+      generateQuiz({ count: 10, saveAsDraft: false });
     } else if (tabId === 'summary') {
-      generateSummary({ saveAsDraft: true });
+      generateSummary({ saveAsDraft: false });
     }
   };
 
@@ -97,70 +93,75 @@ export function LessonTabsContainer({
     return false;
   };
 
+  const getAiButtonText = (tabId: TabConfig['id'], isGenerating: boolean) => {
+    if (isGenerating) {
+      if (tabId === 'mindmap') return 'Đang vẽ sơ đồ AI...';
+      if (tabId === 'quiz') return 'Đang tạo câu hỏi AI...';
+      return 'Đang tóm tắt lại AI...';
+    }
+    if (tabId === 'mindmap') return 'Tạo lại Mindmap AI';
+    if (tabId === 'quiz') return 'Tạo lại 10 câu hỏi AI';
+    return 'Tóm tắt lại bằng AI';
+  };
+
+  const isCurrentTabGenerating = getIsGenerating(activeTabId);
+  const activeTabConfig = TABS.find((t) => t.id === activeTabId) || TABS[0];
+
   return (
     <div className="w-full h-full flex flex-col bg-card min-h-0 overflow-hidden">
-      {/* Horizontal Full-width 3-Segment Tab Bar */}
-      <div className="shrink-0 border-b border-border bg-muted/20 grid grid-cols-3">
-        {TABS.map((tab) => {
-          const isActive = tab.id === activeTabId;
-          const isTabGenerating = getIsGenerating(tab.id);
-
-          return (
-            <div
-              key={tab.id}
-              className={`group relative flex items-center justify-between py-2 sm:py-2.5 px-1.5 sm:px-3 md:px-4 border-b-2 transition-all ${
-                isActive
-                  ? 'border-sky-600 bg-background shadow-2xs'
-                  : 'border-transparent hover:bg-muted/40'
-              }`}
-            >
-              {/* Tab Switch Trigger */}
+      {/* Top Header: Ergonomic Segmented Pill Track (Left) + Contextual AI Action (Right) */}
+      <div className="shrink-0 px-4 sm:px-6 py-3 border-b border-border/80 bg-card/60 backdrop-blur-xs flex flex-wrap items-center justify-between gap-3">
+        {/* Segmented Pill Track */}
+        <nav
+          role="tablist"
+          aria-label="Chế độ học tập tương tác bài học"
+          className="inline-flex items-center gap-1 p-1 bg-muted/60 dark:bg-muted/40 rounded-xl border border-border/60"
+        >
+          {TABS.map((tab) => {
+            const isActive = tab.id === activeTabId;
+            return (
               <button
+                key={tab.id}
+                role="tab"
                 type="button"
+                aria-selected={isActive}
                 onClick={() => setActiveTabId(tab.id)}
-                className={`flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 py-1 text-left cursor-pointer focus:outline-hidden ${
+                className={`inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm transition-all cursor-pointer ${
                   isActive
-                    ? 'text-sky-700 dark:text-sky-400 font-bold'
-                    : 'text-muted-foreground hover:text-foreground font-semibold'
+                    ? 'bg-background text-foreground shadow-2xs font-semibold'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-background/40 font-medium'
                 }`}
               >
-                <span
-                  className={`size-5 sm:size-6 rounded-md flex items-center justify-center font-mono text-[11px] sm:text-xs font-bold transition-colors shrink-0 ${
-                    isActive
-                      ? 'bg-sky-500 text-white shadow-2xs'
-                      : 'bg-muted text-muted-foreground group-hover:bg-muted/80'
+                <Icon
+                  icon={tab.icon}
+                  className={`size-3.5 sm:size-4 shrink-0 transition-colors ${
+                    isActive ? 'text-sky-600 dark:text-sky-400' : 'text-muted-foreground'
                   }`}
-                >
-                  {tab.tabNumber}
-                </span>
-                <span className="truncate text-xs sm:text-sm">{tab.title}</span>
+                />
+                <span>{tab.title}</span>
               </button>
+            );
+          })}
+        </nav>
 
-              {/* Instructor Test Gemini API Button */}
-              {isInstructor && (
-                <button
-                  type="button"
-                  title={`Thử nghiệm sinh AI cho ${tab.title}`}
-                  aria-label={`Thử nghiệm sinh AI cho ${tab.title}`}
-                  disabled={isTabGenerating}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleTestAi(tab.id);
-                  }}
-                  className="shrink-0 inline-flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-md text-[11px] font-medium border border-sky-500/25 bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500 hover:text-white dark:hover:bg-sky-600 dark:hover:text-white active:scale-95 transition-all cursor-pointer shadow-2xs ml-1 disabled:opacity-60"
-                >
-                  <Icon
-                    icon={isTabGenerating ? 'lucide:loader-2' : 'lucide:sparkles'}
-                    className={`size-3 shrink-0 ${isTabGenerating ? 'animate-spin' : ''}`}
-                  />
-                  <span className="hidden sm:inline text-[10px] font-semibold tracking-tight">
-                    {isTabGenerating ? 'Đang tạo...' : 'Test AI'}
-                  </span>
-                </button>
-              )}
-            </div>
-          );
-        })}
+        {/* Instructor Action: Dedicated AI Trigger for the active tab */}
+        {isInstructor && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={isCurrentTabGenerating}
+              onClick={() => handleTriggerAiForActiveTab(activeTabId)}
+              title={`Tạo lại dữ liệu AI cho tab ${activeTabConfig.title}`}
+              className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-700 active:scale-98 text-white transition-all cursor-pointer shadow-2xs disabled:opacity-60"
+            >
+              <Icon
+                icon={isCurrentTabGenerating ? 'lucide:loader-2' : 'lucide:sparkles'}
+                className={`size-3.5 shrink-0 ${isCurrentTabGenerating ? 'animate-spin' : ''}`}
+              />
+              <span>{getAiButtonText(activeTabId, isCurrentTabGenerating)}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Tab Content Display Area */}
