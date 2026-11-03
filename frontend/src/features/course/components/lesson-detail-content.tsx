@@ -22,7 +22,7 @@ export function LessonDetailContent({
   backUrl,
   isInstructor = true,
 }: LessonDetailContentProps): React.JSX.Element {
-  const defaultBackUrl = backUrl || `/courses/${courseId}`;
+  const defaultBackUrl = backUrl || (isInstructor ? `/courses/${courseId}?mode=edit` : `/courses/${courseId}`);
   const { data: lesson, isLoading, isError, error, refetch } = useLessonDetailQuery(lessonId);
 
   // 1. Loading State

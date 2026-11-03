@@ -1,5 +1,8 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import type { ICourse } from '../types/course.types';
@@ -63,6 +66,7 @@ function formatDate(dateValue: Date | string): string {
 }
 
 export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
+  const router = useRouter();
   const statusInfo = statusMap[course.status] ?? {
     label: course.status,
     className: 'bg-muted text-muted-foreground border-border/50',
@@ -72,7 +76,7 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
   const createdDate = formatDate(course.createdAt);
 
   return (
-    <Link href={`/courses/${course.id}`} className="block group h-full">
+    <Link href={`/courses/${course.id}?mode=edit`} className="block group h-full">
       <Card className="cursor-pointer border-border/50 bg-card/60 shadow-xs group-hover:border-foreground/30 group-hover:shadow-sm transition-all flex flex-col justify-between h-full">
         <CardHeader className="space-y-2 pb-3">
           {/* Status & Level Badges */}
@@ -148,10 +152,28 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
             <Icon icon="lucide:calendar" className="size-3.5 text-muted-foreground/70" />
             <span>Ngày tạo: {createdDate}</span>
           </div>
-          <span className="text-xs text-muted-foreground/60 group-hover:text-foreground transition-colors flex items-center gap-0.5 font-medium">
-            Chi tiết
-            <Icon icon="lucide:chevron-right" className="size-3 transition-transform group-hover:translate-x-0.5" />
-          </span>
+          <div className="flex items-center gap-2">
+            {course.status === CourseStatusEnum.PUBLISHED && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  router.push(`/courses/${course.id}`);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-muted/80 transition-colors flex items-center gap-1 font-medium"
+                title="Xem thử với tư cách học viên"
+              >
+                <Icon icon="lucide:eye" className="size-3 text-muted-foreground/80" />
+                <span>Xem thử</span>
+              </button>
+            )}
+            <span className="text-xs text-muted-foreground/70 group-hover:text-foreground transition-colors flex items-center gap-1 font-semibold">
+              <Icon icon="lucide:pencil" className="size-3" />
+              <span>Chỉnh sửa</span>
+              <Icon icon="lucide:chevron-right" className="size-3 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </div>
         </CardFooter>
       </Card>
     </Link>

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { RoleEnum } from 'share-lib';
-import { toast } from 'sonner';
+
 import { useCurrentUserQuery, useLogoutMutation } from '@/features/auth/api/auth.api';
 import { buttonVariants } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';

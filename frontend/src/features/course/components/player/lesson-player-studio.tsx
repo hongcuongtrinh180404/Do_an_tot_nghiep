@@ -33,7 +33,7 @@ export function LessonPlayerStudio({
   isInstructor: instructorMode = true,
 }: LessonPlayerStudioProps): React.JSX.Element {
   const queryClient = useQueryClient();
-  const defaultBackUrl = backUrl || `/courses/${courseId}`;
+  const defaultBackUrl = backUrl || (instructorMode ? `/courses/${courseId}?mode=edit` : `/courses/${courseId}`);
   const { data: user, isError: isUserError } = useCurrentUserQuery();
   const hasManagementRole = user?.role === RoleEnum.INSTRUCTOR || user?.role === RoleEnum.ADMIN;
 

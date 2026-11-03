@@ -156,13 +156,26 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
     <div ref={rootRef} className={`${approvalStyles.scope} w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6`}>
       {/* Navigation & Breadcrumb */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/40">
-        <Link
-          href="/courses"
-          className={buttonVariants({ variant: 'outline', size: 'sm' })}
-        >
-          <Icon icon="lucide:arrow-left" className="size-3.5 mr-1.5" />
-          Quay lại danh sách khóa học
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/courses"
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            <Icon icon="lucide:arrow-left" className="size-3.5 mr-1.5" />
+            Quay lại danh sách khóa học
+          </Link>
+
+          {course.status === CourseStatusEnum.PUBLISHED && (
+            <Link
+              href={`/courses/${course.id}`}
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              title="Xem giao diện khóa học như một học viên"
+            >
+              <Icon icon="lucide:eye" className="size-3.5 mr-1.5" />
+              Xem trang học viên
+            </Link>
+          )}
+        </div>
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Link href="/" className="hover:text-foreground transition-colors">
@@ -282,7 +295,7 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
 
         {/* Quick Stats Grid */}
         <CardContent className="pt-4 border-t border-border/40">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Price Popover */}
             <CoursePriceInlinePopover course={course} disabled={isLocked} />
 
@@ -291,14 +304,6 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
 
             {/* Category Select */}
             <CourseCategoryInlineSelect course={course} disabled={isLocked} />
-
-            {/* Status */}
-            <div className="p-3 rounded-lg bg-muted/25 border border-border/30">
-              <span className="text-xs text-muted-foreground block mb-1">Trạng thái</span>
-              <span className="text-sm sm:text-base font-semibold text-foreground">
-                {statusInfo.label}
-              </span>
-            </div>
 
             {/* Created At */}
             <div className="p-3 rounded-lg bg-muted/25 border border-border/30">
