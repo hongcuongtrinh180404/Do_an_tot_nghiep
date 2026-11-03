@@ -1,6 +1,9 @@
 import type { IUserProfile } from 'share-lib';
 
 export interface IUpdateProfilePayload {
+  fullName?: string;
+  username?: string;
+  bio?: string;
   firstName?: string;
   lastName?: string;
 }

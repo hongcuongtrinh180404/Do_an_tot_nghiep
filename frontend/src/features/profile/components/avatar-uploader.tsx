@@ -33,11 +33,11 @@ export function AvatarUploader({
       return;
     }
 
-    // Validate size (max 50MB)
-    const maxSize = 50 * 1024 * 1024;
+    // Validate size (max 10MB)
+    const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
-      toast.error('File quá lớn', {
-        description: 'Dung lượng ảnh tối đa cho phép là 50MB.',
+      toast.error('Dung lượng ảnh quá lớn', {
+        description: 'Dung lượng ảnh tối đa cho phép là 10MB.',
       });
       return;
     }
@@ -47,7 +47,7 @@ export function AvatarUploader({
     setPreviewUrl(objectUrl);
     setFailedUrl(null);
 
-    // Trigger upload to MinIO via backend
+    // Trigger upload
     uploadMutation.mutate(file, {
       onError: () => {
         // Revert local preview on failure
@@ -61,7 +61,6 @@ export function AvatarUploader({
     if (file) {
       handleFileSelection(file);
     }
-    // Reset input value to allow selecting same file again
     e.target.value = '';
   };
 
@@ -88,14 +87,13 @@ export function AvatarUploader({
   const initialLetter = userName.trim().charAt(0).toUpperCase() || 'U';
 
   return (
-    <div className="flex flex-col items-center sm:items-start gap-4">
+    <div className="flex flex-col items-start gap-3.5 w-full">
       {/* Avatar Container with Hover & Drag Overlay */}
       <div
-        className={`relative group size-32 sm:size-36 rounded-2xl overflow-hidden border-2 transition-all duration-200 cursor-pointer shadow-sm ${
-          isDragOver
-            ? 'border-primary ring-4 ring-primary/20 scale-105'
-            : 'border-border/60 hover:border-primary/60 bg-muted/30'
-        }`}
+        className={`relative group size-28 rounded-2xl overflow-hidden border transition-all duration-150 cursor-pointer ${isDragOver
+            ? 'border-foreground ring-2 ring-foreground/20 scale-102'
+            : 'border-border/80 hover:border-foreground/40 bg-muted/30'
+          } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground`}
         onClick={() => fileInputRef.current?.click()}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -104,26 +102,27 @@ export function AvatarUploader({
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
             fileInputRef.current?.click();
           }
         }}
-        aria-label="Tải ảnh đại diện"
+        aria-label="Tải ảnh đại diện mới"
       >
         {displayImage && failedUrl !== displayImage ? (
           <Image
             src={displayImage}
             alt={`Ảnh đại diện của ${userName}`}
             fill
-            sizes="144px"
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="128px"
+            className="object-cover transition-transform duration-200 group-hover:scale-105"
             onError={() => {
               if (displayImage) setFailedUrl(displayImage);
             }}
             priority
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-muted text-primary">
-            <span className="text-3xl sm:text-4xl font-bold tracking-wider select-none">
+          <div className="w-full h-full flex items-center justify-center bg-muted/60 text-foreground font-semibold">
+            <span className="text-3xl select-none font-medium">
               {initialLetter}
             </span>
           </div>
@@ -131,41 +130,30 @@ export function AvatarUploader({
 
         {/* Hover / Loading Overlay */}
         <div
-          className={`absolute inset-0 bg-black/50 backdrop-blur-[2px] flex flex-col items-center justify-center text-white transition-opacity duration-200 ${
-            uploadMutation.isPending
+          className={`absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white transition-opacity duration-150 ${uploadMutation.isPending
               ? 'opacity-100 cursor-wait'
               : 'opacity-0 group-hover:opacity-100'
-          }`}
+            }`}
         >
           {uploadMutation.isPending ? (
             <>
               <Icon
                 icon="lucide:loader-2"
-                className="size-7 animate-spin text-white mb-1"
+                className="size-6 animate-spin text-white mb-1"
               />
               <span className="text-[11px] font-medium tracking-wide">
-                Đang lưu Cloud...
+                Đang tải lên...
               </span>
             </>
           ) : (
             <>
-              <Icon icon="lucide:camera" className="size-6 mb-1 drop-shadow" />
-              <span className="text-[11px] font-medium tracking-wide drop-shadow">
+              <Icon icon="lucide:camera" className="size-5 mb-1 text-white" />
+              <span className="text-[11px] font-medium tracking-wide">
                 Đổi ảnh
               </span>
             </>
           )}
         </div>
-
-        {/* MinIO Storage Active Badge */}
-        {displayImage && (
-          <div
-            className="absolute bottom-1 right-1 bg-background/80 backdrop-blur-xs p-1 rounded-full text-emerald-600 shadow"
-            title="Lưu trữ an toàn trên MinIO Storage"
-          >
-            <Icon icon="lucide:cloud" className="size-3.5" />
-          </div>
-        )}
       </div>
 
       {/* Hidden File Input */}
@@ -179,7 +167,7 @@ export function AvatarUploader({
       />
 
       {/* Control Actions & Guideline */}
-      <div className="flex flex-col items-center sm:items-start text-center sm:text-left space-y-1.5">
+      <div className="flex flex-col items-start text-left space-y-1.5 w-full">
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -187,10 +175,10 @@ export function AvatarUploader({
             size="sm"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadMutation.isPending}
-            className="h-8 text-xs font-medium"
+            className="h-8 text-xs font-medium border-border/80"
           >
             <Icon icon="lucide:upload" className="size-3.5 mr-1.5" />
-            {uploadMutation.isPending ? 'Đang upload...' : 'Chọn ảnh mới'}
+            {uploadMutation.isPending ? 'Đang tải lên...' : 'Tải ảnh mới'}
           </Button>
 
           {previewUrl && (
@@ -202,15 +190,15 @@ export function AvatarUploader({
                 setPreviewUrl(null);
                 setFailedUrl(null);
               }}
-              className="h-8 text-xs text-muted-foreground"
+              className="h-8 text-xs text-muted-foreground hover:text-foreground"
             >
               Hủy
             </Button>
           )}
         </div>
 
-        <p className="text-[11px] text-muted-foreground leading-tight">
-          Hỗ trợ JPG, PNG, WEBP hoặc GIF (Tối đa 50MB). Tự động nén WebP và lưu trữ trên MinIO.
+        <p className="text-[11px] text-muted-foreground max-w-[260px] leading-tight">
+          Hỗ trợ JPG, PNG, WEBP (Tối đa 10MB). Khuyến nghị ảnh vuông tỉ lệ 1:1.
         </p>
       </div>
     </div>

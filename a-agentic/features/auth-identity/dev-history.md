@@ -417,3 +417,86 @@
   - Next.js 16 defaults to Turbopack, but the project uses Webpack (`--webpack`). Building with Webpack requires running `next build --webpack`.
   - In `dotLottie-web`, `setFrame(0)` before `play()` ensures the animation starts reliably from the first frame.
   - Storing the replay timer in a ref/effect cleanup prevents memory leaks and race conditions if the modal is closed while waiting to replay.
+
+### [2026-11-03] - Profile UI Taste Alignment & Field Exposure Redesign
+
+- **Problem**: The user profile page (`/profile`) suffered from artificial AI-slop tells:
+  1. Prominently exposed developer-facing infrastructure details ("Lưu Trữ MinIO Object Storage", "S3-Compatible Storage", WebP tags, cloud badge on avatar).
+  2. Displayed raw hexadecimal MongoDB ObjectId (`user.id`) in a prominent card as user identity.
+  3. Lacked user-facing fields that the backend already supported (`fullName`, `username`, `bio`).
+  4. Lacked portal navigation headers and footers (`PublicHeader`, `PublicFooter`), leaving the page detached with an awkward "Về Trang Chủ" button.
+- **Root Cause & Requirements**:
+  - The previous UI was a quick mock created during storage implementation, focusing on showing off technical MinIO plumbing rather than user experience.
+  - Applied the `design-taste-frontend` skill guidelines (`references/app-screens.md` for Settings & Profile).
+- **Solution**:
+  - **Hid Internal Jargon**: Completely removed MinIO S3 storage card and avatar storage badge. Replaced the loud hex MongoDB ObjectId with a subtle, non-intrusive copyable identifier footer.
+  - **Exposed Practical User Fields**:
+    - Replaced the separate first/last name inputs with unified `fullName` ("Họ và tên hiển thị").
+    - Exposed `@username` (with `@` prefix, lowercase normalization, and regex validation).
+    - Exposed `bio` with character counter (0/500).
+    - Added account metadata: Member since date (`createdAt`), role label ("Học viên" / "Giảng viên" / "Quản trị viên"), verified email badge, and authentication provider.
+  - **Layout & Visual Craft**:
+    - Wrapped `/profile` with `PublicHeader` and `PublicFooter` for seamless portal navigation.
+    - Structured balanced 2-column layout (Left: 4-column sticky Identity Summary; Right: 8-column Form & Privacy Guidelines).
+    - Adhered to flat surfaces, 1px subtle hairline borders, ink buttons, and strict zero-tolerance on purple/violet or gradients.
+
+
+### [2026-11-03] - Implementation of Secure Two-Step Change Email Flow
+
+- **Problem / Requirement**:
+  - The account settings page (`/profile`) marked email as read-only ("Không thể thay đổi").
+  - Users need a secure, two-step verification mechanism to change their primary account email.
+  - The flow must verify the current password, validate new email uniqueness, dispatch a single-use verification link to the new email with Lottie envelope animation, verify the token upon clicking the email link, atomic swap in database, revoke all existing sessions to force re-login, and dispatch a security notification email to the old address.
+- **Solution**:
+  - **Shared Constants & Interfaces (`share-lib`)**:
+    - Added `EMAIL_CHANGE_TOKEN_TTL_MS` (15m), `EMAIL_CHANGE_COOLDOWN_MS` (60s), and standardized system response messages in `AUTH_CONSTANTS`.
+    - Added payloads and responses: `IChangeEmailRequestPayload`, `IChangeEmailRequestResponse`, `IVerifyEmailChangePayload`, `IVerifyEmailChangeResponse`.
+    - Added `pendingNewEmail`, `emailChangeTokenHash`, `emailChangeExpires`, `emailChangeRequestedAt` to `IUser`.
+  - **Database & Schemas (`backend`)**:
+    - Added props in `UserEntity` with `select: false` and partial index on `emailChangeTokenHash`.
+    - Implemented atomic repository methods: `claimEmailChangeRequest`, `findByEmailChangeTokenHash`, `clearEmailChangeRequest`, and `applyEmailChange`.
+  - **Services & Controllers (`backend`)**:
+    - Added `ChangeEmailService` encapsulating password verification (`LocalAuthService.comparePassword`), new email validation, token hashing (`AuthTokenService.hashToken`), and session revocation (`SessionService.revokeAllUserSessions`).
+    - Added mail templates in `MailService`: `sendChangeEmailVerification` (sending activation link to new email) and `sendEmailChangeSecurityAlert` (security notice sent to old email).
+    - Exposed `POST /auth/change-email/request` (authenticated, throttled) and `@Public() POST /auth/change-email/verify` (throttled).
+    - 11/11 unit tests in `change-email.service.spec.ts` passing 100%.
+  - **Frontend UI & Components (`frontend`)**:
+    - Created `ChangeEmailModal` reusing `DialogLayout` and the Lottie `/animations/mail-sent.lottie` component with shake effect, cooldown timer (60s), and responsive two-column layout.
+    - Updated `ProfileForm` with a refined "Thay đổi email" trigger button next to the email field.
+    - Created Next.js App Router verification page `/verify-email-change` with `VerifyEmailChangeContent` (automatic verification, loading spinner, success state with auto-logout notice, and error retry state).
+- **Gotchas & Lessons**:
+    - Calling `SessionService.revokeAllUserSessions(userId)` revokes all active refresh tokens for the user in MongoDB, immediately rendering old sessions invalid and preventing session hijacking during email transition.
+    - In Zod with `.pipe()`, chaining schemas after `.transform()` requires the output type of the transformer to align with the input type of the target validator; chaining `.optional()` must be placed on the outer schema.
+
+### [2026-11-03] - Account Settings Tab Separation & Secure Change Password Implementation
+
+- **Problem / Requirements**:
+  - The user requested that the Change Email mechanism should NOT be exposed in the profile information tab, but instead isolated in a dedicated "Cài đặt tài khoản" (Account Settings) tab.
+  - Required a secure Change Password mechanism where the user inputs their current password and new password (plus confirmation). The backend must verify the current password before updating.
+- **Solution**:
+  - **Shared Constants & Types (`share-lib`)**:
+    - Added `CHANGE_PASSWORD_SUCCESS_MESSAGE`, `CHANGE_PASSWORD_INVALID_CURRENT_MESSAGE`, `CHANGE_PASSWORD_SAME_PASSWORD_MESSAGE`, `CHANGE_PASSWORD_MISMATCH_MESSAGE` in `AUTH_CONSTANTS`.
+    - Added `IChangePasswordPayload` and `IChangePasswordResponse` in `auth.interface.ts`.
+  - **Backend (`backend`)**:
+    - Created `ChangePasswordDto` with `currentPassword`, `newPassword` (min 6 chars), and `confirmPassword`.
+    - Implemented `AuthService.changePassword(userId, dto)`:
+      - Validates user exists and is active.
+      - Checks `user.passwordHash` exists (rejects Google OAuth-only accounts with instructions to use forgot password to create a local password).
+      - Strictly verifies `currentPassword` using `LocalAuthService.comparePassword` (`bcrypt.compare`).
+      - Validates `newPassword !== currentPassword`.
+      - Hashes new password via `LocalAuthService.hashPassword` and persists to MongoDB.
+    - Added `@Post('change-password')` in `AuthController` protected with `@Throttle({ default: { limit: 5, ttl: 900000 } })` and `@CurrentUser('id')`.
+    - Created unit tests in `src/modules/auth/tests/change-password.spec.ts` (6/6 tests passing 100%).
+  - **Frontend UI & Architecture (`frontend`)**:
+    - Created Zod validation schema `changePasswordSchema` with `.refine` for matching confirmation and difference from current password.
+    - Added `changePassword` in `authApi` and `useChangePasswordMutation` hook.
+    - Created `AccountSettingsContent` component containing:
+      - Card 1: Email management displaying current email, verified badge, and "Thay đổi email" button triggering `ChangeEmailModal`.
+      - Card 2: Password change form with visibility eye toggles, helper link to `ForgotPasswordModal`, loading indicator, and sonner toast feedback.
+      - Card 3: Account security and privacy guidelines.
+    - Updated `ProfilePageContent` with tab navigation (`Hồ sơ cá nhân` vs `Cài đặt tài khoản`) synced to URL search param `?tab=account`, wrapped with `<Suspense>`.
+    - Updated `ProfileForm` to remove email fields and `ChangeEmailModal`, keeping it focused strictly on public profile info (`fullName`, `username`, `bio`).
+    - Updated `PublicHeader` dropdown (desktop and mobile) so "Xem hồ sơ" links to `/profile?tab=profile` and "Cài đặt tài khoản" links directly to `/profile?tab=account`.
+- **Gotchas & Lessons**:
+    - Using `useSearchParams()` in Next.js 16 App Router requires wrapping the consumer in a `<Suspense>` boundary to prevent de-opting static site generation.
+    - Keeping the current password verification strictly on the server-side with `bcrypt.compare` prevents client-side password leaks or spoofing.

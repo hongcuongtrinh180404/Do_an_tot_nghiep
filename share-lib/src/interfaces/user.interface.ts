@@ -19,6 +19,10 @@ export interface IUser {
   passwordResetTokenHash?: string | null;
   passwordResetExpires?: Date | string | null;
   passwordResetRequestedAt?: Date | string | null;
+  pendingNewEmail?: string | null;
+  emailChangeTokenHash?: string | null;
+  emailChangeExpires?: Date | string | null;
+  emailChangeRequestedAt?: Date | string | null;
   /** @deprecated Kept for backward compatibility during migration */
   password?: string | null;
   /** @deprecated Kept for backward compatibility during migration */
@@ -60,4 +64,3 @@ export interface IUserProfile {
   /** @deprecated Kept for backward compatibility during migration */
   provider?: AuthProviderEnum;
 }
-

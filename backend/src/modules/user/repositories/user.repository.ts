@@ -250,6 +250,127 @@ export class UserRepository extends BaseMongoRepository<IUser, UserEntity> {
     return doc ? this.toDomain(doc) : null;
   }
 
+  /**
+   * Tìm người dùng theo hash của mã xác nhận thay đổi email.
+   */
+  async findByEmailChangeTokenHash(
+    tokenHash: string,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    const doc = await this.model
+      .findOne({
+        emailChangeTokenHash: tokenHash.trim(),
+        deletedAt: null,
+      })
+      .select(
+        '+passwordHash +emailChangeTokenHash +emailChangeExpires +emailChangeRequestedAt +pendingNewEmail',
+      )
+      .session(session ?? null)
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  /**
+   * Ghi nhận yêu cầu đổi email vào tài khoản người dùng, lưu email mới chờ duyệt và mã hash token.
+   */
+  async claimEmailChangeRequest(
+    userId: string,
+    pendingNewEmail: string,
+    tokenHash: string,
+    expiresAt: Date,
+    requestedAt: Date,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    const doc = await this.model
+      .findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(userId),
+          deletedAt: null,
+          status: UserStatusEnum.ACTIVE,
+        },
+        {
+          $set: {
+            pendingNewEmail: pendingNewEmail.toLowerCase().trim(),
+            emailChangeTokenHash: tokenHash,
+            emailChangeExpires: expiresAt,
+            emailChangeRequestedAt: requestedAt,
+          },
+        },
+        { new: true, session: session ?? null },
+      )
+      .select(
+        '+passwordHash +emailChangeTokenHash +emailChangeExpires +emailChangeRequestedAt +pendingNewEmail',
+      )
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  /**
+   * Hủy token đổi email khi gửi mail thất bại.
+   */
+  async clearEmailChangeRequest(
+    userId: string,
+    tokenHash: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.model
+      .updateOne(
+        {
+          _id: new Types.ObjectId(userId),
+          emailChangeTokenHash: tokenHash,
+          deletedAt: null,
+        },
+        {
+          $set: {
+            pendingNewEmail: null,
+            emailChangeTokenHash: null,
+            emailChangeExpires: null,
+            emailChangeRequestedAt: null,
+          },
+        },
+        session ? { session } : undefined,
+      )
+      .exec();
+  }
+
+  /**
+   * Cập nhật email chính thức và hủy hiệu lực token đổi email nguyên tử.
+   */
+  async applyEmailChange(
+    userId: string,
+    tokenHash: string,
+    newEmail: string,
+    now: Date,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    const doc = await this.model
+      .findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(userId),
+          emailChangeTokenHash: tokenHash,
+          emailChangeExpires: { $gt: now },
+          deletedAt: null,
+          status: UserStatusEnum.ACTIVE,
+        },
+        {
+          $set: {
+            email: newEmail.toLowerCase().trim(),
+            isEmailVerified: true,
+            pendingNewEmail: null,
+            emailChangeTokenHash: null,
+            emailChangeExpires: null,
+            emailChangeRequestedAt: null,
+          },
+        },
+        { new: true, session: session ?? null },
+      )
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
   async findUsersWithPagination(
     queryDto: QueryUsersDto,
     session?: ClientSession,

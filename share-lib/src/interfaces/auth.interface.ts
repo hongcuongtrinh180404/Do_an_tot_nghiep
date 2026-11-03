@@ -70,3 +70,31 @@ export interface IRegisterResponse {
   message: string;
   emailSent: boolean;
 }
+
+export interface IChangeEmailRequestPayload {
+  newEmail: string;
+  currentPassword: string;
+}
+
+export interface IChangeEmailRequestResponse {
+  message: string;
+}
+
+export interface IVerifyEmailChangePayload {
+  token: string;
+}
+
+export interface IVerifyEmailChangeResponse {
+  message: string;
+  email: string;
+}
+
+export interface IChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword?: string;
+}
+
+export interface IChangePasswordResponse {
+  message: string;
+}

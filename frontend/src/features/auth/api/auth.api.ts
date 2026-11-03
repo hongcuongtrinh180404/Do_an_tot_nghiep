@@ -16,6 +16,12 @@ import type {
   IForgotPasswordResponse,
   IResetPasswordPayload,
   IResetPasswordResponse,
+  IChangeEmailRequestPayload,
+  IChangeEmailRequestResponse,
+  IVerifyEmailChangePayload,
+  IVerifyEmailChangeResponse,
+  IChangePasswordPayload,
+  IChangePasswordResponse,
   IUserProfile,
 } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
@@ -91,6 +97,45 @@ export const authApi = {
       {
         token: payload.token.trim(),
         password: payload.password,
+      },
+    );
+    return res.data.data;
+  },
+
+  async changeEmailRequest(
+    payload: IChangeEmailRequestPayload,
+  ): Promise<IChangeEmailRequestResponse> {
+    const res = await apiClient.post<IApiResponse<IChangeEmailRequestResponse>>(
+      '/auth/change-email/request',
+      {
+        newEmail: payload.newEmail.trim().toLowerCase(),
+        currentPassword: payload.currentPassword,
+      },
+    );
+    return res.data.data;
+  },
+
+  async verifyEmailChange(
+    payload: IVerifyEmailChangePayload,
+  ): Promise<IVerifyEmailChangeResponse> {
+    const res = await apiClient.post<IApiResponse<IVerifyEmailChangeResponse>>(
+      '/auth/change-email/verify',
+      {
+        token: payload.token.trim(),
+      },
+    );
+    return res.data.data;
+  },
+
+  async changePassword(
+    payload: IChangePasswordPayload,
+  ): Promise<IChangePasswordResponse> {
+    const res = await apiClient.post<IApiResponse<IChangePasswordResponse>>(
+      '/auth/change-password',
+      {
+        currentPassword: payload.currentPassword,
+        newPassword: payload.newPassword,
+        confirmPassword: payload.confirmPassword || payload.newPassword,
       },
     );
     return res.data.data;
@@ -269,6 +314,48 @@ export function useResetPasswordMutation() {
         description: data.message || 'Vui lòng đăng nhập bằng mật khẩu mới.',
       });
     },
+  });
+}
+
+export function useChangeEmailRequestMutation() {
+  return useMutation({
+    mutationFn: (payload: IChangeEmailRequestPayload) => authApi.changeEmailRequest(payload),
+  });
+}
+
+export function useVerifyEmailChangeMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: IVerifyEmailChangePayload) => authApi.verifyEmailChange(payload),
+    onSuccess: (data: IVerifyEmailChangeResponse) => {
+      // Khi cập nhật email thành công, phiên cũ đã bị hủy ở backend. Xóa token lưu cục bộ.
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+
+        if ('BroadcastChannel' in window) {
+          try {
+            const channel = new BroadcastChannel('app_auth_sync');
+            channel.postMessage({ type: 'AUTH_LOGOUT' });
+            channel.close();
+          } catch {
+            // ignore error
+          }
+        }
+      }
+      queryClient.removeQueries({ queryKey: authKeys.all });
+      toast.success('Cập nhật email thành công!', {
+        description: data.message || 'Vui lòng đăng nhập lại với email mới.',
+      });
+    },
+  });
+}
+
+export function useChangePasswordMutation() {
+  return useMutation({
+    mutationFn: (payload: IChangePasswordPayload) => authApi.changePassword(payload),
   });
 }
 

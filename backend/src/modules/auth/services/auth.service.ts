@@ -11,6 +11,8 @@ import {
   IAuthTokens,
   IUserProfile,
   IRegisterResponse,
+  IChangePasswordResponse,
+  AUTH_CONSTANTS,
   RoleEnum,
   AuthProviderEnum,
   UserStatusEnum,
@@ -27,6 +29,7 @@ import { RefreshTokenDto } from '../dto/refresh-token.dto.js';
 import { GoogleAuthDto } from '../dto/google-auth.dto.js';
 import { VerifyEmailDto } from '../dto/verify-email.dto.js';
 import { ResendVerificationDto } from '../dto/resend-verification.dto.js';
+import { ChangePasswordDto } from '../dto/change-password.dto.js';
 
 export interface IOAuthProfile {
   provider: AuthProviderEnum;
@@ -427,6 +430,59 @@ export class AuthService {
     return {
       sent: emailSent,
       message: 'Liên kết xác thực mới đã được gửi vào email của bạn.',
+    };
+  }
+
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+  ): Promise<IChangePasswordResponse> {
+    const user = await this.userService.findById(userId);
+    if (!user || user.status !== UserStatusEnum.ACTIVE || user.deletedAt) {
+      throw new BadRequestException('Tài khoản không tồn tại hoặc đã bị khóa.');
+    }
+
+    const userWithPassword = await this.userService.findByEmail(user.email, true);
+    const currentHash = userWithPassword?.passwordHash || userWithPassword?.password;
+
+    if (!currentHash) {
+      throw new BadRequestException(
+        AUTH_CONSTANTS.EMAIL_CHANGE_PASSWORD_NOT_SET_MESSAGE,
+      );
+    }
+
+    const isMatch = await this.localAuthService.comparePassword(
+      dto.currentPassword,
+      currentHash,
+    );
+
+    if (!isMatch) {
+      throw new BadRequestException(
+        AUTH_CONSTANTS.CHANGE_PASSWORD_INVALID_CURRENT_MESSAGE,
+      );
+    }
+
+    if (dto.currentPassword === dto.newPassword) {
+      throw new BadRequestException(
+        AUTH_CONSTANTS.CHANGE_PASSWORD_SAME_PASSWORD_MESSAGE,
+      );
+    }
+
+    if (dto.confirmPassword !== dto.newPassword) {
+      throw new BadRequestException(
+        AUTH_CONSTANTS.CHANGE_PASSWORD_MISMATCH_MESSAGE,
+      );
+    }
+
+    const newHashedPassword = await this.localAuthService.hashPassword(dto.newPassword);
+
+    await this.userService.updateOrFail(user.id, {
+      passwordHash: newHashedPassword,
+      password: newHashedPassword,
+    });
+
+    return {
+      message: AUTH_CONSTANTS.CHANGE_PASSWORD_SUCCESS_MESSAGE,
     };
   }
 }

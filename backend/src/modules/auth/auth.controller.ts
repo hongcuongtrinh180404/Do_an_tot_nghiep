@@ -15,10 +15,14 @@ import type {
   IRegisterResponse,
   IForgotPasswordResponse,
   IResetPasswordResponse,
+  IChangeEmailRequestResponse,
+  IVerifyEmailChangeResponse,
+  IChangePasswordResponse,
 } from 'share-lib';
 import { ApiResponse } from '../base/index.js';
 import { AuthService } from './services/auth.service.js';
 import { PasswordResetService } from './services/password-reset.service.js';
+import { ChangeEmailService } from './services/change-email.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
@@ -27,6 +31,9 @@ import { VerifyEmailDto } from './dto/verify-email.dto.js';
 import { ResendVerificationDto } from './dto/resend-verification.dto.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
+import { ChangeEmailRequestDto } from './dto/change-email.dto.js';
+import { VerifyEmailChangeDto } from './dto/verify-email-change.dto.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { Public } from './decorators/public.decorator.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 
@@ -35,6 +42,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly passwordResetService: PasswordResetService,
+    private readonly changeEmailService: ChangeEmailService,
   ) {}
 
   @Public()
@@ -84,6 +92,42 @@ export class AuthController {
     @Body() dto: ResetPasswordDto,
   ): Promise<ApiResponse<IResetPasswordResponse>> {
     const result = await this.passwordResetService.resetPassword(dto);
+    return ApiResponse.success(result, result.message);
+  }
+
+  @Post('change-email/request')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
+  async requestChangeEmail(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ChangeEmailRequestDto,
+  ): Promise<ApiResponse<IChangeEmailRequestResponse>> {
+    const result = await this.changeEmailService.requestChangeEmail(userId, dto);
+    return ApiResponse.success(result, result.message);
+  }
+
+  @Public()
+  @Post('change-email/verify')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
+  async verifyEmailChange(
+    @Body() dto: VerifyEmailChangeDto,
+  ): Promise<ApiResponse<IVerifyEmailChangeResponse>> {
+    const result = await this.changeEmailService.verifyEmailChange(dto);
+    return ApiResponse.success(result, result.message);
+  }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
+  async changePassword(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<ApiResponse<IChangePasswordResponse>> {
+    const result = await this.authService.changePassword(userId, dto);
     return ApiResponse.success(result, result.message);
   }
 

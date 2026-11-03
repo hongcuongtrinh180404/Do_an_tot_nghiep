@@ -8,10 +8,10 @@ export function PublicFooter(): React.JSX.Element {
   return (
     <footer data-ui="footer" className="w-full border-t border-[#282828] bg-[#161616] text-white pt-16 pb-12">
       <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
-        
+
         {/* Main Footer Row */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-10 pb-12 border-b border-[#282828]">
-          
+
           {/* Brand Col */}
           <div className="md:col-span-5 space-y-4">
             <Link
@@ -43,7 +43,7 @@ export function PublicFooter(): React.JSX.Element {
               </h4>
               <ul className="space-y-2 text-xs text-neutral-300">
                 <li>
-                  <Link href="/courses?view=catalog" className="hover:text-white transition-colors font-semibold text-white">
+                  <Link href="/courses" className="hover:text-white transition-colors font-semibold text-white">
                     Tất cả khóa học
                   </Link>
                 </li>
@@ -86,7 +86,7 @@ export function PublicFooter(): React.JSX.Element {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/courses" className="hover:text-white transition-colors">
+                  <Link href="/instructor/courses" className="hover:text-white transition-colors">
                     Dành cho Giảng viên
                   </Link>
                 </li>

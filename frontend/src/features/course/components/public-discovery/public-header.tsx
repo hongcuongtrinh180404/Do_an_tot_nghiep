@@ -199,7 +199,7 @@ export function PublicHeader({
 
                   {/* 1. Xem hồ sơ */}
                   <Link
-                    href="/profile"
+                    href="/profile?tab=profile"
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80 transition-colors"
                   >
@@ -229,7 +229,7 @@ export function PublicHeader({
 
                   {/* 3. Cài đặt tài khoản */}
                   <Link
-                    href="/profile"
+                    href="/profile?tab=account"
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80 transition-colors"
                   >
@@ -339,7 +339,7 @@ export function PublicHeader({
                 </p>
               </div>
               <Link
-                href="/profile"
+                href="/profile?tab=profile"
                 onClick={() => setMobileMenuOpen(false)}
                 className="min-h-11 flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
               >
@@ -365,7 +365,7 @@ export function PublicHeader({
                 <span>Khóa học đã mua</span>
               </button>
               <Link
-                href="/profile"
+                href="/profile?tab=account"
                 onClick={() => setMobileMenuOpen(false)}
                 className="min-h-11 flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
               >

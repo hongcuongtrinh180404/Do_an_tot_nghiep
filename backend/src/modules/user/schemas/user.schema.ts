@@ -61,6 +61,18 @@ export class UserEntity extends BaseAbstractDocument {
 
   @Prop({ type: Date, required: false, default: null, select: false })
   passwordResetRequestedAt?: Date | null;
+
+  @Prop({ type: String, required: false, default: null, lowercase: true, trim: true, select: false })
+  pendingNewEmail?: string | null;
+
+  @Prop({ type: String, required: false, default: null, select: false })
+  emailChangeTokenHash?: string | null;
+
+  @Prop({ type: Date, required: false, default: null, select: false })
+  emailChangeExpires?: Date | null;
+
+  @Prop({ type: Date, required: false, default: null, select: false })
+  emailChangeRequestedAt?: Date | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(UserEntity);
@@ -111,7 +123,6 @@ UserSchema.index(
 );
 
 // 5. Index cho passwordResetTokenHash (chỉ đánh index cho các document có token)
-// KHÔNG dùng TTL index cho passwordResetExpires: TTL sẽ xóa toàn bộ document user.
 UserSchema.index(
   { passwordResetTokenHash: 1 },
   {
@@ -122,7 +133,17 @@ UserSchema.index(
   },
 );
 
+// 6. Index cho emailChangeTokenHash (chỉ đánh index cho các document có token đổi email)
+UserSchema.index(
+  { emailChangeTokenHash: 1 },
+  {
+    partialFilterExpression: {
+      deletedAt: null,
+      emailChangeTokenHash: { $type: 'string' },
+    },
+  },
+);
+
 // Compound & sorting indexes
 UserSchema.index({ role: 1, status: 1 });
 UserSchema.index({ deletedAt: 1, createdAt: -1 });
-

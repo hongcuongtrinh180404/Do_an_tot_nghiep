@@ -13,6 +13,7 @@ import { AuthService } from './services/auth.service.js';
 import { LocalAuthService } from './services/local-auth.service.js';
 import { AuthTokenService } from './services/auth-token.service.js';
 import { PasswordResetService } from './services/password-reset.service.js';
+import { ChangeEmailService } from './services/change-email.service.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { RolesGuard } from './guards/roles.guard.js';
@@ -54,6 +55,7 @@ import { RolesGuard } from './guards/roles.guard.js';
     LocalAuthService,
     AuthTokenService,
     PasswordResetService,
+    ChangeEmailService,
     JwtStrategy,
     {
       provide: APP_GUARD,
@@ -64,6 +66,6 @@ import { RolesGuard } from './guards/roles.guard.js';
       useClass: RolesGuard,
     },
   ],
-  exports: [AuthService, LocalAuthService, AuthTokenService, PasswordResetService],
+  exports: [AuthService, LocalAuthService, AuthTokenService, PasswordResetService, ChangeEmailService],
 })
 export class AuthModule {}

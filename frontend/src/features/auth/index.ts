@@ -7,6 +7,7 @@ export * from './components/login-form';
 export * from './components/register-form';
 export * from './components/google-login-button';
 export * from './components/verify-email-content';
+export * from './components/verify-email-change-content';
 export * from './components/forgot-password-modal';
 export * from './components/reset-password-content';
 export * from './hooks/use-auth';

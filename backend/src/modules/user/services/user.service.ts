@@ -112,6 +112,55 @@ export class UserService extends BaseService<IUser, string> {
     );
   }
 
+  async findByEmailChangeTokenHash(
+    tokenHash: string,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    return this.userRepository.findByEmailChangeTokenHash(tokenHash, session);
+  }
+
+  async claimEmailChangeRequest(
+    userId: string,
+    pendingNewEmail: string,
+    tokenHash: string,
+    expiresAt: Date,
+    requestedAt: Date,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    return this.userRepository.claimEmailChangeRequest(
+      userId,
+      pendingNewEmail,
+      tokenHash,
+      expiresAt,
+      requestedAt,
+      session,
+    );
+  }
+
+  async clearEmailChangeRequest(
+    userId: string,
+    tokenHash: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    return this.userRepository.clearEmailChangeRequest(userId, tokenHash, session);
+  }
+
+  async applyEmailChange(
+    userId: string,
+    tokenHash: string,
+    newEmail: string,
+    now: Date,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    return this.userRepository.applyEmailChange(
+      userId,
+      tokenHash,
+      newEmail,
+      now,
+      session,
+    );
+  }
+
   async runInTransaction<R>(
     operation: (session: ClientSession) => Promise<R>,
   ): Promise<R> {
@@ -278,5 +327,3 @@ export class UserService extends BaseService<IUser, string> {
     };
   }
 }
-
-

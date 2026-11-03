@@ -146,8 +146,8 @@ export function CategoryRail({
                   aria-label={`Khám phá danh mục ${category.name}`}
                   aria-selected={isSelected}
                   className={`group relative w-full aspect-square rounded-2xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-offset-2 ${isSelected
-                      ? 'shadow-[0_16px_36px_rgba(0,0,0,0.18),0_4px_16px_rgba(0,0,0,0.08)] -translate-y-1'
-                      : 'shadow-[0_8px_24px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_16px_32px_rgba(0,0,0,0.14),0_4px_12px_rgba(0,0,0,0.06)] hover:-translate-y-1'
+                    ? 'shadow-[0_16px_36px_rgba(0,0,0,0.18),0_4px_16px_rgba(0,0,0,0.08)] -translate-y-1'
+                    : 'shadow-[0_8px_24px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_16px_32px_rgba(0,0,0,0.14),0_4px_12px_rgba(0,0,0,0.06)] hover:-translate-y-1'
                     }`}
                 >
                   {/* Background Artwork */}

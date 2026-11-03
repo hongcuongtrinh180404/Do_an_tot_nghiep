@@ -124,7 +124,7 @@ export function useUploadAvatarMutation() {
       }
 
       toast.success('Tải ảnh đại diện thành công!', {
-        description: 'Ảnh đại diện cá nhân mới đã được lưu trữ an toàn trên MinIO.',
+        description: 'Ảnh đại diện của bạn đã được cập nhật thành công.',
       });
     },
     onError: (error: unknown) => {
