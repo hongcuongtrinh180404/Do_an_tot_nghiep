@@ -42,7 +42,7 @@ export function PublicHero(): React.JSX.Element {
     <section className="w-full bg-background py-12 lg:py-16">
       <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-          
+
           {/* Left Column: Headlines & Call to Actions */}
           <div className="lg:col-span-6 flex flex-col items-start space-y-6 taste-enter">
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#161616] leading-[1.15]">
@@ -93,7 +93,7 @@ export function PublicHero(): React.JSX.Element {
           {/* Right Column: "One Live Thing" - Interactive Player & AI Mindmap Sandbox */}
           <div className="lg:col-span-6">
             <div data-ui="player" className="rounded-xl border border-border bg-card overflow-hidden">
-              
+
               {/* Player Top Bar */}
               <div className="flex items-center justify-between border-b border-border bg-[#161616] px-4 py-2.5 text-xs text-white">
                 <div className="flex items-center gap-2">
@@ -220,21 +220,49 @@ export function PublicHero(): React.JSX.Element {
                   )}
                 </div>
 
-                {/* Bottom Timeline Controls with Clickable Breakpoints */}
+                {/* Bottom Timeline Controls (Cinema Luxury Style matching Trailer Reference) */}
                 <div className="relative z-10 pt-2">
-                  <div className="relative w-full h-1.5 rounded-full bg-white/20 mb-2">
-                    <div
-                      className="absolute left-0 top-0 h-full rounded-full bg-[#027D88] transition-colors"
-                      style={{
-                        width: `${(activeBreakpoint.seconds / 255) * 100}%`,
-                      }}
-                    />
+                  {/* Sleek 2px Progress Track with Interactive Checkpoints */}
+                  <div className="relative w-full h-3 flex items-center cursor-pointer group/trailer mb-1">
+                    {/* Background Track */}
+                    <div className="absolute inset-x-0 h-[2px] group-hover/trailer:h-[3px] bg-white/20 rounded-full overflow-hidden transition-[height] duration-150">
+                      {/* Played Progress */}
+                      <div
+                        className="h-full bg-white rounded-full transition-[width] duration-300"
+                        style={{
+                          width: `${(activeBreakpoint.seconds / 255) * 100}%`,
+                        }}
+                      />
+                    </div>
+
+                    {/* Breakpoint Micro-Gem Markers directly on track */}
+                    {LIVE_PREVIEW_MOCK_DATA.breakpoints.map((bp, idx) => {
+                      const isActive = idx === activeBreakpointIndex;
+                      const markerPercent = (bp.seconds / 255) * 100;
+                      return (
+                        <button
+                          key={`track-bp-${bp.timestamp}`}
+                          type="button"
+                          onClick={() => handleSelectBreakpoint(idx)}
+                          title={`${bp.timestamp} - ${bp.label}`}
+                          style={{ left: `${markerPercent}%` }}
+                          className="absolute top-1/2 -translate-y-1/2 -ml-1.5 size-3 flex items-center justify-center cursor-pointer z-20 group/marker"
+                        >
+                          <span
+                            className={`rounded-full transition-transform duration-150 ${isActive
+                                ? 'size-2 bg-amber-400 ring-2 ring-white scale-125'
+                                : 'size-1.5 bg-white/70 hover:bg-amber-400 hover:scale-125'
+                              }`}
+                          />
+                        </button>
+                      );
+                    })}
                   </div>
 
-                  {/* Breakpoint Selector Buttons */}
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="text-white/70">Bấm thử mốc AI:</span>
+                  {/* Breakpoint Selector Buttons (Minimalist Luxury) */}
+                  <div className="flex items-center justify-between text-xs pt-1">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <span className="text-white/70 text-[11px]">Mốc AI:</span>
                       {LIVE_PREVIEW_MOCK_DATA.breakpoints.map((bp, idx) => {
                         const isActive = idx === activeBreakpointIndex;
                         return (
@@ -242,24 +270,25 @@ export function PublicHero(): React.JSX.Element {
                             key={bp.timestamp}
                             type="button"
                             onClick={() => handleSelectBreakpoint(idx)}
-                            className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
-                              isActive
-                                ? 'bg-[#313131] text-white font-bold border border-white/20'
-                                : 'bg-white/10 text-white/80 hover:bg-white/20'
-                            }`}
+                            className={`px-2 py-0.5 rounded text-xs font-medium tabular-nums transition-colors cursor-pointer ${isActive
+                                ? 'bg-white/20 text-white font-semibold border border-white/30'
+                                : 'bg-white/5 text-white/70 hover:bg-white/15 hover:text-white'
+                              }`}
                           >
                             {bp.timestamp} {bp.quiz ? '(Quiz)' : ''}
                           </button>
                         );
                       })}
                     </div>
-                    <span className="hidden sm:inline text-white/70">Trình phát tương tác 16:9</span>
+                    <span className="hidden sm:inline text-white/60 tabular-nums text-[11px]">
+                      {activeBreakpoint.timestamp} / {LIVE_PREVIEW_MOCK_DATA.durationText}
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Active Mindmap Synchronization Bar */}
-              <div className="border-t border-[#e5e7eb] bg-[#f3fcfc] p-3 sm:p-3.5 flex items-center justify-between text-xs">
+              <div data-ui="mindmap-sync" className="bg-[#f3fcfc] p-3 sm:p-3.5 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="flex size-6 items-center justify-center rounded bg-[#027D88] text-white shrink-0">
                     <Icon icon="lucide:git-fork" className="size-3.5" />

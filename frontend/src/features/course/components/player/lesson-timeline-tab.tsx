@@ -161,8 +161,8 @@ export function LessonTimelineTab({
             Hệ thống AI đang phân tích âm thanh và tạo danh sách câu nói theo dòng thời gian.
           </p>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-[10px] font-medium text-sky-600 dark:text-sky-400">
-          <span className="size-1.5 rounded-full bg-sky-500 animate-pulse" />
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#027D88]/10 border border-[#027D88]/20 text-[10px] font-medium text-[#027D88] dark:text-[#2dd4bf]">
+          <span className="size-1.5 rounded-full bg-[#027D88]" />
           <span>Tự động cập nhật</span>
         </div>
         {onRefresh && (
@@ -218,12 +218,12 @@ export function LessonTimelineTab({
     <div className="h-full flex flex-col bg-card min-h-0 overflow-hidden relative">
       {/* 1. Header Toolbar: Summary Counter, Search Input & Auto-Scroll Status */}
       <div className="shrink-0 p-3 pb-2 border-b border-border bg-muted/10 space-y-2">
-        <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground tracking-normal">
           <span className="flex items-center gap-1.5">
-            <Icon icon="lucide:captions" className="size-3.5 text-sky-600 dark:text-sky-400" />
+            <Icon icon="lucide:captions" className="size-3.5 text-foreground/80" />
             <span>Timeline bài giảng</span>
           </span>
-          <span className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded-md border border-border">
+          <span className="tabular-nums text-[10px] bg-muted px-1.5 py-0.5 rounded-md border border-border">
             {hasSentences ? `${sentences.length} câu` : `${fallbackMarkers.length} mốc`}
           </span>
         </div>
@@ -240,7 +240,7 @@ export function LessonTimelineTab({
               placeholder="Tìm câu trong bài giảng..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 pl-8 pr-7 text-xs bg-background/80 placeholder:text-muted-foreground border-border/80 focus-visible:ring-1 focus-visible:ring-sky-500"
+              className="h-8 pl-8 pr-7 text-xs bg-background/80 placeholder:text-muted-foreground border-border/80 focus-visible:ring-1 focus-visible:ring-foreground/30"
             />
             {searchQuery && (
               <button
@@ -286,23 +286,21 @@ export function LessonTimelineTab({
                   }}
                   type="button"
                   onClick={() => handleSentenceClick(item.start, originalIndex)}
-                  className={`w-full text-left py-2 px-2.5 rounded-xl border transition-all duration-150 flex items-center gap-2.5 cursor-pointer group ${
-                    isActive
-                      ? 'bg-indigo-50/40 dark:bg-indigo-950/20 border-[#c7d2fe] dark:border-indigo-400 text-foreground shadow-[0_4px_14px_0_rgba(99,102,241,0.25)]'
+                  className={`w-full text-left py-2 px-2.5 rounded-xl border transition-colors duration-150 flex items-center gap-2.5 cursor-pointer group ${isActive
+                      ? 'bg-muted/80 dark:bg-zinc-800/80 border-foreground/30 text-foreground border-l-2 border-l-[#027D88]'
                       : isPassed
                         ? 'bg-card hover:bg-muted/40 border-border/60 text-muted-foreground hover:text-foreground'
                         : 'bg-card hover:bg-muted/60 border-border/80 text-foreground'
-                  }`}
+                    }`}
                 >
                   {/* Timestamp Pill Badge */}
                   <span
-                    className={`shrink-0 px-2.5 py-0.5 rounded-full font-mono text-[11px] font-semibold border transition-colors ${
-                      isActive
-                        ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 font-bold'
+                    className={`shrink-0 px-2 py-0.5 rounded-md text-[11px] font-medium tabular-nums border transition-colors ${isActive
+                        ? 'bg-[#027D88]/15 text-[#027D88] dark:text-[#2dd4bf] border-[#027D88]/30 font-semibold'
                         : isPassed
                           ? 'bg-muted/50 border-border/70 text-muted-foreground group-hover:text-foreground'
                           : 'bg-muted/80 border-border text-muted-foreground group-hover:text-foreground'
-                    }`}
+                      }`}
                   >
                     {formatTime(item.start / 1000)}
                   </span>
@@ -311,13 +309,12 @@ export function LessonTimelineTab({
                   <div className="flex-1 min-w-0">
                     <p
                       title={item.text}
-                      className={`text-xs leading-relaxed line-clamp-2 ${
-                        isActive
-                          ? 'font-medium text-indigo-950 dark:text-indigo-100'
+                      className={`text-xs leading-relaxed line-clamp-2 ${isActive
+                          ? 'font-medium text-foreground'
                           : isPassed
                             ? 'font-normal text-muted-foreground group-hover:text-foreground'
                             : 'font-normal text-foreground'
-                      }`}
+                        }`}
                     >
                       {item.text}
                     </p>
@@ -336,26 +333,23 @@ export function LessonTimelineTab({
                 key={index}
                 type="button"
                 onClick={() => onSeek(marker.time)}
-                className={`w-full text-left py-2 px-2.5 rounded-xl border transition-all duration-150 flex items-center gap-2.5 cursor-pointer group ${
-                  isActive
-                    ? 'bg-indigo-50/40 dark:bg-indigo-950/20 border-[#c7d2fe] dark:border-indigo-400 text-foreground shadow-[0_4px_14px_0_rgba(99,102,241,0.25)]'
+                className={`w-full text-left py-2 px-2.5 rounded-xl border transition-colors duration-150 flex items-center gap-2.5 cursor-pointer group ${isActive
+                    ? 'bg-muted/80 dark:bg-zinc-800/80 border-foreground/30 text-foreground border-l-2 border-l-[#027D88]'
                     : 'bg-card hover:bg-muted/50 border-border/80 text-foreground'
-                }`}
+                  }`}
               >
                 <span
-                  className={`shrink-0 px-2.5 py-0.5 rounded-full font-mono text-[11px] font-semibold border transition-colors ${
-                    isActive
-                      ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 font-bold'
+                  className={`shrink-0 px-2 py-0.5 rounded-md text-[11px] font-medium tabular-nums border transition-colors ${isActive
+                      ? 'bg-[#027D88]/15 text-[#027D88] dark:text-[#2dd4bf] border-[#027D88]/30 font-semibold'
                       : 'bg-muted/80 border-border text-muted-foreground group-hover:text-foreground'
-                  }`}
+                    }`}
                 >
                   {formatTime(marker.time)}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p
-                    className={`text-xs leading-relaxed line-clamp-2 ${
-                      isActive ? 'font-medium text-indigo-950 dark:text-indigo-100' : 'font-normal text-foreground'
-                    }`}
+                    className={`text-xs leading-relaxed line-clamp-2 ${isActive ? 'font-medium text-foreground' : 'font-normal text-foreground'
+                      }`}
                   >
                     {marker.label}
                   </p>

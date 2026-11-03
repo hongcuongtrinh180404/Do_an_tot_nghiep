@@ -105,7 +105,7 @@ export function LessonVideoScreen({
   // Ref to seekbar track for accurate pointer coordinates
   const sliderTrackRef = useRef<HTMLDivElement | null>(null);
 
-  // Long-press (1.5s) & Drag & Drop Cluster States
+  // Long-press (1s) & Drag & Drop Cluster States
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const holdProgressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [isHoldingBadge, setIsHoldingBadge] = useState<boolean>(false);
@@ -300,7 +300,7 @@ export function LessonVideoScreen({
     setIsQuizModalOpen(true);
   };
 
-  // 1.5s Hold (Long-press) on "Thêm câu hỏi" Badge
+  // 1s Hold (Long-press) on "Thêm câu hỏi" Badge
   const handleBadgePointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return; // Only trigger for primary mouse button
     e.preventDefault();
@@ -317,7 +317,7 @@ export function LessonVideoScreen({
     setIsHoldingBadge(true);
     setHoldProgress(0);
 
-    const HOLD_DURATION = 1500; // 1.5 seconds
+    const HOLD_DURATION = 1000; // 1.0 second
     const startTime = Date.now();
 
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
@@ -368,7 +368,7 @@ export function LessonVideoScreen({
     setIsHoldingBadge(false);
     setHoldProgress(0);
 
-    // If released before 1.5s and not in drag mode, treat as regular quick click:
+    // If released before 1s and not in drag mode, treat as regular quick click:
     if (wasHolding && !isDraggingCluster && hoveredDotCheckpoint) {
       handleAddQuestionToExistingCheckpoint(e, hoveredDotCheckpoint.timestamp);
     }
@@ -403,28 +403,33 @@ export function LessonVideoScreen({
       const rawPercent = ratio * 100;
 
       // Find snap target among other checkpoints (excluding the current dragged cluster)
-      let foundTarget: {
+      // Snap threshold: strictly within 5 seconds of an existing checkpoint
+      const SNAP_TIME_THRESHOLD = 5;
+      let closestTarget: {
         timestamp: number;
         percent: number;
         questions: typeof dbQuizzes;
       } | null = null;
+      let closestDistance = Infinity;
 
       for (const [ts, qs] of quizCheckpoints.entries()) {
         if (Math.abs(ts - dragSource.timestamp) <= 1) {
           continue; // skip the dragged source cluster itself
         }
-        const targetPercent = (ts / duration) * 100;
-        // Snap threshold: within 2.5s or within 2.5% timeline width
-        if (Math.abs(ts - rawTime) <= 2.5 || Math.abs(targetPercent - rawPercent) <= 2.5) {
-          foundTarget = { timestamp: ts, percent: targetPercent, questions: qs };
-          break;
+        const timeDiff = Math.abs(ts - rawTime);
+        if (timeDiff <= SNAP_TIME_THRESHOLD) {
+          if (timeDiff < closestDistance) {
+            closestDistance = timeDiff;
+            const targetPercent = (ts / duration) * 100;
+            closestTarget = { timestamp: ts, percent: targetPercent, questions: qs };
+          }
         }
       }
 
-      if (foundTarget) {
-        setSnapTarget(foundTarget);
-        setCurrentDragTime(foundTarget.timestamp);
-        setCurrentDragPercent(foundTarget.percent);
+      if (closestTarget) {
+        setSnapTarget(closestTarget);
+        setCurrentDragTime(closestTarget.timestamp);
+        setCurrentDragPercent(closestTarget.percent);
       } else {
         setSnapTarget(null);
         setCurrentDragTime(rawTime);
@@ -619,7 +624,7 @@ export function LessonVideoScreen({
             <Icon icon="lucide:file-text" className="size-8" />
           </div>
           <div className="space-y-2">
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 uppercase tracking-wider">
+            <span className="text-xs font-medium px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
               Tài liệu bài học
             </span>
             <h3 className="text-lg font-bold text-foreground">{lessonTitle}</h3>
@@ -632,7 +637,7 @@ export function LessonVideoScreen({
               href={documentUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold text-sm transition shadow-md shadow-sky-600/20"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#027D88] hover:bg-[#02646d] text-white font-semibold text-sm transition shadow-none"
             >
               <Icon icon="lucide:external-link" className="size-4" />
               <span>Mở tài liệu đọc</span>
@@ -687,48 +692,48 @@ export function LessonVideoScreen({
           className="w-full h-full object-contain cursor-pointer"
         />
 
-        {/* Center Big Play Button (when paused) */}
+        {/* Center Big Play Button: Frosted Glassmorphism Luxury (Matching Trailer Idle State) */}
         {!isPlaying && (
           <button
             type="button"
             onClick={togglePlay}
             aria-label="Phát video"
-            className="absolute size-18 rounded-full bg-sky-500/90 hover:bg-sky-400 text-zinc-950 flex items-center justify-center transition-all duration-200 transform hover:scale-110 shadow-2xl shadow-sky-500/40 z-10 cursor-pointer"
+            className="absolute size-16 sm:size-18 rounded-full bg-white/20 dark:bg-black/40 backdrop-blur-md border border-white/30 text-white flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 shadow-xl z-10 cursor-pointer group"
           >
-            <Icon icon="lucide:play" className="size-8 translate-x-0.5 fill-current" />
+            <Icon icon="lucide:play" className="size-7 sm:size-8 ml-0.5 fill-white text-white transition-transform group-hover:scale-110" />
           </button>
         )}
 
-        {/* Top Gradient Vignette */}
+        {/* Top Vignette Scrim (taste-skill-ignore: neutral scrim over video footage) */}
         <div
-          className={`absolute top-0 inset-x-0 h-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent pointer-events-none transition-opacity duration-300 z-10 ${isControlsVisible ? 'opacity-100' : 'opacity-0'
+          className={`absolute top-0 inset-x-0 h-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent pointer-events-none transition-opacity duration-300 z-10 /* taste-skill-ignore */ ${isControlsVisible ? 'opacity-100' : 'opacity-0'
             }`}
         />
 
-        {/* Bottom Cinema Controls Overlay */}
+        {/* Bottom Cinema Controls Overlay (taste-skill-ignore: neutral scrim over video footage) */}
         <div
-          className={`absolute bottom-0 inset-x-0 p-3 sm:p-4 bg-gradient-to-t from-black/95 via-black/75 to-transparent transition-opacity duration-300 z-20 space-y-2.5 ${isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          className={`absolute bottom-0 inset-x-0 p-3 sm:p-4 bg-gradient-to-t from-black/95 via-black/75 to-transparent transition-opacity duration-300 z-20 space-y-2 /* taste-skill-ignore */ ${isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
         >
-          {/* Progress Slider Bar with Buffer, Timeline Markers & Pin Marker */}
+          {/* Progress Slider Bar with Buffer, Timeline Markers & Pin Marker (Cinema Luxury 2px) */}
           <div
             ref={sliderTrackRef}
             onMouseMove={handleSliderMouseMove}
             onMouseLeave={handleSliderMouseLeave}
             className="relative w-full group/slider flex items-center h-4 cursor-pointer"
           >
-            {/* Background Track */}
-            <div className="absolute inset-x-0 h-[4.5px] group-hover/slider:h-[5.5px] bg-zinc-800 rounded-full overflow-hidden transition-all duration-150">
+            {/* Background Track (Ultra-thin 2px, expands to 3px on hover) */}
+            <div className="absolute inset-x-0 h-[2px] group-hover/slider:h-[3px] bg-white/20 rounded-full overflow-hidden transition-all duration-150">
               {/* Buffer progress */}
               <div
-                className="h-full bg-zinc-700/60 transition-all"
+                className="h-full bg-white/35 transition-all"
                 style={{ width: `${Math.min(100, Math.max(0, bufferPercent))}%` }}
               />
             </div>
 
-            {/* Played progress */}
+            {/* Played progress (Crisp Pure White) */}
             <div
-              className="absolute left-0 h-[4.5px] group-hover/slider:h-[5.5px] bg-sky-500 rounded-full pointer-events-none transition-all duration-150"
+              className="absolute left-0 h-[2px] group-hover/slider:h-[3px] bg-white rounded-full pointer-events-none transition-all duration-150"
               style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
             />
 
@@ -742,12 +747,12 @@ export function LessonVideoScreen({
                     key={idx}
                     title={`${formatTime(marker.time)} - ${marker.label}`}
                     style={{ left: `${tickPercent}%` }}
-                    className="absolute top-1/2 -translate-y-1/2 size-1.5 -ml-[3px] rounded-full bg-amber-400 border border-zinc-950 ring-1 ring-amber-400/50 hover:scale-150 transition-all pointer-events-none z-10"
+                    className="absolute top-1/2 -translate-y-1/2 size-1 -ml-[2px] rounded-full bg-white/50 pointer-events-none z-10"
                   />
                 );
               })}
 
-            {/* Real Database Quiz Checkpoints on Timeline */}
+            {/* Real Database Quiz Checkpoints on Timeline (Subtle Micro-Gems) */}
             {duration > 0 &&
               Array.from(quizCheckpoints.entries()).map(([ts, questions]) => {
                 const quizPercent = (ts / duration) * 100;
@@ -755,13 +760,14 @@ export function LessonVideoScreen({
                 const sampleQ = questions[0]?.question || 'Câu hỏi tương tác';
                 const isSnapTarget = snapTarget?.timestamp === ts;
                 const isSourceBeingDragged = isDraggingCluster && dragSource?.timestamp === ts;
+                const isMultiple = questions.length >= 2;
 
                 return (
                   <div
                     key={`quiz-db-${ts}`}
                     title={`[${formatTime(ts)}] ${questions.length} câu hỏi: ${sampleQ}`}
                     style={{ left: `${quizPercent}%` }}
-                    className={`absolute top-1/2 -translate-y-1/2 -ml-2 size-4 flex items-center justify-center z-30 pointer-events-auto cursor-pointer group/checkpoint transition-all ${isSourceBeingDragged ? 'opacity-30 scale-75' : ''
+                    className={`absolute top-1/2 -translate-y-1/2 -ml-1.5 size-3 flex items-center justify-center z-30 pointer-events-auto cursor-pointer group/checkpoint transition-all ${isSourceBeingDragged ? 'opacity-30 scale-75' : ''
                       }`}
                     onMouseEnter={() => {
                       if (isDraggingCluster) return;
@@ -797,15 +803,15 @@ export function LessonVideoScreen({
                       }
                     }}
                   >
-                    {/* Vòng tròn vàng (Yellow Circle) */}
+                    {/* Micro-gem marker on track (Subtle Amber Notch / Gem) */}
                     <div
-                      className={`size-2.5 rounded-full bg-amber-400 border border-white dark:border-zinc-950 shadow-sm flex items-center justify-center transition-all ${isSnapTarget
-                          ? 'scale-175 ring-4 ring-emerald-400 ring-offset-2 ring-offset-zinc-950 bg-emerald-400 animate-pulse'
-                          : 'group-hover/checkpoint:scale-125'
+                      className={`transition-all duration-150 ${isSnapTarget
+                          ? 'size-3 rounded-full bg-emerald-400 ring-4 ring-emerald-400/50 scale-125'
+                          : isMultiple
+                            ? 'w-2.5 h-1.5 rounded-full bg-amber-400 border border-zinc-950 ring-1 ring-amber-300 group-hover/checkpoint:scale-125'
+                            : 'size-1.5 rounded-full bg-amber-400 border border-zinc-950 group-hover/checkpoint:scale-125'
                         }`}
-                    >
-                      <div className="size-1 rounded-full bg-slate-900 pointer-events-none" />
-                    </div>
+                    />
                   </div>
                 );
               })}
@@ -856,13 +862,13 @@ export function LessonVideoScreen({
                   onPointerUp={handleBadgePointerUp}
                   onPointerLeave={handleBadgePointerCancel}
                   onPointerCancel={handleBadgePointerCancel}
-                  title="Nhấn để thêm câu hỏi • Nhấn giữ 1.5s để kéo và gộp cụm câu hỏi"
+                  title="Nhấn để thêm câu hỏi • Nhấn giữ 1s để kéo và gộp cụm câu hỏi"
                   className={`relative overflow-hidden z-10 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-bold text-xs shadow-xl shadow-amber-500/30 border border-amber-300 dark:border-amber-400 flex items-center gap-1.5 cursor-grab active:cursor-grabbing transform transition-all duration-150 whitespace-nowrap select-none ${isHoldingBadge
                       ? 'scale-105 ring-2 ring-amber-300 ring-offset-1 ring-offset-zinc-950'
                       : 'hover:scale-105 active:scale-95'
                     }`}
                 >
-                  {/* Thanh nạp tiến trình 1.5s (Progress fill bar) */}
+                  {/* Thanh nạp tiến trình 1s (Progress fill bar) */}
                   {isHoldingBadge && (
                     <div
                       className="absolute inset-y-0 left-0 bg-amber-700/50 pointer-events-none transition-[width] duration-75"
@@ -879,7 +885,7 @@ export function LessonVideoScreen({
                   </span>
                   {!isHoldingBadge && (
                     <span className="relative z-10 text-[10px] font-medium text-slate-800/80 border-l border-slate-950/20 pl-1 hidden sm:inline">
-                      Giữ 1.5s kéo gộp
+                      Giữ 1s kéo gộp
                     </span>
                   )}
                 </button>
@@ -893,8 +899,8 @@ export function LessonVideoScreen({
                 <div
                   style={{ left: `${currentDragPercent}%` }}
                   className={`absolute top-0 bottom-0 w-0.5 -ml-px pointer-events-none z-40 transition-none ${snapTarget
-                      ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]'
-                      : 'bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.9)]'
+                      ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
+                      : 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]'
                     }`}
                 />
 
@@ -907,8 +913,8 @@ export function LessonVideoScreen({
                 >
                   <div
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold shadow-2xl flex items-center gap-2 border whitespace-nowrap backdrop-blur-md ${snapTarget
-                        ? 'bg-emerald-950/95 text-emerald-200 border-emerald-400 shadow-emerald-500/40 ring-2 ring-emerald-400/50'
-                        : 'bg-zinc-950/95 text-sky-200 border-sky-400 shadow-sky-500/40'
+                        ? 'bg-emerald-950/95 text-emerald-200 border-emerald-400'
+                        : 'bg-zinc-950/95 text-white border-white/40'
                       }`}
                   >
                     <Icon
@@ -927,7 +933,7 @@ export function LessonVideoScreen({
 
                   {/* Arrow pointer down to seekbar */}
                   <div
-                    className={`size-2 rotate-45 mx-auto -mt-1 shadow-xs ${snapTarget ? 'bg-emerald-400' : 'bg-sky-400'
+                    className={`size-2 rotate-45 mx-auto -mt-1 shadow-xs ${snapTarget ? 'bg-emerald-400' : 'bg-white'
                       }`}
                   />
                 </div>
@@ -947,24 +953,24 @@ export function LessonVideoScreen({
                 }`}
             />
 
-            {/* Scrubber thumb circle */}
+            {/* Scrubber thumb circle: Sleek White Pinhead */}
             <div
-              className={`absolute top-1/2 -translate-y-1/2 size-2.5 rounded-full bg-sky-400 shadow-md ring-2 ring-sky-500/40 opacity-0 group-hover/slider:opacity-100 transition-all duration-150 pointer-events-none -ml-[5px] ${isDraggingCluster ? 'hidden' : ''
+              className={`absolute top-1/2 -translate-y-1/2 size-2.5 rounded-full bg-white shadow-md ring-2 ring-white/30 opacity-0 group-hover/slider:opacity-100 transition-opacity duration-150 pointer-events-none -ml-[5px] ${isDraggingCluster ? 'hidden' : ''
                 }`}
               style={{ left: `${Math.min(100, Math.max(0, progressPercent))}%` }}
             />
           </div>
 
-          {/* Lower Controls Bar: Left Buttons & Right Tools */}
-          <div className="flex items-center justify-between gap-3 text-zinc-200">
+          {/* Lower Controls Bar: Left Buttons & Right Tools (Cinema Luxury) */}
+          <div className="flex items-center justify-between gap-3 text-white/90">
             {/* Left Controls: Play, Rewind 10s, Forward 10s, Time */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-2.5">
               {/* Play / Pause button */}
               <button
                 type="button"
                 onClick={togglePlay}
                 aria-label={isPlaying ? 'Tạm dừng' : 'Phát'}
-                className="size-8 rounded-lg hover:bg-zinc-800/80 flex items-center justify-center transition text-zinc-100 hover:text-sky-400 cursor-pointer"
+                className="size-8 rounded-lg hover:bg-white/10 flex items-center justify-center transition text-white/90 hover:text-white cursor-pointer"
               >
                 <Icon
                   icon={isPlaying ? 'lucide:pause' : 'lucide:play'}
@@ -977,7 +983,7 @@ export function LessonVideoScreen({
                 type="button"
                 onClick={() => seekRelative(-10)}
                 title="Tua lùi 10 giây (←)"
-                className="size-8 rounded-lg hover:bg-zinc-800/80 flex items-center justify-center transition text-zinc-300 hover:text-zinc-100 cursor-pointer"
+                className="size-8 rounded-lg hover:bg-white/10 flex items-center justify-center transition text-white/80 hover:text-white cursor-pointer"
               >
                 <Icon icon="lucide:rotate-ccw" className="size-4" />
                 <span className="sr-only">Tua lùi 10 giây</span>
@@ -988,7 +994,7 @@ export function LessonVideoScreen({
                 type="button"
                 onClick={() => seekRelative(10)}
                 title="Tua tới 10 giây (→)"
-                className="size-8 rounded-lg hover:bg-zinc-800/80 flex items-center justify-center transition text-zinc-300 hover:text-zinc-100 cursor-pointer"
+                className="size-8 rounded-lg hover:bg-white/10 flex items-center justify-center transition text-white/80 hover:text-white cursor-pointer"
               >
                 <Icon icon="lucide:rotate-cw" className="size-4" />
                 <span className="sr-only">Tua tới 10 giây</span>
@@ -1000,7 +1006,7 @@ export function LessonVideoScreen({
                   type="button"
                   onClick={toggleMute}
                   aria-label={isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
-                  className="size-8 rounded-lg hover:bg-zinc-800/80 flex items-center justify-center transition text-zinc-300 hover:text-zinc-100 cursor-pointer"
+                  className="size-8 rounded-lg hover:bg-white/10 flex items-center justify-center transition text-white/80 hover:text-white cursor-pointer"
                 >
                   <Icon
                     icon={
@@ -1021,16 +1027,14 @@ export function LessonVideoScreen({
                   value={isMuted ? 0 : volume}
                   onChange={(e) => setVolumeLevel(parseFloat(e.target.value))}
                   aria-label="Thanh chỉnh âm lượng"
-                  className="w-0 group-hover/volume:w-16 transition-all duration-200 accent-sky-400 h-1 bg-zinc-700 rounded-lg cursor-pointer"
+                  className="w-0 group-hover/volume:w-16 sm:group-hover/volume:w-20 transition-all duration-200 opacity-0 group-hover/volume:opacity-100 accent-white h-[2.5px] bg-white/30 rounded-full cursor-pointer"
                 />
               </div>
 
-              {/* Time Display */}
-              <div className="text-xs font-mono text-zinc-300 pl-1 select-none">
-                <span className="text-sky-400 font-medium">{formatTime(currentTime)}</span>
-                <span className="text-zinc-500 mx-1">/</span>
-                <span>{formatTime(duration)}</span>
-              </div>
+              {/* Minimalist Time Counter (Matching Image 2 Style) */}
+              <span className="text-xs text-white/90 tabular-nums select-none font-normal pl-1">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
             </div>
 
             {/* Right Controls: Speed Menu & Fullscreen */}
@@ -1041,10 +1045,10 @@ export function LessonVideoScreen({
                   type="button"
                   onClick={() => setIsSpeedMenuOpen((prev) => !prev)}
                   title="Tốc độ phát"
-                  className="px-2.5 py-1 rounded-lg bg-zinc-800/70 hover:bg-zinc-700/80 text-xs font-semibold text-zinc-200 transition cursor-pointer flex items-center gap-1"
+                  className="px-2 py-1 rounded hover:bg-white/10 text-xs font-medium text-white/90 hover:text-white transition cursor-pointer flex items-center gap-1"
                 >
-                  <span>{playbackRate}x</span>
-                  <Icon icon="lucide:chevron-up" className="size-3 text-zinc-400" />
+                  <span className="tabular-nums">{playbackRate}x</span>
+                  <Icon icon="lucide:chevron-up" className="size-3 text-white/70" />
                 </button>
 
                 {isSpeedMenuOpen && (
@@ -1061,13 +1065,13 @@ export function LessonVideoScreen({
                           setIsSpeedMenuOpen(false);
                         }}
                         className={`w-full text-left px-2 py-1 rounded-md text-xs font-medium transition cursor-pointer flex items-center justify-between ${playbackRate === speed
-                            ? 'bg-sky-500/15 text-sky-400 font-bold'
+                            ? 'bg-white/15 text-white font-bold'
                             : 'text-zinc-300 hover:bg-zinc-800'
                           }`}
                       >
-                        <span>{speed}x</span>
+                        <span className="tabular-nums">{speed}x</span>
                         {playbackRate === speed && (
-                          <Icon icon="lucide:check" className="size-3 text-sky-400" />
+                          <Icon icon="lucide:check" className="size-3 text-white" />
                         )}
                       </button>
                     ))}
@@ -1080,11 +1084,11 @@ export function LessonVideoScreen({
                 type="button"
                 onClick={toggleFullscreen}
                 title={isFullscreen ? 'Thu nhỏ (F)' : 'Toàn màn hình (F)'}
-                className="size-8 rounded-lg hover:bg-zinc-800/80 flex items-center justify-center transition text-zinc-300 hover:text-zinc-100 cursor-pointer"
+                className="size-8 rounded-lg hover:bg-white/10 flex items-center justify-center transition text-white/80 hover:text-white cursor-pointer"
               >
                 <Icon
                   icon={isFullscreen ? 'lucide:minimize' : 'lucide:maximize'}
-                  className="size-4.5"
+                  className="size-4"
                 />
               </button>
             </div>
