@@ -309,7 +309,17 @@ export function useResetPasswordMutation() {
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
       }
-      queryClient.removeQueries({ queryKey: authKeys.all });
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        try {
+          const channel = new BroadcastChannel('app_auth_sync');
+          channel.postMessage({ type: 'AUTH_LOGOUT' });
+          channel.close();
+        } catch {
+          // ignore error
+        }
+      }
+
+      queryClient.clear();
       toast.success('Đặt lại mật khẩu thành công!', {
         description: data.message || 'Vui lòng đăng nhập bằng mật khẩu mới.',
       });
@@ -345,7 +355,7 @@ export function useVerifyEmailChangeMutation() {
           }
         }
       }
-      queryClient.removeQueries({ queryKey: authKeys.all });
+      queryClient.clear();
       toast.success('Cập nhật email thành công!', {
         description: data.message || 'Vui lòng đăng nhập lại với email mới.',
       });
@@ -360,21 +370,31 @@ export function useChangePasswordMutation() {
 }
 
 export function useLogoutMutation(options?: { redirectTo?: string }) {
+  const redirectTo = options?.redirectTo ?? '/';
   const queryClient = useQueryClient();
   const router = useRouter();
 
   return useMutation({
     mutationFn: () => authApi.logout(),
     onSettled: async () => {
-      await queryClient.cancelQueries({ queryKey: authKeys.all });
+      await queryClient.cancelQueries();
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
-      queryClient.removeQueries({ queryKey: authKeys.all });
-      toast.info('Đã đăng xuất khỏi hệ thống');
-      if (options?.redirectTo) {
-        router.replace(options.redirectTo);
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        try {
+          const channel = new BroadcastChannel('app_auth_sync');
+          channel.postMessage({ type: 'AUTH_LOGOUT' });
+          channel.close();
+        } catch {
+          // ignore error
+        }
       }
+
+      queryClient.clear();
+      toast.info('Đã đăng xuất khỏi hệ thống');
+      router.replace(redirectTo);
+      router.refresh();
     },
   });
 }

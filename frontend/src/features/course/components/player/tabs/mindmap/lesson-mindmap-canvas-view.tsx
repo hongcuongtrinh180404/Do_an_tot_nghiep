@@ -17,6 +17,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import type { ILessonMindmapNode } from 'share-lib';
+import { Icon } from '@/components/ui/icon';
 import { SmoothBezierEdge } from '@/features/course/components/mindmap/edges/smooth-bezier-edge';
 import { startLayoutAnimation } from '@/features/course/utils/mindmap-animation.util';
 import { LessonMindmapCanvasNode } from './lesson-mindmap-canvas-node';
@@ -118,7 +119,6 @@ function LessonMindmapFlowCanvas({
   const cancelAnimationRef = useRef<(() => void) | null>(null);
   const isFirstLayoutRef = useRef(true);
   // Tăng revision sau mỗi animation để effect highlight áp lại trạng thái mới nhất
-  // (animation frames dùng target nodes từ layout nên có thể ghi đè highlight).
   const [highlightRevision, setHighlightRevision] = useState(0);
 
   useEffect(() => {
@@ -169,7 +169,7 @@ function LessonMindmapFlowCanvas({
     };
   }, []);
 
-  // Highlight node gần thời điểm video hiện tại mà KHÔNG reset vị trí (kể cả khi user đang kéo node)
+  // Highlight node gần thời điểm video hiện tại mà KHÔNG reset vị trí
   useEffect(() => {
     const nearNodeIds = new Set<string>();
     for (const node of layoutNodes) {
@@ -213,33 +213,31 @@ function LessonMindmapFlowCanvas({
     return () => clearTimeout(timer);
   }, [fitView]);
 
-  // Toàn màn hình toggle
+  // Toàn màn hình toggle: Cơ chế CSS overlay fixed inset-0 z-50 từ CourseMindmapView
   const handleToggleFullscreen = useCallback(() => {
-    if (!containerRef.current) return;
-
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
-    } else {
-      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
-    }
+    setIsFullscreen((prev) => !prev);
   }, []);
 
+  // Hỗ trợ phím tắt Escape để thoát toàn màn hình
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
-      // Tự động căn giữa sau khi chuyển trạng thái fullscreen
-      setTimeout(() => {
-        void fitView({ padding: 0.2, duration: 250 });
-      }, 100);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
     };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
-  }, [fitView]);
+  // Căn giữa lại toàn màn hình khi chuyển đổi kích thước
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void fitView({ padding: 0.25, duration: 300 });
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [isFullscreen, fitView]);
 
-  // Khôi phục layout chuẩn sau khi người dùng kéo node (drag được giữ nguyên như hiện tại)
+  // Khôi phục layout chuẩn sau khi người dùng kéo node
   const handleRelayout = useCallback(() => {
     cancelAnimationRef.current?.();
 
@@ -268,55 +266,82 @@ function LessonMindmapFlowCanvas({
     });
   }, [root, currentTime, activeCollapsedIds, handleToggleCollapse, onSeek, setNodes, setEdges, fitView]);
 
+  const containerClasses = isFullscreen
+    ? 'fixed inset-0 z-50 w-screen h-screen bg-background flex flex-col p-3 sm:p-5 transition-all duration-200'
+    : 'relative w-full rounded-2xl border border-border/80 bg-muted/15 overflow-hidden transition-all h-[520px] sm:h-[580px] flex flex-col';
+
   return (
-    <div
-      ref={containerRef}
-      className={`relative w-full rounded-2xl border border-border/80 bg-muted/15 overflow-hidden transition-all ${
-        isFullscreen ? 'h-screen w-screen p-4' : 'h-[520px] sm:h-[580px]'
-      }`}
-    >
-      {/* Floating Toolbar */}
-      <div className="absolute top-3 right-3 z-10">
-        <LessonMindmapCanvasToolbar
-          isAllCollapsed={!isFullyExpanded}
-          onToggleCollapseAll={handleToggleCollapseAll}
-          isFullscreen={isFullscreen}
-          onToggleFullscreen={handleToggleFullscreen}
-          onRelayout={handleRelayout}
-        />
-      </div>
+    <div ref={containerRef} className={containerClasses}>
+      {/* Top Header Bar khi mở Toàn màn hình */}
+      {isFullscreen && (
+        <div className="shrink-0 flex items-center justify-between pb-3 px-1 border-b border-border/70 mb-2 select-none">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300 text-xs font-semibold shrink-0">
+              <Icon icon="lucide:network" className="size-3.5" />
+              <span>Sơ đồ tư duy bài học</span>
+            </span>
+            <span className="text-xs sm:text-sm font-bold text-foreground truncate">
+              {root.title}
+            </span>
+          </div>
 
-      {/* Mini Helper Badge */}
-      <div className="absolute bottom-3 left-3 z-10 pointer-events-none hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-background/80 backdrop-blur-xs border border-border/70 text-[11px] text-muted-foreground shadow-2xs">
-        <span className="size-1.5 rounded-full bg-sky-500 animate-pulse" />
-        <span>Cuộn chuột để thu phóng • Kéo để di chuyển • Bấm mốc thời gian để tua video</span>
-      </div>
+          <button
+            type="button"
+            onClick={() => setIsFullscreen(false)}
+            title="Thoát toàn màn hình (Phím Esc)"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted hover:bg-muted/80 text-foreground transition-colors cursor-pointer border border-border/70 shrink-0"
+          >
+            <Icon icon="lucide:minimize-2" className="size-3.5" />
+            <span>Thoát (Esc)</span>
+          </button>
+        </div>
+      )}
 
-      {/* ReactFlow Canvas */}
-      <ReactFlow<Node<LessonMindmapNodeData>, Edge>
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        nodesDraggable={true}
-        nodesConnectable={false}
-        elementsSelectable={true}
-        minZoom={0.2}
-        maxZoom={2}
-        defaultViewport={{ x: 50, y: 150, zoom: 0.85 }}
-        proOptions={{ hideAttribution: true }}
-        className="touch-none select-none"
-      >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={18}
-          size={1.2}
-          color="var(--border)"
-          className="opacity-50"
-        />
-      </ReactFlow>
+      {/* Viewport container */}
+      <div className="flex-1 w-full h-full relative min-h-0">
+        {/* Floating Toolbar */}
+        <div className="absolute top-3 right-3 z-10">
+          <LessonMindmapCanvasToolbar
+            isAllCollapsed={!isFullyExpanded}
+            onToggleCollapseAll={handleToggleCollapseAll}
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={handleToggleFullscreen}
+            onRelayout={handleRelayout}
+          />
+        </div>
+
+        {/* Mini Helper Badge */}
+        <div className="absolute bottom-3 left-3 z-10 pointer-events-none hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-background/80 backdrop-blur-xs border border-border/70 text-[11px] text-muted-foreground shadow-2xs">
+          <span className="size-1.5 rounded-full bg-sky-500 animate-pulse" />
+          <span>Cuộn chuột để thu phóng • Kéo để di chuyển • Bấm mốc thời gian để tua video</span>
+        </div>
+
+        {/* ReactFlow Canvas */}
+        <ReactFlow<Node<LessonMindmapNodeData>, Edge>
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          nodesDraggable={true}
+          nodesConnectable={false}
+          elementsSelectable={true}
+          minZoom={0.2}
+          maxZoom={2}
+          defaultViewport={{ x: 50, y: 150, zoom: 0.85 }}
+          proOptions={{ hideAttribution: true }}
+          className="touch-none select-none"
+        >
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={18}
+            size={1.2}
+            color="var(--border)"
+            className="opacity-50"
+          />
+        </ReactFlow>
+      </div>
     </div>
   );
 }

@@ -49,7 +49,13 @@ apiClient.interceptors.response.use(
   async (error: AxiosError<IApiResponse<unknown>>): Promise<unknown> => {
     const originalRequest = error.config as CustomRequestConfig | undefined;
 
-    if (!originalRequest || error.response?.status !== 401 || originalRequest._retry) {
+    if (
+      !originalRequest ||
+      error.response?.status !== 401 ||
+      originalRequest._retry ||
+      originalRequest.url?.includes('/auth/login') ||
+      originalRequest.url?.includes('/auth/refresh')
+    ) {
       return Promise.reject(error);
     }
 
@@ -106,6 +112,28 @@ apiClient.interceptors.response.use(
     if (newAccessToken) {
       originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
       return apiClient(originalRequest);
+    }
+
+    // Refresh token expired or revoked by backend -> auto redirect to home page ('/')
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+
+      if ('BroadcastChannel' in window) {
+        try {
+          const channel = new BroadcastChannel('app_auth_sync');
+          channel.postMessage({ type: 'AUTH_LOGOUT', reason: 'EXPIRED' });
+          channel.close();
+        } catch {
+          // ignore error
+        }
+      }
+
+      const pathname = window.location.pathname;
+      if (pathname !== '/' && !pathname.startsWith('/login') && !pathname.startsWith('/register')) {
+        window.location.href = '/';
+      }
     }
 
     return Promise.reject(error);

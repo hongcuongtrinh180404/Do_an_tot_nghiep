@@ -21,7 +21,7 @@
 - **Cross-Tab Synchronization**:
   - Frontend utilizes `BroadcastChannel('app_auth_sync')` and `storage` events to synchronize authentication state across multiple browser tabs.
   - When switching accounts or logging in with a new user in one tab (`AUTH_USER_SWITCHED`), all other tabs update user state, clear query caches, and reload (`window.location.reload()`) to refresh the layout and role state.
-  - When logging out (`AUTH_LOGOUT`), all tabs reset store/context and redirect to `/login`.
+  - When logging out (AUTH_LOGOUT) or automatic session expiration, all tabs reset store/context, clear React Query cache (queryClient.clear()), and redirect to the home page (/).
 - **Refresh Token Concurrency & Grace Period**:
   - Frontend uses Web Locks API (`navigator.locks.request('token_refresh')`) so only 1 tab refreshes tokens at any given moment.
   - Backend `SessionRepository.updateByHash` enforces a **30-second Grace Period window** (`hashRotatedAt < 30s`): concurrent requests presenting `previousHash` within 30s receive the active session and tokens instead of 401 Unauthorized.

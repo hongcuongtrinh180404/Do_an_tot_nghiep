@@ -29,7 +29,7 @@ export function PublicHeader({
   const searchParams = useSearchParams();
   const isMounted = useIsMounted();
   const { data: user } = useCurrentUserQuery();
-  const logoutMutation = useLogoutMutation();
+  const logoutMutation = useLogoutMutation({ redirectTo: '/' });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);

@@ -52,7 +52,25 @@ export function LessonMindmapCanvasToolbar({
         <Icon icon="lucide:zoom-out" className="size-3.5" />
       </Button>
 
-      {/* Fit View */}
+      {/* Fullscreen Toggle - Nút thứ 3 người dùng khoanh tròn */}
+      <Button
+        type="button"
+        variant={isFullscreen ? 'secondary' : 'ghost'}
+        size="sm"
+        onClick={onToggleFullscreen}
+        title={isFullscreen ? 'Thoát toàn màn hình (Esc)' : 'Toàn màn hình'}
+        className={`size-7 p-0 rounded-lg cursor-pointer transition-colors ${isFullscreen
+            ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300 font-semibold'
+            : 'text-muted-foreground hover:text-foreground'
+          }`}
+      >
+        <Icon
+          icon={isFullscreen ? 'lucide:minimize-2' : 'lucide:maximize'}
+          className="size-3.5"
+        />
+      </Button>
+
+      {/* Fit View (Căn giữa) */}
       <Button
         type="button"
         variant="ghost"
@@ -61,7 +79,7 @@ export function LessonMindmapCanvasToolbar({
         title="Căn giữa toàn cảnh (Fit View)"
         className="size-7 p-0 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
       >
-        <Icon icon="lucide:maximize" className="size-3.5" />
+        <Icon icon="lucide:scan" className="size-3.5" />
       </Button>
 
       <div className="w-[1px] h-4 bg-border/80 mx-0.5" />
@@ -97,21 +115,6 @@ export function LessonMindmapCanvasToolbar({
         <span className="text-[11px] font-medium hidden sm:inline">
           {isAllCollapsed ? 'Mở rộng' : 'Thu gọn'}
         </span>
-      </Button>
-
-      {/* Fullscreen Toggle */}
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={onToggleFullscreen}
-        title={isFullscreen ? 'Thoát toàn màn hình' : 'Xem toàn màn hình'}
-        className="size-7 p-0 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
-      >
-        <Icon
-          icon={isFullscreen ? 'lucide:minimize-2' : 'lucide:maximize-2'}
-          className="size-3.5"
-        />
       </Button>
     </div>
   );

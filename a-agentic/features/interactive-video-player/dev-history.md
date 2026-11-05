@@ -246,3 +246,13 @@
     2. Đồng bộ loại bỏ dải sub-header dư thừa tương tự trong `LessonSummaryTab` (mở thẳng vào phần Tổng quan và Dòng thời gian).
     3. Tinh gọn thanh điều khiển trong `LessonMindmapTab`, chỉ giữ lại bộ chuyển đổi Dạng cây / Sơ đồ Canvas và Mở rộng/Thu gọn.
   - *Kiểm định:* TypeScript (`tsc --noEmit`) và ESLint 100% đạt chuẩn 0 lỗi.
+
+- **Đồng Bộ Cơ Chế Toàn Màn Hình Cho Mindmap Bài Học (Lesson Mindmap Fullscreen Mechanism)**:
+  - *Bối cảnh:* Nút thứ 3 trên thanh công cụ của Sơ đồ tư duy bài học trước đây kích hoạt `fitView` và nút fullscreen ở cuối dùng API trình duyệt `requestFullscreen()` bị giới hạn trong khung chứa DOM cha.
+  - *Giải pháp:* Kế thừa 100% cơ chế từ Mindmap tổng quát (`CourseMindmapView`):
+    1. Gán nút thứ 3 (icon `lucide:maximize`) thành nút kích hoạt **Toàn màn hình**.
+    2. Sử dụng React state `isFullscreen` và lớp phủ `fixed inset-0 z-50 w-screen h-screen bg-background`, tự động thoát ly khỏi container cha khi mở.
+    3. Tự động gọi `fitView({ padding: 0.25, duration: 300 })` khi vào/ra toàn màn hình để căn giữa sơ đồ hoàn hảo.
+    4. Bổ sung phím tắt `Escape` và nút thoát nhanh trên thanh Top Bar.
+    5. Đổi icon nút Căn giữa (Fit View) sang `lucide:scan` để tách biệt chức năng rõ ràng.
+  - *Kiểm định:* TypeScript compiler và ESLint đạt 0 lỗi.

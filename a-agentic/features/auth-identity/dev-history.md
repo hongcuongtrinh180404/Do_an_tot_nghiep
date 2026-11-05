@@ -526,3 +526,27 @@
     - Cleaned up title headers to focus on clear typography and concise descriptions.
 - **Gotchas & Lessons**:
   - Storing `prevScrollY` inside a React `useRef` rather than state inside the scroll listener avoids re-registering event listeners on every frame and eliminates scroll jitter.
+
+
+### [2026-11-04] - Universal Logout Redirection to Homepage ('/') & Multi-Tab Synchronization
+
+- **Problem / Requirements**:
+  - Previously, clicking "Đăng xuất" (from `PublicHeader` dropdown on pages like `/settings`, `/profile`, `/my-courses`) cleared auth tokens and queries but did not redirect the user to the home page because `useLogoutMutation` only redirected if `options?.redirectTo` was explicitly supplied, which `PublicHeader` did not pass.
+  - As a result, users remained stuck on the current route and were presented with unauthenticated fallbacks / error screens such as *"Yêu cầu đăng nhập"*.
+  - Requirement: When logging out, universally redirect the user to the home page (`/`), synchronize logout across all active browser tabs via `BroadcastChannel`, and automatically redirect on session expiration (401 Refresh Token Failed).
+- **Solution**:
+  - **Auth API & Hooks (`auth.api.ts`, `use-auth.ts`, `public-header.tsx`)**:
+    - Defaulted `redirectTo` in `useLogoutMutation` to `'/'` (`options?.redirectTo ?? '/'`).
+    - Configured `useAuth({ logoutRedirectTo: '/' })` default.
+    - Explicitly passed `{ redirectTo: '/' }` in `PublicHeader`.
+    - Called `queryClient.clear()` in `useLogoutMutation.onSettled` to completely wipe all cached queries (user profile, enrollments, cart) from client memory.
+    - Broadcasted `AUTH_LOGOUT` via `BroadcastChannel('app_auth_sync')` upon logout.
+    - Called `router.replace(redirectTo)` followed by `router.refresh()` to invalidate any server-rendered RSC data.
+  - **Cross-Tab Synchronization (`auth-sync-handler.tsx`, `providers/index.tsx`)**:
+    - Created `AuthSyncHandler` client component mounted inside `AppProviders`.
+    - Listens to `BroadcastChannel('app_auth_sync')`: when `AUTH_LOGOUT` is received, purges `localStorage`, executes `queryClient.clear()`, displays an informative toast, and navigates the tab to `/`.
+  - **401 Session Expiration (`api-client.ts`)**:
+    - When refresh token verification fails (session revoked or expired), immediately cleans tokens from storage, broadcasts `AUTH_LOGOUT` with `reason: 'EXPIRED'`, and redirects non-homepage tabs directly to `/`.
+- **Gotchas & Lessons**:
+  - Standard Web `BroadcastChannel` instances do not emit events to their own sender instance within the same tab; hence, the initiating tab handles its own cleanup and navigation via the mutation's `onSettled` callback, while peer tabs are handled via `AuthSyncHandler`.
+  - Purging the entire query cache with `queryClient.clear()` on logout rather than solely `authKeys.all` prevents cross-user state leaks on shared workstations.

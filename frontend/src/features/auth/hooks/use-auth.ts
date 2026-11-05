@@ -5,7 +5,7 @@ import { useCurrentUserQuery, useLogoutMutation } from '../api/auth.api';
 
 export function useAuth(options?: { logoutRedirectTo?: string }) {
   const { data: user, isLoading, isError, refetch } = useCurrentUserQuery();
-  const logoutMutation = useLogoutMutation({ redirectTo: options?.logoutRedirectTo });
+  const logoutMutation = useLogoutMutation({ redirectTo: options?.logoutRedirectTo ?? '/' });
 
   return {
     user,
