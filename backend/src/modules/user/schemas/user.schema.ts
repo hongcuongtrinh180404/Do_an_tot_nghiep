@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import { RoleEnum, UserStatusEnum } from 'share-lib';
+import { RoleEnum, UserStatusEnum, AuthProviderEnum } from 'share-lib';
 import { BaseAbstractDocument } from '../../base/index.js';
 
 export type UserDocument = HydratedDocument<UserEntity>;
@@ -24,6 +24,16 @@ export class UserEntity extends BaseAbstractDocument {
 
   @Prop({ type: String, required: false, default: null, trim: true })
   googleSub?: string | null;
+
+  @Prop({
+    type: String,
+    enum: Object.values(AuthProviderEnum),
+    default: AuthProviderEnum.LOCAL,
+  })
+  provider?: AuthProviderEnum;
+
+  @Prop({ type: String, required: false, default: null, trim: true })
+  providerId?: string | null;
 
   @Prop({ type: String, required: false, default: null, trim: true })
   bio?: string | null;

@@ -25,10 +25,28 @@ export const apiClient: AxiosInstance = axios.create({
   timeout: 30000,
 });
 
+/**
+ * Checks if a given request URL points to a public authentication endpoint
+ * where stale Bearer tokens and 401 refresh loops should never be applied.
+ */
+function isPublicAuthEndpoint(url?: string): boolean {
+  if (!url) return false;
+  return (
+    url.includes('/auth/login') ||
+    url.includes('/auth/google') ||
+    url.includes('/auth/register') ||
+    url.includes('/auth/refresh') ||
+    url.includes('/auth/forgot-password') ||
+    url.includes('/auth/reset-password') ||
+    url.includes('/auth/verify-email') ||
+    url.includes('/auth/resend-verification')
+  );
+}
+
 // Request Interceptor: Attach Access Token
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !isPublicAuthEndpoint(config.url)) {
       const token = localStorage.getItem('accessToken');
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -53,8 +71,7 @@ apiClient.interceptors.response.use(
       !originalRequest ||
       error.response?.status !== 401 ||
       originalRequest._retry ||
-      originalRequest.url?.includes('/auth/login') ||
-      originalRequest.url?.includes('/auth/refresh')
+      isPublicAuthEndpoint(originalRequest.url)
     ) {
       return Promise.reject(error);
     }

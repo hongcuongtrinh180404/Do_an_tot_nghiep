@@ -24,6 +24,20 @@ export const envValidationSchema = Joi.object({
   }),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
 
+  // Google OAuth Configuration
+  GOOGLE_CLIENT_ID: Joi.string().allow('').default(''),
+  GOOGLE_CLIENT_SECRET: Joi.string().allow('').default(''),
+
+  // Gmail SMTP / Email Verification
+  SMTP_HOST: Joi.string().allow('').default('smtp.gmail.com'),
+  SMTP_PORT: Joi.number().default(587),
+  SMTP_SECURE: Joi.boolean().default(false),
+  GMAIL_USER: Joi.string().allow('').default(''),
+  GMAIL_APP_PASSWORD: Joi.string().allow('').default(''),
+  MAIL_FROM_NAME: Joi.string().allow('').default('Mindly - Map Your Mind'),
+  MAIL_FROM_EMAIL: Joi.string().allow('').default(''),
+  FRONTEND_URL: Joi.string().default('http://localhost:3000'),
+
   // CORS & Rate Limiting
   CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
   THROTTLE_TTL: Joi.number().default(60000),

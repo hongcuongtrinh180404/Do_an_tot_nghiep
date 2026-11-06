@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -42,6 +43,7 @@ export interface IOAuthProfile {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly googleClient: OAuth2Client;
 
   constructor(
@@ -264,6 +266,7 @@ export class AuthService {
   async loginWithGoogle(dto: GoogleAuthDto): Promise<IAuthResponse> {
     const googleClientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
     if (!googleClientId) {
+      this.logger.error('GOOGLE_CLIENT_ID chưa được cấu hình trên server');
       throw new UnauthorizedException('GOOGLE_CLIENT_ID chưa được cấu hình trên server');
     }
 
@@ -275,16 +278,48 @@ export class AuthService {
       });
       payload = ticket.getPayload();
     } catch (error) {
-      throw new UnauthorizedException(
-        `Xác thực Google ID Token không hợp lệ: ${error instanceof Error ? error.message : 'Token không hợp lệ'}`,
-      );
+      const isTransientCertError =
+        error instanceof Error &&
+        (error.message.includes('certificates') ||
+          error.message.includes('ECONNRESET') ||
+          error.message.includes('ETIMEDOUT') ||
+          error.message.includes('ENOTFOUND'));
+
+      if (isTransientCertError) {
+        this.logger.warn(
+          `Lỗi tạm thời khi tải certificates từ Google, đang thử lại: ${(error as Error).message}`,
+        );
+        try {
+          const retryTicket = await this.googleClient.verifyIdToken({
+            idToken: dto.idToken,
+            audience: googleClientId,
+          });
+          payload = retryTicket.getPayload();
+        } catch (retryError) {
+          this.logger.error(
+            `Xác thực Google ID Token thất bại sau khi thử lại: ${retryError instanceof Error ? retryError.message : 'Unknown error'}`,
+          );
+          throw new UnauthorizedException(
+            `Xác thực Google ID Token không hợp lệ: ${retryError instanceof Error ? retryError.message : 'Token không hợp lệ'}`,
+          );
+        }
+      } else {
+        this.logger.error(
+          `Xác thực Google ID Token không hợp lệ: ${error instanceof Error ? error.message : 'Token không hợp lệ'}`,
+        );
+        throw new UnauthorizedException(
+          `Xác thực Google ID Token không hợp lệ: ${error instanceof Error ? error.message : 'Token không hợp lệ'}`,
+        );
+      }
     }
 
     if (!payload || !payload.sub || !payload.email) {
+      this.logger.warn('Thông tin người dùng từ Google ID Token không đầy đủ');
       throw new UnauthorizedException('Thông tin người dùng từ Google ID Token không đầy đủ');
     }
 
     if (!payload.email_verified) {
+      this.logger.warn(`Email Google ${payload.email} chưa được xác minh bởi Google`);
       throw new BadRequestException('Email Google chưa được xác minh bởi Google');
     }
 
@@ -300,6 +335,7 @@ export class AuthService {
 
       if (existingUser) {
         // Safe Account Linking (Lựa chọn B): Tự động liên kết vì Google đã chứng minh email_verified === true
+        this.logger.log(`Liên kết tài khoản Google (${googleSub}) cho người dùng hiện tại: ${email}`);
         const updateData: Partial<IUser> = {
           googleSub,
           provider: AuthProviderEnum.GOOGLE,
@@ -319,6 +355,7 @@ export class AuthService {
         user = (await this.userService.updateOrFail(existingUser.id, updateData)) as IUser;
       } else {
         // 3. Tạo tài khoản mới cho người dùng
+        this.logger.log(`Tạo tài khoản học viên mới qua Google OAuth: ${email}`);
         const fullName = payload.name?.trim() || email.split('@')[0];
 
         user = await this.userService.create({
@@ -339,6 +376,7 @@ export class AuthService {
 
     // 4. Kiểm tra trạng thái tài khoản
     if (user.status !== UserStatusEnum.ACTIVE) {
+      this.logger.warn(`Từ chối đăng nhập Google cho tài khoản không hoạt động: ${email} (${user.status})`);
       throw new UnauthorizedException('Tài khoản của bạn đã bị vô hiệu hóa hoặc khóa');
     }
 
@@ -352,6 +390,8 @@ export class AuthService {
       refreshTokenHash,
       this.authTokenService.getRefreshTokenExpiryDate(),
     );
+
+    this.logger.log(`Đăng nhập Google thành công cho user: ${user.email} (ID: ${user.id}, Role: ${user.role})`);
 
     return {
       user: userProfile,

@@ -568,6 +568,45 @@ describe('AuthService', () => {
         service.loginWithGoogle({ idToken: 'corrupted_token' }),
       ).rejects.toThrow(UnauthorizedException);
     });
+
+    it('should retry verifyIdToken on transient certificates error and succeed if retry succeeds', async () => {
+      const verifySpy = vi
+        .spyOn(OAuth2Client.prototype, 'verifyIdToken')
+        .mockReset()
+        .mockRejectedValueOnce(new Error('Failed to retrieve verification certificates: timeout'))
+        .mockResolvedValueOnce({
+          getPayload: () => validGooglePayload,
+        } as never);
+
+      mockUserService.findByGoogleSub.mockResolvedValue(null);
+      mockUserService.findByEmail.mockResolvedValue(null);
+
+      const createdUser: IUser = {
+        ...mockUser,
+        id: 'retry_google_user',
+        email: 'student_google@example.com',
+        fullName: 'Google Student',
+        googleSub: 'google_sub_999',
+        role: RoleEnum.STUDENT,
+        status: UserStatusEnum.ACTIVE,
+      };
+      mockUserService.create.mockResolvedValue(createdUser);
+
+      const result = await service.loginWithGoogle({ idToken: 'valid_google_token' });
+
+      expect(verifySpy).toHaveBeenCalledTimes(2);
+      expect(result.user.id).toBe('retry_google_user');
+    });
+
+    it('should fail with UnauthorizedException if certificates error fails after retry', async () => {
+      vi.spyOn(OAuth2Client.prototype, 'verifyIdToken').mockRejectedValue(
+        new Error('Failed to retrieve verification certificates: network error'),
+      );
+
+      await expect(
+        service.loginWithGoogle({ idToken: 'valid_google_token' }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
   });
 });
 

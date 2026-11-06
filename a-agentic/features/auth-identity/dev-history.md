@@ -61,6 +61,11 @@
   - When users register via email/password, accounts must be created with `isEmailVerified: false` and `status: UserStatusEnum.INACTIVE`. Login attempts are rejected with an explicit Vietnamese message until activated.
   - To prevent SMTP setup blocking local development or testing, `MailService` automatically detects missing `GMAIL_APP_PASSWORD` and prints the direct activation link prominently to the terminal console as a fallback.
   - On `/verify-email`, `useVerifyEmailMutation` validates the token, activates `status: ACTIVE`, clears tokens, and immediately generates an authenticated session (tokens + `BroadcastChannel('app_auth_sync')`), redirecting the user straight to the learning dashboard.
+- **Gotcha 14 (Axios Interceptors & Stale Bearer Injection on Public Auth Endpoints)**:
+  - If Axios Request Interceptors globally inject `Authorization: Bearer <accessToken>` without checking whether the target URL is a public authentication endpoint (`/auth/google`, `/auth/login`, `/auth/register`), stale/expired tokens from earlier sessions get sent to public endpoints.
+  - Furthermore, if Axios Response Interceptors catch 401 on `/auth/google`, they erroneously trigger the 401 refresh loop, clear storage, broadcast `AUTH_LOGOUT`, and hide the true Google verification error message from the UI.
+  - **Resolution**: Implemented `isPublicAuthEndpoint` helper in `frontend/src/lib/api-client.ts` to strictly bypass token injection on outbound auth requests and prevent 401 auto-refresh interception.
+  - On Backend: Configured `JwtAuthGuard` to return `true` immediately when `IS_PUBLIC_KEY` is present, and added retry logic for transient Google certificate fetch failures (`https://www.googleapis.com/oauth2/v1/certs`) in `AuthService.loginWithGoogle`.
 
 ---
 
@@ -550,3 +555,28 @@
 - **Gotchas & Lessons**:
   - Standard Web `BroadcastChannel` instances do not emit events to their own sender instance within the same tab; hence, the initiating tab handles its own cleanup and navigation via the mutation's `onSettled` callback, while peer tabs are handled via `AuthSyncHandler`.
   - Purging the entire query cache with `queryClient.clear()` on logout rather than solely `authKeys.all` prevents cross-user state leaks on shared workstations.
+
+### [2026-11-06] - Resolve Intermittent Google OAuth Authentication Errors & 401 Interceptor Loop
+
+- **Problem / Requirements**:
+  - The user reported intermittent Google authentication failures: logging in with Google works sometimes and fails at other times (Case B: Google popup succeeds, but the application displays a red toast error "Lỗi xác thực Google").
+  - Analysis identified three compounding issues:
+    1. **Frontend Axios Interceptor 401 Hijack**: `api-client.ts` attached expired Bearer tokens to `/auth/google` and intercepted 401 errors, triggering an unauthorized token refresh loop, clearing storage, and masking the true server-side error.
+    2. **Backend JwtAuthGuard Inspection of Public Routes**: `JwtAuthGuard` invoked passport `super.canActivate(context)` on `@Public()` routes whenever an expired `Authorization` header was present.
+    3. **Transient Google Certificates Network Flakiness**: `OAuth2Client.verifyIdToken` occasionally failed when fetching Google's public PEM certificates from `https://www.googleapis.com/oauth2/v1/certs` under network latency, throwing `Failed to retrieve verification certificates`.
+    4. **Missing Provider Fields & Role Navigation**: `UserEntity` lacked `provider` and `providerId` properties, and `GoogleLoginButton` lacked redirection for instructors (`RoleEnum.INSTRUCTOR`).
+- **Solution**:
+  - **Frontend Client (`api-client.ts`, `google-login-button.tsx`)**:
+    - Created `isPublicAuthEndpoint` helper in `api-client.ts` covering `/auth/login`, `/auth/google`, `/auth/register`, `/auth/verify-email`, `/auth/resend-verification`, `/auth/forgot-password`, `/auth/reset-password`.
+    - Request interceptor skips Bearer token injection on all public auth endpoints.
+    - Response interceptor immediately rejects 401 responses on public auth endpoints without triggering token refresh or wiping sessions.
+    - Updated `GoogleLoginButton` to redirect instructors to `/instructor/courses`.
+  - **Backend Guard & Service (`jwt-auth.guard.ts`, `auth.service.ts`, `user.schema.ts`, `env.validation.ts`)**:
+    - `JwtAuthGuard.canActivate` immediately returns `true` for all `@Public()` endpoints without running passport verification.
+    - `AuthService.loginWithGoogle` implements structured NestJS logging (`Logger`) and automated retry logic on transient Google certificate errors.
+    - Added `@Prop` for `provider` (`AuthProviderEnum`, default: `LOCAL`) and `providerId` (`string | null`, default: null) to `UserEntity`.
+    - Added `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to Joi `envValidationSchema`.
+- **Verification**:
+  - 24/24 unit tests in `src/modules/auth/tests/auth.service.spec.ts` passing (100%), including new test cases for transient certificate error retry and recovery.
+  - 65/65 unit tests in `src/modules/auth` pass cleanly.
+
