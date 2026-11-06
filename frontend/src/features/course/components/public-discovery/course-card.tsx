@@ -63,7 +63,11 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
     <article data-ui="card" className="group flex h-full flex-col rounded-lg border border-[#e5e7eb] bg-white overflow-hidden transition-colors hover:border-[#161616]">
       
       {/* 16:9 Thumbnail Cover with Facts (Domestika Pattern) */}
-      <div className="relative aspect-video w-full overflow-hidden bg-[#f2f2f2]">
+      <Link
+        href={`/courses/${course.id}`}
+        aria-label={`Xem chi tiết khóa học ${course.title}`}
+        className="relative aspect-video w-full overflow-hidden bg-[#f2f2f2] block focus-visible:outline-2 focus-visible:outline-[#027D88]"
+      >
         {course.thumbnailUrl ? (
           <Image
             src={course.thumbnailUrl}
@@ -99,7 +103,7 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
             <span>{course.durationFormatted}</span>
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* Card Body */}
       <div className="flex flex-1 flex-col p-4">

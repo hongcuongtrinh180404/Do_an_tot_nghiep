@@ -13,6 +13,28 @@
 
 ## 2. Technical Notes & Gotchas
 
+- **Milestone 35 (Course Detail Page 2-Column Redesign, Course Card Navigation & Domestika Layout Architecture)**:
+  - **Yêu cầu & Mục tiêu**:
+    1. **Điều hướng từ Thẻ Khóa học (Course Card)**: Khi nhấn vào hình ảnh, tên khóa học hoặc nút hành động ("Mua 3.000đ" / "Đăng ký miễn phí") trên trang chủ (`/`) hoặc trang danh mục (`/courses`), hệ thống đều điều hướng sang trang chi tiết (`/courses/[courseId]`) thay vì thực hiện mua ngay để học viên có cơ hội tìm hiểu đầy đủ nội dung.
+    2. **Tái cấu trúc Trang Chi tiết Khóa học 2 cột độc lập (Domestika Architecture)** tuân thủ nguyên tắc `/design-taste-frontend` và quy chuẩn `/web-design-guidelines`:
+       - **Cột Trái (Nội dung chi tiết khóa học)**:
+         - `CourseDetailHeader`: Breadcrumb điều hướng semantic `<nav aria-label="Breadcrumb">`, huy hiệu Best Seller, Danh mục, Trình độ (chỉ báo chấm), Tiêu đề H1, Nút Bookmark/Wishlist tương tác, Tác giả giảng viên và thanh metadata (đánh giá sao 4.9, số học viên 15.409, số bài giảng và tổng thời lượng).
+         - `CourseIntroMedia`: Khung media 16:9 phát video trailer trực tiếp thay thế ảnh bìa khi nhấn nút Play trung tâm, có nút đóng/quay lại ảnh bìa bất kỳ lúc nào.
+         - `CourseDetailTabs`: Thanh 4 tab WAI-ARIA (`Thông tin`, `Nội dung`, `Đánh giá`, `Giảng viên`) với vạch chỉ báo active Teal `#027D88`.
+         - `CourseInfoTab`: Giới thiệu tổng quan, Mục tiêu & Kiến thức đạt được (checkmarks), Tính năng học tập AI Mindly (Mindmap AI, In-video Quiz, Tóm tắt), Yêu cầu đầu vào.
+         - `CourseCurriculumTab`: Accordion danh sách chương bài giảng. Trước khi mua: bài học bị khóa 🔒 (trừ bài học thử `isPreview: true` có huy hiệu "Học thử" và icon Play). Sau khi mua: toàn bộ bài học mở khóa 🔓 (icon Play).
+         - `CourseReviewsTab`: Điểm trung bình 4.9/5, thanh phân bổ sao, danh sách nhận xét thực tế của học viên khen ngợi chất lượng bài giảng và tính năng AI Mindmap/Quiz.
+         - `CourseInstructorTab`: Hồ sơ giảng viên, huy hiệu chuyên gia, thống kê đánh giá/học viên và tiểu sử chuyên môn.
+       - **Cột Phải (Thẻ Mua Khóa Học Sticky)**:
+         - `CoursePurchaseCard`: Thẻ Sticky trên desktop (`lg:sticky lg:top-24`) và thanh Sticky Bottom Action Bar trên thiết bị di động (`lg:hidden`).
+         - Trước khi mua: Giá bán hiện tại, giá gốc gạch ngang, % giảm giá, nút CTA ("Mua ngay" / "Đăng ký miễn phí") tích hợp `useMockPurchaseMutation`.
+         - Sau khi mua: Huy hiệu "Đã đăng ký", thanh tiến độ học tập (bắt đầu chuẩn xác từ 0%), nút "Bắt đầu học" điều hướng sang trình học chuyên biệt `/courses/[courseId]/lessons/[firstLessonId]`.
+         - Danh sách quyền lợi học viên (Perks list).
+  - **Kiểm định chất lượng**:
+    - Static audit UI: 0 lỗi từ `audit-ui.mjs` trên toàn bộ 10 file trong `public-detail` và 11 file trong `public-discovery`.
+    - TypeScript compile sạch 100% (`tsc --noEmit`).
+    - Tuân thủ quy tắc cấm màu tím (`Purple Ban`), font classes chuẩn, độ tương phản cao và thiết kế chống slop.
+
 - **Milestone 34 (Fix Admin Course Approval Visibility, Action Endpoints & Preview Navigation)**:
   - **Sự cố & Báo cáo**: Giảng viên gửi yêu cầu phê duyệt khóa học thành công (khóa học chuyển sang trạng thái "Chờ duyệt" - `PENDING_APPROVAL`), nhưng trên giao diện Quản trị viên (`/admin/courses`), danh sách hoàn toàn trống ("Không tìm thấy khóa học") và số đếm yêu cầu chờ duyệt hiển thị 0.
   - **Root Cause**:
