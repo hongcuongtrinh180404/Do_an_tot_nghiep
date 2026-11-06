@@ -59,6 +59,7 @@ export function useRequestCourseApprovalMutation(courseId: string) {
       queryClient.setQueryData(courseKeys.detail(courseId), course);
       void queryClient.invalidateQueries({ queryKey: courseKeys.detail(courseId) });
       void queryClient.invalidateQueries({ queryKey: courseKeys.myCourses() });
+      void queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
     },
     onError: (error) => {
       if (isAxiosError<{ checklist?: ICourseApprovalChecklist }>(error)) {

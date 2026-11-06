@@ -15,6 +15,7 @@ export interface IPublicCoursesFilterParams {
   priceRanges?: PublicPriceRange[];
   levels?: CourseLevelEnum[];
   sort?: PublicSortOption;
+  instructorId?: string;
   page?: number;
   limit?: number;
 }
@@ -82,6 +83,7 @@ export async function fetchPublicCourses(
     if (levels.length > 0) queryParams.level = levels[0];
     if (priceRanges.length > 0) queryParams.priceRange = priceRanges[0];
     if (sort) queryParams.sort = sort;
+    if (params.instructorId) queryParams.instructorId = params.instructorId;
 
     const res = await apiClient.get<IApiResponse<{
       items: ICourse[];

@@ -31,7 +31,7 @@ describe('CourseRepository', () => {
 
       const mockExec = vi.fn().mockResolvedValue(mockCourseDoc);
       const mockSession = vi.fn().mockReturnValue({ exec: mockExec });
-      const mockPopulate = vi.fn().mockReturnValue({ session: mockSession });
+      const mockPopulate = vi.fn(); mockPopulate.mockReturnValue({ populate: mockPopulate, session: mockSession, exec: mockExec });
       mockModel.findOne.mockReturnValue({ populate: mockPopulate });
 
       const result = await repository.findBySlug('  NESTJS-PRO  ');
@@ -62,7 +62,7 @@ describe('CourseRepository', () => {
 
       const mockExec = vi.fn().mockResolvedValue(mockCourseDoc);
       const mockSession = vi.fn().mockReturnValue({ exec: mockExec });
-      const mockPopulate = vi.fn().mockReturnValue({ session: mockSession });
+      const mockPopulate = vi.fn(); mockPopulate.mockReturnValue({ populate: mockPopulate, session: mockSession, exec: mockExec });
       mockModel.findOne.mockReturnValue({ populate: mockPopulate });
 
       const result = await repository.findBySlug('nestjs-pro');
@@ -92,7 +92,7 @@ describe('CourseRepository', () => {
 
       const mockExec = vi.fn().mockResolvedValue(mockCourseDoc);
       const mockSession = vi.fn().mockReturnValue({ exec: mockExec });
-      const mockPopulate = vi.fn().mockReturnValue({ session: mockSession });
+      const mockPopulate = vi.fn(); mockPopulate.mockReturnValue({ populate: mockPopulate, session: mockSession, exec: mockExec });
       mockModel.findOne.mockReturnValue({ populate: mockPopulate });
 
       const result = await repository.findBySlug('nestjs-pro');
@@ -104,6 +104,41 @@ describe('CourseRepository', () => {
         slug: 'lap-trinh',
         imageUrl: 'https://cdn.example.com/category.webp',
       });
+    });
+
+    it('should query find with instructorId in filterQuery when instructorId is provided', async () => {
+      const instructorObjId = new Types.ObjectId();
+      const mockCourseDoc = {
+        _id: new Types.ObjectId(),
+        title: 'NestJS Pro',
+        slug: 'nestjs-pro',
+        instructorId: instructorObjId,
+        price: 100000,
+        status: CourseStatusEnum.PUBLISHED,
+        level: CourseLevelEnum.ADVANCED,
+        deletedAt: null,
+      };
+
+      const mockExec = vi.fn().mockResolvedValue([mockCourseDoc]);
+      const mockSession = vi.fn().mockReturnValue({ exec: mockExec });
+      const mockPopulate = vi.fn();
+      mockPopulate.mockReturnValue({ populate: mockPopulate, session: mockSession, exec: mockExec });
+      const mockLimit = vi.fn().mockReturnValue({ populate: mockPopulate });
+      const mockSkip = vi.fn().mockReturnValue({ limit: mockLimit });
+      const mockSort = vi.fn().mockReturnValue({ skip: mockSkip });
+      mockModel.find.mockReturnValue({ sort: mockSort });
+      mockModel.countDocuments = vi.fn().mockReturnValue({ session: vi.fn().mockReturnValue({ exec: vi.fn().mockResolvedValue(1) }) });
+
+      const result = await repository.findPublicCoursesWithPagination({ instructorId: instructorObjId.toString(), page: 1, limit: 10 });
+
+      expect(mockModel.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: CourseStatusEnum.PUBLISHED,
+          deletedAt: null,
+          instructorId: instructorObjId,
+        }),
+      );
+      expect(result.items).toHaveLength(1);
     });
   });
 
@@ -123,7 +158,7 @@ describe('CourseRepository', () => {
 
       const mockExec = vi.fn().mockResolvedValue([mockCourseDoc]);
       const mockSession = vi.fn().mockReturnValue({ exec: mockExec });
-      const mockPopulate = vi.fn().mockReturnValue({ session: mockSession });
+      const mockPopulate = vi.fn(); mockPopulate.mockReturnValue({ populate: mockPopulate, session: mockSession, exec: mockExec });
       const mockSort = vi.fn().mockReturnValue({ populate: mockPopulate });
       mockModel.find.mockReturnValue({ sort: mockSort });
 
@@ -145,14 +180,14 @@ describe('CourseRepository', () => {
     } as ICourse;
     const userId = new Types.ObjectId().toString();
     const exec = vi.fn().mockResolvedValue(null);
-    mockModel.findOneAndUpdate = vi.fn().mockReturnValue({ populate: vi.fn().mockReturnValue({ exec }) });
+    const createChain = () => { const c = { populate: vi.fn(), exec }; c.populate.mockReturnValue(c); return c; }; mockModel.findOneAndUpdate = vi.fn().mockReturnValue(createChain());
 
     expect(await repository.requestApproval(course, userId)).toBeNull();
     expect(mockModel.findOneAndUpdate).toHaveBeenCalledWith(
       { _id: course.id, deletedAt: null, status: CourseStatusEnum.DRAFT, updatedAt: new Date(course.updatedAt) },
       { $set: {
         status: CourseStatusEnum.PENDING_APPROVAL, approvalRequestedAt: expect.any(Date),
-        approvalRequestedById: userId, updatedById: userId,
+        approvalRequestedById: userId, updatedById: userId, rejectionReason: null,
       } },
       { new: true, runValidators: true },
     );

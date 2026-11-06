@@ -33,6 +33,11 @@ export class QueryPublicCoursesDto {
   sort?: string;
 
   @IsOptional()
+  @IsString()
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  instructorId?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

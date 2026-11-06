@@ -91,6 +91,7 @@ export function ChangeEmailModal({
   // Reset form khi đóng mở modal
   React.useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMode('form');
       setErrorMessage('');
       setSentEmail('');

@@ -50,6 +50,7 @@ export function CourseRejectionDialog({
     },
   });
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const reasonValue = watch('reason') || '';
 
   React.useEffect(() => {

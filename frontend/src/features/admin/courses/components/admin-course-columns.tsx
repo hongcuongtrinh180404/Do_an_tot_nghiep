@@ -278,7 +278,7 @@ export function createAdminCourseColumns({
             )}
 
             <Link
-              href={`/courses/${course.id}`}
+              href={`/courses/${course.id}?mode=edit`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 h-7 text-xs px-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent hover:border-border/60 transition-colors"

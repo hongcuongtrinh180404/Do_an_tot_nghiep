@@ -1,11 +1,12 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { CourseLevelEnum, type ICourse } from 'share-lib';
+import { CourseLevelEnum, type ICourse, type ICourseInstructorSummary } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { PublicHeader, PublicFooter } from '@/features/course/components/public-discovery';
+import { InstructorProfileDialog } from '@/features/course/components/instructor/instructor-profile-dialog';
 import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
 import { useMyPurchasedCoursesQuery } from '@/features/course/api/enrollment.api';
 
@@ -21,6 +22,19 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
   const { data: courses, isLoading: isCoursesLoading } = useMyPurchasedCoursesQuery(
     Boolean(user),
   );
+  const [selectedInstructor, setSelectedInstructor] = useState<ICourseInstructorSummary | null>(null);
+  const [isInstructorDialogOpen, setIsInstructorDialogOpen] = useState(false);
+
+  const handleOpenInstructorProfile = (
+    e: React.MouseEvent,
+    instructor: ICourseInstructorSummary | null,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!instructor) return;
+    setSelectedInstructor(instructor);
+    setIsInstructorDialogOpen(true);
+  };
 
   if (isAuthLoading) {
     return (
@@ -103,82 +117,135 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
         </div>
       ) : courses && courses.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {courses.map((course: ICourse) => (
-            <article
-              key={course.id}
-              className="group flex flex-col rounded-xl border border-neutral-200 bg-white overflow-hidden shadow-2xs hover:border-[#161616] transition-all"
-            >
-              {/* Thumbnail 16:9 */}
-              <div className="relative aspect-video w-full overflow-hidden bg-neutral-100">
-                {course.thumbnailUrl ? (
-                  <Image
-                    src={course.thumbnailUrl}
-                    alt={course.title}
-                    fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="size-full flex items-center justify-center text-neutral-400">
-                    <Icon icon="lucide:book-open" className="size-10" />
-                  </div>
-                )}
+          {courses.map((course: ICourse) => {
+            const rawCat = course.categoryId as unknown;
+            const categoryName =
+              course.category?.name ||
+              (rawCat !== null &&
+                typeof rawCat === 'object' &&
+                (rawCat as { name?: string }).name) ||
+              'Khóa học';
 
-                {/* Top Badge */}
-                <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5">
-                  <span className="rounded bg-[#161616]/85 px-2 py-0.5 text-xs font-semibold text-white">
-                    {course.category?.name || 'Khóa học'}
-                  </span>
-                </div>
-              </div>
+            const rawInst = course.instructorId as unknown;
+            const instructorSummary: ICourseInstructorSummary | null =
+              course.instructor ||
+              (rawInst !== null && typeof rawInst === 'object'
+                ? {
+                  id: (rawInst as { _id?: string })._id ?? '',
+                  fullName:
+                    (rawInst as { fullName?: string }).fullName ??
+                    'Giảng viên Mindly',
+                  email: (rawInst as { email?: string }).email ?? '',
+                  avatarUrl:
+                    (rawInst as { avatarUrl?: string | null })
+                      .avatarUrl ?? null,
+                }
+                : null);
 
-              {/* Card Body */}
-              <div className="p-4 flex flex-1 flex-col">
-                <h3 className="line-clamp-2 text-base font-bold text-[#161616] leading-snug group-hover:text-[#027D88] transition-colors min-h-[2.5rem]">
-                  <Link href={`/courses/${course.id}`}>{course.title}</Link>
-                </h3>
+            const instructorName =
+              instructorSummary?.fullName || 'Giảng viên Mindly';
+            const instructorAvatar = instructorSummary?.avatarUrl || null;
 
-                {/* Instructor */}
-                <div className="mt-2.5 flex items-center gap-2">
-                  {course.instructor?.avatarUrl && (
-                    <div className="relative size-5 rounded-full overflow-hidden shrink-0 border border-neutral-200">
-                      <Image
-                        src={course.instructor.avatarUrl}
-                        alt={course.instructor.fullName}
-                        fill
-                        sizes="20px"
-                        className="object-cover"
-                      />
+            return (
+              <article
+                key={course.id}
+                className="group flex flex-col rounded-xl border border-neutral-200 bg-white overflow-hidden shadow-2xs hover:border-[#161616] transition-all"
+              >
+                {/* Thumbnail 16:9 */}
+                <div className="relative aspect-video w-full overflow-hidden bg-neutral-100">
+                  {course.thumbnailUrl ? (
+                    <Image
+                      src={course.thumbnailUrl}
+                      alt={course.title}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="size-full flex items-center justify-center text-neutral-400">
+                      <Icon icon="lucide:book-open" className="size-10" />
                     </div>
                   )}
-                  <span className="truncate text-xs text-[#666666] font-medium">
-                    {course.instructor?.fullName || 'Giảng viên Mindly'}
-                  </span>
+
+                  {/* Top Badge */}
+                  <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5">
+                    <span className="rounded bg-[#161616]/85 px-2 py-0.5 text-xs font-semibold text-white">
+                      {categoryName}
+                    </span>
+                  </div>
                 </div>
 
-                {/* AI Features badge */}
-                <div className="mt-3 flex items-center gap-1.5 text-xs text-[#027d88] bg-[#f3fcfc] rounded p-1.5 font-medium">
-                  <Icon icon="lucide:sparkles" className="size-3.5 text-[#027d88] shrink-0" />
-                  <span className="truncate">Tích hợp Mindmap AI & Quiz dừng video</span>
-                </div>
+                {/* Card Body */}
+                <div className="p-4 flex flex-1 flex-col">
+                  <h3 className="line-clamp-2 text-base font-bold text-[#161616] leading-snug group-hover:text-[#027D88] transition-colors min-h-[2.5rem]">
+                    <Link href={`/courses/${course.id}`}>{course.title}</Link>
+                  </h3>
 
-                {/* Card Footer: Action button */}
-                <div className="mt-auto pt-4 border-t border-neutral-100 flex items-center justify-between gap-3">
-                  <span className="text-xs text-[#666666]">
-                    {levelMap[course.level] || 'Mọi cấp độ'}
-                  </span>
+                  {/* Instructor */}
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) =>
+                        handleOpenInstructorProfile(e, instructorSummary)
+                      }
+                      className="group/inst flex items-center gap-2 text-left hover:opacity-85 transition-opacity cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#027D88] rounded-md py-0.5"
+                      title="Xem hồ sơ & danh sách khóa học của giảng viên"
+                    >
+                      {/* Avatar with fallback to default avatar */}
+                      <div className="relative size-5 rounded-full overflow-hidden shrink-0 border border-neutral-200 bg-[#f3fcfc]">
+                        {instructorAvatar ? (
+                          <Image
+                            src={instructorAvatar}
+                            alt={instructorName}
+                            fill
+                            sizes="20px"
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="size-full flex items-center justify-center text-[#027D88]">
+                            <Icon icon="lucide:user" className="size-3.5" />
+                          </div>
+                        )}
+                      </div>
 
-                  <Link
-                    href={`/courses/${course.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-2 px-3.5 text-xs transition-colors shadow-2xs"
-                  >
-                    <Icon icon="lucide:play-circle" className="size-4 shrink-0" />
-                    <span>Vào học</span>
-                  </Link>
+                      <span className="truncate text-xs text-[#666666] font-medium group-hover/inst:text-[#027D88] group-hover/inst:underline transition-colors">
+                        {instructorName}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* AI Features badge */}
+                  <div className="mt-3 flex items-center gap-1.5 text-xs text-[#027d88] bg-[#f3fcfc] rounded p-1.5 font-medium">
+                    <Icon
+                      icon="lucide:sparkles"
+                      className="size-3.5 text-[#027d88] shrink-0"
+                    />
+                    <span className="truncate">
+                      Tích hợp Mindmap AI & Quiz dừng video
+                    </span>
+                  </div>
+
+                  {/* Card Footer: Action button */}
+                  <div className="mt-auto pt-4 border-t border-neutral-100 flex items-center justify-between gap-3">
+                    <span className="text-xs text-[#666666]">
+                      {levelMap[course.level] || 'Mọi cấp độ'}
+                    </span>
+
+                    <Link
+                      href={`/courses/${course.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-2 px-3.5 text-xs transition-colors shadow-2xs"
+                    >
+                      <Icon
+                        icon="lucide:play-circle"
+                        className="size-4 shrink-0"
+                      />
+                      <span>Vào học</span>
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-12 text-center max-w-lg mx-auto my-8">
@@ -200,6 +267,13 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
           </div>
         </div>
       )}
+
+      {/* Instructor Profile & Public Courses Dialog */}
+      <InstructorProfileDialog
+        isOpen={isInstructorDialogOpen}
+        onClose={() => setIsInstructorDialogOpen(false)}
+        instructor={selectedInstructor}
+      />
     </div>
   );
 }

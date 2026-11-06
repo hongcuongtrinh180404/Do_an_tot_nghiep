@@ -13,6 +13,19 @@
 
 ## 2. Technical Notes & Gotchas
 
+- **Milestone 34 (Fix Admin Course Approval Visibility, Action Endpoints & Preview Navigation)**:
+  - **Sự cố & Báo cáo**: Giảng viên gửi yêu cầu phê duyệt khóa học thành công (khóa học chuyển sang trạng thái "Chờ duyệt" - `PENDING_APPROVAL`), nhưng trên giao diện Quản trị viên (`/admin/courses`), danh sách hoàn toàn trống ("Không tìm thấy khóa học") và số đếm yêu cầu chờ duyệt hiển thị 0.
+  - **Root Cause**:
+    1. **Duplicate URL Prefix**: Trong `frontend/src/features/admin/courses/api/admin-courses.api.ts`, các phương thức gọi API bị lặp tiền tố: `/api/v1/courses/admin`, `/api/v1/courses/${courseId}/approve`, `/api/v1/courses/${courseId}/reject`. Do `apiClient` (`api-client.ts`) đã cấu hình sẵn `baseURL` kèm `/api/v1`, Axios gửi request tới `http://.../api/v1/api/v1/courses/admin` dẫn đến mã phản hồi `404 Not Found`. Hook `useAdminCoursesQuery` và `pendingCountQuery` thất bại, khiến bảng không nhận được dữ liệu.
+    2. **Unpublished Course Preview Link**: Nút "Xem" trong `admin-course-columns.tsx` trước đây trỏ tới `/courses/${course.id}`, kích hoạt endpoint công khai `GET /courses/public/:idOrSlug` vốn yêu cầu `status: PUBLISHED`. Do đó, khi Admin bấm xem khóa học đang chờ duyệt sẽ bị lỗi 404.
+  - **Giải pháp & Khắc phục**:
+    1. Chuẩn hóa lại các route trong `admin-courses.api.ts` thành `/courses/admin`, `/courses/${courseId}/approve`, `/courses/${courseId}/reject`.
+    2. Cập nhật liên kết xem của Admin thành `/courses/${course.id}?mode=edit`, cho phép Admin truy cập giao diện xem nội dung giáo trình, bài giảng và video ở chế độ chỉ đọc (`isLocked = true`) mà không bị chặn bởi bộ lọc public.
+    3. Bổ sung `queryClient.invalidateQueries({ queryKey: ['admin-courses'] })` vào callback `onSuccess` của `useRequestCourseApprovalMutation` (`course-approval.api.ts`), giúp tự động cập nhật danh sách phía Admin khi có yêu cầu mới.
+  - **Kết quả xác minh**:
+    - ESLint frontend đạt 0 lỗi.
+    - 76/76 unit tests backend liên quan đến phê duyệt và quản trị khóa học (`course-approval.service.spec.ts`, `course-moderation.service.spec.ts`, `course.controller.spec.ts`) vượt qua thành công.
+
 - **Milestone 33 (Public Course Catalog Database Integration, Mock Purchase with Transaction, Purchased Courses Page `/my-courses`, and Lesson Paywall Protection)**:
   - **Mục tiêu**: Xóa bỏ toàn bộ mock data ở phía người học, kết nối API backend thực tế để hiển thị các khóa học công khai (`PUBLISHED`), cung cấp chức năng Mua khóa học giả lập (Mock Purchase), trang Khóa học đã mua (`/my-courses`) và bảo vệ nội dung bài giảng.
   - **Backend API & Service**:
@@ -1448,3 +1461,46 @@
   - `frontend/src/features/course/components/inline`: 7/7 files pass.
   - `frontend/src/features/course/components/course-detail-content.tsx`: 1/1 file pass.
   - Loại bỏ các class font cấm (`font-mono`), chuẩn hóa thuộc tính `aria-label`, và đảm bảo focus visible rings.
+
+---
+
+## 2026-11-06 - Bug Fix: Hiển Thị Giảng Viên Khóa Học Đã Mua & Hồ Sơ Giảng Viên Công Khai
+
+### 1. Vấn đề & Nguyên nhân gốc rễ (Root Cause)
+- **Triệu chứng**: Tại giao diện `/my-courses`, thẻ khóa học đã mua của học viên (`cuongstudysseu@gmail.com`) không hiển thị tên thật và avatar của giảng viên mà bị fallback về `"Giảng viên Mindly"`, đồng thời badge danh mục cũng bị fallback về `"Khóa học"`.
+- **Nguyên nhân Backend**:
+  - `EnrollmentRepository.findUserEnrollments` populate lồng `courseId -> instructorId, categoryId`.
+  - Mongoose đưa kết quả populate vào trường `course.instructorId` và `course.categoryId` dưới dạng object.
+  - Hàm `toDomain` của `EnrollmentRepository` trước đây chỉ thực hiện gán thô `course = { ...popCourse, id: courseId }` mà không ánh xạ sang `course.instructor` (`ICourseInstructorSummary`) và `course.category` (`ICourseCategorySummary`).
+  - Do đó trường `course.instructor` và `course.category` bị `undefined`, vi phạm interface `ICourse`.
+- **Nguyên nhân Frontend**:
+  - Thẻ khóa học tại `frontend/src/app/my-courses/page.tsx` chỉ đọc `course.instructor?.fullName || 'Giảng viên Mindly'` và `course.instructor?.avatarUrl`, dẫn tới rơi vào fallback khi `course.instructor` là undefined.
+  - Chưa hỗ trợ tương tác xem thông tin / danh sách các khóa học công khai của giảng viên khi click vào giảng viên.
+
+### 2. Các thay đổi kỹ thuật (Technical Implementation)
+- **Backend**:
+  - `backend/src/modules/enrollment/repositories/enrollment.repository.ts`:
+    - Cập nhật mapper `toDomain`: Nhận diện `isPopulatedCourse` (`'title' in rawCourse`), tách `instructorId` thành string ID và ánh xạ đầy đủ `{ id, fullName, email, avatarUrl }` vào `course.instructor`.
+    - Tách `categoryId` thành string ID và ánh xạ `{ id, name, slug, imageUrl }` vào `course.category`.
+  - `backend/src/modules/course/dto/query-public-courses.dto.ts`:
+    - Bổ sung trường `@IsOptional() @IsString() instructorId?: string` hỗ trợ lọc các khóa học công khai theo giảng viên.
+  - `backend/src/modules/course/repositories/course.repository.ts`:
+    - Bổ sung lọc `filterQuery.instructorId = new Types.ObjectId(queryDto.instructorId)` trong `findPublicCoursesWithPagination`.
+  - Unit Tests:
+    - Tạo `backend/src/modules/enrollment/tests/enrollment.repository.spec.ts` kiểm thử 100% ánh xạ populated instructor/category và graceful fallback khi courseId chưa populate.
+    - Cập nhật `course.repository.spec.ts` kiểm thử `instructorId` trong `findPublicCoursesWithPagination`.
+- **Frontend**:
+  - `frontend/src/features/course/services/public-courses.service.ts`: Bổ sung `instructorId` vào `IPublicCoursesFilterParams` và `fetchPublicCourses`.
+  - `frontend/src/features/course/api/public-courses.api.ts`: Bổ sung hook `useInstructorPublicCoursesQuery(instructorId)`.
+  - `frontend/src/features/course/components/instructor/instructor-profile-dialog.tsx`:
+    - Tạo dialog hiển thị hồ sơ giảng viên: avatar (với avatar mặc định nếu chưa có ảnh hoặc lỗi ảnh), tên, email, huy hiệu Giảng viên Mindly.
+    - Hiển thị danh sách khóa học đã xuất bản của giảng viên (kèm ảnh thumbnail, cấp độ, giá, nút xem chi tiết) hoặc empty state khi chưa có khóa học khác, kèm link điều hướng sang trang Catalog.
+  - `frontend/src/app/my-courses/page.tsx`:
+    - Thêm phòng vệ đa lớp (defensive parsing) đọc tên/avatar giảng viên và danh mục khóa học.
+    - Hiển thị avatar mặc định gọn đẹp khi giảng viên chưa có avatar.
+    - Bấm vào tên/avatar giảng viên mở `InstructorProfileDialog`.
+
+### 3. Kiểm định chất lượng
+- **Unit Tests Backend**: 20/20 test cases pass (`enrollment.repository.spec.ts`, `enrollment.service.spec.ts`, `course.repository.spec.ts`).
+- **Backend Build**: `nest build` 0 errors.
+- **Frontend Typecheck**: `npx tsc --noEmit -p frontend/tsconfig.json` 0 errors.

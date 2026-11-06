@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession } from 'mongoose';
-import { IEnrollment, ICourse } from 'share-lib';
+import {
+  IEnrollment,
+  ICourse,
+  ICourseInstructorSummary,
+  ICourseCategorySummary,
+} from 'share-lib';
 import { BaseMongoRepository } from '../../base/index.js';
 import { EnrollmentEntity } from '../schemas/enrollment.schema.js';
 
@@ -40,13 +45,93 @@ export class EnrollmentRepository extends BaseMongoRepository<IEnrollment, Enrol
       let courseId = '';
       let course: ICourse | null = null;
 
-      if (rawCourse !== null && typeof rawCourse === 'object' && '_id' in rawCourse) {
+      const isPopulatedCourse =
+        rawCourse !== null &&
+        typeof rawCourse === 'object' &&
+        'title' in rawCourse;
+
+      if (isPopulatedCourse) {
         const popCourse = rawCourse as Record<string, unknown>;
         const popId = popCourse._id;
         courseId = typeof popId === 'string' ? popId : (popId as { toString?: () => string })?.toString?.() ?? '';
+
+        // Map instructor
+        const rawInstructor = popCourse.instructorId as unknown;
+        let popInstructorId = '';
+        let instructor: ICourseInstructorSummary | null = null;
+
+        if (
+          rawInstructor !== null &&
+          typeof rawInstructor === 'object' &&
+          'fullName' in rawInstructor
+        ) {
+          const popInst = rawInstructor as {
+            _id?: unknown;
+            fullName?: string;
+            email?: string;
+            avatarUrl?: string | null;
+          };
+          const popInstId = popInst._id;
+          popInstructorId =
+            typeof popInstId === 'string'
+              ? popInstId
+              : ((popInstId as { toString?: () => string })?.toString?.() ?? '');
+          instructor = {
+            id: popInstructorId,
+            fullName: popInst.fullName ?? '',
+            email: popInst.email ?? '',
+            avatarUrl: popInst.avatarUrl ?? null,
+          };
+        } else if (rawInstructor !== null && rawInstructor !== undefined) {
+          popInstructorId =
+            typeof rawInstructor === 'string'
+              ? rawInstructor
+              : ((rawInstructor as { toString?: () => string }).toString?.() ?? '');
+        }
+
+        // Map category
+        const rawCategory = popCourse.categoryId as unknown;
+        let popCategoryId: string | null = null;
+        let category: ICourseCategorySummary | null = null;
+
+        if (
+          rawCategory !== null &&
+          typeof rawCategory === 'object' &&
+          'name' in rawCategory
+        ) {
+          const popCat = rawCategory as {
+            _id?: unknown;
+            name?: string;
+            slug?: string;
+            imageUrl?: string | null;
+          };
+          const popCatId = popCat._id;
+          popCategoryId =
+            typeof popCatId === 'string'
+              ? popCatId
+              : ((popCatId as { toString?: () => string })?.toString?.() ?? null);
+          if (popCategoryId) {
+            category = {
+              id: popCategoryId,
+              name: popCat.name ?? '',
+              slug: popCat.slug ?? '',
+              imageUrl: popCat.imageUrl ?? null,
+            };
+          }
+        } else if (rawCategory !== null && rawCategory !== undefined) {
+          popCategoryId =
+            typeof rawCategory === 'string'
+              ? rawCategory
+              : ((rawCategory as { toString?: () => string }).toString?.() ?? null);
+        }
+
         course = {
           ...popCourse,
           id: courseId,
+          instructorId: popInstructorId,
+          instructor,
+          categoryId: popCategoryId,
+          category,
         } as unknown as ICourse;
       } else if (rawCourse !== null && rawCourse !== undefined) {
         courseId = typeof rawCourse === 'string' ? rawCourse : (rawCourse as { toString?: () => string }).toString?.() ?? '';

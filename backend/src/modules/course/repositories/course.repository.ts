@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, ClientSession } from 'mongoose';
+import { Model, ClientSession, Types } from 'mongoose';
 import {
   ICourse,
   ICourseCategorySummary,
@@ -389,6 +389,14 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
 
     if (categoryId) {
       filterQuery.categoryId = categoryId;
+    }
+
+    if (queryDto.instructorId) {
+      if (Types.ObjectId.isValid(queryDto.instructorId)) {
+        filterQuery.instructorId = new Types.ObjectId(queryDto.instructorId);
+      } else {
+        filterQuery.instructorId = queryDto.instructorId;
+      }
     }
 
     if (queryDto.level) {
