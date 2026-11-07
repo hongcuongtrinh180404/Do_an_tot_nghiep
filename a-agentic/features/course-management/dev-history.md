@@ -13,6 +13,24 @@
 
 ## 2. Technical Notes & Gotchas
 
+- **Milestone 40 (Dual-Role Segmentation on /my-courses: Clean Student Learning View vs Dedicated Instructor Course Management Studio)**:
+  - **Bối cảnh & Yêu cầu người dùng**:
+    - Khi giảng viên truy cập trang *"Khóa học đã mua"* (`/my-courses`), backend tự động đưa các khóa học do giảng viên đó tạo vào danh sách.
+    - Trước đó, thẻ khóa học chỉ có duy nhất nút *"Vào học"* (`/courses/[id]`) khiến giảng viên bị đẩy vào góc nhìn học viên, không thể truy cập giao diện quản trị biên tập để thêm, sửa, xóa chương học và bài giảng.
+    - Người dùng nhấn mạnh nguyên tắc phân định vai trò: **Khi giảng viên vào khóa học của mình với vai trò học viên thì tuyệt đối không có quyền edit**.
+  - **Giải pháp triển khai**:
+    1. **`MyPurchasedCoursesContent` (`frontend/src/app/my-courses/page.tsx`)**:
+       - Bổ sung kiểm tra quyền sở hữu `isCourseOwner` dựa trên `user.id === course.instructorId` hoặc `user.role === RoleEnum.ADMIN`.
+       - Hiển thị badge nhận diện nổi bật: `"Khóa học của bạn"` trên thumbnail.
+       - Tách bạch 2 hành động rõ ràng dưới chân thẻ:
+         - **Nút "Quản lý"** (`/courses/[id]?mode=edit`): Dành riêng cho vai trò Giảng viên -> Đưa vào Studio biên tập với đầy đủ các quyền: Thêm chương, Sửa chương, Xóa chương, Thêm bài học, Xóa bài học, tải lên tài liệu...
+         - **Nút "Vào học"** (`/courses/[id]`): Dành riêng cho vai trò Học viên -> Giữ nguyên giao diện học tập sạch sẽ, không có bất kỳ quyền hay nút edit nào can thiệp.
+    2. Giữ nguyên tính độc lập của giao diện học viên: Không nhúng bất kỳ nút edit nào vào giao diện học tập của học viên.
+  - **Kiểm định chất lượng**:
+    - Design Taste Lint Gate: Đạt `0 FAIL`.
+    - TypeScript Type Check: Đạt `0 Errors`.
+    - Next.js ESLint: Đạt `0 Errors`.
+
 - **Milestone 39 (Direct Lesson Navigation from Curriculum List to Studio & Mindly Branding Standardization)**:
   - **Yêu cầu người dùng**: Khi học viên đã sở hữu khóa học, người dùng muốn:
     1. Bỏ qua việc tự động mở bài đầu tiên tại nút Play trên banner đại diện và thẻ Sticky.
@@ -1591,3 +1609,41 @@
 - **Unit Tests Backend**: 20/20 test cases pass (`enrollment.repository.spec.ts`, `enrollment.service.spec.ts`, `course.repository.spec.ts`).
 - **Backend Build**: `nest build` 0 errors.
 - **Frontend Typecheck**: `npx tsc --noEmit -p frontend/tsconfig.json` 0 errors.
+
+---
+
+## 2026-11-07 - Milestone 43: Phân Quyền Chỉnh Sửa Studio Player (Giảng Viên Sở Hữu vs Học Viên Chỉ Đọc)
+
+### 1. Vấn đề & Bối cảnh (Root Cause & Context)
+- **Yêu cầu người dùng**:
+  - Khi giảng viên vào khóa học của mình (từ tab khóa học đã mua `/my-courses` hoặc trang chi tiết khóa học) và bấm vào học bài giảng (`/courses/[courseId]/lessons/[lessonId]`), giảng viên phải **có quyền chỉnh sửa trực tiếp** Mindmap, Tóm tắt (Summary), và Câu hỏi trắc nghiệm (Quizzes) ngay trên Studio Player.
+  - Khi xem với vai trò Học viên (role `USER` hoặc giảng viên xem khóa học của người khác), toàn bộ giao diện bài học phải ở chế độ **Chỉ đọc (Read-only)**, không thể thực hiện bất kỳ thao tác thêm/sửa/xóa nào.
+- **Nguyên nhân kỹ thuật**:
+  - `course-access.util.ts`: Hàm `canManageCourse` trước đây so sánh thô `course.instructorId === user.id`. Khi `course.instructorId` là object (populated `{ _id, id }`) hoặc `user` mang `_id` từ database, biểu thức trả về `false`.
+  - `lesson-player-studio.tsx`: Chỉ dựa vào `useCourseDetailQuery(courseId)`. Khi mới chuyển trang bài học, query này ở trạng thái `isLoading` (`course` tạm thời `undefined`), khiến `isInstructor` bị tính là `false`.
+  - Tooltip nút "Vào học" trên `/my-courses` và alert banner trên `PublicCourseDetailView` gây hiểu lầm về phân quyền.
+
+### 2. Các thay đổi kỹ thuật (Technical Implementation)
+- **`frontend/src/features/course/utils/course-access.util.ts`**:
+  - Chuẩn hóa đa lớp trích xuất `userId` (`user.id || user._id`) và `instructorId` (xử lý chuỗi string, object populated `{ id, _id }`, hoặc `course.instructor.id`).
+  - So sánh an toàn dạng chuỗi: `Boolean(userId) && Boolean(instructorId) && String(instructorId) === String(userId)`.
+  - ADMIN luôn được cấp quyền; học viên thường (`RoleEnum.USER` / `RoleEnum.STUDENT`) luôn trả về `false`.
+  - Cập nhật bộ unit test `course-access.spec.ts` kiểm thử toàn diện các trường hợp (populated object, user `_id`, học viên, giảng viên khác, khách vãng lai).
+- **`frontend/src/features/course/components/player/lesson-player-studio.tsx`**:
+  - Tích hợp `usePublicCourseDetailQuery(courseId)` làm nguồn dữ liệu fallback và tận dụng cache tức thì từ trang trước.
+  - Xác định `activeCourse = courseDetail || publicCourse`.
+  - Tính toán `isInstructor = instructorMode && !isUserError && canManageCourse(user, activeCourse)`.
+  - Cập nhật hiển thị tiêu đề khóa học trên `LessonPlayerTopBar` dùng `activeCourse?.title` mượt mà không nhấp nháy.
+- **`frontend/src/features/course/components/public-detail/public-course-detail-view.tsx`**:
+  - Thay thế so sánh thủ công bằng `canManageCourse(user, course)`.
+  - Cập nhật alert banner cho giảng viên sở hữu: *"Bạn là giảng viên của khóa học này. Khi bấm vào học bài giảng, bạn có thể chỉnh sửa trực tiếp Mindmap, Tóm tắt và Câu hỏi AI."* kèm nút chuyển nhanh sang *"Quản lý chương mục"*.
+  - Thêm `data-ui="instructor-alert"` tuân thủ tiêu chuẩn Design Taste.
+- **`frontend/src/app/my-courses/page.tsx`**:
+  - Cập nhật tooltip nút "Vào học" thành: *"Vào học bài giảng & chỉnh sửa Mindmap, Tóm tắt, Câu hỏi tương tác"*.
+  - Thêm `data-ui="page-header"` và `data-ui="course-card-footer"` tuân thủ tiêu chuẩn Design Taste.
+
+### 3. Kiểm định chất lượng
+- **TypeScript Typecheck**: `npx tsc -p frontend/tsconfig.json --noEmit` đạt 0 lỗi (clean).
+- **ESLint**: `npm --prefix frontend run lint` đạt 0 lỗi (clean).
+- **Design Taste**: `node .agent/skills/design-taste-frontend/scripts/lint.mjs` đạt 0 FAIL.
+

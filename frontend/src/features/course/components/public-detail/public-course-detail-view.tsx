@@ -3,7 +3,6 @@
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { RoleEnum } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { buttonVariants } from '@/components/ui/button';
 import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
@@ -12,6 +11,7 @@ import {
   useCheckEnrollmentQuery,
   useMockPurchaseMutation,
 } from '../../api/enrollment.api';
+import { canManageCourse } from '../../utils/course-access.util';
 
 import { CourseDetailHeader } from './course-detail-header';
 import { CourseIntroMedia } from './course-intro-media';
@@ -59,9 +59,7 @@ export function PublicCourseDetailView({
 
   const purchaseMutation = useMockPurchaseMutation(course?.id || courseId);
 
-  const isInstructorOwner = Boolean(
-    user && course && (user.id === course.instructorId || user.role === RoleEnum.ADMIN),
-  );
+  const isInstructorOwner = canManageCourse(user, course);
 
   const totalLessonsCount = useMemo(() => {
     if (!course?.sections) return 0;
@@ -141,20 +139,20 @@ export function PublicCourseDetailView({
     <div className="w-full min-h-screen bg-[#fbfbfb] text-[#161616] pb-16 lg:pb-24">
       {/* Instructor / Admin Mode Alert Banner */}
       {isInstructorOwner && (
-        <aside aria-label="Thông báo chế độ giảng viên" className="w-full bg-[#f3fcfc] border-b border-[#027D88]/20 px-4 py-2.5">
+        <aside aria-label="Thông báo chế độ giảng viên" data-ui="instructor-alert" className="w-full bg-[#f3fcfc] border-b border-[#027D88]/20 px-4 py-2.5">
           <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-[#027D88]">
-              <Icon icon="lucide:eye" className="size-4 shrink-0" />
+              <Icon icon="lucide:sparkles" className="size-4 shrink-0" />
               <span>
-                Bạn đang xem khóa học với góc nhìn của <strong>Học viên</strong>.
+                Bạn là giảng viên của khóa học này. Khi bấm vào học bài giảng, bạn có thể chỉnh sửa trực tiếp <strong>Mindmap</strong>, <strong>Tóm tắt</strong> và <strong>Câu hỏi AI</strong>.
               </span>
             </div>
             <Link
               href={`/courses/${course.id}?mode=edit`}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#027D88] hover:bg-[#02666F] text-white text-xs font-semibold transition-colors shrink-0 shadow-xs"
             >
-              <Icon icon="lucide:edit-3" className="size-3.5" />
-              <span>Chỉnh sửa khóa học</span>
+              <Icon icon="lucide:settings" className="size-3.5" />
+              <span>Quản lý chương mục</span>
             </Link>
           </div>
         </aside>

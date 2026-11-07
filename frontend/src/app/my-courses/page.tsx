@@ -3,7 +3,7 @@
 import React, { Suspense, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { CourseLevelEnum, type ICourse, type ICourseInstructorSummary } from 'share-lib';
+import { CourseLevelEnum, RoleEnum, type ICourse, type ICourseInstructorSummary } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { PublicHeader, PublicFooter } from '@/features/course/components/public-discovery';
 import { InstructorProfileDialog } from '@/features/course/components/instructor/instructor-profile-dialog';
@@ -85,7 +85,7 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
           <span className="text-[#161616] font-medium">Khóa học đã mua</span>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-neutral-200">
+        <div data-ui="page-header" className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-neutral-200">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#161616] tracking-tight">
               Khóa học đã mua của tôi
@@ -127,6 +127,19 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
               'Khóa học';
 
             const rawInst = course.instructorId as unknown;
+            const instructorId =
+              typeof rawInst === 'object' && rawInst !== null
+                ? (rawInst as { _id?: string; id?: string })._id ||
+                (rawInst as { _id?: string; id?: string }).id
+                : typeof rawInst === 'string'
+                  ? rawInst
+                  : '';
+            const isCourseOwner = Boolean(
+              user &&
+              (user.role === RoleEnum.ADMIN ||
+                (user.role === RoleEnum.INSTRUCTOR && instructorId === user.id)),
+            );
+
             const instructorSummary: ICourseInstructorSummary | null =
               course.instructor ||
               (rawInst !== null && typeof rawInst === 'object'
@@ -167,18 +180,28 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
                     </div>
                   )}
 
-                  {/* Top Badge */}
-                  <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5">
+                  {/* Top Badges */}
+                  <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 flex-wrap">
                     <span className="rounded bg-[#161616]/85 px-2 py-0.5 text-xs font-semibold text-white">
                       {categoryName}
                     </span>
+                    {isCourseOwner && (
+                      <span className="rounded bg-[#027D88] px-2 py-0.5 text-xs font-bold text-white shadow-2xs">
+                        Khóa học của bạn
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 {/* Card Body */}
                 <div className="p-4 flex flex-1 flex-col">
                   <h3 className="line-clamp-2 text-base font-bold text-[#161616] leading-snug group-hover:text-[#027D88] transition-colors min-h-[2.5rem]">
-                    <Link href={`/courses/${course.id}`}>{course.title}</Link>
+                    <Link
+                      href={isCourseOwner ? `/courses/${course.id}?mode=edit` : `/courses/${course.id}`}
+                      title={isCourseOwner ? 'Quản lý khóa học' : course.title}
+                    >
+                      {course.title}
+                    </Link>
                   </h3>
 
                   {/* Instructor */}
@@ -226,21 +249,44 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
                   </div>
 
                   {/* Card Footer: Action button */}
-                  <div className="mt-auto pt-4 border-t border-neutral-100 flex items-center justify-between gap-3">
+                  <div data-ui="course-card-footer" className="mt-auto pt-4 border-t border-neutral-100 flex items-center justify-between gap-2 flex-wrap">
                     <span className="text-xs text-[#666666]">
                       {levelMap[course.level] || 'Mọi cấp độ'}
                     </span>
 
-                    <Link
-                      href={`/courses/${course.id}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-2 px-3.5 text-xs transition-colors shadow-2xs"
-                    >
-                      <Icon
-                        icon="lucide:play-circle"
-                        className="size-4 shrink-0"
-                      />
-                      <span>Vào học</span>
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      {isCourseOwner ? (
+                        <>
+                          <Link
+                            href={`/courses/${course.id}`}
+                            className="inline-flex items-center gap-1 rounded-lg border border-neutral-300 hover:bg-neutral-100 text-[#161616] font-semibold py-1.5 px-2.5 text-xs transition-colors"
+                            title="Vào học bài giảng & chỉnh sửa Mindmap, Tóm tắt, Câu hỏi tương tác"
+                          >
+                            <Icon icon="lucide:play" className="size-3.5 text-[#027D88]" />
+                            <span>Vào học</span>
+                          </Link>
+                          <Link
+                            href={`/courses/${course.id}?mode=edit`}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-1.5 px-3 text-xs transition-colors shadow-2xs"
+                            title="Quản lý và biên tập nội dung khóa học (Thêm, sửa, xóa chương học và bài giảng)"
+                          >
+                            <Icon icon="lucide:settings" className="size-3.5" />
+                            <span>Quản lý</span>
+                          </Link>
+                        </>
+                      ) : (
+                        <Link
+                          href={`/courses/${course.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-2 px-3.5 text-xs transition-colors shadow-2xs"
+                        >
+                          <Icon
+                            icon="lucide:play-circle"
+                            className="size-4 shrink-0"
+                          />
+                          <span>Vào học</span>
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </div>
               </article>

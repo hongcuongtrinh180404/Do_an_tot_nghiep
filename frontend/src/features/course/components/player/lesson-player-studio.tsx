@@ -11,6 +11,7 @@ import {
   useLessonTranscriptQuery,
   useRetryLessonTranscriptionMutation,
 } from '../../api/course.api';
+import { usePublicCourseDetailQuery } from '../../api/enrollment.api';
 import { deserializeKeyPoints } from '../../utils/lesson-key-points.util';
 import { canManageCourse } from '../../utils/course-access.util';
 import { useVideoPlayer } from './use-video-player';
@@ -37,12 +38,18 @@ export function LessonPlayerStudio({
   const { data: user, isError: isUserError } = useCurrentUserQuery();
   const hasManagementRole = user?.role === RoleEnum.INSTRUCTOR || user?.role === RoleEnum.ADMIN;
 
-  // Fetch Course details and Sections for curriculum navigation
-  const { data: course, isError: isCourseError } = useCourseDetailQuery(
+  // Fetch Course details (management + public cache fallback) for ownership verification and navigation
+  const { data: courseDetail } = useCourseDetailQuery(
     courseId,
     hasManagementRole && !isUserError,
   );
-  const isInstructor = instructorMode && !isUserError && !isCourseError && canManageCourse(user, course);
+  const { data: publicCourse } = usePublicCourseDetailQuery(courseId);
+  const activeCourse = courseDetail || publicCourse;
+
+  const isInstructor =
+    instructorMode &&
+    !isUserError &&
+    canManageCourse(user, activeCourse);
   const { data: sections } = useCourseSectionsQuery(courseId);
 
   // Fetch Transcript from Database (MongoDB collection: lesson_transcripts)
@@ -159,7 +166,7 @@ export function LessonPlayerStudio({
       {/* 1. Header Bar: Sticky Navigation & Metadata */}
       <LessonPlayerTopBar
         courseId={courseId}
-        courseTitle={course?.title}
+        courseTitle={activeCourse?.title}
         lessonTitle={lesson.title}
         lessonOrder={lesson.order}
         isPreview={lesson.isPreview}
