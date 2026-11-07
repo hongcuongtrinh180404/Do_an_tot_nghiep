@@ -33,6 +33,7 @@ export function getVideoLessonStats(
 export function formatVideoDuration(
   { totalSeconds, missingDurationCount }: VideoLessonStats,
   style: 'compact' | 'long' = 'compact',
+  includeSeconds = false,
 ): string {
   if (missingDurationCount > 0 && totalSeconds <= 0) return 'Chưa xác định';
 
@@ -43,9 +44,20 @@ export function formatVideoDuration(
   const seconds = roundedSeconds % 60;
   const units = style === 'long' ? [' giờ', ' phút', ' giây'] : ['h', 'p', 's'];
   const parts: string[] = [];
+
   if (hours > 0) parts.push(`${hours}${units[0]}`);
-  if (minutes > 0) parts.push(`${minutes}${units[1]}`);
-  if (seconds > 0 || parts.length === 0) parts.push(`${seconds}${units[2]}`);
+
+  if (includeSeconds) {
+    if (minutes > 0) parts.push(`${minutes}${units[1]}`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds}${units[2]}`);
+  } else {
+    // Chỉ hiển thị thời gian tới đơn vị phút, không hiển thị đơn vị giây
+    if (minutes > 0 || (hours === 0 && roundedSeconds === 0)) {
+      parts.push(`${minutes}${units[1]}`);
+    } else if (hours === 0 && roundedSeconds > 0) {
+      parts.push(style === 'long' ? '< 1 phút' : '< 1p');
+    }
+  }
 
   const text = parts.join(' ');
   return missingDurationCount > 0 ? `${text} (chưa đầy đủ)` : text;

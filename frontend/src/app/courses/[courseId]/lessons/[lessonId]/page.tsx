@@ -3,8 +3,8 @@ import React from 'react';
 import { LessonDetailContent } from '@/features/course';
 
 export const metadata: Metadata = {
-  title: 'Chi tiết bài học | DATN Portal',
-  description: 'Xem thông tin và nội dung chi tiết bài học',
+  title: 'Chi tiết bài học | Mindly - Nền tảng E-Learning AI',
+  description: 'Xem thông tin và nội dung chi tiết bài giảng, video AI và tài liệu học tập',
 };
 
 interface CourseLessonDetailPageProps {
@@ -20,11 +20,11 @@ export default async function CourseLessonDetailPage({
   const { courseId, lessonId } = await params;
 
   return (
-    <main className="min-h-screen w-full bg-background text-foreground overflow-y-auto">
+    <main className="min-h-[100dvh] w-full bg-background text-foreground overflow-y-auto">
       <LessonDetailContent
         courseId={courseId}
         lessonId={lessonId}
-        backUrl={`/courses/${courseId}?mode=edit`}
+        backUrl={`/courses/${courseId}`}
       />
     </main>
   );

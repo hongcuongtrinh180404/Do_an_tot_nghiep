@@ -3,7 +3,7 @@
 import React from 'react';
 import { Icon } from '@/components/ui/icon';
 
-export type CourseDetailTabId = 'info' | 'curriculum' | 'reviews' | 'instructor';
+export type CourseDetailTabId = 'curriculum' | 'mindmap' | 'reviews' | 'instructor';
 
 interface CourseDetailTabsProps {
   activeTab: CourseDetailTabId;
@@ -23,8 +23,8 @@ export function CourseDetailTabs({
   reviewCount = 583,
 }: CourseDetailTabsProps): React.JSX.Element {
   const tabs: ITabItem[] = [
-    { id: 'info', label: 'Thông tin', icon: 'lucide:info' },
     { id: 'curriculum', label: 'Nội dung', icon: 'lucide:book-open' },
+    { id: 'mindmap', label: 'Mindmap tổng quan', icon: 'lucide:network' },
     { id: 'reviews', label: `Đánh giá (${reviewCount})`, icon: 'lucide:star' },
     { id: 'instructor', label: 'Giảng viên', icon: 'lucide:user' },
   ];
@@ -46,11 +46,10 @@ export function CourseDetailTabs({
               aria-selected={isActive}
               aria-controls={`tabpanel-${tab.id}`}
               onClick={() => onSelectTab(tab.id)}
-              className={`relative py-3.5 px-2 text-sm sm:text-base font-bold transition-all flex items-center gap-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-[#027D88] ${
-                isActive
-                  ? 'text-[#027D88]'
-                  : 'text-[#666666] hover:text-[#161616]'
-              }`}
+              className={`relative py-3.5 px-2 text-sm sm:text-base font-bold transition-all flex items-center gap-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-[#027D88] ${isActive
+                ? 'text-[#027D88]'
+                : 'text-[#666666] hover:text-[#161616]'
+                }`}
             >
               <Icon
                 icon={tab.icon}

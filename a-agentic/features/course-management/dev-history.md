@@ -13,6 +13,70 @@
 
 ## 2. Technical Notes & Gotchas
 
+- **Milestone 39 (Direct Lesson Navigation from Curriculum List to Studio & Mindly Branding Standardization)**:
+  - **Yêu cầu người dùng**: Khi học viên đã sở hữu khóa học, người dùng muốn:
+    1. Bỏ qua việc tự động mở bài đầu tiên tại nút Play trên banner đại diện và thẻ Sticky.
+    2. Cứ bấm vào bất kỳ bài học nào trong danh sách nội dung khóa học (`CourseCurriculumTab`) thì hệ thống sẽ lập tức chuyển vào giao diện Studio và mở đúng bài học được bấm.
+  - **Phạm vi tác động & Giải pháp**:
+    1. **`CourseCurriculumTab` (`course-curriculum-tab.tsx`)**:
+       - Mở rộng toàn bộ hàng bài học khi `canPlay` thành một liên kết `<Link href={'/courses/${courseId}/lessons/${lessonId}'}>` có khả năng tương tác trực quan (`cursor-pointer`).
+       - Học viên click vào bất kỳ đâu trên hàng (số thứ tự, tiêu đề, thời lượng hoặc icon Play tròn bên phải) đều mở ngay bài học tương ứng trong Studio.
+       - Hỗ trợ trích xuất ID an toàn: `const lessonId = lesson.id || (lesson as unknown as { _id?: string })._id;`.
+       - Rê chuột (hover) phản hồi đồng bộ cả tiêu đề lẫn nút Play tròn sang màu nhấn thương hiệu `#027D88`.
+       - Tuân thủ tiêu chuẩn Design Taste Frontend: Sử dụng `data-ui="curriculum-list"` và `data-ui="lessons-list"`.
+    2. **Route Studio Bài học (`frontend/src/app/courses/[courseId]/lessons/[lessonId]/page.tsx`)**:
+       - Cập nhật tiêu đề trang `metadata.title` chuẩn nhận diện: `Chi tiết bài học | Mindly - Nền tảng E-Learning AI` (thay vì DATN Portal cũ).
+       - Cập nhật `backUrl` về `/courses/${courseId}` để khi học viên bấm "Quay lại khóa học", hệ thống điều hướng chính xác về trang chi tiết khóa học dành cho học viên.
+       - Chuẩn hóa chiều cao tối thiểu `min-h-[100dvh]` theo chuẩn hiển thị di động.
+  - **Kiểm định chất lượng**:
+    - Design Taste Lint Gate: Đạt `0 FAIL`.
+    - TypeScript Type Check: Đạt `0 Errors`.
+    - Next.js ESLint: Đạt `0 Errors`.
+
+- **Milestone 38 (Streamline Course & Lesson Duration Display to Minute Precision)**:
+  - **Yêu cầu người dùng**: Trên giao diện quản lý/chỉnh sửa khóa học (`/courses/[courseId]?mode=edit`), thống nhất định dạng hiển thị thời lượng chỉ tới đơn vị phút (ví dụ: `1h 12p`, `1 giờ 12 phút`), loại bỏ đơn vị giây (`17s`, `17 giây`) để giao diện gọn gàng, tinh tế và đồng bộ với trải nghiệm chuẩn e-learning.
+  - **Phạm vi tác động**:
+    1. **Thanh Metric tổng quan (`CourseOverviewMetrics`)**: Hiển thị thẻ *"Thời lượng học"* thành `1h 12p` (thay vì `1h 12p 17s`).
+    2. **Badge thống kê chương (`ChapterTreeItem`)**: Hiển thị badge danh mục bài học thành `8 bài giảng • 1h 12p` (thay vì `8 bài giảng • 1h 12p 17s`).
+    3. **Thẻ Tổng quan chương (`ChapterInspectorView`)**: Hiển thị dòng *"Tổng thời lượng"* thành `1 giờ 12 phút` (thay vì `1 giờ 12 phút 17 giây`).
+    4. **Thẻ Chi tiết bài học (`LessonInspectorView`)**: Hiển thị phụ đề thời lượng thành `X phút` (hoặc `< 1 phút` nếu thời lượng dưới 60 giây).
+  - **Giải pháp kỹ thuật**:
+    1. `formatVideoDuration` (`course-lesson-stats.util.ts`): Thêm tham số tùy chọn `includeSeconds = false` (mặc định không hiển thị giây). Khi `includeSeconds === false`, chỉ nối phần giờ (`h` / `giờ`) và phút (`p` / `phút`).
+    2. `formatExactLessonDuration` (`contextual-inspector-panel.tsx`): Format thời lượng video thành `X giờ Y phút` hoặc `X phút` (hoặc `< 1 phút`), loại bỏ hoàn toàn hiển thị giây.
+    3. Cập nhật unit test `course-lesson-stats.spec.ts` tương ứng.
+  - **Kiểm định chất lượng**:
+    - ESLint: 0 lỗi 0 cảnh báo.
+    - `audit:ui`: Vượt qua 100% Web Design Guidelines.
+
+- **Milestone 37 (Fix Lesson Detail Access Under Optional Auth & Prevent Infinite Skeleton in Inspector Panel)**:
+  - **Sự cố & Báo cáo người dùng**: Khi người dùng (Giảng viên sở hữu khóa học hoặc Admin) truy cập giao diện chỉnh sửa khóa học (`/courses/[courseId]?mode=edit`) và click vào một bài học video ở cây danh mục bên cột trái, cột bên phải (`ContextualInspectorPanel`) bị kẹt ở trạng thái nhấp nháy 3 thanh skeleton (`animate-pulse`) vô tận, không hiển thị thông tin bài học.
+  - **Root Cause**:
+    1. **`JwtAuthGuard` Bỏ Qua Token Trên Endpoint `@Public()`**: `GET /api/v1/lessons/:id` được đánh dấu decorator `@Public()` để cho phép khách xem thử các bài `isPreview: true`. Tuy nhiên, trong `JwtAuthGuard` (`jwt-auth.guard.ts`), điều kiện `if (isPublic) return true;` làm hệ thống bỏ qua việc thực thi Passport JWT. Hậu quả là `request.user` không bao giờ được thiết lập trên các route công khai, khiến `@CurrentUser('id') userId` và `@CurrentUser('role') userRole` luôn là `undefined`.
+    2. **`lessonService.getLessonForUser` ném 403 Forbidden**: Do không nhận diện được danh tính của Giảng viên sở hữu khóa học hay Admin khi bài học có `isPreview === false`, backend ném `ForbiddenException('Bạn cần mua khóa học để xem nội dung bài học này')`.
+    3. **Frontend Thiếu Error Boundary Trực Quan**: Trong `LessonInspectorView` (`contextual-inspector-panel.tsx`), điều kiện `if (isLoading || !lesson)` dẫn đến khi query gặp lỗi (`isError: true`, `lesson === undefined`), giao diện vẫn rơi vào skeleton loading thay vì hiển thị thông báo lỗi và nút thử lại.
+  - **Giải pháp khắc phục**:
+    1. **`JwtAuthGuard` (`jwt-auth.guard.ts`)**: Cập nhật logic `canActivate` trên route `@Public()`. Nếu có header `Authorization: Bearer <token>`, guard ủy quyền cho `super.canActivate(context)` để giải mã danh tính người dùng vào `request.user`. Trong `handleRequest`, nếu route là public và token không hợp lệ/hết hạn, guard trả về `null` thay vì ném ngoại lệ 401.
+    2. **`LessonService` (`lesson.service.ts`)**: Tinh chỉnh kiểm tra quyền sở hữu bài học của Giảng viên, hỗ trợ đối soát an toàn `course.instructorId === userId` hoặc `String(course.instructorId) === userId`.
+    3. **Frontend `LessonInspectorView` (`contextual-inspector-panel.tsx`)**: Tách biệt rõ ràng trạng thái `if (isLoading)` (skeleton) và `if (isError || !lesson)` (thẻ thông báo lỗi chuyên nghiệp kèm nút "Thử lại"), loại bỏ các class `font-mono` vi phạm web design guidelines.
+    4. **Kiểm thử tự động**: Viết mới bộ unit tests toàn diện `jwt-auth.guard.spec.ts` (7/7 tests pass) và cập nhật mock `getLessonForUser` trong `lessons.controller.spec.ts` (13/13 tests pass).
+  - **Kiểm định chất lượng**:
+    - Backend: 72/72 tests auth module pass, 13/13 tests lessons controller pass, 32/32 tests lesson service pass.
+    - Frontend: `eslint` 0 lỗi 0 cảnh báo, `audit-ui.mjs` pass 100%.
+
+- **Milestone 36 (Streamlined Post-Purchase Course Detail UI & Removal of Redundant 'Bắt đầu học' CTA)**:
+  - **Bối cảnh & Yêu cầu người dùng**: Sau khi thanh toán mua khóa học thành công (`hasAccess === true`), giao diện chi tiết khóa học hiển thị nút "Bắt đầu học" ở thẻ thanh toán bên phải (cả Desktop và Mobile sticky bar). Học viên có thể trực tiếp chọn bất kỳ bài học nào từ danh sách bài giảng bên cột trái (hoặc từ Mindmap AI), nên nút CTA "Bắt đầu học" và dòng text marketing phụ trợ bị thừa, gây chiếm dụng không gian và giảm sự tập trung vào tiến độ học tập.
+  - **Giải pháp triển khai**:
+    1. **`CoursePurchaseCard` (`course-purchase-card.tsx`)**:
+       - **Desktop**: Khi `hasAccess === true`, ẩn hoàn toàn khối Action CTA (bao gồm nút "Bắt đầu học" và dòng text marketing *"Truy cập trọn đời • Học trên mọi thiết bị • Kích hoạt tức thì"*). Thẻ sidebar bên phải chỉ giữ lại: Thông báo đã sở hữu & Thanh tiến độ học tập (`Tiến độ học tập 0%`, `0/N bài hoàn thành`) và Danh sách tiện ích khóa học bao gồm (`Khóa học bao gồm: ...`).
+       - **Mobile (< 1024px)**: Ẩn hoàn toàn thanh Sticky Bottom Bar khi `hasAccess === true` (Phương án A), giải phóng diện tích màn hình điện thoại để học viên cuộn xem giáo trình bài giảng mà không bị che khuất.
+       - **Refactor**: Loại bỏ prop `onStartLearning` khỏi `CoursePurchaseCardProps` để đảm bảo Clean Code.
+    2. **`PublicCourseDetailView` (`public-course-detail-view.tsx`)**:
+       - Dọn dẹp `firstLessonId`, `handleStartLearning` và thuộc tính `onStartLearning` truyền vào thẻ mua.
+  - **Kiểm định chất lượng**:
+    - TypeScript compile sạch 100%.
+    - ESLint đạt 0 lỗi 0 cảnh báo.
+    - Trạng thái chưa mua (`hasAccess === false`) vẫn giữ nguyên đầy đủ nút "Mua ngay" / "Đăng ký" và giá tiền trên cả desktop và mobile.
+
 - **Milestone 35 (Course Detail Page 2-Column Redesign, Course Card Navigation & Domestika Layout Architecture)**:
   - **Yêu cầu & Mục tiêu**:
     1. **Điều hướng từ Thẻ Khóa học (Course Card)**: Khi nhấn vào hình ảnh, tên khóa học hoặc nút hành động ("Mua 3.000đ" / "Đăng ký miễn phí") trên trang chủ (`/`) hoặc trang danh mục (`/courses`), hệ thống đều điều hướng sang trang chi tiết (`/courses/[courseId]`) thay vì thực hiện mua ngay để học viên có cơ hội tìm hiểu đầy đủ nội dung.
@@ -20,7 +84,8 @@
        - **Cột Trái (Nội dung chi tiết khóa học)**:
          - `CourseDetailHeader`: Breadcrumb điều hướng semantic `<nav aria-label="Breadcrumb">`, huy hiệu Best Seller, Danh mục, Trình độ (chỉ báo chấm), Tiêu đề H1, Nút Bookmark/Wishlist tương tác, Tác giả giảng viên và thanh metadata (đánh giá sao 4.9, số học viên 15.409, số bài giảng và tổng thời lượng).
          - `CourseIntroMedia`: Khung media 16:9 phát video trailer trực tiếp thay thế ảnh bìa khi nhấn nút Play trung tâm, có nút đóng/quay lại ảnh bìa bất kỳ lúc nào.
-         - `CourseDetailTabs`: Thanh 4 tab WAI-ARIA (`Thông tin`, `Nội dung`, `Đánh giá`, `Giảng viên`) với vạch chỉ báo active Teal `#027D88`.
+         - `CourseDetailTabs`: Thanh 4 tab WAI-ARIA tinh gọn theo thứ tự: `Nội dung`, `Mindmap tổng quan`, `Đánh giá (583)`, `Giảng viên`. Mặc định khi mở trang luôn mở tab Nội dung.
+         - `CourseMindmapTab`: Trình duyệt sơ đồ tư duy tương tác React Flow (`@xyflow/react`) tự động vẽ cây trực quan từ Khóa học -> Các chương -> Các bài giảng. Tích hợp toolbar phóng to/thu nhỏ, căn giữa (Fit view), mở rộng/thu gọn nhánh, bật/tắt MiniMap và xem Toàn màn hình (Fullscreen). Click vào node bài học hỗ trợ điều hướng thẳng vào bài giảng tương ứng.
          - `CourseInfoTab`: Giới thiệu tổng quan, Mục tiêu & Kiến thức đạt được (checkmarks), Tính năng học tập AI Mindly (Mindmap AI, In-video Quiz, Tóm tắt), Yêu cầu đầu vào.
          - `CourseCurriculumTab`: Accordion danh sách chương bài giảng. Trước khi mua: bài học bị khóa 🔒 (trừ bài học thử `isPreview: true` có huy hiệu "Học thử" và icon Play). Sau khi mua: toàn bộ bài học mở khóa 🔓 (icon Play).
          - `CourseReviewsTab`: Điểm trung bình 4.9/5, thanh phân bổ sao, danh sách nhận xét thực tế của học viên khen ngợi chất lượng bài giảng và tính năng AI Mindmap/Quiz.

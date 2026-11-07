@@ -172,7 +172,8 @@ export class LessonService extends BaseService<ILesson, string> {
     // 3. Giảng viên sở hữu khóa học được xem
     if (courseId && this.courseRepository && userId) {
       const course = await this.courseRepository.findById(courseId, session);
-      if (course && course.instructorId === userId) {
+      const instructorIdStr = course?.instructorId ? String(course.instructorId) : '';
+      if (course && (course.instructorId === userId || instructorIdStr === userId)) {
         return lesson;
       }
     }

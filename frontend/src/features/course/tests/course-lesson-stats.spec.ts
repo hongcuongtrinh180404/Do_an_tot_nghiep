@@ -43,8 +43,8 @@ describe('Course video lesson statistics', () => {
     assert.deepEqual(getVideoLessonStats([
       { content: { type: LessonContentTypeEnum.DOCUMENT, url: '/doc.pdf' } },
     ]), empty);
-    assert.equal(formatVideoDuration(empty), '0s');
-    assert.equal(formatVideoDuration(empty, 'long'), '0 giây');
+    assert.equal(formatVideoDuration(empty), '0p');
+    assert.equal(formatVideoDuration(empty, 'long'), '0 phút');
   });
 
   it('counts videos with unknown or invalid duration without corrupting the sum', () => {
@@ -52,21 +52,25 @@ describe('Course video lesson statistics', () => {
       video(45), video(), video(0), video(-1), video(NaN), video(Infinity),
     ]);
     assert.deepEqual(stats, { videoCount: 6, totalSeconds: 45, missingDurationCount: 5 });
-    assert.equal(formatVideoDuration(stats), '45s (chưa đầy đủ)');
+    assert.equal(formatVideoDuration(stats), '< 1p (chưa đầy đủ)');
+    assert.equal(formatVideoDuration(stats, 'compact', true), '45s (chưa đầy đủ)');
     assert.equal(formatVideoDuration(getVideoLessonStats([video()])), 'Chưa xác định');
   });
 
   it('keeps seconds and rounds only after adding all durations', () => {
-    assert.equal(formatVideoDuration(getVideoLessonStats([video(20), video(20)])), '40s');
-    assert.equal(formatVideoDuration(getVideoLessonStats([video(29.4), video(29.4)])), '59s');
+    assert.equal(formatVideoDuration(getVideoLessonStats([video(20), video(20)])), '< 1p');
+    assert.equal(formatVideoDuration(getVideoLessonStats([video(20), video(20)]), 'compact', true), '40s');
+    assert.equal(formatVideoDuration(getVideoLessonStats([video(29.4), video(29.4)])), '< 1p');
     assert.equal(formatVideoDuration(getVideoLessonStats([video(3599.6)])), '1h');
     const stats = getVideoLessonStats([video(3600), video(125)]);
-    assert.equal(formatVideoDuration(stats), '1h 2p 5s');
-    assert.equal(formatVideoDuration(stats, 'long'), '1 giờ 2 phút 5 giây');
+    assert.equal(formatVideoDuration(stats), '1h 2p');
+    assert.equal(formatVideoDuration(stats, 'long'), '1 giờ 2 phút');
+    assert.equal(formatVideoDuration(stats, 'long', true), '1 giờ 2 phút 5 giây');
   });
 
   it('clears the incomplete indicator when video metadata becomes available', () => {
     assert.equal(formatVideoDuration(getVideoLessonStats([video(60), video()])), '1p (chưa đầy đủ)');
-    assert.equal(formatVideoDuration(getVideoLessonStats([video(60), video(30)])), '1p 30s');
+    assert.equal(formatVideoDuration(getVideoLessonStats([video(60), video(30)])), '1p');
+    assert.equal(formatVideoDuration(getVideoLessonStats([video(60), video(30)]), 'compact', true), '1p 30s');
   });
 });

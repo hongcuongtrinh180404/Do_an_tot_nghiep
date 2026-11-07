@@ -13,6 +13,7 @@ describe('LessonsController', () => {
   let controller: LessonsController;
   let mockLessonService: {
     getLessonById: ReturnType<typeof vi.fn>;
+    getLessonForUser: ReturnType<typeof vi.fn>;
     addMaterial: ReturnType<typeof vi.fn>;
     deleteMaterial: ReturnType<typeof vi.fn>;
     deleteLesson: ReturnType<typeof vi.fn>;
@@ -52,6 +53,7 @@ describe('LessonsController', () => {
   beforeEach(() => {
     mockLessonService = {
       getLessonById: vi.fn(),
+      getLessonForUser: vi.fn(),
       addMaterial: vi.fn(),
       deleteMaterial: vi.fn(),
       deleteLesson: vi.fn(),
@@ -70,23 +72,23 @@ describe('LessonsController', () => {
 
   describe('GET /lessons/:id - getLessonDetail', () => {
     it('1. should return lesson detail successfully and wrap in standard ApiResponse', async () => {
-      mockLessonService.getLessonById.mockResolvedValue(sampleLesson);
+      mockLessonService.getLessonForUser.mockResolvedValue(sampleLesson);
 
-      const response = await controller.getLessonDetail(sampleLessonId);
+      const response = await controller.getLessonDetail(sampleLessonId, sampleUserId, RoleEnum.INSTRUCTOR);
 
-      expect(mockLessonService.getLessonById).toHaveBeenCalledWith(sampleLessonId);
+      expect(mockLessonService.getLessonForUser).toHaveBeenCalledWith(sampleLessonId, sampleUserId, RoleEnum.INSTRUCTOR);
       expect(response.success).toBe(true);
       expect(response.message).toBe('Lấy thông tin bài học thành công');
       expect(response.data).toEqual(sampleLesson);
     });
 
     it('2. should propagate NotFoundException when LessonService throws', async () => {
-      mockLessonService.getLessonById.mockRejectedValue(
+      mockLessonService.getLessonForUser.mockRejectedValue(
         new NotFoundException(`Không tìm thấy bài học với ID '${sampleLessonId}'`),
       );
 
-      await expect(controller.getLessonDetail(sampleLessonId)).rejects.toThrow(NotFoundException);
-      await expect(controller.getLessonDetail(sampleLessonId)).rejects.toThrow(
+      await expect(controller.getLessonDetail(sampleLessonId, sampleUserId, RoleEnum.INSTRUCTOR)).rejects.toThrow(NotFoundException);
+      await expect(controller.getLessonDetail(sampleLessonId, sampleUserId, RoleEnum.INSTRUCTOR)).rejects.toThrow(
         `Không tìm thấy bài học với ID '${sampleLessonId}'`,
       );
     });

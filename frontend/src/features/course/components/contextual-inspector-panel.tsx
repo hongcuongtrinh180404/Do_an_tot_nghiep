@@ -37,12 +37,15 @@ interface ContextualInspectorPanelProps {
 function formatExactLessonDuration(seconds?: number | null): string {
   if (seconds === undefined || seconds === null || seconds <= 0) return 'Chưa xác định';
   const rounded = Math.round(seconds);
-  const minutes = Math.floor(rounded / 60);
-  const remSecs = rounded % 60;
-  if (minutes > 0) {
-    return `${minutes} phút ${remSecs > 0 ? `${remSecs} giây` : ''}`.trim();
+  const hours = Math.floor(rounded / 3600);
+  const minutes = Math.floor((rounded % 3600) / 60);
+  if (hours > 0) {
+    return `${hours} giờ ${minutes > 0 ? `${minutes} phút` : ''}`.trim();
   }
-  return `${remSecs} giây`;
+  if (minutes > 0) {
+    return `${minutes} phút`;
+  }
+  return '< 1 phút';
 }
 
 function formatFileSize(bytes?: number | null): string {
@@ -84,7 +87,7 @@ function DocumentItemWithStatus({
             {displayFileName}
           </p>
           <div className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground">
-            {fileSizeText && <span className="font-mono">{fileSizeText}</span>}
+            {fileSizeText && <span>{fileSizeText}</span>}
             {displayLessonTitle && (
               <>
                 <span>•</span>
@@ -229,7 +232,7 @@ function LessonMaterialItem({
           </p>
           <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground">
             <span
-              className="truncate max-w-[130px] font-mono text-muted-foreground/80"
+              className="truncate max-w-[130px] text-muted-foreground/80"
               title={displayFileName}
             >
               {displayFileName}
@@ -237,7 +240,7 @@ function LessonMaterialItem({
             {fileSizeText && (
               <>
                 <span>•</span>
-                <span className="font-mono">{fileSizeText}</span>
+                <span>{fileSizeText}</span>
               </>
             )}
           </div>
@@ -407,7 +410,7 @@ function ChapterInspectorView({
             <span>Tài liệu chung của chương</span>
           </h4>
           {chapterDocuments.length > 0 && (
-            <span className="text-[10px] font-mono font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
               {chapterDocuments.length} tệp
             </span>
           )}
@@ -479,17 +482,41 @@ function LessonInspectorView({
   courseId: string;
   readOnly?: boolean;
 }): React.JSX.Element {
-  const { data: lesson, isLoading } = useLessonDetailQuery(lessonId);
+  const { data: lesson, isLoading, isError, refetch } = useLessonDetailQuery(lessonId);
 
   const [targetDeleteMaterial, setTargetDeleteMaterial] = React.useState<ILessonMaterial | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = React.useState(false);
 
-  if (isLoading || !lesson) {
+  if (isLoading) {
     return (
       <div className="space-y-3 py-6 animate-pulse">
         <div className="h-4 w-1/3 bg-muted/60 rounded" />
         <div className="h-6 w-3/4 bg-muted/70 rounded" />
         <div className="h-16 bg-muted/40 rounded-xl" />
+      </div>
+    );
+  }
+
+  if (isError || !lesson) {
+    return (
+      <div className="p-4 rounded-xl bg-destructive/5 border border-destructive/20 text-destructive text-xs space-y-2 text-center animate-in fade-in-50 duration-200">
+        <Icon icon="lucide:alert-circle" className="size-5 mx-auto text-destructive" />
+        <p className="font-semibold">Không thể tải thông tin bài học</p>
+        <p className="text-[11px] text-muted-foreground">
+          Vui lòng kiểm tra quyền truy cập hoặc thử lại.
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            void refetch();
+          }}
+          className="text-xs h-7 gap-1 mt-1 mx-auto"
+        >
+          <Icon icon="lucide:refresh-cw" className="size-3" />
+          <span>Thử lại</span>
+        </Button>
       </div>
     );
   }
@@ -597,7 +624,7 @@ function LessonInspectorView({
             <Icon icon="lucide:file-text" className="size-3.5 text-sky-500" />
             <span>Tài liệu riêng của bài</span>
             {totalMaterialsCount > 0 && (
-              <span className="text-[10px] font-mono font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                 {totalMaterialsCount} tệp
               </span>
             )}

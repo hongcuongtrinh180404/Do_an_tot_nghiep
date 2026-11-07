@@ -16,8 +16,8 @@ import {
 import { CourseDetailHeader } from './course-detail-header';
 import { CourseIntroMedia } from './course-intro-media';
 import { CourseDetailTabs, type CourseDetailTabId } from './course-detail-tabs';
-import { CourseInfoTab } from './course-info-tab';
 import { CourseCurriculumTab } from './course-curriculum-tab';
+import { CourseMindmapTab } from './course-mindmap-tab';
 import { CourseReviewsTab } from './course-reviews-tab';
 import { CourseInstructorTab } from './course-instructor-tab';
 import { CoursePurchaseCard } from './course-purchase-card';
@@ -62,17 +62,6 @@ export function PublicCourseDetailView({
   const isInstructorOwner = Boolean(
     user && course && (user.id === course.instructorId || user.role === RoleEnum.ADMIN),
   );
-
-  // First lesson to navigate when clicking "Bắt đầu học"
-  const firstLessonId = useMemo(() => {
-    if (!course?.sections || course.sections.length === 0) return null;
-    for (const section of course.sections) {
-      if (section.lessons && section.lessons.length > 0) {
-        return section.lessons[0].id;
-      }
-    }
-    return null;
-  }, [course]);
 
   const totalLessonsCount = useMemo(() => {
     if (!course?.sections) return 0;
@@ -148,14 +137,6 @@ export function PublicCourseDetailView({
     purchaseMutation.mutate();
   };
 
-  const handleStartLearning = (): void => {
-    if (firstLessonId) {
-      router.push(`/courses/${course.id}/lessons/${firstLessonId}`);
-    } else {
-      router.push(`/courses/${course.id}/learn`);
-    }
-  };
-
   return (
     <div className="w-full min-h-screen bg-[#fbfbfb] text-[#161616] pb-16 lg:pb-24">
       {/* Instructor / Admin Mode Alert Banner */}
@@ -209,8 +190,6 @@ export function PublicCourseDetailView({
 
             {/* 4. Active Tab Content Pane */}
             <div className="pt-2">
-              {activeTab === 'info' && <CourseInfoTab course={course} />}
-
               {activeTab === 'curriculum' && (
                 <CourseCurriculumTab
                   sections={course.sections}
@@ -219,6 +198,15 @@ export function PublicCourseDetailView({
                   isInstructorOwner={isInstructorOwner}
                   totalLessonsCount={totalLessonsCount}
                   totalDurationFormatted={totalDurationFormatted}
+                />
+              )}
+
+              {activeTab === 'mindmap' && (
+                <CourseMindmapTab
+                  course={course}
+                  isEnrolled={isEnrolled}
+                  isInstructorOwner={isInstructorOwner}
+                  totalLessonsCount={totalLessonsCount}
                 />
               )}
 
@@ -243,7 +231,6 @@ export function PublicCourseDetailView({
             isPending={purchaseMutation.isPending || isEnrollmentLoading}
             totalLessonsCount={totalLessonsCount}
             onPurchase={handlePurchase}
-            onStartLearning={handleStartLearning}
           />
         </div>
       </div>

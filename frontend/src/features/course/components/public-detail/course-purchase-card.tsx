@@ -14,7 +14,6 @@ interface CoursePurchaseCardProps {
   isPending: boolean;
   totalLessonsCount: number;
   onPurchase: () => void;
-  onStartLearning: () => void;
 }
 
 function formatVND(price: number): string {
@@ -33,7 +32,6 @@ export function CoursePurchaseCard({
   isPending,
   totalLessonsCount,
   onPurchase,
-  onStartLearning,
 }: CoursePurchaseCardProps): React.JSX.Element {
   const isFree = course.price === 0;
   const hasAccess = isEnrolled || isInstructorOwner;
@@ -115,50 +113,43 @@ export function CoursePurchaseCard({
             </div>
           )}
 
-          {/* Action CTA Buttons */}
-          <div className="space-y-3">
-            {hasAccess ? (
-              <button
-                type="button"
-                onClick={onStartLearning}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-3.5 px-4 text-sm sm:text-base transition-colors shadow-sm cursor-pointer"
-              >
-                <Icon icon="lucide:play-circle" className="size-5 shrink-0 fill-white text-[#027D88]" />
-                <span>Bắt đầu học</span>
-              </button>
-            ) : !isLoggedIn ? (
-              <Link
-                href={`/login?redirect=/courses/${course.id}`}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-3.5 px-4 text-sm sm:text-base transition-colors shadow-sm text-center"
-              >
-                <Icon icon="lucide:log-in" className="size-4 shrink-0" />
-                <span>{isFree ? 'Đăng nhập để đăng ký' : 'Đăng nhập để mua'}</span>
-              </Link>
-            ) : (
-              <button
-                type="button"
-                onClick={onPurchase}
-                disabled={isPending}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-3.5 px-4 text-sm sm:text-base transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {isPending ? (
-                  <>
-                    <Icon icon="lucide:loader-2" className="size-4 animate-spin shrink-0" />
-                    <span>Đang xử lý đăng ký...</span>
-                  </>
-                ) : (
-                  <>
-                    <Icon icon="lucide:shopping-cart" className="size-4.5 shrink-0" />
-                    <span>{isFree ? 'Đăng ký miễn phí' : 'Mua ngay'}</span>
-                  </>
-                )}
-              </button>
-            )}
+          {/* Action CTA Buttons (Only shown when not enrolled/owned) */}
+          {!hasAccess && (
+            <div className="space-y-3">
+              {!isLoggedIn ? (
+                <Link
+                  href={`/login?redirect=/courses/${course.id}`}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-3.5 px-4 text-sm sm:text-base transition-colors shadow-sm text-center"
+                >
+                  <Icon icon="lucide:log-in" className="size-4 shrink-0" />
+                  <span>{isFree ? 'Đăng nhập để đăng ký' : 'Đăng nhập để mua'}</span>
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onPurchase}
+                  disabled={isPending}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-3.5 px-4 text-sm sm:text-base transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {isPending ? (
+                    <>
+                      <Icon icon="lucide:loader-2" className="size-4 animate-spin shrink-0" />
+                      <span>Đang xử lý đăng ký...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Icon icon="lucide:shopping-cart" className="size-4.5 shrink-0" />
+                      <span>{isFree ? 'Đăng ký miễn phí' : 'Mua ngay'}</span>
+                    </>
+                  )}
+                </button>
+              )}
 
-            <p className="text-[11px] text-[#666666] text-center pt-1">
-              Truy cập trọn đời • Học trên mọi thiết bị • Kích hoạt tức thì
-            </p>
-          </div>
+              <p className="text-[11px] text-[#666666] text-center pt-1">
+                Truy cập trọn đời • Học trên mọi thiết bị • Kích hoạt tức thì
+              </p>
+            </div>
+          )}
 
           {/* Student Included Perks */}
           <div className="mt-6 pt-6 border-t border-[#f2f2f2] space-y-3">
@@ -196,11 +187,11 @@ export function CoursePurchaseCard({
       </aside>
 
       {/* ============================================================== */}
-      {/* 2. Mobile Sticky Bottom Action Bar (Visible < 1024px)          */}
+      {/* 2. Mobile Sticky Bottom Action Bar (Visible < 1024px when not enrolled) */}
       {/* ============================================================== */}
-      <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#e5e7eb] p-3 px-4 shadow-lg lg:hidden flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          {!hasAccess ? (
+      {!hasAccess && (
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#e5e7eb] p-3 px-4 shadow-lg lg:hidden flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <div>
               <span className="text-[11px] text-[#666666] block leading-none">Học phí</span>
               <div className="flex items-baseline gap-1.5 mt-0.5">
@@ -214,54 +205,40 @@ export function CoursePurchaseCard({
                 )}
               </div>
             </div>
-          ) : (
-            <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-bold">
-              <Icon icon="lucide:check-circle-2" className="size-4" />
-              <span>Đã đăng ký (0%)</span>
-            </div>
-          )}
-        </div>
+          </div>
 
-        <div className="shrink-0">
-          {hasAccess ? (
-            <button
-              type="button"
-              onClick={onStartLearning}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-2.5 px-4 text-xs sm:text-sm shadow-sm cursor-pointer"
-            >
-              <Icon icon="lucide:play-circle" className="size-4 fill-white text-[#027D88]" />
-              <span>Bắt đầu học</span>
-            </button>
-          ) : !isLoggedIn ? (
-            <Link
-              href={`/login?redirect=/courses/${course.id}`}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-2.5 px-4 text-xs sm:text-sm shadow-sm"
-            >
-              <Icon icon="lucide:log-in" className="size-4" />
-              <span>{isFree ? 'Đăng ký' : 'Mua ngay'}</span>
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={onPurchase}
-              disabled={isPending}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-2.5 px-4 text-xs sm:text-sm shadow-sm disabled:opacity-70 cursor-pointer"
-            >
-              {isPending ? (
-                <>
-                  <Icon icon="lucide:loader-2" className="size-3.5 animate-spin" />
-                  <span>Đang xử lý...</span>
-                </>
-              ) : (
-                <>
-                  <Icon icon="lucide:shopping-cart" className="size-3.5" />
-                  <span>{isFree ? 'Đăng ký miễn phí' : 'Mua ngay'}</span>
-                </>
-              )}
-            </button>
-          )}
+          <div className="shrink-0">
+            {!isLoggedIn ? (
+              <Link
+                href={`/login?redirect=/courses/${course.id}`}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-2.5 px-4 text-xs sm:text-sm shadow-sm"
+              >
+                <Icon icon="lucide:log-in" className="size-4" />
+                <span>{isFree ? 'Đăng ký' : 'Mua ngay'}</span>
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={onPurchase}
+                disabled={isPending}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-2.5 px-4 text-xs sm:text-sm shadow-sm disabled:opacity-70 cursor-pointer"
+              >
+                {isPending ? (
+                  <>
+                    <Icon icon="lucide:loader-2" className="size-3.5 animate-spin" />
+                    <span>Đang xử lý...</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon icon="lucide:shopping-cart" className="size-3.5" />
+                    <span>{isFree ? 'Đăng ký miễn phí' : 'Mua ngay'}</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
