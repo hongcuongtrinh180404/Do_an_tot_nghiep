@@ -136,11 +136,10 @@ export function CourseManagementContent(): React.JSX.Element {
                 }
               }}
               onClick={() => setSelectedStatus('ALL')}
-              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary ${
-                selectedStatus === 'ALL'
+              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary ${selectedStatus === 'ALL'
                   ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
                   : 'border-border/40 bg-card/60 hover:border-border'
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground font-medium">Tổng khóa học</span>
@@ -164,11 +163,10 @@ export function CourseManagementContent(): React.JSX.Element {
                 }
               }}
               onClick={() => setSelectedStatus(CourseStatusEnum.PUBLISHED)}
-              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500 ${
-                selectedStatus === CourseStatusEnum.PUBLISHED
+              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500 ${selectedStatus === CourseStatusEnum.PUBLISHED
                   ? 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/20'
                   : 'border-border/40 bg-card/60 hover:border-border'
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground font-medium">Đang xuất bản</span>
@@ -194,11 +192,10 @@ export function CourseManagementContent(): React.JSX.Element {
                 }
               }}
               onClick={() => setSelectedStatus(CourseStatusEnum.PENDING_APPROVAL)}
-              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sky-500 ${
-                selectedStatus === CourseStatusEnum.PENDING_APPROVAL
+              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sky-500 ${selectedStatus === CourseStatusEnum.PENDING_APPROVAL
                   ? 'border-sky-500 bg-sky-500/10 ring-1 ring-sky-500/20'
                   : 'border-border/40 bg-card/60 hover:border-border'
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground font-medium">Chờ duyệt</span>
@@ -224,11 +221,10 @@ export function CourseManagementContent(): React.JSX.Element {
                 }
               }}
               onClick={() => setSelectedStatus(CourseStatusEnum.DRAFT)}
-              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500 ${
-                selectedStatus === CourseStatusEnum.DRAFT
+              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500 ${selectedStatus === CourseStatusEnum.DRAFT
                   ? 'border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/20'
                   : 'border-border/40 bg-card/60 hover:border-border'
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground font-medium">Bản nháp</span>
@@ -254,11 +250,10 @@ export function CourseManagementContent(): React.JSX.Element {
                 }
               }}
               onClick={() => setSelectedStatus(CourseStatusEnum.ARCHIVED)}
-              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-zinc-500 ${
-                selectedStatus === CourseStatusEnum.ARCHIVED
+              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-zinc-500 ${selectedStatus === CourseStatusEnum.ARCHIVED
                   ? 'border-zinc-500 bg-zinc-500/10 ring-1 ring-zinc-500/20'
                   : 'border-border/40 bg-card/60 hover:border-border'
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground font-medium">Ngừng bán</span>
@@ -328,11 +323,10 @@ export function CourseManagementContent(): React.JSX.Element {
                   role="tab"
                   aria-selected={selectedStatus === 'ALL'}
                   onClick={() => setSelectedStatus('ALL')}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${
-                    selectedStatus === 'ALL'
+                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${selectedStatus === 'ALL'
                       ? 'bg-background text-foreground shadow-xs'
                       : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                    }`}
                 >
                   Tất cả ({stats.total})
                 </button>
@@ -341,11 +335,10 @@ export function CourseManagementContent(): React.JSX.Element {
                   role="tab"
                   aria-selected={selectedStatus === CourseStatusEnum.PUBLISHED}
                   onClick={() => setSelectedStatus(CourseStatusEnum.PUBLISHED)}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${
-                    selectedStatus === CourseStatusEnum.PUBLISHED
+                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${selectedStatus === CourseStatusEnum.PUBLISHED
                       ? 'bg-background text-emerald-600 dark:text-emerald-400 shadow-xs'
                       : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                    }`}
                 >
                   Đã xuất bản ({stats.published})
                 </button>
@@ -354,11 +347,10 @@ export function CourseManagementContent(): React.JSX.Element {
                   role="tab"
                   aria-selected={selectedStatus === CourseStatusEnum.PENDING_APPROVAL}
                   onClick={() => setSelectedStatus(CourseStatusEnum.PENDING_APPROVAL)}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${
-                    selectedStatus === CourseStatusEnum.PENDING_APPROVAL
+                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${selectedStatus === CourseStatusEnum.PENDING_APPROVAL
                       ? 'bg-background text-sky-600 dark:text-sky-400 shadow-xs'
                       : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                    }`}
                 >
                   Chờ duyệt ({stats.pending})
                 </button>
@@ -367,11 +359,10 @@ export function CourseManagementContent(): React.JSX.Element {
                   role="tab"
                   aria-selected={selectedStatus === CourseStatusEnum.DRAFT}
                   onClick={() => setSelectedStatus(CourseStatusEnum.DRAFT)}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${
-                    selectedStatus === CourseStatusEnum.DRAFT
+                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${selectedStatus === CourseStatusEnum.DRAFT
                       ? 'bg-background text-amber-600 dark:text-amber-400 shadow-xs'
                       : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                    }`}
                 >
                   Bản nháp ({stats.draft})
                 </button>
@@ -380,11 +371,10 @@ export function CourseManagementContent(): React.JSX.Element {
                   role="tab"
                   aria-selected={selectedStatus === CourseStatusEnum.ARCHIVED}
                   onClick={() => setSelectedStatus(CourseStatusEnum.ARCHIVED)}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${
-                    selectedStatus === CourseStatusEnum.ARCHIVED
+                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${selectedStatus === CourseStatusEnum.ARCHIVED
                       ? 'bg-background text-zinc-600 dark:text-zinc-400 shadow-xs'
                       : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                    }`}
                 >
                   Ngừng bán ({stats.archived})
                 </button>

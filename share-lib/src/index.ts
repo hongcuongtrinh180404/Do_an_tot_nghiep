@@ -8,6 +8,7 @@ export * from './enums/lesson-content-type.enum.js';
 export * from './enums/lesson-transcription-status.enum.js';
 export * from './enums/quiz-question-type.enum.js';
 export * from './enums/order-status.enum.js';
+export * from './enums/reconciliation-status.enum.js';
 
 // Interfaces
 export * from './interfaces/user.interface.js';
@@ -16,6 +17,7 @@ export * from './interfaces/session.interface.js';
 export * from './interfaces/api-response.interface.js';
 export * from './interfaces/course.interface.js';
 export * from './interfaces/order.interface.js';
+export * from './interfaces/payment.interface.js';
 export * from './interfaces/enrollment.interface.js';
 export * from './interfaces/course-approval.interface.js';
 export * from './interfaces/course-category.interface.js';

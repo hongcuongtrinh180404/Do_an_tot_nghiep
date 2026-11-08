@@ -80,5 +80,13 @@ export const envValidationSchema = Joi.object({
   RIVER_API_KEY_1: Joi.string().allow('').default(''),
   RIVER_API_KEY_2: Joi.string().allow('').default(''),
   RIVER_API_KEY_3: Joi.string().allow('').default(''),
+
+  // SePay Payment Configuration
+  SEPAY_BANK_ACCOUNT: Joi.string().allow('').default(''),
+  SEPAY_BANK_CODE: Joi.string().allow('').default(''),
+  SEPAY_ACCOUNT_NAME: Joi.string().allow('').default(''),
+  SEPAY_WEBHOOK_SECRET: Joi.string().allow('').default(''),
+  SEPAY_PAYMENT_PREFIX: Joi.string().default('MD'),
+  SEPAY_PAYMENT_EXPIRE_MINUTES: Joi.number().default(15),
 });
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, ClientSession } from 'mongoose';
-import { IOrder } from 'share-lib';
+import { Model, ClientSession, Types } from 'mongoose';
+import { IOrder, OrderStatusEnum } from 'share-lib';
 import { BaseMongoRepository } from '../../base/index.js';
 import { OrderEntity } from '../schemas/order.schema.js';
 
@@ -41,5 +41,47 @@ export class OrderRepository extends BaseMongoRepository<IOrder, OrderEntity> {
 
     return doc ? this.toDomain(doc) : null;
   }
-}
 
+  async findPendingOrderByUserAndCourse(
+    userId: string,
+    courseId: string,
+    session?: ClientSession,
+  ): Promise<IOrder | null> {
+    const now = new Date();
+    const doc = await this.model
+      .findOne({
+        userId: new Types.ObjectId(userId),
+        courseId: new Types.ObjectId(courseId),
+        status: OrderStatusEnum.PENDING,
+        expiresAt: { $gt: now },
+        deletedAt: null,
+      })
+      .sort({ createdAt: -1 })
+      .session(session ?? null)
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  async updateOrderStatus(
+    orderId: string,
+    status: OrderStatusEnum,
+    extraFields?: Partial<IOrder>,
+    session?: ClientSession,
+  ): Promise<IOrder | null> {
+    const doc = await this.model
+      .findByIdAndUpdate(
+        orderId,
+        {
+          $set: {
+            status,
+            ...extraFields,
+          },
+        },
+        { new: true, session: session ?? null },
+      )
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+}

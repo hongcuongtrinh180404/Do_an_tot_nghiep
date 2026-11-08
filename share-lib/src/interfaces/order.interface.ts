@@ -6,6 +6,13 @@ export interface IOrder {
   userId: string;
   courseId: string;
   amount: number;
+  originalPrice?: number;
+  discountAmount?: number;
+  paymentMethod?: string;
+  expiresAt?: Date | string;
+  paidAt?: Date | string | null;
+  instructorCommissionRate?: number;
+  instructorEarnings?: number;
   status: OrderStatusEnum;
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -13,4 +20,3 @@ export interface IOrder {
   createdById?: string | null;
   updatedById?: string | null;
 }
-

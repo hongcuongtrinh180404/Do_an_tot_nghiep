@@ -201,11 +201,10 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
             <div className="flex items-baseline gap-1.5">
               <span className="text-xs text-muted-foreground">Học phí:</span>
               <span
-                className={`text-sm font-semibold ${
-                  priceInfo.isFree
+                className={`text-sm font-semibold ${priceInfo.isFree
                     ? 'text-emerald-600 dark:text-emerald-400'
                     : 'text-foreground'
-                }`}
+                  }`}
               >
                 {priceInfo.text}
               </span>
@@ -297,11 +296,10 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
                   disabled={!canDelete}
                   onClick={() => setIsDeleteDialogOpen(true)}
                   aria-label={canDelete ? `Xóa khóa học ${course.title}` : `Không thể xóa: ${deleteDisabledReason}`}
-                  className={`h-7 text-xs px-2 gap-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden ${
-                    canDelete
+                  className={`h-7 text-xs px-2 gap-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden ${canDelete
                       ? 'text-destructive hover:bg-destructive/10 border-destructive/30'
                       : 'opacity-50 cursor-not-allowed text-muted-foreground'
-                  }`}
+                    }`}
                 >
                   <Icon icon="lucide:trash-2" className="size-3" />
                   <span>Xóa</span>

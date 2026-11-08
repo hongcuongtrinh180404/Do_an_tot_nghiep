@@ -11,6 +11,7 @@ import { SessionModule } from './modules/session/session.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CourseModule } from './modules/course/course.module.js';
 import { EnrollmentModule } from './modules/enrollment/enrollment.module.js';
+import { PaymentModule } from './modules/payment/payment.module.js';
 import { StorageModule } from './modules/storage/storage.module.js';
 import { AssemblyAiModule } from './modules/assemblyai/assemblyai.module.js';
 import { GeminiModule } from './modules/gemini/gemini.module.js';
@@ -44,6 +45,7 @@ import { TranscriptAnalysisModule } from './modules/transcript-analysis/transcri
     AuthModule,
     CourseModule,
     EnrollmentModule,
+    PaymentModule,
     TranscriptAnalysisModule,
   ],
   controllers: [AppController],

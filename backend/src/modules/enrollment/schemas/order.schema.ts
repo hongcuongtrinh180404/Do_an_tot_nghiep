@@ -31,10 +31,31 @@ export class OrderEntity extends BaseAbstractDocument {
   @Prop({ type: Number, required: true, min: [0, 'Order amount cannot be negative'] })
   amount: number;
 
+  @Prop({ type: Number, default: 0, min: [0, 'Original price cannot be negative'] })
+  originalPrice?: number;
+
+  @Prop({ type: Number, default: 0, min: [0, 'Discount amount cannot be negative'] })
+  discountAmount?: number;
+
+  @Prop({ type: String, default: 'SEPAY_BANK_TRANSFER', trim: true })
+  paymentMethod?: string;
+
+  @Prop({ type: Date, index: true })
+  expiresAt?: Date;
+
+  @Prop({ type: Date, default: null })
+  paidAt?: Date | null;
+
+  @Prop({ type: Number, default: 0.7, min: 0, max: 1 })
+  instructorCommissionRate?: number;
+
+  @Prop({ type: Number, default: 0, min: 0 })
+  instructorEarnings?: number;
+
   @Prop({
     type: String,
     enum: Object.values(OrderStatusEnum),
-    default: OrderStatusEnum.PAID,
+    default: OrderStatusEnum.PENDING,
     index: true,
   })
   status: OrderStatusEnum;
@@ -43,4 +64,4 @@ export class OrderEntity extends BaseAbstractDocument {
 export const OrderSchema = SchemaFactory.createForClass(OrderEntity);
 
 OrderSchema.index({ userId: 1, createdAt: -1 });
-
+OrderSchema.index({ userId: 1, courseId: 1, status: 1 });

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import React from 'react';
+import React, { Suspense } from 'react';
 import { PublicHeader, PublicFooter } from '@/features/course/components/public-discovery';
 import { ProfilePageContent } from '@/features/profile';
 
@@ -11,7 +11,9 @@ export const metadata: Metadata = {
 export default function ProfilePage(): React.JSX.Element {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <PublicHeader />
+      <Suspense fallback={<div className="h-16 w-full bg-neutral-900" />}>
+        <PublicHeader />
+      </Suspense>
       <main className="flex-1">
         <ProfilePageContent />
       </main>

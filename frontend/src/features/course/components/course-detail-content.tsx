@@ -402,11 +402,10 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
                   disabled={!canDelete}
                   onClick={() => setIsDeleteDialogOpen(true)}
                   aria-label={canDelete ? 'Xóa khóa học' : `Không thể xóa: ${deleteDisabledReason}`}
-                  className={`gap-1.5 text-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden ${
-                    canDelete
+                  className={`gap-1.5 text-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden ${canDelete
                       ? 'text-destructive hover:bg-destructive/10 border-destructive/30'
                       : 'opacity-50 cursor-not-allowed text-muted-foreground'
-                  }`}
+                    }`}
                 >
                   <Icon icon="lucide:trash-2" className="size-3.5" />
                   <span>Xóa khóa học</span>

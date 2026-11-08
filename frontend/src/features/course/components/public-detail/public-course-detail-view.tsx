@@ -11,6 +11,7 @@ import {
   useCheckEnrollmentQuery,
   useMockPurchaseMutation,
 } from '../../api/enrollment.api';
+import { useCreateOrderMutation } from '@/features/payment/api/payment.api';
 import { canManageCourse } from '../../utils/course-access.util';
 
 import { CourseDetailHeader } from './course-detail-header';
@@ -58,6 +59,7 @@ export function PublicCourseDetailView({
   );
 
   const purchaseMutation = useMockPurchaseMutation(course?.id || courseId);
+  const createOrderMutation = useCreateOrderMutation();
 
   const isInstructorOwner = canManageCourse(user, course);
 
@@ -132,7 +134,19 @@ export function PublicCourseDetailView({
       router.push(`/login?redirect=/courses/${course.id}`);
       return;
     }
-    purchaseMutation.mutate();
+
+    // Khóa học miễn phí (0 VND): Đăng ký trực tiếp không qua SePay
+    if (course.price === 0) {
+      purchaseMutation.mutate();
+      return;
+    }
+
+    // Khóa học có phí: Khởi tạo đơn hàng SePay và chuyển hướng tới trang Checkout
+    createOrderMutation.mutate(course.id, {
+      onSuccess: (res) => {
+        router.push(`/checkout/${res.order.orderCode}`);
+      },
+    });
   };
 
   return (
@@ -226,7 +240,11 @@ export function PublicCourseDetailView({
             isEnrolled={isEnrolled}
             isInstructorOwner={isInstructorOwner}
             isLoggedIn={isLoggedIn}
-            isPending={purchaseMutation.isPending || isEnrollmentLoading}
+            isPending={
+              purchaseMutation.isPending ||
+              createOrderMutation.isPending ||
+              isEnrollmentLoading
+            }
             totalLessonsCount={totalLessonsCount}
             onPurchase={handlePurchase}
           />
