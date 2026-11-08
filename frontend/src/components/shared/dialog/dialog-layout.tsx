@@ -22,6 +22,7 @@ export interface DialogLayoutProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
+  bodyClassName?: string;
 }
 
 export function DialogLayout({
@@ -34,11 +35,12 @@ export function DialogLayout({
   children,
   footer,
   className,
+  bodyClassName,
 }: DialogLayoutProps): React.JSX.Element {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn('sm:max-w-md p-6 gap-5 bg-card border-border/80 shadow-lg', className)}>
-        <DialogHeader className="gap-2">
+        <DialogHeader className="shrink-0 gap-2">
           <div className="flex items-start gap-3">
             {icon && (
               <div
@@ -63,9 +65,9 @@ export function DialogLayout({
           </div>
         </DialogHeader>
 
-        <div className="py-1">{children}</div>
+        <div className={cn('py-1', bodyClassName)}>{children}</div>
 
-        {footer && <DialogFooter className="gap-2 sm:gap-2">{footer}</DialogFooter>}
+        {footer && <DialogFooter className="shrink-0 gap-2 sm:gap-2">{footer}</DialogFooter>}
       </DialogContent>
     </Dialog>
   );

@@ -8,9 +8,6 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Icon } from '@/components/ui/icon';
 import { DeleteConfirmDialog } from '@/components/shared/dialog';
@@ -19,6 +16,8 @@ import {
   useSyncLessonQuizzesMutation,
   useDeleteLessonQuizClusterMutation,
 } from '../../api/lesson-quiz.api';
+import { createQuizQuestionValues, quizQuestionFieldsSchema, type QuizQuestionFieldsValue } from '../../schemas/lesson-quiz.schema';
+import { QuizQuestionFields } from './quiz-question-fields';
 
 export interface QuizOption {
   id: string;
@@ -27,13 +26,9 @@ export interface QuizOption {
   isCorrect: boolean;
 }
 
-export interface QuizQuestionItem {
+export interface QuizQuestionItem extends QuizQuestionFieldsValue {
   id: string;
   order: number;
-  question: string;
-  questionType: 'single' | 'multiple';
-  options: QuizOption[];
-  explanation: string;
 }
 
 export interface CreateQuizMarkerModalProps {
@@ -51,17 +46,9 @@ export interface CreateQuizMarkerModalProps {
 
 // Helper to create a clean, blank question template for instructors
 export const createDefaultQuestion = (order: number = 1): QuizQuestionItem => ({
+  ...createQuizQuestionValues(),
   id: `q-${Date.now()}-${order}`,
   order,
-  question: '',
-  questionType: 'single',
-  options: [
-    { id: `opt-${Date.now()}-a`, label: 'A', text: '', isCorrect: true },
-    { id: `opt-${Date.now()}-b`, label: 'B', text: '', isCorrect: false },
-    { id: `opt-${Date.now()}-c`, label: 'C', text: '', isCorrect: false },
-    { id: `opt-${Date.now()}-d`, label: 'D', text: '', isCorrect: false },
-  ],
-  explanation: '',
 });
 
 export function CreateQuizMarkerModal({
@@ -119,7 +106,7 @@ export function CreateQuizMarkerModal({
         id: q.id || `q-${idx + 1}`,
         order: q.order || idx + 1,
         question: q.question,
-        questionType: (q.questionType as 'single' | 'multiple') || 'single',
+        questionType: q.questionType || QuizQuestionTypeEnum.SINGLE,
         options: q.options.map((opt) => ({
           id: opt.id,
           label: opt.label,
@@ -185,62 +172,10 @@ export function CreateQuizMarkerModal({
     [activeQuestionIndex, validationError],
   );
 
-  // Switch question type (Single vs Multiple)
-  const handleSwitchQuestionType = (type: 'single' | 'multiple') => {
-    let nextOptions = [...currentQuestion.options];
-    if (type === 'single') {
-      let foundOne = false;
-      nextOptions = nextOptions.map((opt) => {
-        if (opt.isCorrect && !foundOne) {
-          foundOne = true;
-          return opt;
-        }
-        return { ...opt, isCorrect: false };
-      });
-    }
-    updateCurrentQuestion({ questionType: type, options: nextOptions });
-  };
-
-  // Toggle option correct state (A, B, C, D)
-  const handleToggleCorrectOption = (optIdx: number) => {
-    let nextOptions = [...currentQuestion.options];
-    if (currentQuestion.questionType === 'single') {
-      nextOptions = nextOptions.map((opt, i) => ({
-        ...opt,
-        isCorrect: i === optIdx,
-      }));
-    } else {
-      nextOptions[optIdx] = {
-        ...nextOptions[optIdx],
-        isCorrect: !nextOptions[optIdx].isCorrect,
-      };
-    }
-    updateCurrentQuestion({ options: nextOptions });
-  };
-
-  // Change text of an option
-  const handleOptionTextChange = (optIdx: number, text: string) => {
-    const nextOptions = [...currentQuestion.options];
-    nextOptions[optIdx] = { ...nextOptions[optIdx], text };
-    updateCurrentQuestion({ options: nextOptions });
-  };
-
   // Add a new blank question to the list
   const handleAddNewQuestion = () => {
     const nextIndex = questions.length;
-    const newQ: QuizQuestionItem = {
-      id: `q-${Date.now()}`,
-      order: nextIndex + 1,
-      question: '',
-      questionType: 'single',
-      options: [
-        { id: `opt-${Date.now()}-a`, label: 'A', text: '', isCorrect: true },
-        { id: `opt-${Date.now()}-b`, label: 'B', text: '', isCorrect: false },
-        { id: `opt-${Date.now()}-c`, label: 'C', text: '', isCorrect: false },
-        { id: `opt-${Date.now()}-d`, label: 'D', text: '', isCorrect: false },
-      ],
-      explanation: '',
-    };
+    const newQ = createDefaultQuestion(nextIndex + 1);
     setQuestions((prev) => [...prev, newQ]);
     setActiveQuestionIndex(nextIndex);
     if (validationError) setValidationError(null);
@@ -305,23 +240,10 @@ export function CreateQuizMarkerModal({
     if (!canEdit) return;
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
-      if (!q.question.trim()) {
+      const validation = quizQuestionFieldsSchema.safeParse(q);
+      if (!validation.success) {
         setActiveQuestionIndex(i);
-        setValidationError(`Vui lòng nhập nội dung đề bài cho Câu ${i + 1}.`);
-        return;
-      }
-
-      const hasEmptyOption = q.options.some((o) => !o.text.trim());
-      if (hasEmptyOption) {
-        setActiveQuestionIndex(i);
-        setValidationError(`Vui lòng nhập nội dung cho tất cả các đáp án ở Câu ${i + 1}.`);
-        return;
-      }
-
-      const hasCorrect = q.options.some((o) => o.isCorrect);
-      if (!hasCorrect) {
-        setActiveQuestionIndex(i);
-        setValidationError(`Vui lòng chọn ít nhất một đáp án đúng cho Câu ${i + 1}.`);
+        setValidationError(`Câu ${i + 1}: ${validation.error.issues[0]?.message ?? 'Nội dung không hợp lệ.'}`);
         return;
       }
     }
@@ -410,152 +332,12 @@ export function CreateQuizMarkerModal({
               <div />
             </div>
 
-            {/* Hàng 2: Nội dung câu hỏi (Question Textarea) */}
-            <div className="space-y-1.5 flex-1 min-h-0 flex flex-col">
-              <Label
-                htmlFor="question-content-input"
-                className="text-xs font-bold text-foreground flex items-center justify-between"
-              >
-                <span>
-                  Nội dung câu hỏi <span className="text-destructive">*</span>
-                </span>
-                <span className="text-[10px] text-muted-foreground font-normal">
-                  {currentQuestion.question.length} ký tự
-                </span>
-              </Label>
-              <Textarea
-                id="question-content-input"
-                value={currentQuestion.question}
-                onChange={(e) => updateCurrentQuestion({ question: e.target.value })}
-                rows={3}
-                placeholder="Nhập đề bài câu hỏi tại mốc này..."
-                className="text-xs bg-card border border-slate-200 dark:border-zinc-800 p-3 rounded-xl focus:ring-1 focus:ring-amber-400 outline-none resize-none flex-1 min-h-[72px] leading-relaxed shadow-2xs"
-              />
-            </div>
-
-            {/* Hàng 3: Chọn hình thức câu hỏi (Compact Segmented Switch nhỏ gọn) */}
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs font-semibold text-muted-foreground">Hình thức:</span>
-              <div className="inline-flex items-center p-0.5 rounded-lg border border-border bg-muted/30">
-                <button
-                  type="button"
-                  onClick={() => handleSwitchQuestionType('single')}
-                  className={`py-1.5 px-3 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
-                    currentQuestion.questionType === 'single'
-                      ? 'border border-amber-400 bg-amber-50/60 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 shadow-2xs font-bold'
-                      : 'border border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 font-normal'
-                  }`}
-                >
-                  <Icon
-                    icon={
-                      currentQuestion.questionType === 'single'
-                        ? 'lucide:circle-dot'
-                        : 'lucide:circle'
-                    }
-                    className={`size-3 ${
-                      currentQuestion.questionType === 'single'
-                        ? 'text-amber-500'
-                        : 'text-muted-foreground'
-                    }`}
-                  />
-                  <span>Một đáp án đúng</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSwitchQuestionType('multiple')}
-                  className={`py-1.5 px-3 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
-                    currentQuestion.questionType === 'multiple'
-                      ? 'border border-amber-400 bg-amber-50/60 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 shadow-2xs font-bold'
-                      : 'border border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 font-normal'
-                  }`}
-                >
-                  <Icon
-                    icon={
-                      currentQuestion.questionType === 'multiple'
-                        ? 'lucide:check-square'
-                        : 'lucide:square'
-                    }
-                    className={`size-3 ${
-                      currentQuestion.questionType === 'multiple'
-                        ? 'text-amber-500'
-                        : 'text-muted-foreground'
-                    }`}
-                  />
-                  <span>Nhiều đáp án đúng</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Hàng 4: Khu vực 4 đáp án (A, B, C, D) – Lưới 2x2 (Bỏ chữ Đúng bên phải) */}
-            <div className="space-y-1.5 shrink-0">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <span>Phương án trả lời (A, B, C, D)</span>
-                  <span className="text-[10px] font-normal text-muted-foreground">
-                    (Click vào chữ cái để đánh dấu đáp án đúng)
-                  </span>
-                </Label>
-                <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                  {currentQuestion.options.filter((o) => o.isCorrect).length} đáp án đúng
-                </span>
-              </div>
-
-              {/* Lưới 2 Cột x 2 Hàng: Hàng trên (A, B) - Hàng dưới (C, D) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {currentQuestion.options.map((opt, optIdx) => (
-                  <div
-                    key={opt.id}
-                    className={`flex items-center gap-2 p-1.5 rounded-xl border transition bg-card ${
-                      opt.isCorrect
-                        ? 'border-emerald-500/60 ring-1 ring-emerald-500/30'
-                        : 'border-slate-200 dark:border-zinc-800'
-                    }`}
-                  >
-                    {/* Badge Chữ cái w-8 h-8: Click đổi màu xanh ngọc */}
-                    <button
-                      type="button"
-                      onClick={() => handleToggleCorrectOption(optIdx)}
-                      title={opt.isCorrect ? 'Đáp án đúng (Click để bỏ chọn)' : 'Click để chọn làm đáp án đúng'}
-                      className={`size-8 shrink-0 rounded-lg font-bold text-xs flex items-center justify-center transition cursor-pointer border ${
-                        opt.isCorrect
-                          ? 'bg-emerald-500 border-emerald-600 text-white shadow-xs'
-                          : 'bg-slate-100 dark:bg-zinc-800 border-transparent text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-
-                    {/* Ô Input trải dài toàn bộ mép phải (Bỏ hoàn toàn chữ Đúng) */}
-                    <Input
-                      value={opt.text}
-                      onChange={(e) => handleOptionTextChange(optIdx, e.target.value)}
-                      placeholder={`Nội dung lựa chọn ${opt.label}...`}
-                      className="text-xs h-8 bg-transparent border-none focus-visible:ring-0 flex-1 shadow-none px-1"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Hàng 5: Ô nhập giải thích đáp án */}
-            <div className="pt-2 border-t border-border/60 space-y-1 shrink-0">
-              <Label
-                htmlFor="question-explanation-input"
-                className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5"
-              >
-                <Icon icon="lucide:book-open" className="size-3 text-amber-500" />
-                <span>Giải thích đáp án (Hiển thị sau khi học viên trả lời):</span>
-              </Label>
-              <Textarea
-                id="question-explanation-input"
-                value={currentQuestion.explanation}
-                onChange={(e) => updateCurrentQuestion({ explanation: e.target.value })}
-                rows={2}
-                placeholder="Giải thích lý do vì sao đáp án này chính xác để học viên củng cố kiến thức..."
-                className="text-xs bg-card border border-slate-200 dark:border-zinc-800 resize-none min-h-[46px] leading-relaxed rounded-xl shadow-2xs p-2.5 focus:ring-1 focus:ring-amber-400 outline-none"
-              />
-            </div>
+            <QuizQuestionFields
+              idPrefix="marker-quiz"
+              value={currentQuestion}
+              onChange={updateCurrentQuestion}
+              disabled={syncMutation.isPending || deleteClusterMutation.isPending}
+            />
 
             {/* Validation & Success Banners */}
             {validationError && (
@@ -568,7 +350,7 @@ export function CreateQuizMarkerModal({
             {isSuccessToastVisible && (
               <div className="p-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-2 animate-in fade-in-0">
                 <Icon icon="lucide:check-circle" className="size-3.5 shrink-0" />
-                <span>Đã lưu thành công bộ {questions.length} câu hỏi tại mốc {formatTime(timestamp)} (Mock Preview)!</span>
+                <span>Đã lưu thành công {questions.length} câu hỏi tại mốc {formatTime(timestamp)}!</span>
               </div>
             )}
 

@@ -7,7 +7,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
-import { ILessonQuiz, CourseStatusEnum } from 'share-lib';
+import { ILessonQuiz, CourseStatusEnum, QuizQuestionTypeEnum } from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { LessonQuizRepository } from '../repositories/lesson-quiz.repository.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
@@ -15,6 +15,7 @@ import { SectionRepository } from '../repositories/section.repository.js';
 import { CourseRepository } from '../repositories/course.repository.js';
 import { SyncLessonQuizzesAtTimestampDto } from '../dto/sync-lesson-quizzes.dto.js';
 import { MoveMergeLessonQuizzesDto } from '../dto/move-merge-lesson-quizzes.dto.js';
+import { SaveLessonQuizDto } from '../dto/save-lesson-quiz.dto.js';
 
 @Injectable()
 export class LessonQuizService extends BaseService<ILessonQuiz, string> {
@@ -62,6 +63,99 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
     }
 
     return this.lessonQuizRepo.findByLessonId(trimmedLessonId);
+  }
+
+  private normalizeQuiz(dto: SaveLessonQuizDto, duration?: number): SaveLessonQuizDto {
+    if (!Number.isSafeInteger(dto.timestamp) || dto.timestamp < 0) {
+      throw new BadRequestException('Mốc thời gian phải là số giây nguyên không âm');
+    }
+    if (duration && Number.isFinite(duration) && dto.timestamp > duration) {
+      throw new BadRequestException('Mốc thời gian không được vượt quá thời lượng video');
+    }
+    if (!dto.question.trim()) {
+      throw new BadRequestException('Nội dung câu hỏi không được để trống');
+    }
+    if (!Object.values(QuizQuestionTypeEnum).includes(dto.questionType)) {
+      throw new BadRequestException('Hình thức câu hỏi không hợp lệ');
+    }
+    if (!dto.options || dto.options.length < 2) {
+      throw new BadRequestException('Câu hỏi phải có ít nhất 2 phương án trả lời');
+    }
+
+    const options = dto.options.map((option) => ({
+      ...option,
+      id: option.id.trim(),
+      label: option.label.trim(),
+      text: option.text.trim(),
+    }));
+    if (options.some((option) => !option.id || !option.label || !option.text)) {
+      throw new BadRequestException('Vui lòng nhập đầy đủ nội dung các phương án trả lời');
+    }
+    if (new Set(options.map((option) => option.id)).size !== options.length ||
+        new Set(options.map((option) => option.label)).size !== options.length) {
+      throw new BadRequestException('Mã và nhãn của các phương án trả lời không được trùng nhau');
+    }
+
+    const correctCount = options.filter((option) => option.isCorrect).length;
+    if (correctCount === 0) {
+      throw new BadRequestException('Vui lòng chọn ít nhất một đáp án đúng');
+    }
+    if (dto.questionType === QuizQuestionTypeEnum.SINGLE && correctCount !== 1) {
+      throw new BadRequestException('Câu hỏi một đáp án đúng phải có đúng một phương án chính xác');
+    }
+
+    return {
+      timestamp: dto.timestamp,
+      question: dto.question.trim(),
+      questionType: dto.questionType,
+      options,
+      explanation: dto.explanation?.trim() || null,
+    };
+  }
+
+  private async getNextQuizOrder(lessonId: string, timestamp: number): Promise<number> {
+    const quizzes = await this.lessonQuizRepo.findByLessonIdAndTimestamp(lessonId, timestamp);
+    return quizzes.reduce((max, quiz) => Math.max(max, quiz.order), 0) + 1;
+  }
+
+  async createQuiz(lessonId: string, dto: SaveLessonQuizDto): Promise<ILessonQuiz> {
+    const trimmedLessonId = lessonId?.trim();
+    if (!trimmedLessonId) {
+      throw new BadRequestException('ID bài học không được để trống');
+    }
+    const lesson = await this.lessonRepo.findById(trimmedLessonId);
+    if (!lesson) {
+      throw new NotFoundException('Không tìm thấy bài học');
+    }
+    await this.assertNotPendingApproval(trimmedLessonId);
+    const payload = this.normalizeQuiz(dto, lesson.content?.duration);
+    const order = await this.getNextQuizOrder(trimmedLessonId, payload.timestamp);
+    return super.create({ ...payload, lessonId: trimmedLessonId, order });
+  }
+
+  async updateQuiz(quizId: string, dto: SaveLessonQuizDto): Promise<ILessonQuiz> {
+    const trimmedId = quizId?.trim();
+    if (!trimmedId) {
+      throw new BadRequestException('ID câu hỏi không được để trống');
+    }
+    const existing = await this.lessonQuizRepo.findById(trimmedId);
+    if (!existing) {
+      throw new NotFoundException('Không tìm thấy câu hỏi');
+    }
+    const lesson = await this.lessonRepo.findById(existing.lessonId);
+    if (!lesson) {
+      throw new NotFoundException('Không tìm thấy bài học');
+    }
+    await this.assertNotPendingApproval(existing.lessonId);
+    const payload = this.normalizeQuiz(dto, lesson.content?.duration);
+    const order = payload.timestamp === existing.timestamp
+      ? existing.order
+      : await this.getNextQuizOrder(existing.lessonId, payload.timestamp);
+    const updated = await super.update(trimmedId, { ...payload, order });
+    if (!updated) {
+      throw new NotFoundException('Câu hỏi đã bị xóa hoặc không còn tồn tại');
+    }
+    return updated;
   }
 
   /**

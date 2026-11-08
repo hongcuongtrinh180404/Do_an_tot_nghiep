@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import type { IApiResponse, ILessonQuiz, IQuizOption, QuizQuestionTypeEnum } from 'share-lib';
+import type { IApiResponse, ILessonQuiz, IQuizOption, ISaveLessonQuizPayload, QuizQuestionTypeEnum } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 
 export interface IQuizQuestionPayloadItem {
@@ -30,9 +30,29 @@ export const lessonQuizKeys = {
   byLesson: (lessonId: string) => [...lessonQuizKeys.all, lessonId] as const,
 };
 
+export function getLessonQuizErrorMessage(error: unknown): string {
+  const response = (error as { response?: { data?: { message?: string | string[] } } })?.response;
+  const message = response?.data?.message;
+  return Array.isArray(message)
+    ? message.join(', ')
+    : typeof message === 'string'
+      ? message
+      : 'Không thể lưu câu hỏi. Vui lòng thử lại.';
+}
+
 export const lessonQuizApi = {
   async getQuizzes(lessonId: string): Promise<ILessonQuiz[]> {
     const res = await apiClient.get<IApiResponse<ILessonQuiz[]>>(`/lessons/${lessonId}/quizzes`);
+    return res.data.data;
+  },
+
+  async createQuiz(lessonId: string, payload: ISaveLessonQuizPayload): Promise<ILessonQuiz> {
+    const res = await apiClient.post<IApiResponse<ILessonQuiz>>(`/lessons/${lessonId}/quizzes`, payload);
+    return res.data.data;
+  },
+
+  async updateQuiz(quizId: string, payload: ISaveLessonQuizPayload): Promise<ILessonQuiz> {
+    const res = await apiClient.put<IApiResponse<ILessonQuiz>>(`/lessons/quizzes/${quizId}`, payload);
     return res.data.data;
   },
 
@@ -79,6 +99,26 @@ export function useLessonQuizzesQuery(lessonId: string | undefined) {
     queryFn: () => lessonQuizApi.getQuizzes(lessonId!),
     enabled: Boolean(lessonId),
     staleTime: 1000 * 60 * 5, // 5 minutes cache
+  });
+}
+
+export function useSaveLessonQuizMutation(lessonId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ quizId, payload }: { quizId?: string; payload: ISaveLessonQuizPayload }) =>
+      quizId ? lessonQuizApi.updateQuiz(quizId, payload) : lessonQuizApi.createQuiz(lessonId, payload),
+    onSuccess: async (quiz, { quizId }) => {
+      queryClient.setQueryData<ILessonQuiz[]>(lessonQuizKeys.byLesson(lessonId), (previous) =>
+        [...(previous ?? []).filter((item) => item.id !== quiz.id), quiz]
+          .sort((a, b) => a.timestamp - b.timestamp || a.order - b.order || a.id.localeCompare(b.id)),
+      );
+      await queryClient.invalidateQueries({ queryKey: lessonQuizKeys.byLesson(lessonId) });
+      toast.success(quizId ? 'Đã cập nhật câu hỏi' : 'Đã thêm câu hỏi');
+    },
+    onError: (error: unknown) => {
+      toast.error('Lỗi lưu câu hỏi', { description: getLessonQuizErrorMessage(error) });
+    },
   });
 }
 
@@ -146,9 +186,12 @@ export function useDeleteLessonQuizMutation(lessonId: string | undefined) {
 
   return useMutation({
     mutationFn: (quizId: string) => lessonQuizApi.deleteQuiz(quizId),
-    onSuccess: () => {
+    onSuccess: async (_, quizId) => {
       if (lessonId) {
-        queryClient.invalidateQueries({ queryKey: lessonQuizKeys.byLesson(lessonId) });
+        queryClient.setQueryData<ILessonQuiz[]>(lessonQuizKeys.byLesson(lessonId), (previous) =>
+          previous?.filter((quiz) => quiz.id !== quizId),
+        );
+        await queryClient.invalidateQueries({ queryKey: lessonQuizKeys.byLesson(lessonId) });
       }
       toast.success('Đã xóa câu hỏi tương tác');
     },

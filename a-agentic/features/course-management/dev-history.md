@@ -13,6 +13,13 @@
 
 ## 2. Technical Notes & Gotchas
 
+### [2026-11-08] - Quản lý từng câu hỏi quiz trong bài học
+
+- **Problem**: Tab Trắc nghiệm chỉ hiển thị quiz, chưa có thêm/sửa/xóa thủ công và nhập thời điểm xuất hiện.
+- **Root Cause**: Editor cũ chỉ mở từ marker video và lưu bằng API sync thay thế cả timestamp; không phù hợp để chỉnh một câu độc lập.
+- **Solution**: Bổ sung POST tạo một câu và PUT theo quizId, tái sử dụng DTO options, BaseService audit, repository CRUD và LessonManagementGuard. Tab dùng chung QuizQuestionFields với editor marker; tận dụng DialogLayout, TimestampPickerInput, DeleteConfirmDialog và ActionConfirmDialog. Bổ sung schema Zod/RHF, kiểm tra đáp án/thời lượng, bảo vệ form chưa lưu và xác nhận thay thế bằng AI.
+- **Gotchas & Lessons**: Không gọi sync/move-merge để sửa riêng một câu. Không reset form khi query refetch. Giữ order nếu không đổi timestamp, nối order tại mốc đích khi di chuyển; ID và các câu khác phải giữ nguyên. Timestamp gần nhau vẫn gom marker theo quy tắc cũ (±2 giây). API giả lập chỉ dùng trong kiểm thử trình duyệt, không ghi dữ liệu bài học thực.
+
 - **Milestone 43 (Web Interface Guidelines & A11y Compliance for Course Lifecycle Components)**:
   - **Bối cảnh & Yêu cầu**:
     - Kiểm thử chất lượng và chuẩn hóa các thành phần UI mới tạo (`CourseCard`, `CourseDetailContent`, `CourseManagementContent`) bằng kỹ năng `/web-design-guidelines`.

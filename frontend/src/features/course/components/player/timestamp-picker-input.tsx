@@ -15,6 +15,9 @@ export interface TimestampPickerInputProps {
   autoFocus?: boolean;
   currentTime?: number;
   onQuickFillCurrentTime?: () => void;
+  ariaDescribedBy?: string;
+  inputRef?: (element: HTMLInputElement | null) => void;
+  onBlur?: () => void;
 }
 
 function formatPadded(num: number): string {
@@ -31,6 +34,9 @@ export function TimestampPickerInput({
   autoFocus = false,
   currentTime,
   onQuickFillCurrentTime,
+  ariaDescribedBy,
+  inputRef,
+  onBlur,
 }: TimestampPickerInputProps): React.JSX.Element {
   const minInputRef = useRef<HTMLInputElement>(null);
   const secInputRef = useRef<HTMLInputElement>(null);
@@ -132,6 +138,7 @@ export function TimestampPickerInput({
     setFocusedInput(null);
     const m = parseInt(minStr || '0', 10);
     setMinStr(formatPadded(m));
+    onBlur?.();
   };
 
   // Đệm số 0 khi blur khỏi ô giây (chỉ format thành 2 chữ số khi người dùng rời ô)
@@ -139,6 +146,7 @@ export function TimestampPickerInput({
     setFocusedInput(null);
     const s = Math.min(59, Math.max(0, parseInt(secStr || '0', 10)));
     setSecStr(formatPadded(s));
+    onBlur?.();
   };
 
   // Nút nhanh lấy currentTime
@@ -172,8 +180,10 @@ export function TimestampPickerInput({
       >
         {/* Ô phút */}
         <input
-          ref={minInputRef}
+          ref={(element) => { minInputRef.current = element; inputRef?.(element); }}
           type="text"
+          name="timestamp-minutes"
+          autoComplete="off"
           inputMode="numeric"
           pattern="[0-9]*"
           value={minStr}
@@ -187,6 +197,8 @@ export function TimestampPickerInput({
           className="w-7 text-center font-mono text-xs sm:text-sm font-semibold text-foreground bg-transparent outline-none p-0"
           maxLength={3}
           aria-label="Phút"
+          aria-invalid={Boolean(hasError || isExceedDuration)}
+          aria-describedby={ariaDescribedBy}
         />
 
         {/* Dấu hai chấm cố định */}
@@ -198,6 +210,8 @@ export function TimestampPickerInput({
         <input
           ref={secInputRef}
           type="text"
+          name="timestamp-seconds"
+          autoComplete="off"
           inputMode="numeric"
           pattern="[0-9]*"
           value={secStr}
@@ -210,6 +224,8 @@ export function TimestampPickerInput({
           className="w-7 text-center font-mono text-xs sm:text-sm font-semibold text-foreground bg-transparent outline-none p-0"
           maxLength={2}
           aria-label="Giây"
+          aria-invalid={Boolean(hasError || isExceedDuration)}
+          aria-describedby={ariaDescribedBy}
         />
       </div>
 

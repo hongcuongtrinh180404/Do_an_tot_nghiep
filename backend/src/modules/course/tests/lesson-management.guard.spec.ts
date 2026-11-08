@@ -127,6 +127,8 @@ describe('Lesson authoring endpoint protection', () => {
     [LessonsController.prototype, 'deleteMaterial'],
     [LessonsController.prototype, 'deleteLesson'],
     [LessonsController.prototype, 'retryTranscription'],
+    [LessonQuizController.prototype, 'createQuiz'],
+    [LessonQuizController.prototype, 'updateQuiz'],
     [LessonQuizController.prototype, 'syncQuizzes'],
     [LessonQuizController.prototype, 'moveOrMergeQuizzes'],
     [LessonQuizController.prototype, 'deleteQuiz'],

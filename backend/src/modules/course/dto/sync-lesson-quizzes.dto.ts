@@ -33,15 +33,7 @@ export class QuizOptionDto {
   isCorrect: boolean;
 }
 
-export class QuizQuestionItemDto {
-  @IsOptional()
-  @IsString()
-  id?: string;
-
-  @IsInt()
-  @Min(1)
-  order: number;
-
+export class QuizQuestionContentDto {
   @IsString()
   @IsNotEmpty()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -59,6 +51,16 @@ export class QuizQuestionItemDto {
   @IsString()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   explanation?: string | null;
+}
+
+export class QuizQuestionItemDto extends QuizQuestionContentDto {
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @IsInt()
+  @Min(1)
+  order: number;
 }
 
 export class SyncLessonQuizzesAtTimestampDto {

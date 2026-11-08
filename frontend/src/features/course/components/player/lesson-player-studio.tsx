@@ -264,8 +264,9 @@ function LessonPlayerStudioContent({
             lessonId={lesson.id}
             isInstructor={canEdit}
             currentTime={player.currentTime}
-            duration={player.duration}
+            duration={player.duration || lesson.content?.duration || transcript?.durationSeconds}
             onSeek={player.seek}
+            onPauseVideo={() => player.videoRef.current?.pause()}
           />
         </section>
       </div>

@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { Icon } from '@/components/ui/icon';
+import { ActionConfirmDialog } from '@/components/shared/dialog/action-confirm-dialog';
+import { useLessonQuizzesQuery } from '../../api/lesson-quiz.api';
 import { LessonMindmapTab } from './tabs/lesson-mindmap-tab';
 import { LessonQuizTab } from './tabs/lesson-quiz-tab';
 import { LessonSummaryTab } from './tabs/lesson-summary-tab';
@@ -40,7 +42,7 @@ const TABS: TabConfig[] = [
     title: 'Trắc nghiệm (Quiz)',
     icon: 'lucide:help-circle',
     heading: 'Quizz (Câu hỏi trắc nghiệm)',
-    description: 'Bộ 10 câu hỏi trắc nghiệm củng cố kiến thức xuất hiện theo dòng thời gian video.',
+    description: 'Câu hỏi trắc nghiệm củng cố kiến thức xuất hiện theo dòng thời gian video.',
   },
 ];
 
@@ -50,6 +52,7 @@ export interface LessonTabsContainerProps {
   currentTime?: number;
   duration?: number;
   onSeek?: (timestamp: number) => void;
+  onPauseVideo?: () => void;
   onTestGemini?: (tabId: TabConfig['id']) => void;
 }
 
@@ -59,9 +62,12 @@ export function LessonTabsContainer({
   currentTime = 0,
   duration,
   onSeek,
+  onPauseVideo,
   onTestGemini,
 }: LessonTabsContainerProps): React.JSX.Element {
   const [activeTabId, setActiveTabId] = useState<TabConfig['id']>('summary');
+  const [isQuizRegenerateOpen, setIsQuizRegenerateOpen] = useState(false);
+  const { data: quizzes = [], isLoading: isQuizzesLoading, isError: isQuizzesError } = useLessonQuizzesQuery(lessonId);
 
   // AI Mutations for quick-trigger from tab bar buttons
   const { mutate: generateMindmap, isPending: isMindmapGenerating } =
@@ -86,6 +92,16 @@ export function LessonTabsContainer({
     } else if (tabId === 'summary') {
       generateSummary({ saveAsDraft: false });
     }
+  };
+
+  const requestAiGeneration = (tabId: TabConfig['id']) => {
+    if (!isInstructor || (tabId === 'quiz' && (isQuizGenerating || isQuizzesLoading || isQuizzesError))) return;
+    if (tabId === 'quiz' && quizzes.length > 0) {
+      onPauseVideo?.();
+      setIsQuizRegenerateOpen(true);
+      return;
+    }
+    handleTriggerAiForActiveTab(tabId);
   };
 
   const getIsGenerating = (tabId: TabConfig['id']) => {
@@ -117,7 +133,7 @@ export function LessonTabsContainer({
         <nav
           role="tablist"
           aria-label="Chế độ học tập tương tác bài học"
-          className="inline-flex items-center gap-1 p-1 bg-muted/60 dark:bg-muted/40 rounded-xl border border-border/60"
+          className="inline-flex max-w-full items-center gap-1 overflow-x-auto p-1 bg-muted/60 dark:bg-muted/40 rounded-xl border border-border/60"
         >
           {TABS.map((tab) => {
             const isActive = tab.id === activeTabId;
@@ -128,7 +144,7 @@ export function LessonTabsContainer({
                 type="button"
                 aria-selected={isActive}
                 onClick={() => setActiveTabId(tab.id)}
-                className={`inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm transition-all cursor-pointer ${
+                className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm transition-colors cursor-pointer ${
                   isActive
                     ? 'bg-background text-foreground shadow-2xs font-semibold'
                     : 'text-muted-foreground hover:text-foreground hover:bg-background/40 font-medium'
@@ -151,8 +167,8 @@ export function LessonTabsContainer({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              disabled={isCurrentTabGenerating}
-              onClick={() => handleTriggerAiForActiveTab(activeTabId)}
+              disabled={isCurrentTabGenerating || (activeTabId === 'quiz' && (isQuizzesLoading || isQuizzesError))}
+              onClick={() => requestAiGeneration(activeTabId)}
               title={`Tạo lại dữ liệu AI cho tab ${activeTabConfig.title}`}
               className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-700 active:scale-98 text-white transition-all cursor-pointer shadow-2xs disabled:opacity-60"
             >
@@ -193,10 +209,29 @@ export function LessonTabsContainer({
             lessonId={lessonId}
             isInstructor={isInstructor}
             currentTime={currentTime}
+            duration={duration}
             onSeek={onSeek}
+            onPauseVideo={onPauseVideo}
+            onGenerateQuiz={() => requestAiGeneration('quiz')}
+            isGenerating={isQuizGenerating}
           />
         )}
       </div>
+      <ActionConfirmDialog
+        open={isInstructor && isQuizRegenerateOpen}
+        onOpenChange={setIsQuizRegenerateOpen}
+        title="Tạo lại câu hỏi bằng AI?"
+        description={`Thao tác này sẽ thay thế toàn bộ ${quizzes.length} câu hỏi hiện tại, bao gồm các câu hỏi đã thêm hoặc chỉnh sửa thủ công.`}
+        noticeText="Các câu hỏi hiện tại sẽ không được giữ lại trong danh sách chính thức."
+        variant="warning"
+        confirmText="Thay thế bằng 10 câu hỏi AI"
+        onConfirm={() => {
+          if (!isInstructor || isQuizGenerating) return;
+          setIsQuizRegenerateOpen(false);
+          handleTriggerAiForActiveTab('quiz');
+        }}
+        isLoading={isQuizGenerating}
+      />
     </div>
   );
 }

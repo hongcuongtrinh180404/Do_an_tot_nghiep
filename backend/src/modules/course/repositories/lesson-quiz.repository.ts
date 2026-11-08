@@ -57,7 +57,7 @@ export class LessonQuizRepository extends BaseMongoRepository<
         lessonId: lessonObjectId,
         deletedAt: null,
       } as Record<string, unknown>)
-      .sort({ timestamp: 1, order: 1 })
+      .sort({ timestamp: 1, order: 1, _id: 1 })
       .session(session ?? null)
       .exec();
 
@@ -79,7 +79,7 @@ export class LessonQuizRepository extends BaseMongoRepository<
         timestamp,
         deletedAt: null,
       } as Record<string, unknown>)
-      .sort({ order: 1 })
+      .sort({ order: 1, _id: 1 })
       .session(session ?? null)
       .exec();
 

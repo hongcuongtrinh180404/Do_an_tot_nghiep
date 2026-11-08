@@ -20,6 +20,14 @@ export interface ILessonQuiz {
   updatedAt?: Date;
 }
 
+export interface ISaveLessonQuizPayload {
+  timestamp: number;
+  question: string;
+  questionType: QuizQuestionTypeEnum;
+  options: IQuizOption[];
+  explanation?: string | null;
+}
+
 export interface IGeneratedQuizOption {
   id: string;
   label: 'A' | 'B' | 'C' | 'D' | string;

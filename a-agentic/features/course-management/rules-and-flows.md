@@ -85,4 +85,11 @@
      - **Mở bán lại (`POST /api/v1/courses/:id/unarchive`)**: Giảng viên có thể mở bán lại khóa học từ `ARCHIVED` trở về `PUBLISHED` bất kỳ lúc nào để tiếp tục nhận học viên mới.
    - **Tìm kiếm, Lọc & Thống kê Giảng viên (Instructor Analytics Toolbar)**:
      - Trang quản lý khóa học của giảng viên cung cấp 6 thẻ chỉ số: Tổng số khóa học, Đã xuất bản, Đang chờ duyệt, Bản nháp, Ngừng bán, Tổng học viên.
-     - Hỗ trợ thanh tìm kiếm theo tên khóa học tức thời, tab lọc theo trạng thái và sắp xếp đa tiêu chí (Mới nhất, Cũ nhất, Nhiều học viên nhất, Tên A-Z).
+      - Hỗ trợ thanh tìm kiếm theo tên khóa học tức thời, tab lọc theo trạng thái và sắp xếp đa tiêu chí (Mới nhất, Cũ nhất, Nhiều học viên nhất, Tên A-Z).
+
+10. **Quản lý từng câu hỏi quiz trong tab Trắc nghiệm**:
+    - Giảng viên sở hữu khóa học/admin ở `mode=edit` được thêm thủ công (không giới hạn 10 câu), sửa nội dung/đáp án/thời điểm xuất hiện, và xóa từng câu sau khi xác nhận. Giữ khóa `PENDING_APPROVAL` ở cả UI và backend.
+    - Form dùng thời điểm video hiện tại làm giá trị ban đầu; có thể nhập phút/giây hoặc bấm `Hiện tại`. Không tự chọn sẵn đáp án đúng.
+    - Chỉ câu được chọn bị sửa/di chuyển/xóa. Các câu khác tại mốc nguồn và mốc đích được giữ nguyên; ID câu hỏi không đổi khi cập nhật.
+    - API lỗi giữ nguyên bản đang nhập; đóng hoặc tải lại khi chưa lưu có cảnh báo. Cache dùng chung cập nhật danh sách và marker sau thao tác thành công.
+    - Tạo lại bằng AI là hành động thay thế toàn bộ câu hỏi, bao gồm câu soạn thủ công: bắt buộc xác nhận, không thực hiện chỉ vì mở tab hay thêm câu mới.

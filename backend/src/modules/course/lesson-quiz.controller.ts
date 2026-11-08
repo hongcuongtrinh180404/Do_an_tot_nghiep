@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Put,
   Delete,
   Param,
@@ -15,6 +16,7 @@ import { LessonQuizService } from './services/lesson-quiz.service.js';
 import { SyncLessonQuizzesAtTimestampDto } from './dto/sync-lesson-quizzes.dto.js';
 import { MoveMergeLessonQuizzesDto } from './dto/move-merge-lesson-quizzes.dto.js';
 import { LessonManagementGuard } from './guards/lesson-management.guard.js';
+import { SaveLessonQuizDto } from './dto/save-lesson-quiz.dto.js';
 
 @Controller('lessons')
 export class LessonQuizController {
@@ -27,6 +29,28 @@ export class LessonQuizController {
   ): Promise<ApiResponse<ILessonQuiz[]>> {
     const quizzes = await this.lessonQuizService.getQuizzesByLessonId(id);
     return ApiResponse.success(quizzes, 'Lấy danh sách câu hỏi video thành công');
+  }
+
+  @Post(':id/quizzes')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
+  async createQuiz(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() dto: SaveLessonQuizDto,
+  ): Promise<ApiResponse<ILessonQuiz>> {
+    const quiz = await this.lessonQuizService.createQuiz(id, dto);
+    return ApiResponse.success(quiz, 'Thêm câu hỏi video thành công');
+  }
+
+  @Put('quizzes/:quizId')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
+  async updateQuiz(
+    @Param('quizId', ParseObjectIdPipe) quizId: string,
+    @Body() dto: SaveLessonQuizDto,
+  ): Promise<ApiResponse<ILessonQuiz>> {
+    const quiz = await this.lessonQuizService.updateQuiz(quizId, dto);
+    return ApiResponse.success(quiz, 'Cập nhật câu hỏi video thành công');
   }
 
   @Put(':id/quizzes/sync')

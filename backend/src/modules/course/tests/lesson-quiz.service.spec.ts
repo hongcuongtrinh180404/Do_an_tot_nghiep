@@ -1,17 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
-import { QuizQuestionTypeEnum } from 'share-lib';
+import { CourseStatusEnum, QuizQuestionTypeEnum } from 'share-lib';
 import { LessonQuizService } from '../services/lesson-quiz.service.js';
 import { LessonQuizRepository } from '../repositories/lesson-quiz.repository.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
+import { SectionRepository } from '../repositories/section.repository.js';
+import { CourseRepository } from '../repositories/course.repository.js';
 
 describe('LessonQuizService (Unit Tests - AAA Pattern)', () => {
   let service: LessonQuizService;
   let mockLessonQuizRepo: Partial<Record<keyof LessonQuizRepository, ReturnType<typeof vi.fn>>>;
   let mockLessonRepo: Partial<Record<keyof LessonRepository, ReturnType<typeof vi.fn>>>;
   let mockClsService: Partial<Record<keyof ClsService, ReturnType<typeof vi.fn>>>;
+  const mockSectionRepo = { findById: vi.fn() };
+  const mockCourseRepo = { findById: vi.fn() };
 
   beforeEach(async () => {
     mockLessonQuizRepo = {
@@ -22,6 +26,8 @@ describe('LessonQuizService (Unit Tests - AAA Pattern)', () => {
       softDelete: vi.fn(),
       moveOrMergeCluster: vi.fn(),
       withTransaction: vi.fn((callback: (session: unknown) => Promise<unknown>) => callback(null)),
+      create: vi.fn(),
+      update: vi.fn(),
     };
 
     mockLessonRepo = {
@@ -31,6 +37,8 @@ describe('LessonQuizService (Unit Tests - AAA Pattern)', () => {
     mockClsService = {
       get: vi.fn().mockReturnValue('mock-user-id'),
     };
+    mockSectionRepo.findById.mockResolvedValue({ courseId: 'course-1' });
+    mockCourseRepo.findById.mockResolvedValue({ status: CourseStatusEnum.DRAFT });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -38,6 +46,8 @@ describe('LessonQuizService (Unit Tests - AAA Pattern)', () => {
         { provide: LessonQuizRepository, useValue: mockLessonQuizRepo },
         { provide: LessonRepository, useValue: mockLessonRepo },
         { provide: ClsService, useValue: mockClsService },
+        { provide: SectionRepository, useValue: mockSectionRepo },
+        { provide: CourseRepository, useValue: mockCourseRepo },
       ],
     }).compile();
 
@@ -46,6 +56,138 @@ describe('LessonQuizService (Unit Tests - AAA Pattern)', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe('individual quiz authoring', () => {
+    const lessonId = '66f000000000000000000001';
+    const quizId = '66f000000000000000000002';
+    const payload = {
+      timestamp: 30,
+      question: '  Kiến thức nào vừa được trình bày?  ',
+      questionType: QuizQuestionTypeEnum.SINGLE,
+      options: [
+        { id: 'a', label: 'A', text: '  Nội dung chính  ', isCorrect: true },
+        { id: 'b', label: 'B', text: '  Nội dung khác  ', isCorrect: false },
+      ],
+      explanation: '  Giải thích đáp án  ',
+    };
+
+    beforeEach(() => {
+      mockLessonRepo.findById!.mockResolvedValue({ id: lessonId, sectionId: 'section-1', content: { duration: 120 } });
+      mockLessonQuizRepo.findByLessonIdAndTimestamp!.mockResolvedValue([]);
+      mockLessonQuizRepo.findById!.mockResolvedValue({ id: quizId, lessonId, timestamp: 30, order: 3 });
+    });
+
+    it('adds one question without replacing existing quizzes and records the author', async () => {
+      mockLessonQuizRepo.findByLessonIdAndTimestamp!.mockResolvedValue([{ order: 1 }, { order: 4 }]);
+      mockLessonQuizRepo.create!.mockResolvedValue({ id: quizId, lessonId });
+
+      const result = await service.createQuiz(` ${lessonId} `, payload);
+
+      expect(result.id).toBe(quizId);
+      expect(mockLessonQuizRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+        lessonId,
+        timestamp: 30,
+        order: 5,
+        question: payload.question.trim(),
+        options: payload.options.map((option) => ({ ...option, text: option.text.trim() })),
+        explanation: payload.explanation.trim(),
+        createdById: 'mock-user-id',
+        updatedById: 'mock-user-id',
+      }), undefined);
+      expect(mockLessonQuizRepo.syncQuizzesAtTimestamp).not.toHaveBeenCalled();
+      expect(mockLessonQuizRepo.softDelete).not.toHaveBeenCalled();
+    });
+
+    it('accepts the start, end and unknown-duration timestamps', async () => {
+      mockLessonQuizRepo.create!.mockResolvedValue({ id: quizId });
+      await service.createQuiz(lessonId, { ...payload, timestamp: 0, explanation: '  ' });
+      await service.createQuiz(lessonId, { ...payload, timestamp: 120 });
+      mockLessonRepo.findById!.mockResolvedValue({ id: lessonId });
+      await service.createQuiz(lessonId, { ...payload, timestamp: 500 });
+      expect(mockLessonQuizRepo.create).toHaveBeenCalledTimes(3);
+      expect(mockLessonQuizRepo.create).toHaveBeenNthCalledWith(1, expect.objectContaining({ timestamp: 0, explanation: null }), undefined);
+    });
+
+    it('accepts multiple correct answers for a multiple-choice question', async () => {
+      await service.createQuiz(lessonId, {
+        ...payload,
+        questionType: QuizQuestionTypeEnum.MULTIPLE,
+        options: payload.options.map((option) => ({ ...option, isCorrect: true })),
+      });
+      expect(mockLessonQuizRepo.create).toHaveBeenCalledOnce();
+    });
+
+    it.each([-1, 1.5, NaN, Infinity, 121])('rejects invalid or out-of-video timestamp %s before writing', async (timestamp) => {
+      await expect(service.createQuiz(lessonId, { ...payload, timestamp })).rejects.toThrow(BadRequestException);
+      expect(mockLessonQuizRepo.create).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { ...payload, question: '   ' },
+      { ...payload, options: [] },
+      { ...payload, options: [payload.options[0]!] },
+      { ...payload, options: payload.options.map((option) => ({ ...option, text: '  ' })) },
+      { ...payload, options: payload.options.map((option) => ({ ...option, isCorrect: false })) },
+      { ...payload, options: payload.options.map((option) => ({ ...option, isCorrect: true })) },
+      { ...payload, options: payload.options.map((option) => ({ ...option, id: 'duplicate' })) },
+      { ...payload, options: payload.options.map((option) => ({ ...option, label: 'A' })) },
+    ])('rejects invalid content without touching any quiz: %o', async (invalid) => {
+      await expect(service.createQuiz(lessonId, invalid)).rejects.toThrow(BadRequestException);
+      expect(mockLessonQuizRepo.create).not.toHaveBeenCalled();
+      expect(mockLessonQuizRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('keeps the quiz ID and order when changing only its content', async () => {
+      mockLessonQuizRepo.update!.mockResolvedValue({ id: quizId, lessonId, ...payload, order: 3 });
+
+      const result = await service.updateQuiz(quizId, payload);
+
+      expect(result.id).toBe(quizId);
+      expect(mockLessonQuizRepo.update).toHaveBeenCalledWith(quizId, expect.objectContaining({ order: 3, updatedById: 'mock-user-id' }), undefined);
+      expect(mockLessonQuizRepo.findByLessonIdAndTimestamp).not.toHaveBeenCalled();
+      expect(mockLessonQuizRepo.create).not.toHaveBeenCalled();
+      expect(mockLessonQuizRepo.syncQuizzesAtTimestamp).not.toHaveBeenCalled();
+    });
+
+    it('moves only the selected question and appends it at the target timestamp', async () => {
+      mockLessonQuizRepo.findByLessonIdAndTimestamp!.mockResolvedValue([{ order: 2 }, { order: 7 }]);
+      mockLessonQuizRepo.update!.mockResolvedValue({ id: quizId, lessonId, timestamp: 90, order: 8 });
+
+      await service.updateQuiz(quizId, { ...payload, timestamp: 90 });
+
+      expect(mockLessonQuizRepo.findByLessonIdAndTimestamp).toHaveBeenCalledWith(lessonId, 90);
+      expect(mockLessonQuizRepo.update).toHaveBeenCalledWith(quizId, expect.objectContaining({ timestamp: 90, order: 8 }), undefined);
+      expect(mockLessonQuizRepo.update).toHaveBeenCalledTimes(1);
+      expect(mockLessonQuizRepo.moveOrMergeCluster).not.toHaveBeenCalled();
+      expect(mockLessonQuizRepo.softDelete).not.toHaveBeenCalled();
+    });
+
+    it('rejects invalid updates without modifying the original question', async () => {
+      await expect(service.updateQuiz(quizId, { ...payload, timestamp: 121 })).rejects.toThrow(BadRequestException);
+      expect(mockLessonQuizRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('reports missing lessons, missing questions and deletion races', async () => {
+      await expect(service.createQuiz('', payload)).rejects.toThrow(BadRequestException);
+      await expect(service.updateQuiz('', payload)).rejects.toThrow(BadRequestException);
+      mockLessonRepo.findById!.mockResolvedValue(null);
+      await expect(service.createQuiz(lessonId, payload)).rejects.toThrow(NotFoundException);
+      await expect(service.updateQuiz(quizId, payload)).rejects.toThrow(NotFoundException);
+      mockLessonRepo.findById!.mockResolvedValue({ id: lessonId });
+      mockLessonQuizRepo.update!.mockResolvedValue(null);
+      await expect(service.updateQuiz(quizId, payload)).rejects.toThrow(NotFoundException);
+      mockLessonQuizRepo.findById!.mockResolvedValue(null);
+      await expect(service.updateQuiz(quizId, payload)).rejects.toThrow(NotFoundException);
+    });
+
+    it('preserves the pending-approval lock for adding and updating individual questions', async () => {
+      mockCourseRepo.findById.mockResolvedValue({ status: CourseStatusEnum.PENDING_APPROVAL });
+      await expect(service.createQuiz(lessonId, payload)).rejects.toThrow(ConflictException);
+      await expect(service.updateQuiz(quizId, payload)).rejects.toThrow(ConflictException);
+      expect(mockLessonQuizRepo.create).not.toHaveBeenCalled();
+      expect(mockLessonQuizRepo.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('getQuizzesByLessonId', () => {

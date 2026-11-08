@@ -87,6 +87,9 @@
 | `DELETE` | `/api/v1/lessons/:id/materials/:materialId` | Xóa tài liệu bài giảng | `INSTRUCTOR` (Owner), `ADMIN` (`LessonManagementGuard`) |
 | `DELETE` | `/api/v1/lessons/:id` | Xóa mềm bài học | `INSTRUCTOR` (Owner), `ADMIN` (`LessonManagementGuard`) |
 | `POST` | `/api/v1/lessons/:id/transcript/retry` | Thử lại xử lý phiên âm video | `INSTRUCTOR` (Owner), `ADMIN` (`LessonManagementGuard`) |
+| `GET` | `/api/v1/lessons/:id/quizzes` | Danh sách câu hỏi chính thức, sắp xếp theo timestamp, order và ID | Public |
+| `POST` | `/api/v1/lessons/:id/quizzes` | Thêm một câu hỏi, không thay thế các câu cùng mốc | `INSTRUCTOR` (Owner), `ADMIN` (`LessonManagementGuard`) |
+| `PUT` | `/api/v1/lessons/quizzes/:quizId` | Thay thế nội dung/mốc thời gian của một câu hỏi, giữ nguyên ID | `INSTRUCTOR` (Owner), `ADMIN` (`LessonManagementGuard`) |
 | `PUT` | `/api/v1/lessons/:id/quizzes/sync` | Đồng bộ danh sách câu hỏi tại timestamp | `INSTRUCTOR` (Owner), `ADMIN` (`LessonManagementGuard`) |
 | `PUT` | `/api/v1/lessons/:id/quizzes/move-merge` | Di chuyển/gộp cụm quiz sang mốc thời gian mới | `INSTRUCTOR` (Owner), `ADMIN` (`LessonManagementGuard`) |
 | `DELETE` | `/api/v1/lessons/quizzes/:quizId` | Xóa một câu hỏi trắc nghiệm | `INSTRUCTOR` (Owner), `ADMIN` (`LessonManagementGuard`) |
@@ -96,6 +99,17 @@
 ---
 
 ## 3. Frontend Components & Viewers (Milestone 26)
+
+### Quản lý câu hỏi trắc nghiệm theo từng bài học
+
+- `LessonQuizTab`: nút thêm câu hỏi thủ công, sửa/xóa từng câu, số câu thực tế và điều hướng đến mốc video; chỉ mở trong `canEditCourseContent`.
+- `LessonQuizQuestionDialog`: dùng lại `DialogLayout`, `TimestampPickerInput`, React Hook Form/Controller và Zod; vùng form cuộn độc lập, footer lưu/hủy luôn hiển thị. Cảnh báo khi bỏ nội dung chưa lưu và giữ form khi API lỗi.
+- `QuizQuestionFields`: nội dung, hình thức một/nhiều đáp án đúng, phương án trả lời và giải thích dùng chung cho dialog từng câu và `CreateQuizMarkerModal`.
+- Payload dùng chung: `ISaveLessonQuizPayload` (`timestamp`, `question`, `questionType`, `options`, `explanation?`). `lessonId`, `id`, `order` và audit fields không nhận từ payload của thao tác từng câu.
+- `SaveLessonQuizDto` kế thừa `QuizQuestionContentDto`, dùng lại DTO options của API sync. Timestamp là số giây nguyên không âm; không vượt `lesson.content.duration` nếu có. Nội dung/đáp án trim, tối thiểu 2 phương án, mã/nhãn duy nhất; `single` đúng 1 đáp án, `multiple` ít nhất 1 đáp án.
+- Tạo và chuyển mốc chỉ ghi một document; order được nối sau câu cuối ở timestamp đích. Sửa tại cùng mốc giữ order. Dùng CRUD của `BaseService`/`BaseMongoRepository` để giữ audit và soft-delete; không cần collection hay migration mới.
+- Cache `lessonQuizKeys.byLesson` cập nhật và invalidate sau thao tác, đồng bộ danh sách với marker. Không dùng `/quizzes/sync` hoặc `/move-merge` để sửa/di chuyển một câu.
+- Tạo lại quiz AI cần xác nhận trước khi thay thế toàn bộ danh sách. Cơ chế gom marker gần nhau (±2 giây) và editor cụm cũ giữ nguyên.
 
 - **Routes**:
   - `/courses/:courseId`: Chi tiết khóa học công khai / giao diện học tập. Khi có `?mode=edit` chuyển sang chế độ quản lý nội dung (`CourseDetailContent`).
