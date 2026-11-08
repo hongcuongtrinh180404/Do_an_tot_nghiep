@@ -182,6 +182,64 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
     return doc ? this.toDomain(doc) : null;
   }
 
+  async withdrawApproval(
+    courseId: string,
+    userId: string,
+    session?: ClientSession,
+  ): Promise<ICourse | null> {
+    const doc = await this.model.findOneAndUpdate(
+      {
+        _id: courseId,
+        deletedAt: null,
+        status: CourseStatusEnum.PENDING_APPROVAL,
+      },
+      {
+        $set: {
+          status: CourseStatusEnum.DRAFT,
+          approvalRequestedAt: null,
+          approvalRequestedById: null,
+          updatedById: userId,
+        },
+      },
+      { new: true, runValidators: true },
+    )
+      .populate(CATEGORY_POPULATE)
+      .populate(INSTRUCTOR_POPULATE)
+      .session(session ?? null)
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  async updateStatus(
+    courseId: string,
+    fromStatus: CourseStatusEnum,
+    toStatus: CourseStatusEnum,
+    userId: string,
+    session?: ClientSession,
+  ): Promise<ICourse | null> {
+    const doc = await this.model.findOneAndUpdate(
+      {
+        _id: courseId,
+        deletedAt: null,
+        status: fromStatus,
+      },
+      {
+        $set: {
+          status: toStatus,
+          updatedById: userId,
+        },
+      },
+      { new: true, runValidators: true },
+    )
+      .populate(CATEGORY_POPULATE)
+      .populate(INSTRUCTOR_POPULATE)
+      .session(session ?? null)
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
   async approveCourse(
     courseId: string,
     adminId: string,

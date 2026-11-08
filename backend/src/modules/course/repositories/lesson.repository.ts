@@ -114,6 +114,36 @@ export class LessonRepository extends BaseMongoRepository<ILesson, LessonEntity>
     return result.modifiedCount;
   }
 
+  async softDeleteBySectionIds(
+    sectionIds: string[],
+    userId?: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    if (!sectionIds || sectionIds.length === 0) return 0;
+
+    const sectionObjectIds = sectionIds
+      .filter((id) => Types.ObjectId.isValid(id))
+      .map((id) => new Types.ObjectId(id));
+
+    if (sectionObjectIds.length === 0) return 0;
+
+    const result = await this.model.updateMany(
+      {
+        sectionId: { $in: sectionObjectIds },
+        deletedAt: null,
+      },
+      {
+        $set: {
+          deletedAt: new Date(),
+          ...(userId ? { updatedById: userId } : {}),
+        },
+      },
+      { session: session ?? undefined },
+    );
+
+    return result.modifiedCount;
+  }
+
   async addMaterial(
     lessonId: string,
     material: Omit<ILessonMaterial, 'id'>,

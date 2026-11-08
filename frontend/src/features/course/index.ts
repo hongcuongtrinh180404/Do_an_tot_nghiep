@@ -27,6 +27,7 @@ export * from './utils/slugify';
 export * from './utils/lesson-key-points.util';
 export * from './types/course.types';
 export * from './api/course.api';
+export * from './api/course-approval.api';
 export * from './api/course-category.api';
 export * from './api/lesson-content.api';
 export * from './components/mindmap/course-mindmap-view';

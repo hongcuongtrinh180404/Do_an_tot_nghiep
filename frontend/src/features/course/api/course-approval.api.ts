@@ -1,6 +1,7 @@
 'use client';
 
 import { isAxiosError } from 'axios';
+import { toast } from 'sonner';
 import { queryOptions, useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { IApiResponse, ICourse, ICourseApprovalChecklist, ISection } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
@@ -16,6 +17,12 @@ export const courseApprovalApi = {
   async requestApproval(courseId: string): Promise<ICourse> {
     const response = await apiClient.post<IApiResponse<ICourse>>(
       `/courses/${courseId}/request-approval`,
+    );
+    return response.data.data;
+  },
+  async cancelApproval(courseId: string): Promise<ICourse> {
+    const response = await apiClient.post<IApiResponse<ICourse>>(
+      `/courses/${courseId}/cancel-approval`,
     );
     return response.data.data;
   },
@@ -68,6 +75,30 @@ export function useRequestCourseApprovalMutation(courseId: string) {
         if (error.response?.status === 409) {
           void queryClient.invalidateQueries({ queryKey: courseKeys.detail(courseId) });
         }
+      }
+    },
+  });
+}
+
+export function useCancelCourseApprovalMutation(courseId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => courseApprovalApi.cancelApproval(courseId),
+    onSuccess: (course) => {
+      queryClient.setQueryData(courseKeys.detail(courseId), course);
+      void queryClient.invalidateQueries({ queryKey: courseKeys.detail(courseId) });
+      void queryClient.invalidateQueries({ queryKey: courseKeys.myCourses() });
+      void queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
+      toast.success('Đã hủy yêu cầu phê duyệt khóa học thành công!');
+    },
+    onError: (error) => {
+      const msg = approvalErrorMessage(error);
+      toast.error('Lỗi khi hủy yêu cầu duyệt', {
+        description: msg,
+      });
+      if (isAxiosError(error) && error.response?.status === 409) {
+        void queryClient.invalidateQueries({ queryKey: courseKeys.detail(courseId) });
+        void queryClient.invalidateQueries({ queryKey: courseKeys.myCourses() });
       }
     },
   });

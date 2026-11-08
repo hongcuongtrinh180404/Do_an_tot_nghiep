@@ -69,7 +69,11 @@
 | `POST` | `/api/v1/courses/:id/approve` | Quản trị viên duyệt xuất bản khóa học (`PENDING_APPROVAL` -> `PUBLISHED`) | `ADMIN` |
 | `POST` | `/api/v1/courses/:id/reject` | Quản trị viên yêu cầu chỉnh sửa (`PENDING_APPROVAL` -> `DRAFT`, lưu `rejectionReason`) | `ADMIN` |
 | `PATCH` | `/api/v1/courses/:id` | Cập nhật thông tin khóa học (chặn nếu `PENDING_APPROVAL`) | `INSTRUCTOR` (Owner), `ADMIN` |
-| `DELETE` | `/api/v1/courses/:id` | Xóa mềm khóa học | `INSTRUCTOR` (Owner), `ADMIN` |
+| `POST` | `/api/v1/courses/:id/cancel-approval` | Giảng viên hủy/rút yêu cầu duyệt (`PENDING_APPROVAL` -> `DRAFT`) | `INSTRUCTOR` (Owner), `ADMIN` |
+| `POST` | `/api/v1/courses/:id/withdraw-approval` | Alias của route hủy/rút yêu cầu duyệt | `INSTRUCTOR` (Owner), `ADMIN` |
+| `POST` | `/api/v1/courses/:id/archive` | Ngừng bán khóa học (`PUBLISHED` -> `ARCHIVED`, giữ quyền học) | `INSTRUCTOR` (Owner), `ADMIN` |
+| `POST` | `/api/v1/courses/:id/unarchive` | Mở bán lại khóa học (`ARCHIVED` -> `PUBLISHED`) | `INSTRUCTOR` (Owner), `ADMIN` |
+| `DELETE` | `/api/v1/courses/:id` | Xóa khóa học (chặn nếu `PENDING_APPROVAL` hoặc `studentsCount > 0`, cascade soft-delete & MinIO cleanup) | `INSTRUCTOR` (Owner), `ADMIN` |
 | `POST` | `/api/v1/courses/:id/chapters` | Thêm chương học mới (tự động gán thứ tự nếu không truyền order) | `INSTRUCTOR` (Owner), `ADMIN` |
 | `PUT` | `/api/v1/courses/:id/sections/reorder` | Sắp xếp lại thứ tự các chương học hàng loạt bằng transaction | `INSTRUCTOR` (Owner), `ADMIN` |
 | `GET` | `/api/v1/courses/:courseId/mindmap` | Lấy dữ liệu sơ đồ tư duy khóa học siêu tốc (không cần JOIN) | Public |

@@ -120,4 +120,30 @@ export class SectionRepository extends BaseMongoRepository<ISection, SectionEnti
 
     return result.modifiedCount;
   }
+
+  async softDeleteByCourseId(
+    courseId: string,
+    userId?: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    const courseObjectId = Types.ObjectId.isValid(courseId)
+      ? new Types.ObjectId(courseId)
+      : courseId;
+
+    const result = await this.model.updateMany(
+      {
+        courseId: courseObjectId,
+        deletedAt: null,
+      },
+      {
+        $set: {
+          deletedAt: new Date(),
+          ...(userId ? { updatedById: userId } : {}),
+        },
+      },
+      { session: session ?? undefined },
+    );
+
+    return result.modifiedCount;
+  }
 }

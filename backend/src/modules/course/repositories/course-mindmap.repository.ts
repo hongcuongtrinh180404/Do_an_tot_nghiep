@@ -98,4 +98,34 @@ export class CourseMindmapRepository extends BaseMongoRepository<ICourseMindmap,
 
     return this.toDomain(doc);
   }
+
+  async softDeleteByCourseId(
+    courseId: string,
+    userId?: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    const courseObjectId = Types.ObjectId.isValid(courseId)
+      ? new Types.ObjectId(courseId)
+      : courseId;
+
+    const userObjectId = userId && Types.ObjectId.isValid(userId)
+      ? new Types.ObjectId(userId)
+      : null;
+
+    const result = await this.model.updateMany(
+      {
+        courseId: courseObjectId,
+        deletedAt: null,
+      },
+      {
+        $set: {
+          deletedAt: new Date(),
+          ...(userObjectId ? { updatedById: userObjectId } : {}),
+        },
+      },
+      { session: session ?? undefined },
+    );
+
+    return result.modifiedCount;
+  }
 }

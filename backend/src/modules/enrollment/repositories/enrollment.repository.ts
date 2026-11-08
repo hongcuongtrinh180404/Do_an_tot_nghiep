@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, ClientSession } from 'mongoose';
+import { Model, ClientSession, Types } from 'mongoose';
 import {
   IEnrollment,
   ICourse,
@@ -187,6 +187,39 @@ export class EnrollmentRepository extends BaseMongoRepository<IEnrollment, Enrol
 
   async countByCourseId(courseId: string): Promise<number> {
     return this.model.countDocuments({ courseId, deletedAt: null }).exec();
+  }
+
+  async countByCourseIds(courseIds: string[]): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    if (!courseIds || courseIds.length === 0) return map;
+
+    const objectIds = courseIds
+      .filter((id) => Types.ObjectId.isValid(id))
+      .map((id) => new Types.ObjectId(id));
+
+    if (objectIds.length === 0) return map;
+
+    const results = await this.model
+      .aggregate<{ _id: Types.ObjectId; count: number }>([
+        {
+          $match: {
+            courseId: { $in: objectIds },
+            deletedAt: null,
+          },
+        },
+        {
+          $group: {
+            _id: '$courseId',
+            count: { $sum: 1 },
+          },
+        },
+      ])
+      .exec();
+
+    for (const r of results) {
+      map.set(String(r._id), r.count);
+    }
+    return map;
   }
 }
 

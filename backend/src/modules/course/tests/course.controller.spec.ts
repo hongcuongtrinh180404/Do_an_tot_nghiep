@@ -39,6 +39,9 @@ describe('CourseController', () => {
     deleteSection: ReturnType<typeof vi.fn>;
     reorderSections: ReturnType<typeof vi.fn>;
     getSectionsByCourseId: ReturnType<typeof vi.fn>;
+    deleteCourse: ReturnType<typeof vi.fn>;
+    archiveCourse: ReturnType<typeof vi.fn>;
+    unarchiveCourse: ReturnType<typeof vi.fn>;
   };
 
   const sampleCourse: ICourse = {
@@ -77,6 +80,9 @@ describe('CourseController', () => {
       deleteSection: vi.fn(),
       reorderSections: vi.fn(),
       getSectionsByCourseId: vi.fn(),
+      deleteCourse: vi.fn(),
+      archiveCourse: vi.fn(),
+      unarchiveCourse: vi.fn(),
     };
 
     controller = new CourseController(mockCourseService as unknown as CourseService);
@@ -1059,6 +1065,83 @@ describe('CourseController', () => {
       expect(roles).toBeDefined();
       expect(roles).toContain(RoleEnum.INSTRUCTOR);
       expect(roles).toContain(RoleEnum.ADMIN);
+    });
+  });
+
+  describe('DELETE /courses/:id - deleteCourse', () => {
+    it('1. should allow authorized instructor/admin to delete course', async () => {
+      mockCourseService.deleteCourse.mockResolvedValue(true);
+
+      const response = await controller.deleteCourse(
+        '507f1f77bcf86cd799439011',
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(mockCourseService.deleteCourse).toHaveBeenCalledWith(
+        '507f1f77bcf86cd799439011',
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Xóa khóa học thành công');
+      expect(response.data).toBeNull();
+    });
+
+    it('2. should have @Roles(INSTRUCTOR, ADMIN) decorator configured', () => {
+      const reflector = new Reflector();
+      const roles = reflector.get<RoleEnum[]>(
+        ROLES_KEY,
+        CourseController.prototype.deleteCourse,
+      );
+
+      expect(roles).toBeDefined();
+      expect(roles).toContain(RoleEnum.INSTRUCTOR);
+      expect(roles).toContain(RoleEnum.ADMIN);
+    });
+  });
+
+  describe('POST /courses/:id/archive & unarchive', () => {
+    it('1. should call archiveCourse and return success response', async () => {
+      mockCourseService.archiveCourse.mockResolvedValue({
+        ...sampleCourse,
+        status: CourseStatusEnum.ARCHIVED,
+      });
+
+      const response = await controller.archiveCourse(
+        '507f1f77bcf86cd799439011',
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(mockCourseService.archiveCourse).toHaveBeenCalledWith(
+        '507f1f77bcf86cd799439011',
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Ngừng bán khóa học thành công');
+    });
+
+    it('2. should call unarchiveCourse and return success response', async () => {
+      mockCourseService.unarchiveCourse.mockResolvedValue({
+        ...sampleCourse,
+        status: CourseStatusEnum.PUBLISHED,
+      });
+
+      const response = await controller.unarchiveCourse(
+        '507f1f77bcf86cd799439011',
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(mockCourseService.unarchiveCourse).toHaveBeenCalledWith(
+        '507f1f77bcf86cd799439011',
+        'instructor_1',
+        RoleEnum.INSTRUCTOR,
+      );
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Mở bán lại khóa học thành công');
     });
   });
 });

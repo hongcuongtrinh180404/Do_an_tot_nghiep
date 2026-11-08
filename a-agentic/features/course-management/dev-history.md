@@ -13,6 +13,72 @@
 
 ## 2. Technical Notes & Gotchas
 
+- **Milestone 43 (Web Interface Guidelines & A11y Compliance for Course Lifecycle Components)**:
+  - **Bối cảnh & Yêu cầu**:
+    - Kiểm thử chất lượng và chuẩn hóa các thành phần UI mới tạo (`CourseCard`, `CourseDetailContent`, `CourseManagementContent`) bằng kỹ năng `/web-design-guidelines`.
+    - Đảm bảo tuân thủ 100% Web Interface Guidelines (Vercel Labs) và Project Architecture Rules (`project-architecture.md`).
+  - **Giải pháp & Triển khai**:
+    1. **Tạo mới `ActionConfirmDialog` (`frontend/src/components/shared/dialog/action-confirm-dialog.tsx`)**:
+       - Thay thế việc lạm dụng `DeleteConfirmDialog` cho các hành vi không phá hủy dữ liệu.
+       - Hỗ trợ các biến thể ngữ nghĩa: `warning` (Amber cho rút duyệt), `info` (Sky/Zinc cho ngừng bán), `success` (Emerald cho mở bán lại), `destructive` (Đỏ cho xóa).
+       - Tùy biến văn bản ghi chú (`noticeText`), xóa bỏ dòng cảnh báo xóa dữ liệu không liên quan và nút "Đang xóa..." gây hoang mang cho người dùng.
+    2. **Chuẩn hóa `CourseCard` (`course-card.tsx`)**:
+       - Gỡ bỏ hoàn toàn class cấm `font-mono` trên slug, tuân thủ font đồng bộ của hệ thống.
+       - Chuyển đổi nút "Xem thử" từ `<button onClick={() => router.push(...)}>` sang thẻ `<Link>` ngữ nghĩa (hỗ trợ middle-click, mở tab mới, SEO, trợ năng).
+       - Bọc nút Xóa bị vô hiệu hóa trong vùng chứa có tooltip hiển thị lý do cấm xóa trên mọi trình duyệt (`title={deleteDisabledReason}`) và gán `aria-label` chi tiết.
+       - Tích hợp `ActionConfirmDialog` cho 3 luồng rút duyệt, ngừng bán, mở bán lại.
+    3. **Chuẩn hóa `CourseDetailContent` (`course-detail-content.tsx`)**:
+       - Đồng bộ `ActionConfirmDialog` cho các hành vi vòng đời khóa học.
+       - Thay thế mã màu hex cứng `#027D88` trên thẻ học viên bằng biến semantic `text-primary` đảm bảo độ tương phản WCAG AA >= 4.5:1 trong cả Light và Dark mode.
+       - Bổ sung `aria-label` và focus ring chuẩn cho các nút tương tác.
+    4. **Chuẩn hóa `CourseManagementContent` (`course-management-content.tsx`)**:
+       - 5 Thẻ thống kê chỉ số (`Total`, `Published`, `Pending`, `Draft`, `Archived`) được gắn đầy đủ `role="button"`, `tabIndex={0}`, `aria-label`, `aria-pressed`, `onKeyDown` (hỗ trợ Enter/Space), và focus ring `focus-visible:ring-2`.
+       - Toolbar form controls: Bổ sung `aria-label` cho ô tìm kiếm, nút xóa tìm kiếm, dropdown sắp xếp và nút đặt lại bộ lọc.
+       - Nhóm tab trạng thái được bọc trong `role="tablist"` với các tab có `role="tab"` và `aria-selected`.
+       - Hỗ trợ cuộn ngang mềm (`overflow-x-auto no-scrollbar`) ngăn chặn tràn layout trên màn hình điện thoại di động nhỏ (< 640px).
+  - **Kiểm thử & Đảm bảo Chất lượng**:
+    - Quét tĩnh: `node .agent/skills/web-design-guidelines/scripts/audit-ui.mjs` đạt 100% (0 vi phạm trên toàn bộ các tệp liên quan).
+    - ESLint: 0 errors trên toàn bộ codebase frontend.
+
+
+- **Milestone 42 (Complete Course Lifecycle: Deletion Rules, Approval Withdrawal, Course Archiving & Instructor Analytics Toolbar)**:
+  - **Bối cảnh & Yêu cầu Người dùng**:
+    1. Chức năng xóa khóa học:
+       - Cho phép xóa khóa học nháp (`DRAFT`).
+       - Chờ phê duyệt (`PENDING_APPROVAL`): Không cho phép xóa, giảng viên cần rút yêu cầu duyệt trước rồi mới được xóa.
+       - Đã xuất bản (`PUBLISHED`) và chưa có người mua/đăng ký (`studentsCount === 0`): Cho phép xóa.
+       - Đã có học viên mua hoặc đăng ký miễn phí (`studentsCount > 0`): Tuyệt đối không cho phép xóa, chỉ cho phép **Ngừng bán (`ARCHIVED`)**.
+    2. Hủy yêu cầu phê duyệt (`cancel-approval` / `withdraw-approval`):
+       - Cho phép giảng viên rút yêu cầu duyệt khi khóa học đang `PENDING_APPROVAL` để trở về `DRAFT`, mở khóa chỉnh sửa hoặc thực hiện xóa.
+    3. Ẩn / Ngừng bán (`ARCHIVED`) & Mở bán lại (`PUBLISHED`):
+       - Ngăn học viên mới mua nhưng bảo lưu 100% quyền học của học viên đã mua trước đó.
+       - Khóa học có thể được mở bán lại bất kỳ lúc nào.
+    4. Xử lý khi chỉnh sửa khóa học `PUBLISHED`: Cho phép giảng viên cập nhật trực tiếp mà không tự động hạ về `DRAFT` (Phương án A).
+    5. Dọn dẹp MinIO khi xóa khóa học nháp: Xóa vật lý luôn các file (thumbnail, trailer, video bài học, tài liệu đính kèm) sau khi soft-delete DB commit.
+    6. Bổ sung tìm kiếm, bộ lọc và thống kê trên dashboard giảng viên.
+  - **Giải pháp Kiến trúc & Triển khai**:
+    1. **Tầng Chia sẻ (`share-lib`)**:
+       - Bổ sung `studentsCount?: number` vào interface `ICourse`.
+    2. **Tầng Backend (`backend`)**:
+       - `EnrollmentRepository`: Bổ sung `countByCourseIds(courseIds: string[])` hỗ trợ tính số học viên đã ghi danh hàng loạt qua aggregation `status: ACTIVE` mà không gây N+1 queries.
+       - `SectionRepository` & `LessonRepository` & `CourseMindmapRepository`: Bổ sung `softDeleteByCourseId` / `softDeleteBySectionIds` hỗ trợ truyền `ClientSession`.
+       - `CourseApprovalService` & `CourseRepository`: Triển khai `withdrawApproval` chuyển trạng thái nguyên tử từ `PENDING_APPROVAL` về `DRAFT` và reset `approvalRequestedAt: null`. Expose qua 2 endpoint song song `POST /courses/:id/cancel-approval` và `POST /courses/:id/withdraw-approval`.
+       - `CourseService`:
+         - Bổ sung `studentsCount` vào `findByInstructorId` và `getCourseDetailForInstructor`.
+         - Triển khai `deleteCourse(courseId, userId, role)`: Kiểm tra quyền sở hữu, chặn `PENDING_APPROVAL` (409 Conflict), chặn `studentsCount > 0` (400 BadRequest), mở transaction session soft-delete cascade (course -> sections -> lessons -> mindmap), và dọn dẹp vật lý toàn bộ tài nguyên MinIO.
+         - Triển khai `archiveCourse(courseId, userId, role)` (`PUBLISHED` -> `ARCHIVED`) và `unarchiveCourse(courseId, userId, role)` (`ARCHIVED` -> `PUBLISHED`).
+         - Đảm bảo quyền học viên: API học viên `lessonService.getLessonForUser` kiểm tra trực tiếp qua `EnrollmentRepository`, cho phép học viên đã ghi danh tiếp tục học bình thường khi khóa học bị chuyển sang `ARCHIVED`.
+    3. **Tầng Frontend (`frontend`)**:
+       - `course.api.ts` & `course-approval.api.ts`: Bổ sung API calls và React Query hooks: `useDeleteCourseMutation`, `useArchiveCourseMutation`, `useUnarchiveCourseMutation`, `useCancelCourseApprovalMutation`.
+       - `course-card.tsx`: Hiển thị badge số học viên `studentsCount`, các nút thao tác nghiệp vụ ("Rút duyệt", "Ngừng bán", "Mở bán lại", "Xóa"), tích hợp `DeleteConfirmDialog` và tooltips giải thích lý do khi nút xóa bị vô hiệu hóa.
+       - `course-detail-content.tsx`: Thêm nút "Rút yêu cầu phê duyệt" trực tiếp trên banner khóa, bổ sung nút "Ngừng bán", "Mở bán lại", "Xóa khóa học" và thẻ thống kê số học viên trong Quick Stats Grid.
+       - `course-management-content.tsx`: Bổ sung 6 metric stats cards (Tổng, Đã xuất bản, Chờ duyệt, Bản nháp, Ngừng bán, Tổng học viên) có tính năng bấm để lọc nhanh; thanh tìm kiếm realtime, tabs lọc trạng thái, dropdown sắp xếp và empty state trực quan.
+    4. **Kiểm thử tự động**:
+       - `course-approval.service.spec.ts`: 16/16 tests passed.
+       - `course.service.spec.ts`: 83/83 tests passed.
+       - `course.controller.spec.ts`: 55/55 tests passed.
+       - ESLint frontend 0 errors, backend build compiles cleanly.
+
 - **Milestone 41 (Refined Course Detail Navigation from My Courses & Clean Purchase Card State)**:
   - **Yêu cầu & Quyết định người dùng**:
     - Khi ở trang *"Khóa học đã mua"* (`/my-courses`): Click vào nút **"Vào học"** (hoặc tiêu đề / ảnh bìa) sẽ chuyển hướng đến trang **Chi tiết khóa học** (`/courses/:courseId`) để học viên xem lại toàn bộ thông tin giáo trình, tổng quan sơ đồ tư duy và lựa chọn bài học.

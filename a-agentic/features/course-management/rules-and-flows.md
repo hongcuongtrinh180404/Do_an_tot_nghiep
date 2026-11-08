@@ -65,3 +65,24 @@
      - Quy ước hiển thị: Mặc định tất cả các route chi tiết khóa học `/courses/:id` và bài học `/courses/:id/lessons/:id` đều hoạt động ở chế độ `'learn'` (Học tập thuần túy).
      - Chỉ khi có query parameter tường minh `?mode=edit` và thỏa mãn `canEditCourseContent(user, course, mode)`, giao diện mới mở các tính năng biên tập: sửa node Mindmap, kéo thả canvas, marker timeline quiz, modal thêm câu hỏi, và sửa tóm tắt bài giảng.
      - Khi xem ở chế độ học viên, hệ thống khóa kéo thả node canvas (`nodesDraggable={false}`), ẩn các trigger thêm/sửa/xóa và nút sinh AI.
+
+
+9. **Vòng Đời Khóa Học: Hủy Duyệt, Xóa Khóa Học, Ngừng Bán & Mở Bán Lại (Course Lifecycle & Deletion Rules)**:
+   - **Hủy / Rút yêu cầu phê duyệt (`cancel-approval` / `withdraw-approval`)**:
+     - Khi khóa học ở trạng thái `PENDING_APPROVAL`, giảng viên có quyền chủ động hủy/rút yêu cầu duyệt.
+     - Backend thực hiện atomic transition: `PENDING_APPROVAL` -> `DRAFT`, đồng thời reset `approvalRequestedAt: null`.
+     - Ngay sau khi rút duyệt, khóa học mở khóa trở lại toàn bộ quyền biên tập (sửa thông tin, thêm/sửa/xóa bài học, upload video, v.v.) hoặc cho phép giảng viên tiến hành xóa khóa học.
+   - **Quy tắc Nghiệp vụ Xóa Khóa Học (`DELETE /api/v1/courses/:id`)**:
+     - **Bản nháp (`DRAFT`)**: Cho phép xóa.
+     - **Đang chờ duyệt (`PENDING_APPROVAL`)**: **CHẶN XÓA TUYỆT ĐỐI** (ném `409 ConflictException`). Giảng viên phải rút yêu cầu duyệt về `DRAFT` trước khi thực hiện xóa.
+     - **Đã xuất bản (`PUBLISHED`) và chưa có học viên (`studentsCount === 0`)**: Cho phép xóa.
+     - **Đã có học viên ghi danh (`studentsCount > 0`)**: **CHẶN XÓA TUYỆT ĐỐI** (ném `400 BadRequestException`). Nhằm bảo vệ quyền học tập và lịch sử thanh toán của học viên, hệ thống chỉ cho phép chuyển sang trạng thái **Ngừng bán (`ARCHIVED`)**.
+     - **Xóa nguyên tử (Cascade Soft-delete via MongoDB Session)**: Thao tác xóa khóa học được đóng gói trong một `ClientSession` transaction: đồng thời cập nhật `deletedAt` cho Course, tất cả Sections, tất cả Lessons, và CourseMindmap liên quan.
+     - **Dọn dẹp vật lý trên MinIO**: Sau khi transaction commit thành công, hệ thống tự động quét và xóa vật lý toàn bộ file liên kết trên MinIO (thumbnail, trailer, video bài học, tài liệu đính kèm) để giải phóng dung lượng lưu trữ.
+   - **Ẩn / Ngừng Bán (`ARCHIVED`) & Mở Bán Lại (`PUBLISHED`)**:
+     - **Ngừng bán (`POST /api/v1/courses/:id/archive`)**: Chuyển trạng thái từ `PUBLISHED` sang `ARCHIVED`. Khóa học sẽ bị ẩn khỏi danh mục sàn/tìm kiếm công khai và ngăn học viên mới mua.
+     - **Bảo lưu quyền học viên**: Học viên đã mua khóa học trước đó vẫn giữ nguyên 100% quyền truy cập, xem video bài giảng, mindmap và làm bài kiểm tra bình thường.
+     - **Mở bán lại (`POST /api/v1/courses/:id/unarchive`)**: Giảng viên có thể mở bán lại khóa học từ `ARCHIVED` trở về `PUBLISHED` bất kỳ lúc nào để tiếp tục nhận học viên mới.
+   - **Tìm kiếm, Lọc & Thống kê Giảng viên (Instructor Analytics Toolbar)**:
+     - Trang quản lý khóa học của giảng viên cung cấp 6 thẻ chỉ số: Tổng số khóa học, Đã xuất bản, Đang chờ duyệt, Bản nháp, Ngừng bán, Tổng học viên.
+     - Hỗ trợ thanh tìm kiếm theo tên khóa học tức thời, tab lọc theo trạng thái và sắp xếp đa tiêu chí (Mới nhất, Cũ nhất, Nhiều học viên nhất, Tên A-Z).

@@ -4,6 +4,8 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
@@ -22,6 +24,8 @@ import { CourseRepository } from '../repositories/course.repository.js';
 import { CourseCategoryRepository } from '../repositories/course-category.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
+import { CourseMindmapRepository } from '../repositories/course-mindmap.repository.js';
+import { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { CreateSectionDto } from '../dto/create-section.dto.js';
 import { UpdateSectionDto } from '../dto/update-section.dto.js';
@@ -52,6 +56,9 @@ export class CourseService extends BaseService<ICourse, string> {
     protected readonly courseCategoryRepository: CourseCategoryRepository,
     protected readonly sectionRepository: SectionRepository,
     protected readonly lessonRepository: LessonRepository,
+    protected readonly courseMindmapRepository: CourseMindmapRepository,
+    @Inject(forwardRef(() => EnrollmentRepository))
+    protected readonly enrollmentRepository: EnrollmentRepository,
     protected readonly userRepository: UserRepository,
     protected readonly storageService: StorageService,
     cls: ClsService,
@@ -112,7 +119,15 @@ export class CourseService extends BaseService<ICourse, string> {
   }
 
   async findByInstructorId(instructorId: string, session?: ClientSession): Promise<ICourse[]> {
-    return this.courseRepository.findByInstructorId(instructorId, session);
+    const courses = await this.courseRepository.findByInstructorId(instructorId, session);
+    if (!courses || courses.length === 0) return [];
+
+    const courseIds = courses.map((c) => c.id);
+    const countMap = await this.enrollmentRepository.countByCourseIds(courseIds);
+    return courses.map((course) => ({
+      ...course,
+      studentsCount: countMap.get(course.id) ?? 0,
+    }));
   }
 
   async getCourseDetailForInstructor(
@@ -136,7 +151,11 @@ export class CourseService extends BaseService<ICourse, string> {
       throw new ForbiddenException('Bạn không có quyền truy cập khóa học này');
     }
 
-    return course;
+    const studentsCount = await this.enrollmentRepository.countByCourseId(course.id);
+    return {
+      ...course,
+      studentsCount,
+    };
   }
 
   async createCourse(input: CreateCourseInput, session?: ClientSession): Promise<ICourse> {
@@ -429,6 +448,149 @@ export class CourseService extends BaseService<ICourse, string> {
     }
 
     return true;
+  }
+
+  async deleteCourse(
+    courseId: string,
+    userId: string,
+    role: RoleEnum,
+  ): Promise<boolean> {
+    let course: ICourse | null = null;
+    try {
+      course = await this.courseRepository.findById(courseId);
+    } catch {
+      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+    }
+
+    if (!course || course.deletedAt) {
+      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
+    }
+
+    if (role !== RoleEnum.ADMIN && course.instructorId !== userId) {
+      throw new ForbiddenException('Bạn không có quyền xóa khóa học này');
+    }
+
+    if (course.status === CourseStatusEnum.PENDING_APPROVAL) {
+      throw new ConflictException(
+        'Khóa học đang trong quá trình chờ phê duyệt, không thể xóa. Vui lòng rút/hủy yêu cầu duyệt trước.',
+      );
+    }
+
+    const studentsCount = await this.enrollmentRepository.countByCourseId(courseId);
+    if (studentsCount > 0) {
+      throw new BadRequestException(
+        `Khóa học đã có ${studentsCount} học viên đăng ký hoặc mua. Không thể xóa để bảo đảm quyền lợi học tập của học viên. Vui lòng chọn "Ngừng bán" (Lưu trữ) để ẩn khóa học.`,
+      );
+    }
+
+    // 1. Thu thập danh sách file MinIO cần dọn dẹp vật lý
+    const filesToDelete: string[] = [];
+    if (course.thumbnailUrl) {
+      filesToDelete.push(course.thumbnailUrl);
+    }
+    if (course.trailerUrl) {
+      filesToDelete.push(course.trailerUrl);
+    }
+
+    const sections = await this.sectionRepository.findByCourseId(courseId);
+    const sectionIds = sections.map((s) => s.id);
+    const lessons = await this.lessonRepository.findBySectionIds(sectionIds);
+
+    for (const lesson of lessons) {
+      if (lesson.content?.url) filesToDelete.push(lesson.content.url);
+      if (lesson.content?.publicId) filesToDelete.push(lesson.content.publicId);
+      if (lesson.materials && Array.isArray(lesson.materials)) {
+        for (const mat of lesson.materials) {
+          if (mat.url) filesToDelete.push(mat.url);
+        }
+      }
+    }
+
+    // 2. Thực hiện Soft-Delete trong MongoDB Transaction
+    await this.courseRepository.withTransaction(async (session) => {
+      // Xóa mềm khóa học
+      await this.courseRepository.softDelete(courseId, userId, session);
+
+      // Xóa mềm các Sections
+      await this.sectionRepository.softDeleteByCourseId(courseId, userId, session);
+
+      // Xóa mềm các Lessons
+      if (sectionIds.length > 0) {
+        await this.lessonRepository.softDeleteBySectionIds(sectionIds, userId, session);
+      }
+
+      // Xóa mềm Course Mindmap
+      await this.courseMindmapRepository.softDeleteByCourseId(courseId, userId, session);
+    });
+
+    // 3. Xóa vật lý các file MinIO sau khi DB transaction đã commit thành công
+    for (const fileKeyOrUrl of filesToDelete) {
+      try {
+        await this.storageService.deleteFile(fileKeyOrUrl);
+      } catch (err) {
+        this.logger.warn(
+          `Lỗi khi dọn dẹp file MinIO '${fileKeyOrUrl}': ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    return true;
+  }
+
+  async archiveCourse(
+    courseId: string,
+    userId: string,
+    role: RoleEnum,
+  ): Promise<ICourse> {
+    const course = await this.getCourseDetailForInstructor(courseId, userId, role);
+
+    if (course.status !== CourseStatusEnum.PUBLISHED) {
+      throw new ConflictException(
+        'Chỉ có thể ngừng bán khi khóa học đang ở trạng thái đã xuất bản.',
+      );
+    }
+
+    const updated = await this.courseRepository.updateStatus(
+      courseId,
+      CourseStatusEnum.PUBLISHED,
+      CourseStatusEnum.ARCHIVED,
+      userId,
+    );
+
+    if (!updated) {
+      throw new ConflictException('Không thể chuyển trạng thái khóa học. Vui lòng thử lại.');
+    }
+
+    const studentsCount = await this.enrollmentRepository.countByCourseId(courseId);
+    return { ...updated, studentsCount };
+  }
+
+  async unarchiveCourse(
+    courseId: string,
+    userId: string,
+    role: RoleEnum,
+  ): Promise<ICourse> {
+    const course = await this.getCourseDetailForInstructor(courseId, userId, role);
+
+    if (course.status !== CourseStatusEnum.ARCHIVED) {
+      throw new ConflictException(
+        'Chỉ có thể mở bán lại khi khóa học đang ở trạng thái ngừng bán.',
+      );
+    }
+
+    const updated = await this.courseRepository.updateStatus(
+      courseId,
+      CourseStatusEnum.ARCHIVED,
+      CourseStatusEnum.PUBLISHED,
+      userId,
+    );
+
+    if (!updated) {
+      throw new ConflictException('Không thể mở bán lại khóa học. Vui lòng thử lại.');
+    }
+
+    const studentsCount = await this.enrollmentRepository.countByCourseId(courseId);
+    return { ...updated, studentsCount };
   }
 
   async getSectionsByCourseId(

@@ -24,6 +24,8 @@ import { CourseRepository } from '../repositories/course.repository.js';
 import { CourseCategoryRepository } from '../repositories/course-category.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
+import { CourseMindmapRepository } from '../repositories/course-mindmap.repository.js';
+import { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { CreateSectionDto } from '../dto/create-section.dto.js';
 import { UpdateSectionDto } from '../dto/update-section.dto.js';
@@ -40,6 +42,8 @@ describe('CourseService', () => {
     update: ReturnType<typeof vi.fn>;
     findConflictingSlugs: ReturnType<typeof vi.fn>;
     withTransaction: ReturnType<typeof vi.fn>;
+    softDelete: ReturnType<typeof vi.fn>;
+    updateStatus: ReturnType<typeof vi.fn>;
   };
   let mockSectionRepository: {
     create: ReturnType<typeof vi.fn>;
@@ -56,6 +60,13 @@ describe('CourseService', () => {
   };
   let mockUserRepository: {
     findById: ReturnType<typeof vi.fn>;
+  };
+  let mockCourseMindmapRepository: {
+    softDeleteByCourseId: ReturnType<typeof vi.fn>;
+  };
+  let mockEnrollmentRepository: {
+    countByCourseId: ReturnType<typeof vi.fn>;
+    countByCourseIds: ReturnType<typeof vi.fn>;
   };
   let mockCourseCategoryRepository: {
     findById: ReturnType<typeof vi.fn>;
@@ -102,6 +113,8 @@ describe('CourseService', () => {
       update: vi.fn(),
       findConflictingSlugs: vi.fn(),
       withTransaction: vi.fn(async (cb) => cb({} as ClientSession)),
+      softDelete: vi.fn().mockResolvedValue(true),
+      updateStatus: vi.fn(),
     };
 
     mockSectionRepository = {
@@ -112,11 +125,23 @@ describe('CourseService', () => {
       update: vi.fn(),
       softDelete: vi.fn().mockResolvedValue(true),
       shiftOrdersAfterDelete: vi.fn().mockResolvedValue(0),
+      softDeleteByCourseId: vi.fn().mockResolvedValue(1),
     };
 
     mockLessonRepository = {
       findBySectionId: vi.fn().mockResolvedValue([]),
+      findBySectionIds: vi.fn().mockResolvedValue([]),
       softDeleteBySectionId: vi.fn().mockResolvedValue(0),
+      softDeleteBySectionIds: vi.fn().mockResolvedValue(0),
+    };
+
+    mockCourseMindmapRepository = {
+      softDeleteByCourseId: vi.fn().mockResolvedValue(1),
+    };
+
+    mockEnrollmentRepository = {
+      countByCourseId: vi.fn().mockResolvedValue(0),
+      countByCourseIds: vi.fn().mockResolvedValue(new Map()),
     };
 
     mockUserRepository = {
@@ -142,6 +167,8 @@ describe('CourseService', () => {
       mockCourseCategoryRepository as unknown as CourseCategoryRepository,
       mockSectionRepository as unknown as SectionRepository,
       mockLessonRepository as unknown as LessonRepository,
+      mockCourseMindmapRepository as unknown as CourseMindmapRepository,
+      mockEnrollmentRepository as unknown as EnrollmentRepository,
       mockUserRepository as unknown as UserRepository,
       mockStorageService as unknown as StorageService,
       mockCls as unknown as ClsService,
@@ -346,7 +373,7 @@ describe('CourseService', () => {
 
       const result = await service.findByInstructorId('instructor_1');
       expect(mockCourseRepository.findByInstructorId).toHaveBeenCalledWith('instructor_1', undefined);
-      expect(result).toEqual(mockCourses);
+      expect(result).toEqual(mockCourses.map((c) => ({ ...c, studentsCount: 0 })));
     });
   });
 
@@ -374,7 +401,7 @@ describe('CourseService', () => {
       );
 
       expect(mockCourseRepository.findById).toHaveBeenCalledWith('course_100', undefined);
-      expect(result).toEqual(courseOwner);
+      expect(result).toEqual({ ...courseOwner, studentsCount: 0 });
     });
 
     it('should return course when user is ADMIN even if not owner', async () => {
@@ -386,7 +413,7 @@ describe('CourseService', () => {
         RoleEnum.ADMIN,
       );
 
-      expect(result).toEqual(courseOwner);
+      expect(result).toEqual({ ...courseOwner, studentsCount: 0 });
     });
 
     it('should throw NotFoundException when course does not exist', async () => {
@@ -1344,6 +1371,224 @@ describe('CourseService', () => {
           RoleEnum.INSTRUCTOR,
         ),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('deleteCourse', () => {
+    const courseToDelete: ICourse = {
+      id: 'course_del_1',
+      title: 'Khóa học xóa thử',
+      slug: 'khoa-hoc-xoa-thu',
+      instructorId: 'instructor_1',
+      price: 0,
+      level: CourseLevelEnum.BEGINNER,
+      status: CourseStatusEnum.DRAFT,
+      thumbnailUrl: 'https://storage/thumb.png',
+      trailerUrl: 'https://storage/trailer.mp4',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it('1. should successfully delete a draft course without students and cleanup MinIO files', async () => {
+      mockCourseRepository.findById.mockResolvedValue(courseToDelete);
+      mockEnrollmentRepository.countByCourseId.mockResolvedValue(0);
+      mockSectionRepository.findByCourseId.mockResolvedValue([{ id: 'sec_1' }]);
+      mockLessonRepository.findBySectionIds.mockResolvedValue([
+        {
+          id: 'les_1',
+          content: { url: 'https://storage/video.mp4', publicId: 'video_id' },
+          materials: [{ url: 'https://storage/doc.pdf' }],
+        },
+      ]);
+
+      const result = await service.deleteCourse('course_del_1', 'instructor_1', RoleEnum.INSTRUCTOR);
+
+      expect(result).toBe(true);
+      expect(mockCourseRepository.softDelete).toHaveBeenCalledWith('course_del_1', 'instructor_1', expect.anything());
+      expect(mockSectionRepository.softDeleteByCourseId).toHaveBeenCalledWith('course_del_1', 'instructor_1', expect.anything());
+      expect(mockLessonRepository.softDeleteBySectionIds).toHaveBeenCalledWith(['sec_1'], 'instructor_1', expect.anything());
+      expect(mockCourseMindmapRepository.softDeleteByCourseId).toHaveBeenCalledWith('course_del_1', 'instructor_1', expect.anything());
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith('https://storage/thumb.png');
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith('https://storage/trailer.mp4');
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith('https://storage/video.mp4');
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith('video_id');
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith('https://storage/doc.pdf');
+    });
+
+    it('2. should successfully delete a published course if enrollment count is 0', async () => {
+      mockCourseRepository.findById.mockResolvedValue({
+        ...courseToDelete,
+        status: CourseStatusEnum.PUBLISHED,
+      });
+      mockEnrollmentRepository.countByCourseId.mockResolvedValue(0);
+      mockSectionRepository.findByCourseId.mockResolvedValue([]);
+      mockLessonRepository.findBySectionIds.mockResolvedValue([]);
+
+      const result = await service.deleteCourse('course_del_1', 'instructor_1', RoleEnum.INSTRUCTOR);
+
+      expect(result).toBe(true);
+      expect(mockCourseRepository.softDelete).toHaveBeenCalled();
+    });
+
+    it('3. should throw ConflictException when course is in PENDING_APPROVAL status', async () => {
+      mockCourseRepository.findById.mockResolvedValue({
+        ...courseToDelete,
+        status: CourseStatusEnum.PENDING_APPROVAL,
+      });
+
+      await expect(
+        service.deleteCourse('course_del_1', 'instructor_1', RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(ConflictException);
+      expect(mockCourseRepository.softDelete).not.toHaveBeenCalled();
+    });
+
+    it('4. should throw BadRequestException when course has enrolled students', async () => {
+      mockCourseRepository.findById.mockResolvedValue({
+        ...courseToDelete,
+        status: CourseStatusEnum.PUBLISHED,
+      });
+      mockEnrollmentRepository.countByCourseId.mockResolvedValue(5);
+
+      await expect(
+        service.deleteCourse('course_del_1', 'instructor_1', RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockCourseRepository.softDelete).not.toHaveBeenCalled();
+    });
+
+    it('5. should throw ForbiddenException when user is not owner and not admin', async () => {
+      mockCourseRepository.findById.mockResolvedValue(courseToDelete);
+
+      await expect(
+        service.deleteCourse('course_del_1', 'other_instructor', RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockCourseRepository.softDelete).not.toHaveBeenCalled();
+    });
+
+    it('6. should allow ADMIN to delete course of another instructor', async () => {
+      mockCourseRepository.findById.mockResolvedValue(courseToDelete);
+      mockEnrollmentRepository.countByCourseId.mockResolvedValue(0);
+      mockSectionRepository.findByCourseId.mockResolvedValue([]);
+      mockLessonRepository.findBySectionIds.mockResolvedValue([]);
+
+      const result = await service.deleteCourse('course_del_1', 'admin_1', RoleEnum.ADMIN);
+      expect(result).toBe(true);
+    });
+
+    it('7. should throw NotFoundException when course is not found or soft-deleted', async () => {
+      mockCourseRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.deleteCourse('non_existent', 'instructor_1', RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('archiveCourse & unarchiveCourse', () => {
+    const publishedCourse: ICourse = {
+      id: 'course_pub_1',
+      title: 'Khóa học xuất bản',
+      slug: 'khoa-hoc-xuat-ban',
+      instructorId: 'instructor_1',
+      price: 100000,
+      level: CourseLevelEnum.INTERMEDIATE,
+      status: CourseStatusEnum.PUBLISHED,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const archivedCourse: ICourse = {
+      ...publishedCourse,
+      status: CourseStatusEnum.ARCHIVED,
+    };
+
+    it('1. should successfully archive a published course', async () => {
+      mockCourseRepository.findById.mockResolvedValue(publishedCourse);
+      mockCourseRepository.updateStatus.mockResolvedValue(archivedCourse);
+      mockEnrollmentRepository.countByCourseId.mockResolvedValue(3);
+
+      const result = await service.archiveCourse('course_pub_1', 'instructor_1', RoleEnum.INSTRUCTOR);
+
+      expect(result.status).toBe(CourseStatusEnum.ARCHIVED);
+      expect(result.studentsCount).toBe(3);
+      expect(mockCourseRepository.updateStatus).toHaveBeenCalledWith(
+        'course_pub_1',
+        CourseStatusEnum.PUBLISHED,
+        CourseStatusEnum.ARCHIVED,
+        'instructor_1',
+      );
+    });
+
+    it('2. should throw ConflictException if trying to archive a non-published course', async () => {
+      mockCourseRepository.findById.mockResolvedValue({
+        ...publishedCourse,
+        status: CourseStatusEnum.DRAFT,
+      });
+
+      await expect(
+        service.archiveCourse('course_pub_1', 'instructor_1', RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('3. should successfully unarchive an archived course', async () => {
+      mockCourseRepository.findById.mockResolvedValue(archivedCourse);
+      mockCourseRepository.updateStatus.mockResolvedValue(publishedCourse);
+      mockEnrollmentRepository.countByCourseId.mockResolvedValue(3);
+
+      const result = await service.unarchiveCourse('course_pub_1', 'instructor_1', RoleEnum.INSTRUCTOR);
+
+      expect(result.status).toBe(CourseStatusEnum.PUBLISHED);
+      expect(result.studentsCount).toBe(3);
+      expect(mockCourseRepository.updateStatus).toHaveBeenCalledWith(
+        'course_pub_1',
+        CourseStatusEnum.ARCHIVED,
+        CourseStatusEnum.PUBLISHED,
+        'instructor_1',
+      );
+    });
+
+    it('4. should throw ConflictException if trying to unarchive a non-archived course', async () => {
+      mockCourseRepository.findById.mockResolvedValue(publishedCourse);
+
+      await expect(
+        service.unarchiveCourse('course_pub_1', 'instructor_1', RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('findByInstructorId and studentsCount enrichment', () => {
+    it('should enrich courses with studentsCount from enrollment repository', async () => {
+      const c1: ICourse = {
+        id: 'c_1',
+        title: 'Khóa 1',
+        slug: 'khoa-1',
+        instructorId: 'instructor_1',
+        price: 0,
+        level: CourseLevelEnum.BEGINNER,
+        status: CourseStatusEnum.PUBLISHED,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const c2: ICourse = {
+        id: 'c_2',
+        title: 'Khóa 2',
+        slug: 'khoa-2',
+        instructorId: 'instructor_1',
+        price: 0,
+        level: CourseLevelEnum.BEGINNER,
+        status: CourseStatusEnum.DRAFT,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockCourseRepository.findByInstructorId.mockResolvedValue([c1, c2]);
+      const countMap = new Map<string, number>([['c_1', 10], ['c_2', 0]]);
+      mockEnrollmentRepository.countByCourseIds.mockResolvedValue(countMap);
+
+      const result = await service.findByInstructorId('instructor_1');
+
+      expect(result).toHaveLength(2);
+      expect(result[0].studentsCount).toBe(10);
+      expect(result[1].studentsCount).toBe(0);
     });
   });
 

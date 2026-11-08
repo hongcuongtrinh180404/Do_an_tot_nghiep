@@ -1,11 +1,19 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { buttonVariants } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { useCourseDetailQuery } from '../api/course.api';
+import { DeleteConfirmDialog, ActionConfirmDialog } from '@/components/shared/dialog';
+import {
+  useCourseDetailQuery,
+  useDeleteCourseMutation,
+  useArchiveCourseMutation,
+  useUnarchiveCourseMutation,
+} from '../api/course.api';
+import { useCancelCourseApprovalMutation } from '../api/course-approval.api';
 import { CourseLevelEnum, CourseStatusEnum } from '../types/course.types';
 import { CourseDetailSkeleton } from './course-detail-skeleton';
 import { CourseSectionsList } from './course-sections-list';
@@ -40,7 +48,7 @@ const statusMap: Record<CourseStatusEnum, { label: string; className: string }> 
     className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
   },
   [CourseStatusEnum.ARCHIVED]: {
-    label: 'Lưu trữ',
+    label: 'Ngừng bán',
     className: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20',
   },
 };
@@ -67,10 +75,21 @@ function formatDate(dateValue: Date | string): string {
 }
 
 export function CourseDetailContent({ courseId }: CourseDetailContentProps): React.JSX.Element {
+  const router = useRouter();
   const { data: course, isLoading, isError, error, refetch } = useCourseDetailQuery(courseId);
   const rootRef = React.useRef<HTMLDivElement>(null);
   const curriculumRef = React.useRef<CourseCurriculumHandle>(null);
   const approvalNavigation = useCourseApprovalNavigation(rootRef, curriculumRef);
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isCancelApprovalDialogOpen, setIsCancelApprovalDialogOpen] = useState(false);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [isUnarchiveDialogOpen, setIsUnarchiveDialogOpen] = useState(false);
+
+  const deleteMutation = useDeleteCourseMutation();
+  const cancelApprovalMutation = useCancelCourseApprovalMutation(courseId);
+  const archiveMutation = useArchiveCourseMutation(courseId);
+  const unarchiveMutation = useUnarchiveCourseMutation(courseId);
 
   if (isLoading) {
     return <CourseDetailSkeleton />;
@@ -145,12 +164,58 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
   }
 
   const isLocked = course.status === CourseStatusEnum.PENDING_APPROVAL;
+  const isPublished = course.status === CourseStatusEnum.PUBLISHED;
+  const isArchived = course.status === CourseStatusEnum.ARCHIVED;
+  const studentsCount = course.studentsCount ?? 0;
+  const hasStudents = studentsCount > 0;
+  const canDelete = !isLocked && !hasStudents;
+
+  let deleteDisabledReason = '';
+  if (isLocked) {
+    deleteDisabledReason = 'Khóa học đang chờ duyệt. Vui lòng rút yêu cầu duyệt trước khi xóa.';
+  } else if (hasStudents) {
+    deleteDisabledReason = `Khóa học đã có ${studentsCount} học viên đăng ký. Không thể xóa để bảo đảm quyền lợi học tập của học viên.`;
+  }
+
   const statusInfo = statusMap[course.status] ?? {
     label: course.status,
     className: 'bg-muted text-muted-foreground border-border/50',
   };
   const levelText = levelMap[course.level] ?? 'Mọi cấp độ';
   const createdDate = formatDate(course.createdAt);
+
+  const handleDelete = () => {
+    deleteMutation.mutate(course.id, {
+      onSuccess: () => {
+        setIsDeleteDialogOpen(false);
+        router.push('/courses');
+      },
+    });
+  };
+
+  const handleCancelApproval = () => {
+    cancelApprovalMutation.mutate(undefined, {
+      onSuccess: () => {
+        setIsCancelApprovalDialogOpen(false);
+      },
+    });
+  };
+
+  const handleArchive = () => {
+    archiveMutation.mutate(undefined, {
+      onSuccess: () => {
+        setIsArchiveDialogOpen(false);
+      },
+    });
+  };
+
+  const handleUnarchive = () => {
+    unarchiveMutation.mutate(undefined, {
+      onSuccess: () => {
+        setIsUnarchiveDialogOpen(false);
+      },
+    });
+  };
 
   return (
     <div ref={rootRef} className={`${approvalStyles.scope} w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6`}>
@@ -192,11 +257,11 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
         </div>
       </div>
 
-      {/* 1. Locked Status Alert Banner */}
+      {/* 1. Locked Status Alert Banner with Withdraw Approval Action */}
       {isLocked && (
         <div
           role="status"
-          className="flex items-start sm:items-center justify-between gap-3 p-4 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-950 dark:text-sky-100 shadow-xs"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-950 dark:text-sky-100 shadow-xs"
         >
           <div className="flex items-center gap-3">
             <div className="size-9 rounded-lg bg-sky-500/15 flex items-center justify-center shrink-0 text-sky-600 dark:text-sky-400">
@@ -210,10 +275,22 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
                 </span>
               </h4>
               <p className="text-xs text-sky-800/80 dark:text-sky-200/80 mt-0.5">
-                Khóa học đang trong quá trình kiểm duyệt của Quản trị viên. Tất cả chức năng chỉnh sửa nội dung tạm thời bị khóa cho đến khi có phản hồi hoặc kết quả phê duyệt.
+                Khóa học đang trong quá trình kiểm duyệt của Quản trị viên. Bạn có thể rút yêu cầu để mở khóa chỉnh sửa nội dung hoặc xóa khóa học.
               </p>
             </div>
           </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsCancelApprovalDialogOpen(true)}
+            aria-label="Rút yêu cầu phê duyệt để mở khóa chỉnh sửa"
+            className="shrink-0 gap-1.5 text-xs font-semibold bg-white dark:bg-zinc-900 border-sky-500/40 text-sky-800 dark:text-sky-200 hover:bg-sky-50 dark:hover:bg-sky-950 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-hidden"
+          >
+            <Icon icon="lucide:undo-2" className="size-3.5" />
+            <span>Rút yêu cầu phê duyệt</span>
+          </Button>
         </div>
       )}
 
@@ -251,7 +328,7 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
       {/* Hero Overview Card */}
       <Card className="border-border/50 bg-card/60 shadow-xs overflow-visible">
         <CardHeader className="space-y-4 pb-6">
-          {/* Status & Level Badges */}
+          {/* Status & Level Badges & Lifecycle Actions */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <span
@@ -281,12 +358,68 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
                 </span>
               ) : null}
             </div>
-            <CourseApprovalDialog
-              key={course.id}
-              course={course}
-              onNavigateToMissing={approvalNavigation.navigate}
-              onOpenChecklist={approvalNavigation.cancel}
-            />
+
+            {/* Lifecycle Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2">
+              {isPublished && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsArchiveDialogOpen(true)}
+                  aria-label="Ngừng bán khóa học"
+                  className="gap-1.5 text-xs text-zinc-700 dark:text-zinc-300 border-zinc-500/30 hover:bg-zinc-500/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                  title="Ngừng bán khóa học"
+                >
+                  <Icon icon="lucide:pause-circle" className="size-3.5" />
+                  <span>Ngừng bán</span>
+                </Button>
+              )}
+
+              {isArchived && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsUnarchiveDialogOpen(true)}
+                  aria-label="Mở bán lại khóa học"
+                  className="gap-1.5 text-xs text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                  title="Mở bán lại khóa học"
+                >
+                  <Icon icon="lucide:play-circle" className="size-3.5" />
+                  <span>Mở bán lại</span>
+                </Button>
+              )}
+
+              <span
+                className="inline-block"
+                title={canDelete ? 'Xóa khóa học' : deleteDisabledReason}
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!canDelete}
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  aria-label={canDelete ? 'Xóa khóa học' : `Không thể xóa: ${deleteDisabledReason}`}
+                  className={`gap-1.5 text-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden ${
+                    canDelete
+                      ? 'text-destructive hover:bg-destructive/10 border-destructive/30'
+                      : 'opacity-50 cursor-not-allowed text-muted-foreground'
+                  }`}
+                >
+                  <Icon icon="lucide:trash-2" className="size-3.5" />
+                  <span>Xóa khóa học</span>
+                </Button>
+              </span>
+
+              <CourseApprovalDialog
+                key={course.id}
+                course={course}
+                onNavigateToMissing={approvalNavigation.navigate}
+                onOpenChecklist={approvalNavigation.cancel}
+              />
+            </div>
           </div>
 
           {/* Title */}
@@ -295,7 +428,7 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
 
         {/* Quick Stats Grid */}
         <CardContent className="pt-4 border-t border-border/40">
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Price Popover */}
             <CoursePriceInlinePopover course={course} disabled={isLocked} />
 
@@ -304,6 +437,15 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
 
             {/* Category Select */}
             <CourseCategoryInlineSelect course={course} disabled={isLocked} />
+
+            {/* Students Count */}
+            <div className="p-3 rounded-lg bg-muted/25 border border-border/30">
+              <span className="text-xs text-muted-foreground block mb-1">Học viên</span>
+              <span className="text-sm sm:text-base font-semibold text-foreground flex items-center gap-1.5">
+                <Icon icon="lucide:users" className="size-4 text-primary" />
+                {studentsCount}
+              </span>
+            </div>
 
             {/* Created At */}
             <div className="p-3 rounded-lg bg-muted/25 border border-border/30">
@@ -332,6 +474,63 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
 
       {/* Course Curriculum / Sections Section */}
       <CourseSectionsList courseId={courseId} approvalRef={curriculumRef} readOnly={isLocked} />
+
+      {/* 1. Delete Confirm Dialog */}
+      <DeleteConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Xác nhận xóa khóa học"
+        itemName={course.title}
+        description={`Bạn có chắc chắn muốn xóa khóa học "${course.title}" không? Toàn bộ chương, bài học, tài liệu và sơ đồ tư duy liên quan sẽ được xóa. Thao tác này không thể hoàn tác.`}
+        onConfirm={handleDelete}
+        isLoading={deleteMutation.isPending}
+        confirmText="Xác nhận xóa"
+      />
+
+      {/* 2. Cancel Approval Dialog */}
+      <ActionConfirmDialog
+        open={isCancelApprovalDialogOpen}
+        onOpenChange={setIsCancelApprovalDialogOpen}
+        title="Hủy yêu cầu phê duyệt"
+        itemName={course.title}
+        variant="warning"
+        icon="lucide:undo-2"
+        description={`Bạn có chắc chắn muốn rút lại yêu cầu phê duyệt cho khóa học "${course.title}"?`}
+        noticeText="Khóa học sẽ chuyển về trạng thái Bản nháp và mở khóa toàn bộ quyền chỉnh sửa nội dung cũng như cho phép xóa khóa học."
+        onConfirm={handleCancelApproval}
+        isLoading={cancelApprovalMutation.isPending}
+        confirmText="Xác nhận rút duyệt"
+      />
+
+      {/* 3. Archive (Ngừng bán) Dialog */}
+      <ActionConfirmDialog
+        open={isArchiveDialogOpen}
+        onOpenChange={setIsArchiveDialogOpen}
+        title="Xác nhận ngừng bán khóa học"
+        itemName={course.title}
+        variant="info"
+        icon="lucide:pause-circle"
+        description={`Khóa học "${course.title}" sẽ được chuyển sang chế độ "Ngừng bán" (Lưu trữ) và ẩn khỏi danh mục công khai.`}
+        noticeText={`Học viên mới sẽ không thể mua, nhưng tất cả ${studentsCount} học viên đã mua trước đó vẫn được giữ nguyên 100% quyền học tập bình thường.`}
+        onConfirm={handleArchive}
+        isLoading={archiveMutation.isPending}
+        confirmText="Xác nhận ngừng bán"
+      />
+
+      {/* 4. Unarchive (Mở bán lại) Dialog */}
+      <ActionConfirmDialog
+        open={isUnarchiveDialogOpen}
+        onOpenChange={setIsUnarchiveDialogOpen}
+        title="Xác nhận mở bán lại khóa học"
+        itemName={course.title}
+        variant="success"
+        icon="lucide:play-circle"
+        description={`Bạn có muốn mở bán lại khóa học "${course.title}"?`}
+        noticeText="Khóa học sẽ xuất hiện trở lại trên danh mục công khai để học viên mới có thể tìm kiếm và đăng ký tham gia khóa học."
+        onConfirm={handleUnarchive}
+        isLoading={unarchiveMutation.isPending}
+        confirmText="Mở bán lại"
+      />
     </div>
   );
 }

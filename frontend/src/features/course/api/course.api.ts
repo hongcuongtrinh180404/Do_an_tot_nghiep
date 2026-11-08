@@ -47,6 +47,18 @@ export const courseApi = {
     const res = await apiClient.patch<IApiResponse<ICourse>>(`/courses/${id}`, payload);
     return res.data.data;
   },
+  async deleteCourse(id: string): Promise<null> {
+    const res = await apiClient.delete<IApiResponse<null>>(`/courses/${id}`);
+    return res.data.data;
+  },
+  async archiveCourse(id: string): Promise<ICourse> {
+    const res = await apiClient.post<IApiResponse<ICourse>>(`/courses/${id}/archive`);
+    return res.data.data;
+  },
+  async unarchiveCourse(id: string): Promise<ICourse> {
+    const res = await apiClient.post<IApiResponse<ICourse>>(`/courses/${id}/unarchive`);
+    return res.data.data;
+  },
   async getMyCourses(): Promise<ICourse[]> {
     const res = await apiClient.get<IApiResponse<ICourse[]>>('/courses/my-courses');
     return res.data.data;
@@ -469,6 +481,79 @@ export function useUpdateCourseMutation(courseId: string) {
         ? axiosError.response?.data?.message.join(', ')
         : axiosError.response?.data?.message || 'Không thể cập nhật khóa học. Vui lòng thử lại sau.';
       toast.error(message);
+    },
+  });
+}
+
+export function useDeleteCourseMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (courseId: string) => courseApi.deleteCourse(courseId),
+    onSuccess: (_, courseId) => {
+      void queryClient.invalidateQueries({ queryKey: courseKeys.myCourses() });
+      void queryClient.invalidateQueries({ queryKey: courseKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
+      queryClient.removeQueries({ queryKey: courseKeys.detail(courseId) });
+      toast.success('Xóa khóa học thành công!');
+    },
+    onError: (error: unknown) => {
+      const axiosError = error as {
+        response?: { data?: { message?: string | string[] } };
+      };
+      const raw = axiosError.response?.data?.message;
+      const msg = Array.isArray(raw) ? raw.join(', ') : raw;
+      toast.error(msg || 'Không thể xóa khóa học. Vui lòng thử lại sau.');
+    },
+  });
+}
+
+export function useArchiveCourseMutation(courseId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => courseApi.archiveCourse(courseId),
+    onSuccess: (updatedCourse) => {
+      queryClient.setQueryData(courseKeys.detail(courseId), updatedCourse);
+      void queryClient.invalidateQueries({ queryKey: courseKeys.detail(courseId) });
+      void queryClient.invalidateQueries({ queryKey: courseKeys.myCourses() });
+      void queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
+      toast.success('Đã ngừng bán khóa học', {
+        description: 'Khóa học đã được chuyển sang chế độ lưu trữ và ẩn khỏi danh mục công khai.',
+      });
+    },
+    onError: (error: unknown) => {
+      const axiosError = error as {
+        response?: { data?: { message?: string | string[] } };
+      };
+      const raw = axiosError.response?.data?.message;
+      const msg = Array.isArray(raw) ? raw.join(', ') : raw;
+      toast.error(msg || 'Không thể ngừng bán khóa học. Vui lòng thử lại sau.');
+    },
+  });
+}
+
+export function useUnarchiveCourseMutation(courseId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => courseApi.unarchiveCourse(courseId),
+    onSuccess: (updatedCourse) => {
+      queryClient.setQueryData(courseKeys.detail(courseId), updatedCourse);
+      void queryClient.invalidateQueries({ queryKey: courseKeys.detail(courseId) });
+      void queryClient.invalidateQueries({ queryKey: courseKeys.myCourses() });
+      void queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
+      toast.success('Đã mở bán lại khóa học', {
+        description: 'Khóa học đã xuất hiện trở lại trên danh mục công khai để học viên đăng ký.',
+      });
+    },
+    onError: (error: unknown) => {
+      const axiosError = error as {
+        response?: { data?: { message?: string | string[] } };
+      };
+      const raw = axiosError.response?.data?.message;
+      const msg = Array.isArray(raw) ? raw.join(', ') : raw;
+      toast.error(msg || 'Không thể mở bán lại khóa học. Vui lòng thử lại sau.');
     },
   });
 }

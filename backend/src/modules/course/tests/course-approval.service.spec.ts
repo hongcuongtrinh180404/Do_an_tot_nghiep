@@ -11,6 +11,8 @@ import type { CourseRepository } from '../repositories/course.repository.js';
 import type { CourseCategoryRepository } from '../repositories/course-category.repository.js';
 import type { SectionRepository } from '../repositories/section.repository.js';
 import type { LessonRepository } from '../repositories/lesson.repository.js';
+import type { CourseMindmapRepository } from '../repositories/course-mindmap.repository.js';
+import type { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
 import type { UserRepository } from '../../user/repositories/user.repository.js';
 import type { StorageService } from '../../storage/index.js';
 
@@ -19,7 +21,7 @@ describe('CourseApprovalService', () => {
   const instructorId = '507f1f77bcf86cd799439012';
   const sectionId = '507f1f77bcf86cd799439013';
   let course: ICourse;
-  const courseRepository = { findById: vi.fn(), requestApproval: vi.fn() };
+  const courseRepository = { findById: vi.fn(), requestApproval: vi.fn(), withdrawApproval: vi.fn() };
   const categoryRepository = { findById: vi.fn() };
   const sectionRepository = { findByCourseId: vi.fn() };
   const lessonRepository = { findBySectionIds: vi.fn() };
@@ -32,7 +34,7 @@ describe('CourseApprovalService', () => {
       instructorId, categoryId: '507f1f77bcf86cd799439014', level: CourseLevelEnum.ALL_LEVELS,
       description: '<p>Nội dung khóa học.</p>', price: 0,
       thumbnailUrl: 'https://media.example.com/thumb.webp', trailerUrl: 'https://media.example.com/trailer.mp4',
-      status: CourseStatusEnum.DRAFT, createdAt: new Date(), updatedAt: new Date(),
+      status: CourseStatusEnum.DRAFT, studentsCount: 0, createdAt: new Date(), updatedAt: new Date(),
     };
     courseRepository.findById.mockImplementation(async () => course);
     courseRepository.requestApproval.mockImplementation(async () => ({ ...course, status: CourseStatusEnum.PENDING_APPROVAL }));
@@ -47,6 +49,8 @@ describe('CourseApprovalService', () => {
       categoryRepository as unknown as CourseCategoryRepository,
       sectionRepository as unknown as SectionRepository,
       lessonRepository as unknown as LessonRepository,
+      {} as CourseMindmapRepository,
+      { countByCourseId: vi.fn().mockResolvedValue(0), countByCourseIds: vi.fn().mockResolvedValue(new Map()) } as unknown as EnrollmentRepository,
       {} as UserRepository, {} as StorageService, { get: vi.fn() } as unknown as ClsService,
     );
     service = new CourseApprovalService(
@@ -116,5 +120,36 @@ describe('CourseApprovalService', () => {
     lessonRepository.findBySectionIds.mockRejectedValue(new Error('database unavailable'));
     await expect(service.requestApproval(courseId, instructorId, RoleEnum.INSTRUCTOR)).rejects.toThrow('database unavailable');
     expect(courseRepository.requestApproval).not.toHaveBeenCalled();
+  });
+
+  describe('withdrawApproval', () => {
+    it('successfully withdraws approval when course is in PENDING_APPROVAL status', async () => {
+      course.status = CourseStatusEnum.PENDING_APPROVAL;
+      courseRepository.withdrawApproval.mockResolvedValueOnce({
+        ...course,
+        status: CourseStatusEnum.DRAFT,
+      });
+
+      const result = await service.withdrawApproval(courseId, instructorId, RoleEnum.INSTRUCTOR);
+      expect(result.status).toBe(CourseStatusEnum.DRAFT);
+      expect(courseRepository.withdrawApproval).toHaveBeenCalledWith(courseId, instructorId);
+    });
+
+    it('rejects withdrawal if course is not in PENDING_APPROVAL status', async () => {
+      course.status = CourseStatusEnum.DRAFT;
+      await expect(
+        service.withdrawApproval(courseId, instructorId, RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(ConflictException);
+      expect(courseRepository.withdrawApproval).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException if concurrent update makes withdrawApproval return null', async () => {
+      course.status = CourseStatusEnum.PENDING_APPROVAL;
+      courseRepository.withdrawApproval.mockResolvedValueOnce(null);
+
+      await expect(
+        service.withdrawApproval(courseId, instructorId, RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(ConflictException);
+    });
   });
 });

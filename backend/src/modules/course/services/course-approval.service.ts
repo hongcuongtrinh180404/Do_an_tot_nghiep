@@ -57,4 +57,17 @@ export class CourseApprovalService {
     }
     return updatedCourse;
   }
+
+  async withdrawApproval(courseId: string, userId: string, role: RoleEnum): Promise<ICourse> {
+    const course = await this.courseService.getCourseDetailForInstructor(courseId, userId, role);
+    if (course.status !== CourseStatusEnum.PENDING_APPROVAL) {
+      throw new ConflictException('Chỉ có thể hủy yêu cầu phê duyệt khi khóa học đang ở trạng thái chờ duyệt.');
+    }
+
+    const updatedCourse = await this.courseRepository.withdrawApproval(courseId, userId);
+    if (!updatedCourse) {
+      throw new ConflictException('Khóa học vừa thay đổi trạng thái hoặc đã được quản trị viên xử lý. Vui lòng tải lại trang.');
+    }
+    return updatedCourse;
+  }
 }

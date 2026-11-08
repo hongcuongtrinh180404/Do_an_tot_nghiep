@@ -31,4 +31,30 @@ export class CourseApprovalController {
       'Đã gửi yêu cầu phê duyệt khóa học.',
     );
   }
+
+  @Post(':id/cancel-approval')
+  @HttpCode(HttpStatus.OK)
+  async cancelApproval(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: RoleEnum,
+  ): Promise<ApiResponse<ICourse>> {
+    return ApiResponse.success(
+      await this.approvalService.withdrawApproval(id, userId, role),
+      'Đã hủy yêu cầu phê duyệt khóa học thành công.',
+    );
+  }
+
+  @Post(':id/withdraw-approval')
+  @HttpCode(HttpStatus.OK)
+  async withdrawApproval(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: RoleEnum,
+  ): Promise<ApiResponse<ICourse>> {
+    return ApiResponse.success(
+      await this.approvalService.withdrawApproval(id, userId, role),
+      'Đã rút yêu cầu phê duyệt khóa học thành công.',
+    );
+  }
 }

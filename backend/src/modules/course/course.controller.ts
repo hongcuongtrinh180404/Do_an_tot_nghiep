@@ -123,6 +123,41 @@ export class CourseController {
     return ApiResponse.success(course, 'Cập nhật khóa học thành công');
   }
 
+  @Delete(':id')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  async deleteCourse(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: RoleEnum,
+  ): Promise<ApiResponse<null>> {
+    await this.courseService.deleteCourse(id, userId, role);
+    return ApiResponse.success(null, 'Xóa khóa học thành công');
+  }
+
+  @Post(':id/archive')
+  @HttpCode(HttpStatus.OK)
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  async archiveCourse(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: RoleEnum,
+  ): Promise<ApiResponse<ICourse>> {
+    const course = await this.courseService.archiveCourse(id, userId, role);
+    return ApiResponse.success(course, 'Ngừng bán khóa học thành công');
+  }
+
+  @Post(':id/unarchive')
+  @HttpCode(HttpStatus.OK)
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  async unarchiveCourse(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: RoleEnum,
+  ): Promise<ApiResponse<ICourse>> {
+    const course = await this.courseService.unarchiveCourse(id, userId, role);
+    return ApiResponse.success(course, 'Mở bán lại khóa học thành công');
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @Roles(RoleEnum.INSTRUCTOR)
