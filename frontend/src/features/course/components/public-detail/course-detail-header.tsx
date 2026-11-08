@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { toast } from 'sonner';
 import { CourseLevelEnum } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import type { IPublicCourseDetailResponse } from '../../api/enrollment.api';
@@ -26,18 +25,7 @@ export function CourseDetailHeader({
   totalLessonsCount,
   totalDurationFormatted,
 }: CourseDetailHeaderProps): React.JSX.Element {
-  const [isWishlisted, setIsWishlisted] = useState<boolean>(false);
   const levelInfo = levelLabels[course.level] || { name: 'Cơ bản', dots: 1 };
-
-  const handleToggleWishlist = (): void => {
-    const nextState = !isWishlisted;
-    setIsWishlisted(nextState);
-    if (nextState) {
-      toast.success('Đã thêm khóa học vào danh sách yêu thích');
-    } else {
-      toast.info('Đã xóa khỏi danh sách yêu thích');
-    }
-  };
 
   return (
     <header className="space-y-4">
@@ -67,8 +55,8 @@ export function CourseDetailHeader({
         </span>
       </nav>
 
-      {/* 2. Top Badges & Actions */}
-      <div className="flex items-center justify-between gap-3 pt-1">
+      {/* 2. Top Badges */}
+      <div className="pt-1">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {/* Best Seller Badge */}
           <span className="inline-flex items-center gap-1 rounded bg-[#ffd100] px-2.5 py-1 text-xs font-bold text-[#161616] uppercase tracking-wide">
@@ -101,23 +89,6 @@ export function CourseDetailHeader({
             <span>{levelInfo.name}</span>
           </div>
         </div>
-
-        {/* Wishlist Button */}
-        <button
-          type="button"
-          onClick={handleToggleWishlist}
-          aria-label={isWishlisted ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
-          className={`size-10 rounded-full border transition-all flex items-center justify-center cursor-pointer ${
-            isWishlisted
-              ? 'border-red-200 bg-red-50 text-red-600 shadow-xs'
-              : 'border-[#e5e7eb] bg-white text-[#666666] hover:text-red-500 hover:border-red-200'
-          }`}
-        >
-          <Icon
-            icon={isWishlisted ? 'lucide:heart' : 'lucide:heart'}
-            className={`size-5 transition-transform ${isWishlisted ? 'fill-current scale-110' : ''}`}
-          />
-        </button>
       </div>
 
       {/* 3. Main Course Title */}
@@ -190,4 +161,3 @@ export function CourseDetailHeader({
     </header>
   );
 }
-

@@ -8,6 +8,7 @@ import { LessonRepository } from '../repositories/lesson.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
 import { CourseRepository } from '../repositories/course.repository.js';
 import { StorageService } from '../../storage/index.js';
+import { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
 
 describe('LessonService', () => {
   let service: LessonService;
@@ -26,6 +27,9 @@ describe('LessonService', () => {
   };
   let mockCourseRepository: {
     findById: ReturnType<typeof vi.fn>;
+  };
+  let mockEnrollmentRepository: {
+    findByUserAndCourse: ReturnType<typeof vi.fn>;
   };
   let mockStorageService: {
     uploadLessonMedia: ReturnType<typeof vi.fn>;
@@ -82,6 +86,10 @@ describe('LessonService', () => {
       findById: vi.fn(),
     };
 
+    mockEnrollmentRepository = {
+      findByUserAndCourse: vi.fn(),
+    };
+
     mockStorageService = {
       uploadLessonMedia: vi.fn(),
       deleteFile: vi.fn(),
@@ -95,6 +103,7 @@ describe('LessonService', () => {
       mockLessonRepository as unknown as LessonRepository,
       mockSectionRepository as unknown as SectionRepository,
       mockCls as unknown as ClsService,
+      mockEnrollmentRepository as unknown as EnrollmentRepository,
       mockStorageService as unknown as StorageService,
       mockCourseRepository as unknown as CourseRepository,
     );

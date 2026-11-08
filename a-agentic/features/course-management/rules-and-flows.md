@@ -55,3 +55,13 @@
      - Nhờ cơ chế Document-level lock của WiredTiger engine, chỉ đúng 1 câu lệnh cập nhật thành công.
      - Admin thứ hai sẽ không match được bản ghi nào (vì trạng thái đã đổi khác `PENDING_APPROVAL`), backend trả về ngay `409 ConflictException` ("Khóa học không ở trạng thái chờ duyệt hoặc đã được xử lý bởi quản trị viên khác.").
      - Giao diện Admin hiển thị toast lỗi rõ ràng và tự động refetch bảng dữ liệu.
+
+8. **Phân Định Quyền Hạn Triệt Để Giữa Trải Nghiệm Học Viên & Studio Biên Tập (Strict Dual-Mode Isolation)**:
+   - **Nguyên tắc cốt lõi**: Khi Giảng viên hoặc Quản trị viên truy cập vào bài học/khóa học với tư cách học viên, tuyệt đối không được có bất kỳ quyền hạn hay giao diện chỉnh sửa nào can thiệp.
+   - **Tầng Backend (`LessonManagementGuard`)**:
+     - Mọi endpoint sửa đổi bài học (`POST /sections/:sectionId/lessons`), upload/xóa tài liệu (`/lessons/:id/materials`), xóa bài học, retry phiên âm, đồng bộ/xóa quiz (`/lessons/:id/quizzes`), và kích hoạt AI phân tích transcript (`/lessons/:id/analysis/*`) bắt buộc phải gắn `@UseGuards(LessonManagementGuard)`.
+     - Guard tự động truy vết ngược cây thực thể: `quizId -> lessonId -> sectionId -> courseId`, kiểm tra quyền sở hữu `course.instructorId === user.id` (hoặc `RoleEnum.ADMIN`), loại trừ dữ liệu bị xóa mềm (`deletedAt`), và chặn thao tác nếu khóa học đang ở trạng thái `PENDING_APPROVAL` (409 Conflict).
+   - **Tầng Frontend (`CourseViewMode`)**:
+     - Quy ước hiển thị: Mặc định tất cả các route chi tiết khóa học `/courses/:id` và bài học `/courses/:id/lessons/:id` đều hoạt động ở chế độ `'learn'` (Học tập thuần túy).
+     - Chỉ khi có query parameter tường minh `?mode=edit` và thỏa mãn `canEditCourseContent(user, course, mode)`, giao diện mới mở các tính năng biên tập: sửa node Mindmap, kéo thả canvas, marker timeline quiz, modal thêm câu hỏi, và sửa tóm tắt bài giảng.
+     - Khi xem ở chế độ học viên, hệ thống khóa kéo thả node canvas (`nodesDraggable={false}`), ẩn các trigger thêm/sửa/xóa và nút sinh AI.

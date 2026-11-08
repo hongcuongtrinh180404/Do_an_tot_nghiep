@@ -38,6 +38,7 @@ const edgeTypes: EdgeTypes = {
 
 export interface LessonMindmapCanvasViewProps {
   root: ILessonMindmapNode;
+  canEdit?: boolean;
   currentTime?: number;
   duration?: number;
   onSeek?: (timestamp: number) => void;
@@ -47,6 +48,7 @@ export interface LessonMindmapCanvasViewProps {
 
 function LessonMindmapFlowCanvas({
   root,
+  canEdit = false,
   currentTime = 0,
   onSeek,
   collapsedIds,
@@ -324,8 +326,10 @@ function LessonMindmapFlowCanvas({
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
-          nodesDraggable={true}
+          nodesDraggable={canEdit}
           nodesConnectable={false}
+          edgesReconnectable={false}
+          deleteKeyCode={null}
           elementsSelectable={true}
           minZoom={0.2}
           maxZoom={2}

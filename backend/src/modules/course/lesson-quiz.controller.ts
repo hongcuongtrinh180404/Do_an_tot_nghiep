@@ -5,6 +5,7 @@ import {
   Delete,
   Param,
   Body,
+  UseGuards,
 } from '@nestjs/common';
 import { ILessonQuiz, RoleEnum } from 'share-lib';
 import { ApiResponse, ParseObjectIdPipe } from '../base/index.js';
@@ -13,6 +14,7 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
 import { LessonQuizService } from './services/lesson-quiz.service.js';
 import { SyncLessonQuizzesAtTimestampDto } from './dto/sync-lesson-quizzes.dto.js';
 import { MoveMergeLessonQuizzesDto } from './dto/move-merge-lesson-quizzes.dto.js';
+import { LessonManagementGuard } from './guards/lesson-management.guard.js';
 
 @Controller('lessons')
 export class LessonQuizController {
@@ -28,7 +30,8 @@ export class LessonQuizController {
   }
 
   @Put(':id/quizzes/sync')
-  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN, RoleEnum.STUDENT, RoleEnum.USER)
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   async syncQuizzes(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() dto: SyncLessonQuizzesAtTimestampDto,
@@ -38,7 +41,8 @@ export class LessonQuizController {
   }
 
   @Put(':id/quizzes/move-merge')
-  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN, RoleEnum.STUDENT, RoleEnum.USER)
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   async moveOrMergeQuizzes(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() dto: MoveMergeLessonQuizzesDto,
@@ -49,6 +53,7 @@ export class LessonQuizController {
 
   @Delete('quizzes/:quizId')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   async deleteQuiz(
     @Param('quizId', ParseObjectIdPipe) quizId: string,
   ): Promise<ApiResponse<{ deleted: boolean }>> {
@@ -57,7 +62,8 @@ export class LessonQuizController {
   }
 
   @Delete(':id/quizzes/timestamp/:timestamp')
-  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN, RoleEnum.STUDENT, RoleEnum.USER)
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   async deleteQuizzesAtTimestamp(
     @Param('id', ParseObjectIdPipe) id: string,
     @Param('timestamp') timestamp: string,

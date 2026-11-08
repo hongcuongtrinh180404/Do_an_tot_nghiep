@@ -62,7 +62,7 @@ export function LessonSummaryTab({
 
   // --- Handlers: Tổng quan ---
   const handleStartEditOverview = () => {
-    if (!currentSummaryData) return;
+    if (!isInstructor || !currentSummaryData) return;
     setOverviewTitle(currentSummaryData.title || '');
     setOverviewContent(currentSummaryData.overview || '');
     setIsEditingOverview(true);
@@ -73,7 +73,7 @@ export function LessonSummaryTab({
   };
 
   const handleSaveOverview = () => {
-    if (!currentSummaryData) return;
+    if (!isInstructor || !currentSummaryData) return;
     const trimmedTitle = overviewTitle.trim();
     const trimmedOverview = overviewContent.trim();
 
@@ -102,7 +102,7 @@ export function LessonSummaryTab({
 
   // --- Handlers: Ý chính ---
   const handleStartEditKeyPoint = (index: number) => {
-    if (!currentSummaryData || !currentSummaryData.keyPoints[index]) return;
+    if (!isInstructor || !currentSummaryData || !currentSummaryData.keyPoints[index]) return;
     const point = currentSummaryData.keyPoints[index];
     setKeyPointTitle(point.title || '');
     setKeyPointContent(point.content || '');
@@ -113,7 +113,7 @@ export function LessonSummaryTab({
   };
 
   const handleAddKeyPoint = () => {
-    if (!currentSummaryData) return;
+    if (!isInstructor || !currentSummaryData) return;
     const newIdx = currentSummaryData.keyPoints.length;
     setKeyPointTitle('');
     setKeyPointContent('');
@@ -130,7 +130,7 @@ export function LessonSummaryTab({
   };
 
   const handleSaveKeyPoint = () => {
-    if (!currentSummaryData || editingKeyPointIdx === null) return;
+    if (!isInstructor || !currentSummaryData || editingKeyPointIdx === null) return;
     const trimmedTitle = keyPointTitle.trim();
     const trimmedContent = keyPointContent.trim();
 
@@ -186,7 +186,7 @@ export function LessonSummaryTab({
   };
 
   const handleDeleteKeyPoint = (index: number) => {
-    if (!currentSummaryData) return;
+    if (!isInstructor || !currentSummaryData) return;
     if (currentSummaryData.keyPoints.length <= 1) {
       toast.error('Bản tóm tắt cần giữ lại ít nhất 1 ý chính');
       return;
@@ -211,6 +211,7 @@ export function LessonSummaryTab({
   };
 
   const handleCreateManualSummary = () => {
+    if (!isInstructor) return;
     updateSummary({
       title: 'Tóm tắt bài học',
       overview: 'Tổng quan nội dung chính bài học...',
@@ -222,6 +223,11 @@ export function LessonSummaryTab({
         },
       ],
     });
+  };
+
+  const handleGenerateSummary = () => {
+    if (!isInstructor) return;
+    generateSummary({ saveAsDraft: false });
   };
 
   return (
@@ -236,7 +242,7 @@ export function LessonSummaryTab({
         <div className="w-full space-y-6">
           {/* 1. Title & Overview Editorial Card */}
           <div className="p-4 sm:p-5 rounded-2xl bg-muted/30 dark:bg-muted/15 border border-border/70 space-y-3 transition-all">
-            {isEditingOverview ? (
+            {isInstructor && isEditingOverview ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-sky-700 dark:text-sky-300">
@@ -359,7 +365,7 @@ export function LessonSummaryTab({
             {/* Vertical Timeline Track */}
             <div className="relative border-l-2 border-border/70 ml-3 sm:ml-4 pl-6 sm:pl-8 space-y-6 sm:space-y-7 py-2">
               {currentSummaryData.keyPoints.map((point, idx) => {
-                const isEditingThis = editingKeyPointIdx === idx;
+                const isEditingThis = isInstructor && editingKeyPointIdx === idx;
                 const hasTimestamp = point.timestamp !== undefined && point.timestamp !== null;
                 const isNearCurrentTime =
                   hasTimestamp && Math.abs(currentTime - point.timestamp!) < 6;
@@ -551,7 +557,7 @@ export function LessonSummaryTab({
               })}
 
               {/* Form thêm mới một ý chính (khi bấm dấu +) */}
-              {isNewKeyPoint && editingKeyPointIdx === currentSummaryData.keyPoints.length && (
+              {isInstructor && isNewKeyPoint && editingKeyPointIdx === currentSummaryData.keyPoints.length && (
                 <div className="relative p-4 rounded-xl border border-dashed border-sky-500 ring-2 ring-sky-500/20 bg-sky-500/5 shadow-sm space-y-3 -ml-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
@@ -679,7 +685,7 @@ export function LessonSummaryTab({
             <div className="pt-2 flex items-center justify-center gap-3">
               <Button
                 size="sm"
-                onClick={() => generateSummary({ saveAsDraft: false })}
+                onClick={handleGenerateSummary}
                 disabled={isGenerating || isUpdating}
                 className="text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white cursor-pointer shadow-2xs"
               >

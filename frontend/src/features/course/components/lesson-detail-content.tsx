@@ -8,21 +8,22 @@ import { Icon } from '@/components/ui/icon';
 import { useLessonDetailQuery } from '../api/course.api';
 import { LessonDetailSkeleton } from './lesson-detail-skeleton';
 import { LessonPlayerStudio } from './player';
+import { getCourseUrl, type CourseViewMode } from '../utils/course-view-mode.util';
 
 interface LessonDetailContentProps {
   courseId: string;
   lessonId: string;
   backUrl?: string;
-  isInstructor?: boolean;
+  mode?: CourseViewMode;
 }
 
 export function LessonDetailContent({
   courseId,
   lessonId,
   backUrl,
-  isInstructor = true,
+  mode = 'learn',
 }: LessonDetailContentProps): React.JSX.Element {
-  const defaultBackUrl = backUrl || (isInstructor ? `/courses/${courseId}?mode=edit` : `/courses/${courseId}`);
+  const defaultBackUrl = backUrl || getCourseUrl(courseId, mode);
   const { data: lesson, isLoading, isError, error, refetch } = useLessonDetailQuery(lessonId);
 
   // 1. Loading State
@@ -129,10 +130,11 @@ export function LessonDetailContent({
   // 3. Success State: Master Cinema Player Studio (70/30 Layout & 3 Bottom Tabs)
   return (
     <LessonPlayerStudio
+      key={`${lesson.id}:${mode}`}
       courseId={courseId}
       lesson={lesson}
       backUrl={defaultBackUrl}
-      isInstructor={isInstructor}
+      mode={mode}
     />
   );
 }

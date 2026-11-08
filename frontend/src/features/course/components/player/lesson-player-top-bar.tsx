@@ -11,6 +11,7 @@ interface LessonPlayerTopBarProps {
   lessonTitle: string;
   lessonOrder?: number;
   isPreview?: boolean;
+  canEdit?: boolean;
   backUrl: string;
 }
 
@@ -19,6 +20,7 @@ export function LessonPlayerTopBar({
   lessonTitle,
   lessonOrder,
   isPreview = false,
+  canEdit = false,
   backUrl,
 }: LessonPlayerTopBarProps): React.JSX.Element {
   const displayOrder =
@@ -65,6 +67,10 @@ export function LessonPlayerTopBar({
 
       {/* Right: Status badge */}
       <div className="flex items-center gap-2 shrink-0">
+        <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground border border-border">
+          <Icon icon={canEdit ? 'lucide:pencil' : 'lucide:graduation-cap'} className="size-3" />
+          <span>{canEdit ? 'Biên tập bài học' : 'Chế độ học viên'}</span>
+        </span>
         {isPreview ? (
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
             <Icon icon="lucide:sparkles" className="size-3" />

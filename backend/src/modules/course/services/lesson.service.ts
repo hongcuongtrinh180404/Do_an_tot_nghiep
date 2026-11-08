@@ -40,10 +40,10 @@ export class LessonService extends BaseService<ILesson, string> {
     protected readonly lessonRepository: LessonRepository,
     protected readonly sectionRepository: SectionRepository,
     cls: ClsService,
+    protected readonly enrollmentRepository: EnrollmentRepository,
     @Optional() protected readonly storageService?: StorageService,
     @Optional() protected readonly courseRepository?: CourseRepository,
     @Optional() protected readonly lessonTranscriptService?: LessonTranscriptService,
-    @Optional() protected readonly enrollmentRepository?: EnrollmentRepository,
   ) {
     super(lessonRepository, cls, LessonService.name);
   }
@@ -179,7 +179,7 @@ export class LessonService extends BaseService<ILesson, string> {
     }
 
     // 4. Học viên đã sở hữu khóa học
-    if (this.enrollmentRepository && userId && courseId) {
+    if (userId && courseId) {
       const enrollment = await this.enrollmentRepository.findByUserAndCourse(
         userId,
         courseId,

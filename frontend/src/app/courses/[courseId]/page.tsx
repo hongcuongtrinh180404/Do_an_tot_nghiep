@@ -3,6 +3,7 @@ import React, { Suspense } from 'react';
 import { CourseDetailContent } from '@/features/course';
 import { PublicHeader, PublicFooter } from '@/features/course/components/public-discovery';
 import { PublicCourseDetailView } from '@/features/course/components/public-detail/public-course-detail-view';
+import { parseCourseViewMode } from '@/features/course/utils/course-view-mode.util';
 
 export const metadata: Metadata = {
   title: 'Chi tiết khóa học | Mindly - Nền tảng E-Learning AI',
@@ -14,7 +15,7 @@ interface CourseDetailPageProps {
     courseId: string;
   }>;
   searchParams?: Promise<{
-    mode?: string;
+    mode?: string | string[];
   }>;
 }
 
@@ -24,7 +25,7 @@ export default async function CourseDetailPage({
 }: CourseDetailPageProps): Promise<React.JSX.Element> {
   const { courseId } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
-  const isEditMode = resolvedSearchParams.mode === 'edit';
+  const isEditMode = parseCourseViewMode(resolvedSearchParams.mode) === 'edit';
 
   if (isEditMode) {
     return (

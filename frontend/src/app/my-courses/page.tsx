@@ -197,8 +197,8 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
                 <div className="p-4 flex flex-1 flex-col">
                   <h3 className="line-clamp-2 text-base font-bold text-[#161616] leading-snug group-hover:text-[#027D88] transition-colors min-h-[2.5rem]">
                     <Link
-                      href={isCourseOwner ? `/courses/${course.id}?mode=edit` : `/courses/${course.id}`}
-                      title={isCourseOwner ? 'Quản lý khóa học' : course.title}
+                      href={`/courses/${course.id}`}
+                      title={course.title}
                     >
                       {course.title}
                     </Link>
@@ -260,7 +260,7 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
                           <Link
                             href={`/courses/${course.id}`}
                             className="inline-flex items-center gap-1 rounded-lg border border-neutral-300 hover:bg-neutral-100 text-[#161616] font-semibold py-1.5 px-2.5 text-xs transition-colors"
-                            title="Vào học bài giảng & chỉnh sửa Mindmap, Tóm tắt, Câu hỏi tương tác"
+                            title="Vào học với tư cách học viên, không chỉnh sửa nội dung khóa học"
                           >
                             <Icon icon="lucide:play" className="size-3.5 text-[#027D88]" />
                             <span>Vào học</span>

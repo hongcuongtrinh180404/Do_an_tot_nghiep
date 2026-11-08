@@ -137,14 +137,14 @@ export function PublicCourseDetailView({
 
   return (
     <div className="w-full min-h-screen bg-[#fbfbfb] text-[#161616] pb-16 lg:pb-24">
-      {/* Instructor / Admin Mode Alert Banner */}
+      {/* Ownership does not grant editing in the learner experience. */}
       {isInstructorOwner && (
-        <aside aria-label="Thông báo chế độ giảng viên" data-ui="instructor-alert" className="w-full bg-[#f3fcfc] border-b border-[#027D88]/20 px-4 py-2.5">
+        <aside aria-label="Thông báo chế độ học viên" data-ui="instructor-alert" className="w-full bg-[#f3fcfc] border-b border-[#027D88]/20 px-4 py-2.5">
           <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-[#027D88]">
               <Icon icon="lucide:sparkles" className="size-4 shrink-0" />
               <span>
-                Bạn là giảng viên của khóa học này. Khi bấm vào học bài giảng, bạn có thể chỉnh sửa trực tiếp <strong>Mindmap</strong>, <strong>Tóm tắt</strong> và <strong>Câu hỏi AI</strong>.
+                Bạn đang xem khóa học với tư cách <strong>học viên</strong>, không thể chỉnh sửa nội dung. Để biên tập, hãy chuyển sang trang quản lý.
               </span>
             </div>
             <Link
@@ -152,7 +152,7 @@ export function PublicCourseDetailView({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#027D88] hover:bg-[#02666F] text-white text-xs font-semibold transition-colors shrink-0 shadow-xs"
             >
               <Icon icon="lucide:settings" className="size-3.5" />
-              <span>Quản lý chương mục</span>
+              <span>Chuyển sang quản lý</span>
             </Link>
           </div>
         </aside>

@@ -373,6 +373,10 @@ function InnerMindmapCanvas({
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={handleNodeClick}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            edgesReconnectable={false}
+            deleteKeyCode={null}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onlyRenderVisibleElements={true}
@@ -511,4 +515,3 @@ export function CourseMindmapTab({
     </div>
   );
 }
-

@@ -6,6 +6,7 @@ import { ISection, ITranscribedSentence, LessonTranscriptionStatusEnum } from 's
 import { TimelineMarker } from './lesson-video-screen';
 import { LessonTimelineTab } from './lesson-timeline-tab';
 import { LessonCurriculumTab } from './lesson-curriculum-tab';
+import type { CourseViewMode } from '../../utils/course-view-mode.util';
 
 type SubTabType = 'timeline' | 'curriculum';
 
@@ -14,6 +15,7 @@ const TAB_ORDER: SubTabType[] = ['timeline', 'curriculum'];
 interface LessonNavSidebarProps {
   courseId: string;
   currentLessonId: string;
+  mode?: CourseViewMode;
   timelineMarkers: TimelineMarker[];
   sentences?: ITranscribedSentence[];
   isTranscriptLoading?: boolean;
@@ -32,6 +34,7 @@ interface LessonNavSidebarProps {
 export function LessonNavSidebar({
   courseId,
   currentLessonId,
+  mode = 'learn',
   timelineMarkers,
   sentences = [],
   isTranscriptLoading = false,
@@ -193,6 +196,7 @@ export function LessonNavSidebar({
           <LessonCurriculumTab
             courseId={courseId}
             currentLessonId={currentLessonId}
+            mode={mode}
             sections={sections}
             onSelectLesson={onSelectLesson}
             formatTime={formatTime}

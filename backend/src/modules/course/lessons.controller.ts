@@ -6,6 +6,7 @@ import {
   Param,
   Body,
   UseInterceptors,
+  UseGuards,
   UploadedFile,
   HttpCode,
   HttpStatus,
@@ -19,6 +20,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { LessonService } from './services/lesson.service.js';
 import { LessonTranscriptService } from './services/lesson-transcript.service.js';
 import { LessonFileValidationPipe } from './pipes/lesson-file-validation.pipe.js';
+import { LessonManagementGuard } from './guards/lesson-management.guard.js';
 
 @Controller('lessons')
 export class LessonsController {
@@ -40,6 +42,7 @@ export class LessonsController {
 
   @Post(':id/materials')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
   async uploadMaterial(
@@ -61,6 +64,7 @@ export class LessonsController {
 
   @Delete(':id/materials/:materialId')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   @HttpCode(HttpStatus.OK)
   async deleteMaterial(
     @Param('id', ParseObjectIdPipe) id: string,
@@ -79,6 +83,7 @@ export class LessonsController {
 
   @Delete(':id')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   @HttpCode(HttpStatus.OK)
   async deleteLesson(
     @Param('id', ParseObjectIdPipe) id: string,
@@ -100,6 +105,7 @@ export class LessonsController {
 
   @Post(':id/transcript/retry')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   @HttpCode(HttpStatus.OK)
   async retryTranscription(
     @Param('id', ParseObjectIdPipe) id: string,

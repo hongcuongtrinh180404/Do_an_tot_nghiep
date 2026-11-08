@@ -98,7 +98,7 @@ function TreeNode({
 }: TreeNodeProps): React.JSX.Element {
   const hasChildren = Array.isArray(node.children) && node.children.length > 0;
   const isNearCurrentTime = Math.abs(currentTime - node.timestamp) < 5;
-  const isEditing = editingNodeId === node.id;
+  const isEditing = isInstructor && editingNodeId === node.id;
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Focus title input when entering edit mode
@@ -400,6 +400,7 @@ export function LessonMindmapTab({
   };
 
   const handleStartEdit = (node: ILessonMindmapNode) => {
+    if (!isInstructor) return;
     setAddingNodeId(null);
     setEditingNodeId(node.id);
     setEditTitle(node.title);
@@ -407,7 +408,7 @@ export function LessonMindmapTab({
   };
 
   const handleSaveEdit = (nodeId: string) => {
-    if (!localTree || !editTitle.trim()) return;
+    if (!isInstructor || !localTree || !editTitle.trim()) return;
 
     // Khống chế timestamp an toàn không bao giờ vượt quá thời lượng video
     const safeTimestamp =
@@ -441,7 +442,7 @@ export function LessonMindmapTab({
 
   // Node Adding state (Default timestamp = 0 per Socratic Gate)
   const handleAddChild = (parentId: string) => {
-    if (!localTree) return;
+    if (!isInstructor || !localTree) return;
 
     const newId = `node-${Date.now()}`;
     const newNode: ILessonMindmapNode = {
@@ -472,6 +473,7 @@ export function LessonMindmapTab({
   } | null>(null);
 
   const handleRequestDelete = (node: ILessonMindmapNode) => {
+    if (!isInstructor) return;
     const childCount = countDescendants(node);
     if (childCount > 0) {
       // Node has children -> require confirmation dialog
@@ -487,7 +489,7 @@ export function LessonMindmapTab({
   };
 
   const executeDelete = (nodeId: string) => {
-    if (!localTree) return;
+    if (!isInstructor || !localTree) return;
 
     const newRoot = deleteNodeFromTree(localTree.root, nodeId);
     const updatedData: ILessonMindmapData = { root: newRoot };
@@ -502,9 +504,14 @@ export function LessonMindmapTab({
   };
 
   const handleConfirmDelete = () => {
-    if (!deletingNode) return;
+    if (!isInstructor || !deletingNode) return;
     executeDelete(deletingNode.id);
     setDeletingNode(null);
+  };
+
+  const handleGenerateMindmap = () => {
+    if (!isInstructor) return;
+    generateMindmap({ saveAsDraft: false });
   };
 
   return (
@@ -578,6 +585,7 @@ export function LessonMindmapTab({
         viewMode === 'canvas' ? (
           <div className="w-full py-1">
             <LessonMindmapCanvasView
+              canEdit={isInstructor}
               root={localTree.root}
               currentTime={currentTime}
               duration={duration}
@@ -628,7 +636,7 @@ export function LessonMindmapTab({
             <div className="pt-2">
               <Button
                 size="sm"
-                onClick={() => generateMindmap({ saveAsDraft: false })}
+                onClick={handleGenerateMindmap}
                 disabled={isGenerating}
                 className="text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white cursor-pointer shadow-2xs"
               >
@@ -642,7 +650,7 @@ export function LessonMindmapTab({
 
       {/* Delete Branch Confirmation Dialog */}
       <Dialog
-        open={Boolean(deletingNode)}
+        open={isInstructor && Boolean(deletingNode)}
         onOpenChange={(open) => {
           if (!open) setDeletingNode(null);
         }}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Icon } from '@/components/ui/icon';
 import { ISection, LessonContentTypeEnum } from 'share-lib';
 import { useSectionLessonsQuery } from '../../api/course.api';
+import { getLessonUrl, type CourseViewMode } from '../../utils/course-view-mode.util';
 
 interface SectionItemRowProps {
   section: ISection;
@@ -121,6 +122,7 @@ function SectionItemRow({
 interface LessonCurriculumTabProps {
   courseId: string;
   currentLessonId: string;
+  mode?: CourseViewMode;
   sections?: ISection[];
   onSelectLesson?: (lessonId: string) => void;
   formatTime: (seconds: number) => string;
@@ -129,6 +131,7 @@ interface LessonCurriculumTabProps {
 export function LessonCurriculumTab({
   courseId,
   currentLessonId,
+  mode = 'learn',
   sections,
   onSelectLesson,
   formatTime,
@@ -141,7 +144,7 @@ export function LessonCurriculumTab({
     if (onSelectLesson) {
       onSelectLesson(lessonId);
     } else {
-      router.push(`/courses/${courseId}/lessons/${lessonId}`);
+      router.push(getLessonUrl(courseId, lessonId, mode));
     }
   };
 

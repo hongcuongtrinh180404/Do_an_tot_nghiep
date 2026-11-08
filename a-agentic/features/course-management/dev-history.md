@@ -13,6 +13,115 @@
 
 ## 2. Technical Notes & Gotchas
 
+- **Milestone 41 (Refined Course Detail Navigation from My Courses & Clean Purchase Card State)**:
+  - **Yêu cầu & Quyết định người dùng**:
+    - Khi ở trang *"Khóa học đã mua"* (`/my-courses`): Click vào nút **"Vào học"** (hoặc tiêu đề / ảnh bìa) sẽ chuyển hướng đến trang **Chi tiết khóa học** (`/courses/:courseId`) để học viên xem lại toàn bộ thông tin giáo trình, tổng quan sơ đồ tư duy và lựa chọn bài học.
+    - Tại trang **Chi tiết khóa học** (`/courses/:courseId`): Không hiển thị nút *"Vào học ngay"* tại thẻ mua khóa học `CoursePurchaseCard` (cả desktop và mobile bar) khi đã sở hữu khóa học (`hasAccess === true`), giữ giao diện sạch sẽ, tập trung vào danh sách bài học và tiến độ.
+    - Tại danh sách giáo trình bài học (`CourseCurriculumTab`): Học viên click vào bất kỳ bài học nào để mở phòng học tương tác `LessonPlayerStudio`.
+  - **Phạm vi triển khai**:
+    1. **`frontend/src/app/my-courses/page.tsx`**:
+       - Cập nhật nút **"Vào học"** trỏ về `/courses/${course.id}`.
+       - Tên và ảnh thumbnail tiếp tục trỏ về `/courses/${course.id}` (hoặc edit mode nếu là giảng viên sở hữu).
+    2. **`frontend/src/features/course/components/public-detail/course-purchase-card.tsx`**:
+       - Ẩn hoàn toàn nút *"Vào học ngay"* khi `hasAccess === true` theo đúng chỉ định của người dùng.
+    3. **Kiểm thử tự động**:
+       - Toàn bộ test suite pass 100%, ESLint 0 errors.
+
+- **Milestone 41 (End-to-End Strict Separation of Student Learning vs Instructor Management Studio Across Backend & Frontend)**:
+  - **Bối cảnh & Yêu cầu cốt lõi**:
+    - Tiếp nối Milestone 40 về phân định vai trò trên trang `/my-courses`, hệ thống cần triệt để thực thi nguyên tắc an toàn: **"Khi giảng viên hoặc admin truy cập bài học/khóa học với tư cách học viên thì tuyệt đối không được có bất kỳ quyền hay giao diện biên tập nào"**.
+    - Trước đó, logic kiểm tra quyền biên tập ở frontend dựa lỏng lẻo vào vai trò tài khoản (`user.role === INSTRUCTOR`) hoặc sự sở hữu tài khoản ngầm định, dẫn đến khi giảng viên tự vào học khóa học của mình, các công cụ biên tập (Mindmap canvas, Tóm tắt AI, Video timeline checkpoint marker, modal thêm câu hỏi) vẫn hiển thị và cho phép thao tác.
+    - Đồng thời ở backend, các endpoint chỉnh sửa bài học, upload tài liệu, thêm/sửa/xóa câu hỏi trắc nghiệm quiz và kích hoạt AI phân tích transcript chưa có guard chuyên biệt để xác thực ngược quyền sở hữu theo chuỗi thực thể (`lesson -> section -> course`), tiềm ẩn nguy cơ bảo mật hoặc thao tác ngoài ý muốn khi khóa học đang ở trạng thái `PENDING_APPROVAL`.
+  - **Giải pháp Kiến trúc Đa tầng (Defense-in-Depth)**:
+    1. **Tầng Backend — Authorization at Source via `LessonManagementGuard` (`backend/src/modules/course/guards/lesson-management.guard.ts`)**:
+       - Tạo mới `LessonManagementGuard` triển khai `CanActivate`, áp dụng nguyên tắc **Authorizes against actual entity hierarchy, never trusting client-supplied parameters**:
+         - Trích xuất định danh mục tiêu: Nếu route có `quizId`, truy vấn `lessonQuizRepository.findById` để tìm `lessonId`; từ `lessonId` truy vấn `lessonRepository.findById` để lấy `sectionId`; từ `sectionId` truy vấn `sectionRepository.findById` để lấy `courseId`.
+         - Xác thực định dạng ObjectId sớm qua `ParseObjectIdPipe` trước khi truy vấn repository.
+         - Kiểm tra và loại trừ triệt để các thực thể đã bị xóa mềm (`deletedAt`).
+         - Kiểm tra quyền sở hữu tuyệt đối: Người dùng phải đăng nhập và mang vai trò `INSTRUCTOR` hoặc `ADMIN`. Nếu không phải Admin, bắt buộc `String(course.instructorId) === user.id`, nếu vi phạm ném `ForbiddenException('Bạn không có quyền biên tập nội dung khóa học này')`.
+         - Khóa an toàn trạng thái kiểm duyệt: Nếu `course.status === CourseStatusEnum.PENDING_APPROVAL`, guard lập tức ném `ConflictException('Khóa học đang chờ phê duyệt, không thể biên tập nội dung bài học')`.
+       - Bảo vệ 13 endpoints nhạy cảm trên toàn hệ thống:
+         - `LessonController`: `POST /sections/:sectionId/lessons` (Tạo bài học mới).
+         - `LessonsController`: `POST /lessons/:id/materials` (Upload tài liệu bài giảng), `DELETE /lessons/:id/materials/:materialId` (Xóa tài liệu), `DELETE /lessons/:id` (Xóa bài học), `POST /lessons/:id/transcript/retry` (Yêu cầu transcribe lại).
+         - `LessonQuizController`: `PUT /lessons/:id/quizzes/sync` (Đồng bộ danh sách câu hỏi tại mốc thời gian), `PUT /lessons/:id/quizzes/move-merge` (Di chuyển/gộp cụm câu hỏi giữa các mốc thời gian), `DELETE /lessons/quizzes/:quizId` (Xóa câu hỏi đơn lẻ), `DELETE /lessons/:id/quizzes/timestamp/:timestamp` (Xóa toàn bộ câu hỏi tại mốc thời gian). Đồng thời thắt chặt phân quyền roles, loại bỏ hoàn toàn `RoleEnum.STUDENT` và `RoleEnum.USER` khỏi các route mutation.
+         - `TranscriptAnalysisController`: `POST /lessons/:id/analysis/mindmap` (Tạo mindmap AI), `PUT /lessons/:id/analysis/mindmap` (Cập nhật mindmap), `POST /lessons/:id/analysis/mindmap/apply` (Áp dụng bản thảo mindmap), `POST /lessons/:id/analysis/quiz` (Tạo quiz AI), `POST /lessons/:id/analysis/quiz/apply` (Áp dụng bản thảo quiz), `POST /lessons/:id/analysis/summary` (Tạo tóm tắt AI), `PUT /lessons/:id/analysis/summary` (Cập nhật tóm tắt), `POST /lessons/:id/analysis/summary/apply` (Áp dụng bản thảo tóm tắt).
+       - Đăng ký và xuất khẩu `LessonManagementGuard` trong `CourseModule` (`course.module.ts`), tích hợp `forwardRef(() => EnrollmentModule)` để xử lý triệt để phụ thuộc vòng giữa module khóa học và ghi danh.
+       - Chuẩn hóa `LessonService` (`lesson.service.ts`): Chuyển `enrollmentRepository` thành injection bắt buộc (thay vì `@Optional`), củng cố kiểm tra quyền xem bài giảng `getLessonForUser` đối với học viên đã mua khóa học, cho phép học viên chọn bài bất kỳ mà không ép buộc học tuần tự, và loại trừ enrollment bị xóa mềm (`deletedAt`).
+    2. **Tầng Frontend — Chế độ Hiển thị Tường minh `CourseViewMode` & Strict Sandbox**:
+       - **Tiện ích Điều hướng & Phân quyền (`course-view-mode.util.ts` & `course-access.util.ts`)**:
+         - Định nghĩa type `CourseViewMode = 'learn' | 'edit'`.
+         - Hàm `parseCourseViewMode(value)`: Mặc định luôn trả về `'learn'`. Chỉ khi tham số URL chính xác là `'edit'` mới kích hoạt chế độ biên tập.
+         - Hàm `getCourseUrl` và `getLessonUrl`: Tự động đồng bộ và bảo lưu query parameter `?mode=edit` khi đang ở chế độ quản lý, hoặc giữ URL sạch dạng `/courses/:id/lessons/:id` khi ở chế độ học viên.
+         - Hàm `canEditCourseContent(user, course, mode = 'learn')`: Thiết lập nguyên tắc **Fail-closed**. Chỉ trả về `true` khi hội đủ 4 điều kiện: `mode === 'edit'`, có `course.status`, `course.status !== PENDING_APPROVAL`, và người dùng sở hữu khóa học (`canManageCourse(user, course)`). Nếu người dùng xem ở chế độ học (`mode === 'learn'`), hàm luôn trả về `false` bất kể quyền hạn tài khoản.
+       - **Quản lý Vòng đời & Render Studio (`lesson-player-studio.tsx` & `lesson-detail-content.tsx`)**:
+         - Tách `LessonPlayerStudio` thành bộ đôi Container & Presenter (`LessonPlayerStudioContent`), gán key động `key={`${lesson.id}:${mode}:${canEdit}`` để reset toàn bộ local state của trình phát và các listener sự kiện khi chuyển đổi quyền/chế độ.
+         - Khi ở chế độ `mode === 'learn'`, hệ thống không gọi query dữ liệu quản trị (`useCourseDetailQuery` bị tắt), mà chỉ dùng cache học viên (`usePublicCourseDetailQuery`).
+         - Xác thực thêm sự tồn tại của bài học trong danh mục chương của khóa học: `sections?.some((s) => s.id === lesson.sectionId) === true`.
+       - **Khóa Chặt Mọi Thao tác Biên tập Trong Chế độ Học viên**:
+         - **Top Bar (`lesson-player-top-bar.tsx`)**: Hiển thị badge nhận diện chế độ trực quan: icon `lucide:graduation-cap` + *"Chế độ học viên"* (khi `canEdit === false`) hoặc icon `lucide:pencil` + *"Biên tập bài học"* (khi `canEdit === true`).
+         - **Màn hình Video & Timeline Checkpoint (`lesson-video-screen.tsx`)**:
+           - Ẩn hoàn toàn thao tác click vào marker pin (`handlePinClick`), click nút thêm câu hỏi trên checkpoint dot (`handleAddQuestionToExistingCheckpoint`), thao tác giữ chuột 1s (`handleBadgePointerDown`), kéo thả di chuyển cụm câu hỏi (`isDraggingCluster`), và hộp thoại xác nhận gộp marker (`mergeConfirmData`).
+           - Modal tạo/sửa câu hỏi (`CreateQuizMarkerModal`) chỉ được render khi `canEdit === true`.
+         - **Tab Sơ đồ tư duy (`lesson-mindmap-tab.tsx` & `lesson-mindmap-canvas-view.tsx`)**:
+           - Khóa tính năng sửa tên node, thêm node con, xóa node và nút tạo Mindmap bằng AI.
+           - Trong giao diện React Flow Canvas: thiết lập `nodesDraggable={canEdit}`, `nodesConnectable={false}`, `edgesReconnectable={false}`, `deleteKeyCode={null}` ngăn chặn triệt để thao tác kéo thả node trong chế độ học tập.
+         - **Tab Tóm tắt bài học (`lesson-summary-tab.tsx`)**:
+           - Khóa chỉnh sửa tiêu đề/tổng quan, vô hiệu hóa form thêm/sửa/xóa các ý chính (key points) và nút tạo tóm tắt AI.
+         - **Tab Câu hỏi bài giảng (`lesson-quiz-tab.tsx`)**:
+           - Khóa các hành vi biên tập câu hỏi trắc nghiệm, chỉ phục vụ làm bài học tập.
+         - **Thanh Điều hướng & Danh mục (`lesson-curriculum-tab.tsx`, `lesson-nav-sidebar.tsx`)**:
+           - Bảo lưu `mode` khi học viên hoặc giảng viên bấm chuyển giữa các bài giảng trong danh mục. Nút thử lại phiên âm (`retryTranscription`) chỉ hiển thị khi `canEdit === true`.
+       - **Điều hướng Chi tiết Khóa học & Inspector Panel**:
+         - `public-course-detail-view.tsx`: Banner thông báo cho giảng viên được chuẩn hóa thông điệp: *"Bạn đang xem khóa học với tư cách học viên, không thể chỉnh sửa nội dung. Để biên tập, hãy chuyển sang trang quản lý."* kèm nút bấm *"Chuyển sang quản lý"*.
+         - `course-detail-header.tsx`: Gỡ bỏ nút "Yêu thích" (wishlist) chưa hoàn thiện để tuân thủ Web Interface Guidelines.
+         - `contextual-inspector-panel.tsx`: Tách biệt nút "Xem trước bài giảng" (`getLessonUrl(courseId, lesson.id)`) và nút "Biên tập nội dung bài học" (`getLessonUrl(courseId, lesson.id, 'edit')`).
+         - `course-mindmap-tab.tsx`: Khóa tương tác canvas mindmap công khai (`nodesDraggable={false}`).
+    3. **Đồng bộ Định danh Ý chính Tóm tắt (`lesson-key-points.util.ts`)**:
+       - Thay thế việc sinh UUID v4 ngẫu nhiên khi deserialize chuỗi/mảng cũ bằng định danh theo vị trí ổn định (`kp-0`, `kp-1`,...).
+       - Đảm bảo tính bất biến (idempotency) qua nhiều lần serialize/deserialize, loại bỏ việc dữ liệu form bị đánh dấu "dirty" ngoài ý muốn trên frontend.
+  - **Danh mục Tệp tin Tác động (31 files)**:
+    - **Backend (12 files)**:
+      - `backend/src/modules/course/guards/lesson-management.guard.ts` (MỚI: Guard phân quyền ngược phân cấp bài học).
+      - `backend/src/modules/course/course.module.ts` (Provider, export guard & forwardRef EnrollmentModule).
+      - `backend/src/modules/course/lesson.controller.ts` (Gắn guard lên route tạo bài học).
+      - `backend/src/modules/course/lessons.controller.ts` (Gắn guard lên upload/xóa tài liệu, xóa lesson, retry transcript).
+      - `backend/src/modules/course/lesson-quiz.controller.ts` (Gắn guard & thắt chặt role lên sync/move-merge/delete quiz).
+      - `backend/src/modules/course/services/lesson.service.ts` (Bắt buộc inject EnrollmentRepository & củng cố getLessonForUser).
+      - `backend/src/modules/transcript-analysis/transcript-analysis.controller.ts` (Gắn guard lên 8 route AI Mindmap, Quiz, Summary).
+      - `backend/src/modules/course/tests/lesson-management.guard.spec.ts` (MỚI: Unit test chi tiết cho guard).
+      - `backend/src/modules/course/tests/lesson-management.http.spec.ts` (MỚI: Test HTTP integration với supertest cho 13 route).
+      - `backend/src/modules/course/tests/course.module.spec.ts` (MỚI: Test kiểm tra forwardRef và export metadata module).
+      - `backend/src/modules/course/tests/course-public.spec.ts` (Test kiểm tra học viên chọn bài ngẫu nhiên, soft-delete enrollment, guest check).
+      - `backend/src/modules/course/tests/lesson.service.spec.ts` (Cập nhật mock repository trong test service).
+    - **Frontend (19 files)**:
+      - `frontend/src/features/course/utils/course-view-mode.util.ts` (MỚI: Types và helper parse/get URL theo view mode).
+      - `frontend/src/features/course/utils/course-access.util.ts` (Thêm hàm canEditCourseContent tuân thủ fail-closed).
+      - `frontend/src/features/course/tests/course-view-mode.spec.ts` (MỚI: Unit test cho mode parser và permission logic).
+      - `frontend/src/features/course/tests/lesson-key-points.spec.ts` (Test kiểm tra tính ổn định ID ý chính kp-0, kp-1).
+      - `frontend/src/app/courses/[courseId]/lessons/[lessonId]/page.tsx` (Đọc param mode, truyền vào LessonDetailContent).
+      - `frontend/src/app/courses/[courseId]/page.tsx` (Sử dụng parseCourseViewMode để nhận diện mode edit).
+      - `frontend/src/app/my-courses/page.tsx` (Link tiêu đề trỏ về trang học viên, cập nhật tooltip vào học).
+      - `frontend/src/features/course/components/lesson-detail-content.tsx` (Nhận mode, tính toán defaultBackUrl).
+      - `frontend/src/features/course/components/contextual-inspector-panel.tsx` (Tách nút xem bài giảng và nút biên tập bài học).
+      - `frontend/src/features/course/components/player/lesson-player-studio.tsx` (Container/Presenter refactor, key reset, phân phối canEdit).
+      - `frontend/src/features/course/components/player/lesson-player-top-bar.tsx` (Badge hiển thị Chế độ học viên vs Biên tập bài học).
+      - `frontend/src/features/course/components/player/lesson-video-screen.tsx` (Khóa toàn bộ tương tác checkpoint/marker quiz khi !isInstructor).
+      - `frontend/src/features/course/components/player/create-quiz-marker-modal.tsx` (Bảo vệ đóng mở và lưu câu hỏi theo canEdit).
+      - `frontend/src/features/course/components/player/lesson-curriculum-tab.tsx` (Bảo lưu mode qua getLessonUrl).
+      - `frontend/src/features/course/components/player/lesson-nav-sidebar.tsx` (Truyền mode xuống curriculum, khóa retry transcript).
+      - `frontend/src/features/course/components/player/lesson-tabs-container.tsx` (Phân phối isInstructor sang tabs con).
+      - `frontend/src/features/course/components/player/tabs/lesson-mindmap-tab.tsx` (Khóa sửa node, thêm node con, xóa node, tạo AI).
+      - `frontend/src/features/course/components/player/tabs/mindmap/lesson-mindmap-canvas-view.tsx` (nodesDraggable={canEdit}).
+      - `frontend/src/features/course/components/player/tabs/lesson-quiz-tab.tsx` (Khóa biên tập quiz cho học viên).
+      - `frontend/src/features/course/components/player/tabs/lesson-summary-tab.tsx` (Khóa sửa overview, thêm/sửa/xóa key points, tạo AI).
+      - `frontend/src/features/course/components/public-detail/course-detail-header.tsx` (Loại bỏ nút wishlist giả lập).
+      - `frontend/src/features/course/components/public-detail/course-mindmap-tab.tsx` (Khóa nodesDraggable={false}).
+      - `frontend/src/features/course/components/public-detail/public-course-detail-view.tsx` (Cập nhật banner thông báo học viên).
+  - **Kiểm định chất lượng**:
+    - Backend Unit & Integration Tests: Đầy đủ các test suites `lesson-management.guard.spec.ts`, `lesson-management.http.spec.ts`, `course.module.spec.ts`, `course-public.spec.ts`.
+    - Frontend Unit Tests: Đầy đủ `course-view-mode.spec.ts`, `lesson-key-points.spec.ts`.
+    - Phân quyền Fail-Closed: Tuyệt đối không cho phép bypass hay leo thang quyền hạn bằng client parameter hay quyền tài khoản ngầm.
+
 - **Milestone 40 (Dual-Role Segmentation on /my-courses: Clean Student Learning View vs Dedicated Instructor Course Management Studio)**:
   - **Bối cảnh & Yêu cầu người dùng**:
     - Khi giảng viên truy cập trang *"Khóa học đã mua"* (`/my-courses`), backend tự động đưa các khóa học do giảng viên đó tạo vào danh sách.

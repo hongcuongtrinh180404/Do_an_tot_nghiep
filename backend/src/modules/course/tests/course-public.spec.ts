@@ -88,6 +88,16 @@ describe('Public Courses and Access Control', () => {
     updatedAt: new Date(),
   };
 
+  const studentEnrollment: IEnrollment = {
+    id: 'enr-1',
+    userId: 'student-1',
+    courseId: 'course-pub-1',
+    enrolledAt: new Date(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+  };
+
   beforeEach(() => {
     mockCourseRepository = {
       findPublicCoursesWithPagination: vi.fn(),
@@ -126,10 +136,9 @@ describe('Public Courses and Access Control', () => {
       mockLessonRepository as unknown as LessonRepository,
       mockSectionRepository as unknown as SectionRepository,
       mockClsService as ClsService,
+      mockEnrollmentRepository as unknown as EnrollmentRepository,
       mockStorageService as StorageService,
       mockCourseRepository as unknown as CourseRepository,
-      undefined,
-      mockEnrollmentRepository as unknown as EnrollmentRepository,
     );
   });
 
@@ -201,21 +210,20 @@ describe('Public Courses and Access Control', () => {
       expect(result.id).toBe('les-locked');
     });
 
-    it('7. should allow enrolled student to view locked lesson', async () => {
-      mockLessonRepository.findById.mockResolvedValue(lockedLesson);
+    it.each([0, 4, 8])('7. should allow enrolled student to choose lesson at order %i without completing earlier lessons', async (order) => {
+      const selectedLesson = { ...lockedLesson, id: `les-locked-${order}`, order };
+      mockLessonRepository.findById.mockResolvedValue(selectedLesson);
       mockCourseRepository.findById.mockResolvedValue(publishedCourse);
-      const enrollment: IEnrollment = {
-        id: 'enr-1',
-        userId: 'student-1',
-        courseId: 'course-pub-1',
-        enrolledAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      mockEnrollmentRepository.findByUserAndCourse.mockResolvedValue(enrollment);
+      mockEnrollmentRepository.findByUserAndCourse.mockResolvedValue(studentEnrollment);
 
-      const result = await lessonService.getLessonForUser('les-locked', 'student-1', RoleEnum.STUDENT);
-      expect(result.id).toBe('les-locked');
+      const result = await lessonService.getLessonForUser(selectedLesson.id, 'student-1', RoleEnum.STUDENT);
+
+      expect(result).toEqual(selectedLesson);
+      expect(mockEnrollmentRepository.findByUserAndCourse).toHaveBeenCalledWith(
+        'student-1',
+        publishedCourse.id,
+        undefined,
+      );
     });
 
     it('8. should throw ForbiddenException when non-enrolled user tries to view locked lesson', async () => {
@@ -225,6 +233,38 @@ describe('Public Courses and Access Control', () => {
 
       await expect(
         lessonService.getLessonForUser('les-locked', 'stranger-id', RoleEnum.STUDENT),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('9. should reject a soft-deleted enrollment', async () => {
+      mockLessonRepository.findById.mockResolvedValue(lockedLesson);
+      mockCourseRepository.findById.mockResolvedValue(publishedCourse);
+      mockEnrollmentRepository.findByUserAndCourse.mockResolvedValue({
+        ...studentEnrollment,
+        deletedAt: new Date(),
+      });
+
+      await expect(
+        lessonService.getLessonForUser(lockedLesson.id, 'student-1', RoleEnum.STUDENT),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('10. should reject a guest requesting a non-preview lesson', async () => {
+      mockLessonRepository.findById.mockResolvedValue(lockedLesson);
+
+      await expect(
+        lessonService.getLessonForUser(lockedLesson.id),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockEnrollmentRepository.findByUserAndCourse).not.toHaveBeenCalled();
+    });
+
+    it('11. should reject an unrelated instructor without enrollment', async () => {
+      mockLessonRepository.findById.mockResolvedValue(lockedLesson);
+      mockCourseRepository.findById.mockResolvedValue(publishedCourse);
+      mockEnrollmentRepository.findByUserAndCourse.mockResolvedValue(null);
+
+      await expect(
+        lessonService.getLessonForUser(lockedLesson.id, 'other-instructor', RoleEnum.INSTRUCTOR),
       ).rejects.toThrow(ForbiddenException);
     });
   });

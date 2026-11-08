@@ -257,6 +257,7 @@ export function LessonVideoScreen({
 
   // Click on Pin Marker or Checkpoint Dot: pause video, get precise clickedTime, and open question modal
   const handlePinClick = (e: React.MouseEvent, time: number) => {
+    if (!isInstructor) return;
     e.stopPropagation();
     e.preventDefault();
     if (hoverLeaveTimeoutRef.current) {
@@ -284,6 +285,7 @@ export function LessonVideoScreen({
 
   // Click on "Thêm câu hỏi" button when hovering on existing checkpoint: auto append next question
   const handleAddQuestionToExistingCheckpoint = (e: React.MouseEvent | React.PointerEvent, ts: number) => {
+    if (!isInstructor) return;
     e.stopPropagation();
     e.preventDefault();
     if (hoverLeaveTimeoutRef.current) {
@@ -302,7 +304,7 @@ export function LessonVideoScreen({
 
   // 1s Hold (Long-press) on "Thêm câu hỏi" Badge
   const handleBadgePointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return; // Only trigger for primary mouse button
+    if (!isInstructor || e.button !== 0) return; // Only trigger for editors using the primary mouse button
     e.preventDefault();
     e.stopPropagation();
 
@@ -389,7 +391,7 @@ export function LessonVideoScreen({
 
   // Global window listeners for Dragging Mode
   useEffect(() => {
-    if (!isDraggingCluster || !dragSource || !duration) return;
+    if (!isInstructor || !isDraggingCluster || !dragSource || !duration) return;
 
     const handleWindowPointerMove = (e: PointerEvent) => {
       const sliderEl = sliderTrackRef.current;
@@ -489,6 +491,7 @@ export function LessonVideoScreen({
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [
+    isInstructor,
     isDraggingCluster,
     dragSource,
     snapTarget,
@@ -501,7 +504,7 @@ export function LessonVideoScreen({
 
   // Execute Merge when confirmed in Dialog
   const handleConfirmMerge = async () => {
-    if (!mergeConfirmData) return;
+    if (!isInstructor || !mergeConfirmData) return;
     const { sourceTimestamp, targetTimestamp, sourceCount, targetCount } = mergeConfirmData;
     try {
       await moveMergeMutation.mutateAsync({
@@ -1119,20 +1122,23 @@ export function LessonVideoScreen({
         )}
 
         {/* Dialog for Creating / Editing Quiz at Selected Timestamp (Instructor Mode) */}
-        <CreateQuizMarkerModal
-          open={isQuizModalOpen}
-          onOpenChange={setIsQuizModalOpen}
-          timestamp={selectedQuizTime}
-          formatTime={formatTime}
-          lessonId={lessonId}
-          lessonTitle={lessonTitle}
-          existingQuizzes={dbQuizzes}
-          initialAddNewQuestion={autoAddNewQuestion}
-        />
+        {isInstructor && (
+          <CreateQuizMarkerModal
+            canEdit={isInstructor}
+            open={isQuizModalOpen}
+            onOpenChange={setIsQuizModalOpen}
+            timestamp={selectedQuizTime}
+            formatTime={formatTime}
+            lessonId={lessonId}
+            lessonTitle={lessonTitle}
+            existingQuizzes={dbQuizzes}
+            initialAddNewQuestion={autoAddNewQuestion}
+          />
+        )}
 
         {/* Merge Confirmation Dialog (Option B requested by User) */}
         <Dialog
-          open={mergeConfirmData !== null}
+          open={isInstructor && mergeConfirmData !== null}
           onOpenChange={(open) => {
             if (!open) setMergeConfirmData(null);
           }}

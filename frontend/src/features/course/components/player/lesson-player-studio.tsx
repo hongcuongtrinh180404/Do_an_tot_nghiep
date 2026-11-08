@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ILesson, LessonContentTypeEnum, LessonTranscriptionStatusEnum, RoleEnum } from 'share-lib';
+import { ILesson, ISection, LessonContentTypeEnum, LessonTranscriptionStatusEnum, RoleEnum } from 'share-lib';
 import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
 import {
   courseKeys,
@@ -13,7 +13,8 @@ import {
 } from '../../api/course.api';
 import { usePublicCourseDetailQuery } from '../../api/enrollment.api';
 import { deserializeKeyPoints } from '../../utils/lesson-key-points.util';
-import { canManageCourse } from '../../utils/course-access.util';
+import { canEditCourseContent } from '../../utils/course-access.util';
+import { getCourseUrl, type CourseViewMode } from '../../utils/course-view-mode.util';
 import { useVideoPlayer } from './use-video-player';
 import { LessonPlayerTopBar } from './lesson-player-top-bar';
 import { LessonVideoScreen, TimelineMarker } from './lesson-video-screen';
@@ -24,33 +25,64 @@ interface LessonPlayerStudioProps {
   courseId: string;
   lesson: ILesson;
   backUrl?: string;
-  isInstructor?: boolean;
+  mode?: CourseViewMode;
 }
 
 export function LessonPlayerStudio({
   courseId,
   lesson,
   backUrl,
-  isInstructor: instructorMode = true,
+  mode = 'learn',
 }: LessonPlayerStudioProps): React.JSX.Element {
-  const queryClient = useQueryClient();
-  const defaultBackUrl = backUrl || (instructorMode ? `/courses/${courseId}?mode=edit` : `/courses/${courseId}`);
   const { data: user, isError: isUserError } = useCurrentUserQuery();
   const hasManagementRole = user?.role === RoleEnum.INSTRUCTOR || user?.role === RoleEnum.ADMIN;
 
-  // Fetch Course details (management + public cache fallback) for ownership verification and navigation
+  // Do not reuse management data or infer editing from account role in learner mode.
   const { data: courseDetail } = useCourseDetailQuery(
     courseId,
-    hasManagementRole && !isUserError,
+    mode === 'edit' && hasManagementRole && !isUserError,
   );
-  const { data: publicCourse } = usePublicCourseDetailQuery(courseId);
-  const activeCourse = courseDetail || publicCourse;
-
-  const isInstructor =
-    instructorMode &&
-    !isUserError &&
-    canManageCourse(user, activeCourse);
+  const { data: publicCourse } = usePublicCourseDetailQuery(courseId, mode === 'learn');
+  const activeCourse = mode === 'edit' ? courseDetail : publicCourse;
   const { data: sections } = useCourseSectionsQuery(courseId);
+
+  const canEdit =
+    !isUserError &&
+    sections?.some((section) => section.id === lesson.sectionId) === true &&
+    canEditCourseContent(user, activeCourse, mode);
+
+  // Reset editor state and media listeners together whenever the effective permission changes.
+  return (
+    <LessonPlayerStudioContent
+      key={`${lesson.id}:${mode}:${canEdit}`}
+      courseId={courseId}
+      lesson={lesson}
+      backUrl={backUrl}
+      mode={mode}
+      canEdit={canEdit}
+      courseTitle={activeCourse?.title}
+      sections={sections}
+    />
+  );
+}
+
+interface LessonPlayerStudioContentProps extends LessonPlayerStudioProps {
+  canEdit: boolean;
+  courseTitle?: string;
+  sections?: ISection[];
+}
+
+function LessonPlayerStudioContent({
+  courseId,
+  lesson,
+  backUrl,
+  mode = 'learn',
+  canEdit,
+  courseTitle,
+  sections,
+}: LessonPlayerStudioContentProps): React.JSX.Element {
+  const queryClient = useQueryClient();
+  const defaultBackUrl = backUrl || getCourseUrl(courseId, mode);
 
   // Fetch Transcript from Database (MongoDB collection: lesson_transcripts)
   const {
@@ -166,10 +198,11 @@ export function LessonPlayerStudio({
       {/* 1. Header Bar: Sticky Navigation & Metadata */}
       <LessonPlayerTopBar
         courseId={courseId}
-        courseTitle={activeCourse?.title}
+        courseTitle={courseTitle}
         lessonTitle={lesson.title}
         lessonOrder={lesson.order}
         isPreview={lesson.isPreview}
+        canEdit={canEdit}
         backUrl={defaultBackUrl}
       />
 
@@ -192,7 +225,7 @@ export function LessonPlayerStudio({
               documentUrl={lesson.content?.url}
               documentFileName={lesson.content?.fileName}
               timelineMarkers={timelineMarkers}
-              isInstructor={isInstructor}
+              isInstructor={canEdit}
             />
           </section>
 
@@ -205,11 +238,12 @@ export function LessonPlayerStudio({
             <LessonNavSidebar
               courseId={courseId}
               currentLessonId={lesson.id}
+              mode={mode}
               timelineMarkers={timelineMarkers}
               sentences={sentences}
               isTranscriptLoading={isTranscriptLoading}
               transcriptionStatus={currentTranscriptionStatus}
-              onRetryTranscription={() => retryTranscription()}
+              onRetryTranscription={canEdit ? () => retryTranscription() : undefined}
               isRetryingTranscription={isRetryingTranscription}
               currentTime={player.currentTime}
               duration={player.duration}
@@ -228,7 +262,7 @@ export function LessonPlayerStudio({
         >
           <LessonTabsContainer
             lessonId={lesson.id}
-            isInstructor={isInstructor}
+            isInstructor={canEdit}
             currentTime={player.currentTime}
             duration={player.duration}
             onSeek={player.seek}

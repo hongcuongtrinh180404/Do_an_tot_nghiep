@@ -72,6 +72,8 @@ export function LessonTabsContainer({
     useGenerateSummaryMutation(lessonId);
 
   const handleTriggerAiForActiveTab = (tabId: TabConfig['id']) => {
+    if (!isInstructor) return;
+
     if (onTestGemini) {
       onTestGemini(tabId);
       return;

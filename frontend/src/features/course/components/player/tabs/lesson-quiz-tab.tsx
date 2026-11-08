@@ -33,6 +33,11 @@ export function LessonQuizTab({
   // Mutation sinh câu hỏi AI (tự động cập nhật trực tiếp thành câu hỏi chính thức)
   const { mutate: generateQuiz, isPending: isGenerating } = useGenerateQuizMutation(lessonId);
 
+  const handleGenerateQuiz = () => {
+    if (!isInstructor) return;
+    generateQuiz({ count: 10, saveAsDraft: false });
+  };
+
   return (
     <div className="w-full flex flex-col space-y-4 p-4 sm:p-6">
       {/* Quiz List Display */}
@@ -151,7 +156,7 @@ export function LessonQuizTab({
             <div className="pt-2 flex items-center justify-center gap-2">
               <Button
                 size="sm"
-                onClick={() => generateQuiz({ count: 10, saveAsDraft: false })}
+                onClick={handleGenerateQuiz}
                 disabled={isGenerating}
                 className="text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white cursor-pointer shadow-2xs"
               >

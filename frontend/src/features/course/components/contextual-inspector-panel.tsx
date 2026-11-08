@@ -19,6 +19,7 @@ import {
 import { UploadLessonDocDialog } from './upload-lesson-doc-dialog';
 import { DeleteLessonMaterialDialog } from './delete-lesson-material-dialog';
 import { formatVideoDuration, getVideoLessonStats } from '../utils/course-lesson-stats.util';
+import { getLessonUrl } from '../utils/course-view-mode.util';
 
 export type ContextSelection =
   | { type: 'chapter'; chapterId: string }
@@ -531,7 +532,7 @@ function LessonInspectorView({
     : durationText !== 'Chưa xác định'
       ? durationText
       : 'Video bài giảng';
-  const lessonViewUrl = `/courses/${courseId}/lessons/${lesson.id}`;
+  const lessonViewUrl = getLessonUrl(courseId, lesson.id);
 
   const keyPoints = deserializeKeyPoints(lesson.description);
   const materialsList = lesson.materials || [];
@@ -615,6 +616,16 @@ function LessonInspectorView({
             {isDocLesson ? 'Xem chi tiết tài liệu' : 'Xem trước bài giảng'}
           </span>
         </Link>
+        {!readOnly && (
+          <Link
+            href={getLessonUrl(courseId, lesson.id, 'edit')}
+            className="flex items-center justify-center gap-2 py-2.5 bg-sky-600 rounded-lg hover:bg-sky-700 transition text-white text-xs font-bold"
+            title="Biên tập Mindmap, Tóm tắt và câu hỏi của bài học"
+          >
+            <Icon icon="lucide:pencil" className="size-3.5" />
+            <span>Biên tập nội dung bài học</span>
+          </Link>
+        )}
       </div>
 
       {/* Tài liệu riêng của bài (Cấp 4) */}

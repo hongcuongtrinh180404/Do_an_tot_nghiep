@@ -6,6 +6,7 @@ import {
   Param,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { ILesson, RoleEnum } from 'share-lib';
 import { ApiResponse, ParseObjectIdPipe } from '../base/index.js';
@@ -14,6 +15,7 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
 import { Public } from '../auth/decorators/public.decorator.js';
 import { LessonService } from './services/lesson.service.js';
 import { CreateLessonDto } from './dto/create-lesson.dto.js';
+import { LessonManagementGuard } from './guards/lesson-management.guard.js';
 
 @Controller('sections')
 export class LessonController {
@@ -22,6 +24,7 @@ export class LessonController {
   @Post(':sectionId/lessons')
   @HttpCode(HttpStatus.CREATED)
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   async createLesson(
     @Param('sectionId', ParseObjectIdPipe) sectionId: string,
     @CurrentUser('id') userId: string,

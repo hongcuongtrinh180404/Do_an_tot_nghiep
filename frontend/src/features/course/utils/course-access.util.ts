@@ -1,4 +1,5 @@
-import { RoleEnum, type ICourse, type IUserProfile } from 'share-lib';
+import { CourseStatusEnum, RoleEnum, type ICourse, type IUserProfile } from 'share-lib';
+import type { CourseViewMode } from './course-view-mode.util';
 
 type FlexibleUser =
   | Pick<IUserProfile, 'id' | 'role'>
@@ -9,8 +10,13 @@ type FlexibleUser =
 type FlexibleCourse =
   | (Pick<ICourse, 'instructorId'> & {
     instructor?: { id?: string; _id?: string } | null;
+    status?: CourseStatusEnum;
   })
-  | { instructorId?: string | { id?: string; _id?: string }; instructor?: { id?: string; _id?: string } | null }
+  | {
+    instructorId?: string | { id?: string; _id?: string };
+    instructor?: { id?: string; _id?: string } | null;
+    status?: CourseStatusEnum;
+  }
   | null
   | undefined;
 
@@ -55,4 +61,16 @@ export function canManageCourse(
   }
 
   return String(instructorId) === String(userId);
+}
+
+/** Account ownership alone must never enable editing in the learner experience. */
+export function canEditCourseContent(
+  user: FlexibleUser,
+  course: FlexibleCourse,
+  mode: CourseViewMode = 'learn',
+): boolean {
+  return mode === 'edit' &&
+    Boolean(course?.status) &&
+    course?.status !== CourseStatusEnum.PENDING_APPROVAL &&
+    canManageCourse(user, course);
 }

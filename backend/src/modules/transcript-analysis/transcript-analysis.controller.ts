@@ -7,6 +7,7 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import {
   RoleEnum,
@@ -19,6 +20,7 @@ import { ApiResponse, ParseObjectIdPipe } from '../base/index.js';
 import { Public } from '../auth/decorators/public.decorator.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import { LessonManagementGuard } from '../course/guards/lesson-management.guard.js';
 import {
   MindmapAnalysisService,
   MindmapGenerationResponse,
@@ -54,6 +56,7 @@ export class TranscriptAnalysisController {
    */
   @Post(':id/analysis/mindmap')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   @HttpCode(HttpStatus.OK)
   async generateMindmap(
     @Param('id', ParseObjectIdPipe) id: string,
@@ -85,6 +88,7 @@ export class TranscriptAnalysisController {
    */
   @Put(':id/analysis/mindmap')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   @HttpCode(HttpStatus.OK)
   async updateMindmap(
     @Param('id', ParseObjectIdPipe) id: string,
@@ -107,6 +111,7 @@ export class TranscriptAnalysisController {
    */
   @Post(':id/analysis/mindmap/apply')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   @HttpCode(HttpStatus.OK)
   async applyDraftMindmap(
     @Param('id', ParseObjectIdPipe) id: string,
@@ -128,6 +133,7 @@ export class TranscriptAnalysisController {
    */
   @Post(':id/analysis/quiz')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   @HttpCode(HttpStatus.OK)
   async generateQuiz(
     @Param('id', ParseObjectIdPipe) id: string,
@@ -159,6 +165,7 @@ export class TranscriptAnalysisController {
    */
   @Post(':id/analysis/quiz/apply')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   @HttpCode(HttpStatus.OK)
   async applyDraftQuiz(
     @Param('id', ParseObjectIdPipe) id: string,
@@ -180,6 +187,7 @@ export class TranscriptAnalysisController {
    */
   @Post(':id/analysis/summary')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   @HttpCode(HttpStatus.OK)
   async generateSummary(
     @Param('id', ParseObjectIdPipe) id: string,
@@ -211,6 +219,7 @@ export class TranscriptAnalysisController {
    */
   @Put(':id/analysis/summary')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   @HttpCode(HttpStatus.OK)
   async updateSummary(
     @Param('id', ParseObjectIdPipe) id: string,
@@ -233,6 +242,7 @@ export class TranscriptAnalysisController {
    */
   @Post(':id/analysis/summary/apply')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
   @HttpCode(HttpStatus.OK)
   async applyDraftSummary(
     @Param('id', ParseObjectIdPipe) id: string,

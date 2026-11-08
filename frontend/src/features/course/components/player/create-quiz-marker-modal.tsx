@@ -38,6 +38,7 @@ export interface QuizQuestionItem {
 
 export interface CreateQuizMarkerModalProps {
   open: boolean;
+  canEdit?: boolean;
   onOpenChange: (open: boolean) => void;
   timestamp: number;
   formatTime: (seconds: number) => string;
@@ -65,6 +66,7 @@ export const createDefaultQuestion = (order: number = 1): QuizQuestionItem => ({
 
 export function CreateQuizMarkerModal({
   open,
+  canEdit = false,
   onOpenChange,
   timestamp,
   formatTime,
@@ -87,6 +89,7 @@ export function CreateQuizMarkerModal({
   const deleteClusterMutation = useDeleteLessonQuizClusterMutation(lessonId);
 
   const handleDeleteAllQuestions = async () => {
+    if (!canEdit) return;
     const hasDbQuizzes = (existingQuizzes || []).some(
       (q) => Math.abs(q.timestamp - timestamp) <= 2,
     );
@@ -109,7 +112,7 @@ export function CreateQuizMarkerModal({
 
   // Load existing quizzes for this timestamp if present, otherwise initial clean template
   useEffect(() => {
-    if (!open) return;
+    if (!canEdit || !open) return;
     const matched = (existingQuizzes || []).filter((q) => Math.abs(q.timestamp - timestamp) <= 2);
     if (matched.length > 0) {
       const existingItems: QuizQuestionItem[] = matched.map((q, idx) => ({
@@ -141,7 +144,7 @@ export function CreateQuizMarkerModal({
       setActiveQuestionIndex(0);
     }
     setValidationError(null);
-  }, [open, timestamp, existingQuizzes, initialAddNewQuestion]);
+  }, [canEdit, open, timestamp, existingQuizzes, initialAddNewQuestion]);
 
   // The question currently being edited in the Left Column
   const currentQuestion = useMemo(() => {
@@ -299,6 +302,7 @@ export function CreateQuizMarkerModal({
 
   // Save / Update All Questions
   const handleSaveAll = async () => {
+    if (!canEdit) return;
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       if (!q.question.trim()) {
@@ -370,7 +374,7 @@ export function CreateQuizMarkerModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={canEdit && open} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton={false}
         className="w-[calc(100%-2rem)] sm:w-[calc(100%-3rem)] max-w-[calc(1440px-3rem)] sm:max-w-[calc(1440px-3rem)] 2xl:max-w-[calc(1536px-3rem)] aspect-video max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl bg-card text-card-foreground border border-border shadow-2xl flex flex-col select-none"

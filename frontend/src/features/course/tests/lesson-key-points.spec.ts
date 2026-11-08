@@ -110,35 +110,78 @@ describe('Lesson Key Points Utility & Palette', () => {
     assert.equal(deserialized[1].text, 'Ý thứ hai');
   });
 
-  it('8. should auto-migrate legacy JSON string array by generating UUIDs', () => {
+  it('8. should deserialize legacy JSON string arrays with stable position-based IDs', () => {
     const legacyJson = JSON.stringify(['Ý cũ 1', 'Ý cũ 2']);
     const deserialized = deserializeKeyPoints(legacyJson);
+    const expected = [
+      { id: 'kp-0', text: 'Ý cũ 1' },
+      { id: 'kp-1', text: 'Ý cũ 2' },
+    ];
 
-    assert.equal(deserialized.length, 2);
-    assert.ok(UUID_V4_REGEX.test(deserialized[0].id));
-    assert.equal(deserialized[0].text, 'Ý cũ 1');
-    assert.ok(UUID_V4_REGEX.test(deserialized[1].id));
-    assert.equal(deserialized[1].text, 'Ý cũ 2');
-    assert.notEqual(deserialized[0].id, deserialized[1].id);
+    assert.deepEqual(deserialized, expected);
+    assert.deepEqual(deserializeKeyPoints(legacyJson), expected);
+    assert.equal(new Set(deserialized.map((point) => point.id)).size, expected.length);
   });
 
-  it('9. should deserialize legacy multiline plain text gracefully with UUIDs', () => {
-    const legacyText = 'Ý thứ nhất\nÝ thứ hai\r\nÝ thứ ba';
+  it('9. should deserialize legacy multiline text with stable IDs and trimmed content', () => {
+    const legacyText = '  Ý thứ nhất  \n\nÝ thứ hai\r\n   \r\nÝ thứ ba  ';
     const deserialized = deserializeKeyPoints(legacyText);
+    const expected = [
+      { id: 'kp-0', text: 'Ý thứ nhất' },
+      { id: 'kp-1', text: 'Ý thứ hai' },
+      { id: 'kp-2', text: 'Ý thứ ba' },
+    ];
 
-    assert.equal(deserialized.length, 3);
-    assert.equal(deserialized[0].text, 'Ý thứ nhất');
-    assert.ok(UUID_V4_REGEX.test(deserialized[0].id));
-    assert.equal(deserialized[1].text, 'Ý thứ hai');
-    assert.ok(UUID_V4_REGEX.test(deserialized[1].id));
-    assert.equal(deserialized[2].text, 'Ý thứ ba');
-    assert.ok(UUID_V4_REGEX.test(deserialized[2].id));
+    assert.deepEqual(deserialized, expected);
+    assert.deepEqual(deserializeKeyPoints(legacyText), expected);
+    assert.equal(new Set(deserialized.map((point) => point.id)).size, expected.length);
   });
 
   it('10. should return empty array when deserializing null, undefined, or empty string', () => {
     assert.deepEqual(deserializeKeyPoints(null), []);
     assert.deepEqual(deserializeKeyPoints(undefined), []);
     assert.deepEqual(deserializeKeyPoints('   '), []);
+  });
+
+  it('11. should preserve existing UUIDs and other saved IDs across repeated reads', () => {
+    const points = [
+      { id: '11111111-1111-4111-a111-111111111111', text: 'Ý đã có UUID' },
+      { id: 'kp-7', text: 'Ý đã lưu từ dữ liệu cũ' },
+      { id: 'existing-id', text: 'Ý đã có ID riêng' },
+    ];
+    const json = JSON.stringify(points);
+
+    assert.deepEqual(deserializeKeyPoints(json), points);
+    assert.deepEqual(deserializeKeyPoints(json), points);
+  });
+
+  it('12. should assign stable fallback IDs to JSON objects without a saved ID', () => {
+    const json = JSON.stringify([
+      { text: 'Ý chưa có ID' },
+      { id: '', text: 'Ý có ID rỗng' },
+      { id: '   ', text: 'Ý có ID chỉ chứa khoảng trắng' },
+      { id: 'saved-id', text: 'Ý đã có ID' },
+    ]);
+    const expected = [
+      { id: 'kp-0', text: 'Ý chưa có ID' },
+      { id: 'kp-1', text: 'Ý có ID rỗng' },
+      { id: 'kp-2', text: 'Ý có ID chỉ chứa khoảng trắng' },
+      { id: 'saved-id', text: 'Ý đã có ID' },
+    ];
+
+    assert.deepEqual(deserializeKeyPoints(json), expected);
+    assert.deepEqual(deserializeKeyPoints(json), expected);
+  });
+
+  it('13. should preserve legacy IDs and content through serialization and repeated reads', () => {
+    for (const source of [JSON.stringify(['Ý cũ 1', 'Ý cũ 2']), 'Ý cũ 1\nÝ cũ 2']) {
+      const points = deserializeKeyPoints(source);
+      const serialized = serializeKeyPoints(points);
+
+      assert.deepEqual(JSON.parse(serialized), points);
+      assert.deepEqual(deserializeKeyPoints(serialized), points);
+      assert.equal(serializeKeyPoints(deserializeKeyPoints(serialized)), serialized);
+    }
   });
 });
 
