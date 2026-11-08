@@ -147,6 +147,26 @@
   - **Empty State**: Hiển thị khi `lesson.content === null`.
   - **Loading & Error**: `LessonDetailSkeleton` và Card báo lỗi thân thiện với nút "Thử lại" và "Quay lại khóa học".
 
+### Theo dõi tiến độ học tập thực tế (Learning Progress Tracking)
+- **Hợp đồng dữ liệu `ICourseLearningProgress`**:
+  - `courseId`: string
+  - `revision`: number (phiên bản ghi tăng đơn điệu, bảo vệ cache khỏi late responses)
+  - `watchedMs`: number (thời gian xem thực tế tích lũy, không bị giới hạn bởi thời lượng hiện tại)
+  - `totalDurationMs`: number | null (tổng thời lượng video toàn khóa từ aggregation; `null` nếu thiếu duration)
+  - `progressPercent`: number | null (`null` nếu `totalDurationMs === null`; sàn 2 chữ số thập phân `Math.floor(... * 10000) / 100`)
+  - `status`: LearningStatusEnum (`NOT_STARTED`, `IN_PROGRESS`, `COMPLETED` suy diễn động)
+  - `lastLessonId`: string | null (bài học dừng gần nhất; `null` nếu video bị gỡ/thay đổi)
+  - `lastPositionSeconds`: number (vị trí giây dừng trong video, kẹp trong `[0, duration]`)
+  - `updatedAt`: Date | string | null
+- **Thành phần UI & Tích hợp**:
+  - `LearningProgressSummary`: Card hiển thị trạng thái học, thanh progress bar accessibility (`role="progressbar"`), tỷ lệ % hoàn thành, thời gian học đã xem/tổng thời lượng, save state realtime và nút "Tiếp tục học".
+  - Trang `/my-courses`: Hiển thị tiến độ và đổi nút "Vào học" thành "Tiếp tục học" trỏ tới `lastLessonId`.
+  - Trang `/courses/:courseId`: Hiển thị `LearningProgressSummary` khi học viên đã đăng ký (`isEnrolled === true`).
+  - Studio Player (`LessonPlayerStudio`): Gắn `useLessonLearningProgress` trong `mode === 'learn'`, theo dõi nhịp tim 15s và flush an toàn bằng `fetch(..., { keepalive: true })`.
+- **Đồng bộ Cache & Tuần tự hóa Phiên**:
+  - `cacheLearningProgress`: So sánh xác định `progress.revision >= old.revision` thay cho timestamp.
+  - Client queue: Promise maps `pendingReleases` và `pendingStarts` theo `${userId}:${courseId}` tuần tự hóa lệnh đóng và mở phiên khi chuyển bài nhanh.
+
 ---
 
 ## 4. Bảo Mật & Phân Định Quyền Hạn Dual-Mode (Milestone 41)

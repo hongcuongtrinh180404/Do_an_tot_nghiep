@@ -18,6 +18,7 @@ export function summarizeProgress(
 
   return {
     courseId,
+    revision: state?.revision ?? 0,
     watchedMs,
     totalDurationMs,
     // Flooring avoids displaying 100% before the exact threshold is reached.

@@ -29,33 +29,63 @@
   1. **Tầng Hợp đồng Dữ liệu Dùng chung (`share-lib`)**:
      - Định nghĩa enum trạng thái học tập `LearningStatusEnum` (`NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`).
      - Hằng số nhịp tim và thời hạn lease: `PLAYBACK_HEARTBEAT_MS = 15_000` (15 giây gửi heartbeat một lần), `PLAYBACK_LEASE_MS = 45_000` (45 giây hết hạn lease nếu mất kết nối/mất điện).
-     - Giao diện: `ICourseLearningProgress`, `IStartPlaybackSession`, `IPlaybackHeartbeat`, `IPlaybackSessionResponse`.
-  2. **Tầng Backend (`backend/src/modules/learning-progress/` & `CourseModule`)**:
+     - Giao diện `ICourseLearningProgress`: bổ sung trường `revision: number` (phiên bản ghi tăng đơn điệu, bảo vệ client khỏi các response đến muộn trong cùng mili-giây), `watchedMs`, `totalDurationMs`, `progressPercent`, `status`, `lastLessonId`, `lastPositionSeconds`, `updatedAt`.
+     - Giao diện điều phối phiên: `IStartPlaybackSession`, `IPlaybackHeartbeat`, `IPlaybackSessionResponse`.
+  2. **Mô hình Tính toán Tiến độ & Tổng hợp Động (`summarizeProgress` & `LessonRepository.getCourseVideoStats`)**:
+     - **Thời gian tích lũy thực tế (`watchedMs`)**:
+       - Lưu trữ mili-giây nguyên bản trên CSDL, **không bao giờ bị cap** bởi tổng thời lượng video của khóa học hiện tại. Điều này đảm bảo lịch sử xem của học viên bền vững tuyệt đối trước mọi thay đổi giáo trình (thêm/sửa bài học, đổi video).
+       - Tích lũy cả khi xem lại (replay) các đoạn video khó, nhưng KHÔNG bao giờ cộng thời gian tua qua (seek), tạm dừng (pause), buffering, máy ngủ (system sleep) hoặc xem ngoại tuyến.
+       - Chuẩn hóa theo tốc độ phát (0.5x, 1x, 2x): Thời gian tích lũy dựa trên thời gian thực tế người học ngồi xem (xem 10 phút ở 2x chỉ cộng 10 phút học thực tế).
+       - Hỗ trợ phát nền (Background playback): Khi chuyển tab nhưng âm thanh video tiếp tục phát (`visibilitychange`), thời gian học vẫn được ghi nhận đầy đủ.
+     - **Tổng thời lượng video toàn khóa (`totalDurationMs`)**:
+       - Không lưu cứng trong collection `courses` hay `learning_progress`.
+       - Tính toán động thông qua Aggregation Pipeline `LessonRepository.getCourseVideoStats(courseIds)`:
+         - Chỉ quét các bài học có `content.type === VIDEO`, chưa bị xóa (`deletedAt: null`), thuộc các chương chưa bị xóa (`section.deletedAt: null`).
+         - Trailer giới thiệu và tài liệu đính kèm (`materials`) bị loại trừ hoàn toàn khỏi tổng thời lượng học tập.
+         - **Cơ chế an toàn chống hoàn thành giả (Missing Duration Protection)**: Nếu khóa học chưa có video nào (`videoCount === 0`) hoặc có bất kỳ video nào chưa có thông tin thời lượng (`missingDurationCount > 0` hoặc `totalSeconds <= 0`), hệ thống trả về `totalDurationMs: null`.
+     - **Công thức tính phần trăm hoàn thành (`progressPercent`)**:
+       - Khi `totalDurationMs === null`: Trả về `progressPercent: null` ("Chưa xác định" / "Thời lượng video chưa đầy đủ"), không tự ý đánh dấu hoàn thành khóa học.
+       - Khi đã xem đủ (`watchedMs >= totalDurationMs`): Trả về chính xác `100%`.
+       - Khi đang học: `progressPercent = Math.floor((watchedMs / totalDurationMs) * 10_000) / 100`.
+       - **Quy tắc làm tròn sàn (Flooring Rule)**: Tuyệt đối không dùng `Math.round` hay `Math.ceil`, ngăn chặn triệt để trường hợp học viên mới xem được 99.995% mà giao diện đã hiển thị làm tròn sớm thành 100.00%.
+     - **Trạng thái học tập động (`LearningStatusEnum`)**:
+       - Suy diễn động tại thời điểm đọc/lưu dữ liệu:
+         - `COMPLETED`: Khi `totalDurationMs !== null` VÀ `watchedMs >= totalDurationMs`.
+         - `IN_PROGRESS`: Khi `watchedMs > 0` và chưa chạm ngưỡng hoàn thành.
+         - `NOT_STARTED`: Khi `watchedMs === 0`.
+       - **Tính thích ứng cao**: Khi giảng viên bổ sung bài giảng video mới vào khóa học, trạng thái của học viên có thể tự động chuyển từ `COMPLETED` về `IN_PROGRESS` (và ngược lại) mà không cần migration hay background worker cập nhật DB.
+     - **Vị trí tiếp tục học (`lastLessonId`, `lastPositionSeconds`)**:
+       - Lưu trữ độc lập với tổng thời gian tích lũy `watchedMs`.
+       - Nếu video bài học đã bị xóa hoặc thay đổi URL trong giáo trình, hàm `summarizeProgress` sẽ loại bỏ con trỏ cũ (`lastLessonId: null`, `lastPositionSeconds: 0`), tránh điều hướng học viên vào bài học không tồn tại.
+       - Vị trí `lastPositionSeconds` luôn được kẹp giới hạn an toàn trong khoảng `[0, video.durationSeconds]`.
+  3. **Tầng Backend (`backend/src/modules/learning-progress/` & `CourseModule`)**:
      - **Mongoose Schema & Indexing (`LearningProgressEntity`)**:
        - Collection: `learning_progress`, kế thừa `BaseAbstractDocument`.
        - Chỉ mục duy nhất: `{ userId: 1, courseId: 1 }` đảm bảo mỗi học viên chỉ có đúng 1 bản ghi tiến độ cho mỗi khóa học.
-       - Các trường cốt lõi: `watchedMs` (thời gian xem thực tế tích lũy, không bao giờ bị cap để bền vững trước các thay đổi giáo trình tương lai), `lastLessonId`, `lastMediaUrl`, `lastPositionSeconds`, `sessionId`, `sessionLessonId`, `sessionMediaUrl`, `sessionExpiresAt`, `lastHeartbeatAt`, `sessionWatchedMs`, `lastSequence`, `sessionClosed`, `revision`.
+       - Các trường cốt lõi: `watchedMs`, `lastLessonId`, `lastMediaUrl`, `lastPositionSeconds`, `sessionId`, `sessionLessonId`, `sessionMediaUrl`, `sessionExpiresAt`, `lastHeartbeatAt`, `sessionWatchedMs`, `lastSequence`, `sessionClosed`, `revision`.
      - **Repository với Atomic Optimistic Concurrency Control (`LearningProgressRepository`)**:
        - Phương thức `ensureExists(userId, courseId)`: Sử dụng atomic `updateOne` với `$setOnInsert` và bắt mã lỗi MongoDB `11000` để giải quyết race condition khi nhiều request đầu tiên cùng gọi.
        - Phương thức `compareAndSet(state, changes)`: Thực thi `updateOne` atomic dựa trên `{ _id, userId, courseId, revision, deletedAt: null }` và tự động tăng `$inc: { revision: 1 }`. Cam kết lease, idempotency cursor, resume point và thời gian xem trong đúng một atomic write duy nhất.
      - **Nghiệp vụ Service Chống Gian Lận (`LearningProgressService`)**:
        - Phân định ghi danh chặt chẽ (`requireEnrollment`): Kiểm tra trực tiếp qua `EnrollmentRepository.findByUserAndCourse` (loại trừ `deletedAt`), không dùng `checkEnrollment` của CourseService (vốn cho phép tác giả xem thử) để tránh ghi nhận tiến độ rác cho giảng viên.
        - Cơ chế Khóa phiên (Session Lease): `startSession` kiểm tra nếu phiên khác đang hoạt động và `sessionExpiresAt > now` thì ném ngay `409 ConflictException` ("Khóa học đang được phát ở tab hoặc thiết bị khác").
+       - Đồng bộ `revision` chính xác: Khi `compareAndSet` thành công trong `startSession` và `heartbeat`/`end`, service truyền trực tiếp `{ ...state, ...changes, revision: state.revision + 1 }` vào `summarizeProgress` để client nhận ngay phiên bản ghi mới nhất.
        - Thuật toán tích lũy thời gian đơn điệu (Monotonic Credited Time): Khi nhận `heartbeat`, `creditedMs = Math.min(dto.watchedMs - state.sessionWatchedMs, serverElapsed, PLAYBACK_LEASE_MS)`. Nếu tua video hoặc client báo delta lớn hơn thời gian thực trôi qua trên server, server chỉ tính theo thời gian thực thực tế.
        - Chống lặp và đảo thứ tự (Idempotent Sequence Cursor): Bỏ qua các heartbeat có `dto.sequence <= state.lastSequence` mà không tăng thời gian hay ghi đè mốc học.
-       - Tổng hợp tiến độ an toàn (`summarizeProgress` & `LessonRepository.getCourseVideoStats`): Sử dụng MongoDB Aggregation `$lookup` từ `lessons` (`content.type === VIDEO`) sang `sections`, nhóm theo `courseId`. Nếu có bất kỳ video nào thiếu thời lượng (`missingDurationCount > 0`), trường `totalDurationMs` được gán `null` an toàn và `progressPercent` trả về `null` thay vì kết luận 100%. Khi tính phần trăm hoàn thành, áp dụng `Math.floor(... * 10000) / 100` để không bao giờ làm tròn lên 100% trước khi thực sự xem đủ.
      - **REST Controller (`LearningProgressController`)**:
        - `GET /api/v1/learning-progress/my-courses`: Lấy danh sách tiến độ toàn bộ khóa học đã mua của học viên hiện tại.
        - `GET /api/v1/learning-progress/courses/:courseId`: Lấy chi tiết tiến độ khóa học cụ thể.
        - `POST /api/v1/learning-progress/courses/:courseId/sessions`: Mở phiên phát video bài học mới.
        - `POST /api/v1/learning-progress/courses/:courseId/heartbeat`: Gửi nhịp tim định kỳ tích lũy thời gian xem.
        - `POST /api/v1/learning-progress/courses/:courseId/end`: Kết thúc phiên phát video, giải phóng lease ngay lập tức.
-  3. **Tầng Frontend (`frontend/src/features/course/`)**:
+  4. **Tầng Frontend (`frontend/src/features/course/`)**:
      - **Đồng hồ phát đơn điệu `PlaybackClock` (`frontend/src/features/course/utils/playback-clock.ts`)**:
        - Theo dõi đồng thời 2 mốc: thời gian thực trôi qua trên máy (`wallDelta = now - lastNow`) và khoảng cách dịch chuyển của media (`mediaDelta = position - lastPosition`).
        - Chuẩn hóa theo tốc độ phát (`this.rate`): Chấp nhận mọi tốc độ học tập hợp lệ (0.5x, 1x, 2x).
        - Chống tua nhanh: Bất kỳ khi nào phát hiện `mediaDelta < 0` (tua lùi) hoặc `mediaDelta > wallDelta / 1000 * rate + 0.5` (tua tiến bất thường), cửa sổ tích lũy lập tức bị vô hiệu hóa (`seeking()`).
        - Tích lũy thời gian thực xem lại: Xem lại nhiều lần một đoạn video vẫn được tích lũy thời gian học hợp lệ.
+     - **Quản lý Cache Theo Phiên Bản Đơn Điệu (`cacheLearningProgress`)**:
+       - Thay thế việc so sánh timestamp `updatedAt` bằng điều kiện xác định: `progress.revision >= old.revision`. Ngăn chặn hoàn toàn việc các response đến muộn ghi đè làm thụt lùi tiến độ hay mốc phát video trong React Query cache.
      - **Hook Điều phối Phiên `useLessonLearningProgress` (`components/player/use-lesson-learning-progress.ts`)**:
        - Tự động khôi phục vị trí xem dở `lastPositionSeconds` khi metadata của video sẵn sàng (chỉ khôi phục nếu video chưa phát và `currentTime === 0`).
        - Lắng nghe toàn diện các sự kiện media: `playing`, `pause`, `waiting`, `seeking`, `seeked`, `ratechange`, `timeupdate`, `pagehide`, `offline`, `visibilitychange`.
@@ -71,16 +101,19 @@
        - Trang *Khóa học của tôi* (`/my-courses`): Hiển thị thanh tiến độ tóm tắt dưới mỗi thẻ khóa học, cập nhật nút "Vào học" thành "Tiếp tục học" trỏ thẳng đến `lastLessonId` đang học dở.
        - Trang *Chi tiết khóa học* (`/courses/:id`): Hiển thị tiến độ và nút "Tiếp tục học" cho học viên đã mua khóa học.
        - Giao diện phòng học *Lesson Player Studio* (`LessonPlayerStudio`): Kích hoạt hook theo dõi tiến độ khi `mode === 'learn'` và bài học là video.
-  4. **Kiểm thử tự động & Đảm bảo Chất lượng**:
-     - `learning-progress.service.spec.ts`: 18/18 tests passed (kiểm thử start session, lease deadline, out-of-order sequences, anti-cheat cap, non-enrolled user rejection, resume position calculation).
+  5. **Kiểm thử tự động & Đảm bảo Chất lượng**:
+     - `learning-progress.service.spec.ts`: 18/18 tests passed (kiểm thử start session, lease deadline, out-of-order sequences, anti-cheat cap, non-enrolled user rejection, resume position calculation, revision increments).
      - `learning-progress.repository.spec.ts`: 3/3 tests passed (kiểm thử unique upsert, atomic compareAndSet revision increment).
+     - `learning-progress-api.spec.ts`: 3/3 tests passed (kiểm thử cô lập cache theo học viên, tuần tự hóa request chuyển bài, và đồng bộ cache theo `revision` ngay cả khi trùng timestamp).
      - `playback-clock.spec.ts`: 5/5 tests passed (kiểm thử 0.5x/1x/2x speed rates, seek suppression, sleep/frozen-video capping, repeat viewing accumulation).
 - **Gotchas & Bài học Kinh nghiệm**:
-  1. *Không dùng `navigator.sendBeacon` khi cần Bearer token*: `sendBeacon` không cho phép tùy biến Request Headers. Trình duyệt hiện đại chuẩn hóa việc sử dụng `fetch(url, { method: 'POST', keepalive: true, headers: { Authorization: ... } })` khi xử lý sự kiện `pagehide`.
-  2. *Triệt tiêu Race Condition giữa unmount bài cũ và mount bài mới*: Khi người dùng bấm Next bài học trên thanh điều hướng, component cũ chạy cleanup (`pagehide`/finish) trong khi component mới chạy `useEffect` khởi động phiên mới. Nếu không dùng promise queue `pendingReleases`, request `start` của bài mới sẽ đến server trước khi server xử lý xong `end` của bài cũ, dẫn đến lỗi 409 "Khóa học đang được phát ở thiết bị khác".
-  3. *Tách biệt giữa Video Duration và Playback Time*: Thời gian tích lũy tiến độ phải tính theo thời gian học viên thực sự ngồi xem (wall time at verified playback rate), không lấy `video.currentTime` làm tiến độ vì `currentTime` có thể bị tua từ 0 lên 1000s trong 1 click chuột.
-  4. *Khóa học có video thiếu duration*: Nếu một video vừa tải lên chưa có metadata duration (hoặc file lỗi duration = 0), tuyệt đối không chia cho 0 hay bỏ qua video đó để tính 100%, mà phải hiển thị `null` ("Thời lượng video chưa đầy đủ") để bảo vệ tính chính xác của chứng chỉ/tiến độ.
-  5. *Tác giả xem trước khóa học*: Giảng viên chủ sở hữu khóa học khi xem trước bài học ở chế độ học viên không được ghi nhận tiến độ vào `learning_progress` (tránh làm sai lệch dữ liệu học tập cá nhân).
+  1. *Đồng bộ Cache Xác định qua Monotonic Revision*: Timestamp `updatedAt` có thể bị trùng trong cùng một mili-giây hoặc gặp sai lệch đồng hồ hệ thống giữa client và server. Sử dụng số nguyên tăng đơn điệu `revision` sinh ra từ write database đảm bảo việc cập nhật cache React Query luôn 100% chính xác và không bao giờ bị ghi đè bởi response đến trễ.
+  2. *Quy tắc Làm Tròn Sàn (Flooring Rule)*: Tuyệt đối không dùng `Math.round` khi tính phần trăm hoàn thành. Tỷ lệ 99.995% nếu làm tròn sẽ thành 100% trong khi học viên chưa xem đủ thời lượng. Bắt buộc dùng `Math.floor(... * 10000) / 100` để giữ đúng tính nghiêm ngặt.
+  3. *Không dùng `navigator.sendBeacon` khi cần Bearer token*: `sendBeacon` không cho phép tùy biến Request Headers. Trình duyệt hiện đại chuẩn hóa việc sử dụng `fetch(url, { method: 'POST', keepalive: true, headers: { Authorization: ... } })` khi xử lý sự kiện `pagehide`.
+  4. *Triệt tiêu Race Condition giữa unmount bài cũ và mount bài mới*: Khi người dùng bấm Next bài học trên thanh điều hướng, component cũ chạy cleanup (`pagehide`/finish) trong khi component mới chạy `useEffect` khởi động phiên mới. Nếu không dùng promise queue `pendingReleases`, request `start` của bài mới sẽ đến server trước khi server xử lý xong `end` của bài cũ, dẫn đến lỗi 409 "Khóa học đang được phát ở thiết bị khác".
+  5. *Tách biệt giữa Video Duration và Playback Time*: Thời gian tích lũy tiến độ phải tính theo thời gian học viên thực sự ngồi xem (wall time at verified playback rate), không lấy `video.currentTime` làm tiến độ vì `currentTime` có thể bị tua từ 0 lên 1000s trong 1 click chuột.
+  6. *Khóa học có video thiếu duration*: Nếu một video vừa tải lên chưa có metadata duration (hoặc file lỗi duration = 0), tuyệt đối không chia cho 0 hay bỏ qua video đó để tính 100%, mà phải hiển thị `null` ("Thời lượng video chưa đầy đủ") để bảo vệ tính chính xác của chứng chỉ/tiến độ.
+  7. *Tác giả xem trước khóa học*: Giảng viên chủ sở hữu khóa học khi xem trước bài học ở chế độ học viên không được ghi nhận tiến độ vào `learning_progress` (tránh làm sai lệch dữ liệu học tập cá nhân).
 
 ### [2026-11-08] - Quản lý từng câu hỏi quiz trong bài học
 

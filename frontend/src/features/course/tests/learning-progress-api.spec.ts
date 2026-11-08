@@ -7,7 +7,7 @@ import { apiClient } from '../../../lib/api-client';
 import { cacheLearningProgress, learningProgressApi, learningProgressKeys } from '../api/learning-progress.api';
 
 function progress(watchedMs = 0, updatedAt = '2026-11-08T00:00:00Z'): ICourseLearningProgress {
-  return { courseId: 'course', watchedMs, totalDurationMs: 100_000, progressPercent: watchedMs / 1000,
+  return { courseId: 'course', revision: watchedMs, watchedMs, totalDurationMs: 100_000, progressPercent: watchedMs / 1000,
     status: LearningStatusEnum.IN_PROGRESS, lastLessonId: 'lesson', lastPositionSeconds: 1, updatedAt };
 }
 
@@ -23,6 +23,14 @@ describe('Learning progress client coordination', () => {
     assert.equal(client.getQueryData<ICourseLearningProgress>(learningProgressKeys.course('student-a', 'course'))?.watchedMs, 20_000);
     assert.equal(client.getQueryData<ICourseLearningProgress[]>(learningProgressKeys.myCourses('student-a'))?.[0].watchedMs, 20_000);
     assert.equal(client.getQueryData(learningProgressKeys.course('student-b', 'course')), undefined);
+    client.clear();
+  });
+
+  it('uses the write revision even when old and new responses share a timestamp', () => {
+    const client = new QueryClient();
+    cacheLearningProgress(client, 'student-a', { ...progress(1000), revision: 3, lastPositionSeconds: 50 });
+    cacheLearningProgress(client, 'student-a', { ...progress(1000), revision: 2, lastPositionSeconds: 10 });
+    assert.equal(client.getQueryData<ICourseLearningProgress>(learningProgressKeys.course('student-a', 'course'))?.lastPositionSeconds, 50);
     client.clear();
   });
 

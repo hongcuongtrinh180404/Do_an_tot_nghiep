@@ -86,7 +86,7 @@ export class LearningProgressService {
         sessionClosed: false,
       };
       if (await this.progressRepository.compareAndSet(state, changes)) {
-        return { sessionId: dto.sessionId, expiresAt: changes.sessionExpiresAt, progress: summarizeProgress(courseId, state, stats) };
+        return { sessionId: dto.sessionId, expiresAt: changes.sessionExpiresAt, progress: summarizeProgress(courseId, { ...state, ...changes, revision: state.revision + 1 }, stats) };
       }
     }
     throw new ConflictException('Tiến độ vừa thay đổi, vui lòng thử lại');
@@ -130,7 +130,7 @@ export class LearningProgressService {
         updatedAt: now,
       };
       if (await this.progressRepository.compareAndSet(state, changes)) {
-        return { sessionId: dto.sessionId, expiresAt: changes.sessionExpiresAt, progress: summarizeProgress(courseId, { ...state, ...changes }, stats) };
+        return { sessionId: dto.sessionId, expiresAt: changes.sessionExpiresAt, progress: summarizeProgress(courseId, { ...state, ...changes, revision: state.revision + 1 }, stats) };
       }
     }
     throw new ConflictException('Tiến độ vừa thay đổi, vui lòng thử lại');

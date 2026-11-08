@@ -2,6 +2,8 @@ import type { LearningStatusEnum } from '../enums/learning-status.enum.js';
 
 export interface ICourseLearningProgress {
   courseId: string;
+  /** Monotonic write version; protects clients against late responses in the same millisecond. */
+  revision: number;
   watchedMs: number;
   /** Null until every current video has a known, positive duration. */
   totalDurationMs: number | null;

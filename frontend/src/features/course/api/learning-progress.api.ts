@@ -62,8 +62,7 @@ export const learningProgressApi = {
 };
 
 export function cacheLearningProgress(client: QueryClient, userId: string, progress: ICourseLearningProgress): void {
-  const newer = (old?: ICourseLearningProgress | null) => !old?.updatedAt || !progress.updatedAt ||
-    new Date(progress.updatedAt).getTime() >= new Date(old.updatedAt).getTime();
+  const newer = (old?: ICourseLearningProgress | null) => !old || progress.revision >= old.revision;
   client.setQueryData<ICourseLearningProgress | null>(learningProgressKeys.course(userId, progress.courseId),
     (old) => newer(old) ? progress : old);
   client.setQueryData<ICourseLearningProgress[]>(learningProgressKeys.myCourses(userId),
