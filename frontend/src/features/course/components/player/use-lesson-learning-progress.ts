@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { PLAYBACK_HEARTBEAT_MS, PLAYBACK_LEASE_MS, type IPlaybackHeartbeat } from 'share-lib';
 import { cacheLearningProgress, learningProgressApi, useCourseLearningProgressQuery } from '../../api/learning-progress.api';
@@ -34,19 +34,22 @@ export function useLessonLearningProgress({ userId, courseId, lessonId, videoUrl
   const eligible = Boolean(enabled && userId && query.data);
   const resumeLessonId = query.data?.lastLessonId;
   const resumePosition = query.data?.lastPositionSeconds ?? 0;
+  const restoredMedia = useRef<string | null>(null);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !eligible || resumeLessonId !== lessonId) return;
+    const mediaKey = `${userId}:${courseId}:${lessonId}:${videoUrl}`;
+    if (!video || !eligible || restoredMedia.current === mediaKey) return;
     const restore = () => {
+      restoredMedia.current = mediaKey;
       // Never jump a player that the learner has already started interacting with.
-      if (video.paused && video.currentTime === 0 && resumePosition > 0 &&
+      if (resumeLessonId === lessonId && video.paused && video.currentTime === 0 && resumePosition > 0 &&
         Number.isFinite(video.duration) && resumePosition < video.duration) video.currentTime = resumePosition;
     };
     if (video.readyState >= 1) restore();
     else video.addEventListener('loadedmetadata', restore, { once: true });
     return () => video.removeEventListener('loadedmetadata', restore);
-  }, [eligible, lessonId, resumeLessonId, resumePosition, videoRef]);
+  }, [eligible, userId, courseId, lessonId, videoUrl, resumeLessonId, resumePosition, videoRef]);
 
   useEffect(() => {
     const video = videoRef.current;

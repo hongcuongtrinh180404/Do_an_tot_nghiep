@@ -26,7 +26,7 @@ export function LearningProgressSummary({ progress, isLoading, isError, onRetry,
   saveState?: string;
   showResume?: boolean;
 }) {
-  if (isError) return (
+  if (isError && !progress) return (
     <div data-ui="learning-progress" className="text-sm text-muted-foreground">
       Không thể tải tiến độ.{' '}
       {onRetry && <button type="button" onClick={onRetry} className="cursor-pointer underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4">Thử lại</button>}
@@ -55,6 +55,12 @@ export function LearningProgressSummary({ progress, isLoading, isError, onRetry,
         {progress.totalDurationMs !== null ? ` / ${formatTime(progress.totalDurationMs)}` : ' · Thời lượng video chưa đầy đủ'}
       </p>
       {saveState && <p role="status" className="text-xs leading-5 text-muted-foreground">{saveState}</p>}
+      {isError && (
+        <p role="status" className="text-xs leading-5 text-muted-foreground">
+          Chưa đồng bộ được tiến độ mới nhất.{' '}
+          {onRetry && <button type="button" onClick={onRetry} className="cursor-pointer underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4">Thử lại</button>}
+        </p>
+      )}
       {showResume && progress.lastLessonId && (
         <Link href={`/courses/${progress.courseId}/lessons/${progress.lastLessonId}`}
           className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4">

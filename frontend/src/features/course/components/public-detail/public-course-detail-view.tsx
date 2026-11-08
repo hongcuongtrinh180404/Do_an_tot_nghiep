@@ -22,8 +22,6 @@ import { CourseMindmapTab } from './course-mindmap-tab';
 import { CourseReviewsTab } from './course-reviews-tab';
 import { CourseInstructorTab } from './course-instructor-tab';
 import { CoursePurchaseCard } from './course-purchase-card';
-import { useCourseLearningProgressQuery } from '../../api/learning-progress.api';
-import { LearningProgressSummary } from '../learning-progress-summary';
 
 interface PublicCourseDetailViewProps {
   courseId: string;
@@ -64,7 +62,6 @@ export function PublicCourseDetailView({
   const createOrderMutation = useCreateOrderMutation();
 
   const isInstructorOwner = canManageCourse(user, course);
-  const learning = useCourseLearningProgressQuery(user?.id, course?.id || courseId, isEnrolled);
 
   const totalLessonsCount = useMemo(() => {
     if (!course?.sections) return 0;
@@ -188,11 +185,6 @@ export function PublicCourseDetailView({
               totalLessonsCount={totalLessonsCount}
               totalDurationFormatted={totalDurationFormatted}
             />
-
-            {isEnrolled && (
-              <LearningProgressSummary progress={learning.data} isLoading={learning.isLoading} isError={learning.isError}
-                onRetry={() => void learning.refetch()} showResume />
-            )}
 
             {/* 2. Intro Media (Video Trailer / Cover with Play Trigger) */}
             <CourseIntroMedia

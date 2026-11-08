@@ -252,10 +252,12 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
                     </span>
                   </div>
 
-                  <div className="py-4">
-                    <LearningProgressSummary progress={progress} isLoading={learning.isLoading} isError={learning.isError}
-                      onRetry={() => void learning.refetch()} />
-                  </div>
+                  {(progress || learning.isLoading || learning.isError) && (
+                    <div className="py-4">
+                      <LearningProgressSummary progress={progress} isLoading={learning.isLoading} isError={learning.isError}
+                        onRetry={() => void learning.refetch()} />
+                    </div>
+                  )}
 
                   {/* Card Footer: Action button */}
                   <div data-ui="course-card-footer" className="mt-auto pt-4 border-t border-neutral-100 flex items-center justify-between gap-2 flex-wrap">
