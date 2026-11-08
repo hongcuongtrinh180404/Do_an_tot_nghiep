@@ -9,6 +9,8 @@ import { PublicHeader, PublicFooter } from '@/features/course/components/public-
 import { InstructorProfileDialog } from '@/features/course/components/instructor/instructor-profile-dialog';
 import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
 import { useMyPurchasedCoursesQuery } from '@/features/course/api/enrollment.api';
+import { useMyLearningProgressQuery } from '@/features/course/api/learning-progress.api';
+import { LearningProgressSummary } from '@/features/course/components/learning-progress-summary';
 
 const levelMap: Record<CourseLevelEnum, string> = {
   [CourseLevelEnum.BEGINNER]: 'Cơ bản',
@@ -24,6 +26,7 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
   );
   const [selectedInstructor, setSelectedInstructor] = useState<ICourseInstructorSummary | null>(null);
   const [isInstructorDialogOpen, setIsInstructorDialogOpen] = useState(false);
+  const learning = useMyLearningProgressQuery(user?.id);
 
   const handleOpenInstructorProfile = (
     e: React.MouseEvent,
@@ -118,6 +121,7 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
       ) : courses && courses.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses.map((course: ICourse) => {
+            const progress = learning.data?.find((item) => item.courseId === course.id);
             const rawCat = course.categoryId as unknown;
             const categoryName =
               course.category?.name ||
@@ -248,6 +252,11 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
                     </span>
                   </div>
 
+                  <div className="py-4">
+                    <LearningProgressSummary progress={progress} isLoading={learning.isLoading} isError={learning.isError}
+                      onRetry={() => void learning.refetch()} />
+                  </div>
+
                   {/* Card Footer: Action button */}
                   <div data-ui="course-card-footer" className="mt-auto pt-4 border-t border-neutral-100 flex items-center justify-between gap-2 flex-wrap">
                     <span className="text-xs text-[#666666]">
@@ -276,14 +285,14 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
                         </>
                       ) : (
                         <Link
-                          href={`/courses/${course.id}`}
+                          href={progress?.lastLessonId ? `/courses/${course.id}/lessons/${progress.lastLessonId}` : `/courses/${course.id}`}
                           className="inline-flex items-center gap-1.5 rounded-lg bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-2 px-3.5 text-xs transition-colors shadow-2xs"
                         >
                           <Icon
                             icon="lucide:play-circle"
                             className="size-4 shrink-0"
                           />
-                          <span>Vào học</span>
+                          <span>{progress?.lastLessonId ? 'Tiếp tục học' : 'Vào học'}</span>
                         </Link>
                       )}
                     </div>

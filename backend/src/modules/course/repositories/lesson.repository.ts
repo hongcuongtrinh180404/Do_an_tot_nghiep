@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, ClientSession } from 'mongoose';
-import { ILesson, ILessonMaterial } from 'share-lib';
+import { ILesson, ILessonMaterial, LessonContentTypeEnum } from 'share-lib';
+import type { CourseVideoStats } from '../interfaces/course-video-stats.interface.js';
 import { BaseMongoRepository } from '../../base/index.js';
 import { LessonEntity } from '../schemas/lesson.schema.js';
 
@@ -86,6 +87,25 @@ export class LessonRepository extends BaseMongoRepository<ILesson, LessonEntity>
     }).sort({ order: 1, _id: 1 }).exec();
 
     return docs.map((doc) => this.toDomain(doc));
+  }
+
+  async getCourseVideoStats(courseIds: string[]): Promise<CourseVideoStats[]> {
+    if (courseIds.length === 0) return [];
+    const validDuration = { $and: [{ $isNumber: '$content.duration' }, { $gt: ['$content.duration', 0] }] };
+    return this.model.aggregate<CourseVideoStats>([
+      { $match: { deletedAt: null, 'content.type': LessonContentTypeEnum.VIDEO } },
+      { $lookup: { from: 'sections', localField: 'sectionId', foreignField: '_id', as: 'section' } },
+      { $unwind: '$section' },
+      { $match: { 'section.deletedAt': null, 'section.courseId': { $in: courseIds.map((id) => new Types.ObjectId(id)) } } },
+      { $group: {
+        _id: '$section.courseId',
+        totalSeconds: { $sum: { $cond: [validDuration, '$content.duration', 0] } },
+        videoCount: { $sum: 1 },
+        missingDurationCount: { $sum: { $cond: [validDuration, 0, 1] } },
+        videos: { $push: { lessonId: { $toString: '$_id' }, url: '$content.url', durationSeconds: '$content.duration' } },
+      } },
+      { $project: { _id: 0, courseId: { $toString: '$_id' }, totalSeconds: 1, videoCount: 1, missingDurationCount: 1, videos: 1 } },
+    ]).exec();
   }
 
   async softDeleteBySectionId(

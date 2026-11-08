@@ -93,3 +93,10 @@
     - Chỉ câu được chọn bị sửa/di chuyển/xóa. Các câu khác tại mốc nguồn và mốc đích được giữ nguyên; ID câu hỏi không đổi khi cập nhật.
     - API lỗi giữ nguyên bản đang nhập; đóng hoặc tải lại khi chưa lưu có cảnh báo. Cache dùng chung cập nhật danh sách và marker sau thao tác thành công.
     - Tạo lại bằng AI là hành động thay thế toàn bộ câu hỏi, bao gồm câu soạn thủ công: bắt buộc xác nhận, không thực hiện chỉ vì mở tab hay thêm câu mới.
+
+11. **Theo dõi tiến độ học tập thực tế & Quản lý phiên phát video chống gian lận (Anti-Cheat Playback & Learning Progress Rules)**:
+    - **Chỉ áp dụng cho học viên ghi danh (`requireEnrollment`)**: Giảng viên sở hữu khóa học khi xem thử ở giao diện học viên không được ghi nhận tiến độ vào CSDL để tránh làm lệch số liệu thống kê.
+    - **Cơ chế Khóa phiên (Session Lease)**: Một tài khoản chỉ được phát video học tại 1 tab/thiết bị tại một thời điểm cho mỗi khóa học (`PLAYBACK_LEASE_MS = 45s`). Nếu phát đồng thời, hệ thống trả về `409 ConflictException`.
+    - **Tích lũy thời gian đơn điệu (Monotonic Credited Time)**: Tiến độ chỉ được tính bằng thời gian người học thực sự ngồi xem (`Math.min(watchedDelta, serverElapsed, 45s)`). Bất kỳ hành vi tua video (seek), đứng hình, mất mạng hay can thiệp tốc độ đều không được tính thời gian gian lận.
+    - **Khôi phục vị trí xem dở (`lastPositionSeconds`)**: Hệ thống tự động ghi nhớ vị trí dừng của bài học cuối cùng và hiển thị nút "Tiếp tục học" trên giao diện danh sách khóa học `/my-courses` và chi tiết khóa học `/courses/:id`.
+    - **Bảo toàn khi giáo trình thay đổi**: `watchedMs` được lưu độc lập và không bao giờ bị cap; tổng thời lượng được tính động qua aggregation `LessonRepository.getCourseVideoStats`. Nếu có video thiếu duration, phần trăm hoàn thành sẽ hiển thị `null` an toàn.

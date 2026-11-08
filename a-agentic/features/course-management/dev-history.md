@@ -13,6 +13,75 @@
 
 ## 2. Technical Notes & Gotchas
 
+### [2026-11-08] - Milestone 44: Hệ thống theo dõi tiến độ học tập thực tế & Quản lý phiên phát video chống gian lận (Anti-Cheat Real-Time Learning Progress Tracking)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Học viên sau khi ghi danh/mua khóa học cần theo dõi chính xác tiến độ học tập (% hoàn thành tổng thể, tổng thời lượng video đã xem trên tổng thời lượng toàn khóa).
+  - Vị trí dừng bài học dở dang (`lastPositionSeconds`) và bài học đang xem cuối cùng (`lastLessonId`) bị mất khi học viên tải lại trang hoặc đổi thiết bị, khiến học viên phải tự tìm lại bài học và tua lại đoạn đang xem.
+  - Nguy cơ gian lận cao nếu chỉ dùng client-side timer hoặc đánh dấu thủ công: học viên có thể tua nhanh (seek) đến cuối video, tăng tốc độ phát bất hợp lý, hoặc gọi API giả mạo để đạt 100% hoàn thành mà không thực sự học.
+  - Nguy cơ xung đột thiết bị / tab phát video đồng thời: Một tài khoản có thể mở nhiều tab hoặc nhiều thiết bị để tích lũy thời gian học gấp nhiều lần.
+  - Nguy cơ sai lệch khi khóa học có video thiếu thông tin thời lượng (`missingDurationCount > 0`): nếu chia cứng tổng thời lượng thì thanh tiến trình sẽ tính sai hoặc báo 100% sai lệch.
+- **Nguyên nhân cốt lõi & Thách thức kỹ thuật (Root Cause & Technical Challenges)**:
+  - Sự kiện `timeupdate` của HTML5 Video kích hoạt tần suất không ổn định và dễ bị can thiệp bởi devtools hoặc thanh tua (seeking).
+  - Trình duyệt đóng tab đột ngột: `navigator.sendBeacon` không hỗ trợ đính kèm HTTP Headers tùy biến (như `Authorization: Bearer <token>`), dẫn đến việc backend từ chối xác thực khi học viên tắt tab đột ngột.
+  - Hiện tượng Race Condition tự xung đột phiên (Self-conflict): Khi học viên bấm chuyển nhanh từ bài học A sang bài học B, browser đồng thời trigger kết thúc phiên bài A (`end`) và khởi tạo phiên bài B (`start`). Nếu không có hàng đợi serialize ở client thì request `start` có thể đến trước khi phiên cũ kịp giải phóng lease (`PLAYBACK_LEASE_MS`), dẫn đến bị chặn 409 Conflict.
+- **Giải pháp Kiến trúc & Triển khai Toàn diện (Solution & Implementation)**:
+  1. **Tầng Hợp đồng Dữ liệu Dùng chung (`share-lib`)**:
+     - Định nghĩa enum trạng thái học tập `LearningStatusEnum` (`NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`).
+     - Hằng số nhịp tim và thời hạn lease: `PLAYBACK_HEARTBEAT_MS = 15_000` (15 giây gửi heartbeat một lần), `PLAYBACK_LEASE_MS = 45_000` (45 giây hết hạn lease nếu mất kết nối/mất điện).
+     - Giao diện: `ICourseLearningProgress`, `IStartPlaybackSession`, `IPlaybackHeartbeat`, `IPlaybackSessionResponse`.
+  2. **Tầng Backend (`backend/src/modules/learning-progress/` & `CourseModule`)**:
+     - **Mongoose Schema & Indexing (`LearningProgressEntity`)**:
+       - Collection: `learning_progress`, kế thừa `BaseAbstractDocument`.
+       - Chỉ mục duy nhất: `{ userId: 1, courseId: 1 }` đảm bảo mỗi học viên chỉ có đúng 1 bản ghi tiến độ cho mỗi khóa học.
+       - Các trường cốt lõi: `watchedMs` (thời gian xem thực tế tích lũy, không bao giờ bị cap để bền vững trước các thay đổi giáo trình tương lai), `lastLessonId`, `lastMediaUrl`, `lastPositionSeconds`, `sessionId`, `sessionLessonId`, `sessionMediaUrl`, `sessionExpiresAt`, `lastHeartbeatAt`, `sessionWatchedMs`, `lastSequence`, `sessionClosed`, `revision`.
+     - **Repository với Atomic Optimistic Concurrency Control (`LearningProgressRepository`)**:
+       - Phương thức `ensureExists(userId, courseId)`: Sử dụng atomic `updateOne` với `$setOnInsert` và bắt mã lỗi MongoDB `11000` để giải quyết race condition khi nhiều request đầu tiên cùng gọi.
+       - Phương thức `compareAndSet(state, changes)`: Thực thi `updateOne` atomic dựa trên `{ _id, userId, courseId, revision, deletedAt: null }` và tự động tăng `$inc: { revision: 1 }`. Cam kết lease, idempotency cursor, resume point và thời gian xem trong đúng một atomic write duy nhất.
+     - **Nghiệp vụ Service Chống Gian Lận (`LearningProgressService`)**:
+       - Phân định ghi danh chặt chẽ (`requireEnrollment`): Kiểm tra trực tiếp qua `EnrollmentRepository.findByUserAndCourse` (loại trừ `deletedAt`), không dùng `checkEnrollment` của CourseService (vốn cho phép tác giả xem thử) để tránh ghi nhận tiến độ rác cho giảng viên.
+       - Cơ chế Khóa phiên (Session Lease): `startSession` kiểm tra nếu phiên khác đang hoạt động và `sessionExpiresAt > now` thì ném ngay `409 ConflictException` ("Khóa học đang được phát ở tab hoặc thiết bị khác").
+       - Thuật toán tích lũy thời gian đơn điệu (Monotonic Credited Time): Khi nhận `heartbeat`, `creditedMs = Math.min(dto.watchedMs - state.sessionWatchedMs, serverElapsed, PLAYBACK_LEASE_MS)`. Nếu tua video hoặc client báo delta lớn hơn thời gian thực trôi qua trên server, server chỉ tính theo thời gian thực thực tế.
+       - Chống lặp và đảo thứ tự (Idempotent Sequence Cursor): Bỏ qua các heartbeat có `dto.sequence <= state.lastSequence` mà không tăng thời gian hay ghi đè mốc học.
+       - Tổng hợp tiến độ an toàn (`summarizeProgress` & `LessonRepository.getCourseVideoStats`): Sử dụng MongoDB Aggregation `$lookup` từ `lessons` (`content.type === VIDEO`) sang `sections`, nhóm theo `courseId`. Nếu có bất kỳ video nào thiếu thời lượng (`missingDurationCount > 0`), trường `totalDurationMs` được gán `null` an toàn và `progressPercent` trả về `null` thay vì kết luận 100%. Khi tính phần trăm hoàn thành, áp dụng `Math.floor(... * 10000) / 100` để không bao giờ làm tròn lên 100% trước khi thực sự xem đủ.
+     - **REST Controller (`LearningProgressController`)**:
+       - `GET /api/v1/learning-progress/my-courses`: Lấy danh sách tiến độ toàn bộ khóa học đã mua của học viên hiện tại.
+       - `GET /api/v1/learning-progress/courses/:courseId`: Lấy chi tiết tiến độ khóa học cụ thể.
+       - `POST /api/v1/learning-progress/courses/:courseId/sessions`: Mở phiên phát video bài học mới.
+       - `POST /api/v1/learning-progress/courses/:courseId/heartbeat`: Gửi nhịp tim định kỳ tích lũy thời gian xem.
+       - `POST /api/v1/learning-progress/courses/:courseId/end`: Kết thúc phiên phát video, giải phóng lease ngay lập tức.
+  3. **Tầng Frontend (`frontend/src/features/course/`)**:
+     - **Đồng hồ phát đơn điệu `PlaybackClock` (`frontend/src/features/course/utils/playback-clock.ts`)**:
+       - Theo dõi đồng thời 2 mốc: thời gian thực trôi qua trên máy (`wallDelta = now - lastNow`) và khoảng cách dịch chuyển của media (`mediaDelta = position - lastPosition`).
+       - Chuẩn hóa theo tốc độ phát (`this.rate`): Chấp nhận mọi tốc độ học tập hợp lệ (0.5x, 1x, 2x).
+       - Chống tua nhanh: Bất kỳ khi nào phát hiện `mediaDelta < 0` (tua lùi) hoặc `mediaDelta > wallDelta / 1000 * rate + 0.5` (tua tiến bất thường), cửa sổ tích lũy lập tức bị vô hiệu hóa (`seeking()`).
+       - Tích lũy thời gian thực xem lại: Xem lại nhiều lần một đoạn video vẫn được tích lũy thời gian học hợp lệ.
+     - **Hook Điều phối Phiên `useLessonLearningProgress` (`components/player/use-lesson-learning-progress.ts`)**:
+       - Tự động khôi phục vị trí xem dở `lastPositionSeconds` khi metadata của video sẵn sàng (chỉ khôi phục nếu video chưa phát và `currentTime === 0`).
+       - Lắng nghe toàn diện các sự kiện media: `playing`, `pause`, `waiting`, `seeking`, `seeked`, `ratechange`, `timeupdate`, `pagehide`, `offline`, `visibilitychange`.
+       - Xử lý tắt trang/chuyển bài an toàn bằng `fetch` kèm `{ keepalive: true }` và đính kèm Bearer token từ `localStorage`.
+       - Hàng đợi serialize phiên (`pendingStarts` / `pendingReleases` Maps): Đảm bảo lệnh `end` của bài học trước hoàn tất giải phóng lease trước khi lệnh `start` của bài học tiếp theo được gửi đi, triệt tiêu hoàn toàn race condition khi chuyển bài học nhanh.
+     - **Thành phần Giao diện `LearningProgressSummary` (`components/learning-progress-summary.tsx`)**:
+       - Hiển thị nhãn trạng thái ("Chưa bắt đầu", "Đang học", "Đã hoàn thành").
+       - Thanh tiến trình phần trăm chuẩn Accessibility (`role="progressbar"`, `aria-label="Tiến độ khóa học theo thời gian xem"`, `aria-valuenow`, `aria-valuemin={0}`, `aria-valuemax={100}`).
+       - Định dạng thời gian rõ ràng ("Đã xem X giờ Y phút / Z giờ W phút").
+       - Hiển thị save status realtime ("Đang kết nối...", "Đang ghi nhận...", "Đã lưu tiến độ").
+       - Nút điều hướng "Tiếp tục học" trỏ trực tiếp đến `lastLessonId`.
+     - **Tích hợp giao diện học tập**:
+       - Trang *Khóa học của tôi* (`/my-courses`): Hiển thị thanh tiến độ tóm tắt dưới mỗi thẻ khóa học, cập nhật nút "Vào học" thành "Tiếp tục học" trỏ thẳng đến `lastLessonId` đang học dở.
+       - Trang *Chi tiết khóa học* (`/courses/:id`): Hiển thị tiến độ và nút "Tiếp tục học" cho học viên đã mua khóa học.
+       - Giao diện phòng học *Lesson Player Studio* (`LessonPlayerStudio`): Kích hoạt hook theo dõi tiến độ khi `mode === 'learn'` và bài học là video.
+  4. **Kiểm thử tự động & Đảm bảo Chất lượng**:
+     - `learning-progress.service.spec.ts`: 18/18 tests passed (kiểm thử start session, lease deadline, out-of-order sequences, anti-cheat cap, non-enrolled user rejection, resume position calculation).
+     - `learning-progress.repository.spec.ts`: 3/3 tests passed (kiểm thử unique upsert, atomic compareAndSet revision increment).
+     - `playback-clock.spec.ts`: 5/5 tests passed (kiểm thử 0.5x/1x/2x speed rates, seek suppression, sleep/frozen-video capping, repeat viewing accumulation).
+- **Gotchas & Bài học Kinh nghiệm**:
+  1. *Không dùng `navigator.sendBeacon` khi cần Bearer token*: `sendBeacon` không cho phép tùy biến Request Headers. Trình duyệt hiện đại chuẩn hóa việc sử dụng `fetch(url, { method: 'POST', keepalive: true, headers: { Authorization: ... } })` khi xử lý sự kiện `pagehide`.
+  2. *Triệt tiêu Race Condition giữa unmount bài cũ và mount bài mới*: Khi người dùng bấm Next bài học trên thanh điều hướng, component cũ chạy cleanup (`pagehide`/finish) trong khi component mới chạy `useEffect` khởi động phiên mới. Nếu không dùng promise queue `pendingReleases`, request `start` của bài mới sẽ đến server trước khi server xử lý xong `end` của bài cũ, dẫn đến lỗi 409 "Khóa học đang được phát ở thiết bị khác".
+  3. *Tách biệt giữa Video Duration và Playback Time*: Thời gian tích lũy tiến độ phải tính theo thời gian học viên thực sự ngồi xem (wall time at verified playback rate), không lấy `video.currentTime` làm tiến độ vì `currentTime` có thể bị tua từ 0 lên 1000s trong 1 click chuột.
+  4. *Khóa học có video thiếu duration*: Nếu một video vừa tải lên chưa có metadata duration (hoặc file lỗi duration = 0), tuyệt đối không chia cho 0 hay bỏ qua video đó để tính 100%, mà phải hiển thị `null` ("Thời lượng video chưa đầy đủ") để bảo vệ tính chính xác của chứng chỉ/tiến độ.
+  5. *Tác giả xem trước khóa học*: Giảng viên chủ sở hữu khóa học khi xem trước bài học ở chế độ học viên không được ghi nhận tiến độ vào `learning_progress` (tránh làm sai lệch dữ liệu học tập cá nhân).
+
 ### [2026-11-08] - Quản lý từng câu hỏi quiz trong bài học
 
 - **Problem**: Tab Trắc nghiệm chỉ hiển thị quiz, chưa có thêm/sửa/xóa thủ công và nhập thời điểm xuất hiện.

@@ -20,6 +20,8 @@ import { LessonPlayerTopBar } from './lesson-player-top-bar';
 import { LessonVideoScreen, TimelineMarker } from './lesson-video-screen';
 import { LessonNavSidebar } from './lesson-nav-sidebar';
 import { LessonTabsContainer } from './lesson-tabs-container';
+import { useLessonLearningProgress } from './use-lesson-learning-progress';
+import { LearningProgressSummary } from '../learning-progress-summary';
 
 interface LessonPlayerStudioProps {
   courseId: string;
@@ -62,6 +64,7 @@ export function LessonPlayerStudio({
       canEdit={canEdit}
       courseTitle={activeCourse?.title}
       sections={sections}
+      userId={user?.id}
     />
   );
 }
@@ -70,6 +73,7 @@ interface LessonPlayerStudioContentProps extends LessonPlayerStudioProps {
   canEdit: boolean;
   courseTitle?: string;
   sections?: ISection[];
+  userId?: string;
 }
 
 function LessonPlayerStudioContent({
@@ -80,6 +84,7 @@ function LessonPlayerStudioContent({
   canEdit,
   courseTitle,
   sections,
+  userId,
 }: LessonPlayerStudioContentProps): React.JSX.Element {
   const queryClient = useQueryClient();
   const defaultBackUrl = backUrl || getCourseUrl(courseId, mode);
@@ -124,6 +129,14 @@ function LessonPlayerStudioContent({
 
   // Video Player custom controller hook
   const player = useVideoPlayer();
+  const learning = useLessonLearningProgress({
+    userId,
+    courseId,
+    lessonId: lesson.id,
+    videoUrl: lesson.content?.url,
+    videoRef: player.videoRef,
+    enabled: mode === 'learn' && lesson.content?.type === LessonContentTypeEnum.VIDEO,
+  });
 
   // Dynamic Sidebar Height Synchronization with 16:9 Video Player Card
   const [sidebarHeight, setSidebarHeight] = useState<number | null>(null);
@@ -208,6 +221,10 @@ function LessonPlayerStudioContent({
 
       {/* Main Layout Container: Ergonomic Laptop Width Max-bounds */}
       <div className="flex-1 w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {mode === 'learn' && (
+          <LearningProgressSummary progress={learning.progress} isLoading={learning.isLoading}
+            isError={learning.isError} onRetry={() => void learning.refetch()} saveState={learning.saveState} />
+        )}
         {/* 2. Top Tier: 16:9 Video + Dynamically Synchronized Sidebar Height */}
         <div className="w-full flex flex-col lg:flex-row items-start gap-6 xl:gap-[40px]">
           {/* Left Block: 16:9 Video Player Standalone Card (~70% width) */}

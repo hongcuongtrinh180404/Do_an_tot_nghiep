@@ -54,6 +54,25 @@
 - `mindmapData`: Record<string, unknown> (type `Mixed`, required - lưu trữ chuỗi JSON phân cấp Khóa học -> Chương -> Bài học -> Các ý cốt lõi cùng UI metadata)
 - Inherits `BaseAbstractDocument` (`createdAt`, `updatedAt`, `deletedAt`, `createdById`, `updatedById`).
 
+### E. Learning Progress Schema (`learning_progress`)
+- `userId`: Types.ObjectId (ref: `User`, required, index)
+- `courseId`: Types.ObjectId (ref: `Course`, required, index)
+- `watchedMs`: number (thời gian thực tế tích lũy tính bằng mili-giây, default: 0, min: 0)
+- `lastLessonId`: Types.ObjectId | null (bài học xem dở gần nhất)
+- `lastMediaUrl`: string | null (URL video bài học xem dở)
+- `lastPositionSeconds`: number (vị trí dừng trong video tính bằng giây, default: 0)
+- `sessionId`: string | null (UUID định danh phiên phát video hiện tại)
+- `sessionLessonId`: Types.ObjectId | null (bài học của phiên hiện tại)
+- `sessionMediaUrl`: string | null (URL media của phiên hiện tại)
+- `sessionExpiresAt`: Date | null (thời điểm hết hạn lease phiên, mặc định `now + 45s`)
+- `lastHeartbeatAt`: Date | null (thời điểm nhận heartbeat gần nhất)
+- `sessionWatchedMs`: number (thời gian tích lũy riêng của phiên hiện tại)
+- `lastSequence`: number (con trỏ sequence chống lặp / out-of-order)
+- `sessionClosed`: boolean (đánh dấu phiên đã kết thúc chủ động)
+- `revision`: number (số phiên bản optimistic concurrency control, tự động `$inc: 1`)
+- Unique Compound Index: `{ userId: 1, courseId: 1 }`
+- Inherits `BaseAbstractDocument` (`createdAt`, `updatedAt`, `deletedAt`, `createdById`, `updatedById`).
+
 ---
 
 ## 2. API Endpoints
@@ -95,6 +114,11 @@
 | `DELETE` | `/api/v1/lessons/quizzes/:quizId` | Xóa một câu hỏi trắc nghiệm | `INSTRUCTOR` (Owner), `ADMIN` (`LessonManagementGuard`) |
 | `DELETE` | `/api/v1/lessons/:id/quizzes/timestamp/:timestamp` | Xóa tất cả câu hỏi tại một timestamp | `INSTRUCTOR` (Owner), `ADMIN` (`LessonManagementGuard`) |
 | `POST/PUT` | `/api/v1/lessons/:id/analysis/*` | Tạo/Cập nhật/Áp dụng Mindmap, Quiz, Summary AI | `INSTRUCTOR` (Owner), `ADMIN` (`LessonManagementGuard`) |
+| `GET` | `/api/v1/learning-progress/my-courses` | Lấy danh sách tiến độ toàn bộ khóa học đã mua của học viên | `STUDENT`, `INSTRUCTOR`, `ADMIN` |
+| `GET` | `/api/v1/learning-progress/courses/:courseId` | Lấy chi tiết tiến độ học tập khóa học cụ thể | `STUDENT`, `INSTRUCTOR`, `ADMIN` |
+| `POST` | `/api/v1/learning-progress/courses/:courseId/sessions` | Bắt đầu phiên phát video bài học mới (Lease 45s, chặn multi-tab) | `STUDENT`, `INSTRUCTOR`, `ADMIN` |
+| `POST` | `/api/v1/learning-progress/courses/:courseId/heartbeat` | Gửi nhịp tim định kỳ tích lũy thời gian xem thực tế | `STUDENT`, `INSTRUCTOR`, `ADMIN` |
+| `POST` | `/api/v1/learning-progress/courses/:courseId/end` | Kết thúc phiên phát video, giải phóng lease ngay lập tức | `STUDENT`, `INSTRUCTOR`, `ADMIN` |
 
 ---
 

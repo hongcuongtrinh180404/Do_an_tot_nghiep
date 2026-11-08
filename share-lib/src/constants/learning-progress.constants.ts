@@ -1,0 +1,2 @@
+export const PLAYBACK_HEARTBEAT_MS = 15_000;
+export const PLAYBACK_LEASE_MS = 45_000;
