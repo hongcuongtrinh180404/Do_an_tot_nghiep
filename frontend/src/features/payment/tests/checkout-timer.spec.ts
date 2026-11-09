@@ -1,43 +1,83 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { OrderStatusEnum, ReconciliationStatusEnum, type IOrderStatusResponse, type ICheckoutOrderResponse } from 'share-lib';
+import { calculateSecondsRemaining, formatCountdown, getCurrentPaymentInfo, getOrderPollInterval, shouldCheckExpiry } from '../utils/checkout.util';
 
-function formatCountdown(secondsRemaining: number): string {
-  if (secondsRemaining <= 0) return '00:00';
-  const minutes = Math.floor(secondsRemaining / 60);
-  const seconds = secondsRemaining % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+function status(state = OrderStatusEnum.PENDING): IOrderStatusResponse {
+  return {
+    orderCode: 'MD7K2P9X4A6B', status: state, amount: 100000, courseId: 'course',
+    isPaid: state === OrderStatusEnum.PAID, isExpired: state === OrderStatusEnum.EXPIRED,
+    expiresAt: new Date(Date.now() + 900000).toISOString(), serverTime: new Date().toISOString(), receivedAmount: 0,
+  };
 }
 
-function calculateSecondsRemaining(expiresAtIso: string, nowMs: number): number {
-  const target = new Date(expiresAtIso).getTime();
-  return Math.max(0, Math.floor((target - nowMs) / 1000));
-}
-
-describe('Checkout Timer & Formatting Logic', () => {
-  it('should format 15 minutes properly', () => {
-    assert.equal(formatCountdown(15 * 60), '15:00');
-  });
-
-  it('should format remaining minutes and single-digit seconds', () => {
-    assert.equal(formatCountdown(9 * 60 + 5), '09:05');
-  });
-
-  it('should return 00:00 when time is zero or negative', () => {
+describe('Checkout countdown and polling (production helpers)', () => {
+  it('formats remaining time and invalid values', () => {
+    assert.equal(formatCountdown(900), '15:00');
+    assert.equal(formatCountdown(545), '09:05');
     assert.equal(formatCountdown(0), '00:00');
-    assert.equal(formatCountdown(-10), '00:00');
+    assert.equal(formatCountdown(-1), '00:00');
+    assert.equal(formatCountdown(NaN), '00:00');
   });
 
-  it('should calculate remaining seconds accurately between now and expiresAt', () => {
+  it('does not expire early in the final fractional second', () => {
     const now = Date.now();
-    const expiresAt = new Date(now + 14 * 60 * 1000 + 30 * 1000).toISOString(); // 14m 30s
-    const diff = calculateSecondsRemaining(expiresAt, now);
-    assert.equal(diff, 14 * 60 + 30);
-    assert.equal(formatCountdown(diff), '14:30');
+    assert.equal(calculateSecondsRemaining(new Date(now + 250).toISOString(), now), 1);
+    assert.equal(calculateSecondsRemaining(new Date(now - 1).toISOString(), now), 0);
   });
 
-  it('should return 0 seconds remaining if expiresAt has passed', () => {
-    const now = Date.now();
-    const pastExpiresAt = new Date(now - 10000).toISOString();
-    assert.equal(calculateSecondsRemaining(pastExpiresAt, now), 0);
+  it('uses server clock offset rather than trusting a fast client clock', () => {
+    const serverNow = Date.now();
+    const clientNow = serverNow + 600000;
+    assert.equal(calculateSecondsRemaining(new Date(serverNow + 900000).toISOString(), clientNow, serverNow - clientNow), 900);
+    assert.equal(calculateSecondsRemaining('invalid', clientNow), 0);
+  });
+
+  it('only requests a final expiry check once per order/deadline', () => {
+    let checkedKey: string | null = null;
+    let requests = 0;
+    for (let tick = 0; tick < 10; tick++) {
+      if (shouldCheckExpiry('order:deadline', 0, checkedKey)) {
+        requests++; checkedKey = 'order:deadline';
+      }
+    }
+    assert.equal(requests, 1);
+    assert.equal(shouldCheckExpiry('other:deadline', 0, checkedKey), true);
+    assert.equal(shouldCheckExpiry('other:deadline', 1, checkedKey), false);
+  });
+
+  it('polls only pending orders', () => {
+    assert.equal(getOrderPollInterval({ data: status() }), 3000);
+    for (const state of [OrderStatusEnum.PAID, OrderStatusEnum.CANCELLED, OrderStatusEnum.EXPIRED]) {
+      assert.equal(getOrderPollInterval({ data: status(state) }), false);
+    }
+  });
+
+  it('stops polling on permanent HTTP failures or when reconciliation is needed', () => {
+    for (const code of [401, 403, 404]) assert.equal(getOrderPollInterval({ error: { response: { status: code } } }), false);
+    assert.equal(getOrderPollInterval({ data: { ...status(), reconciliationStatus: ReconciliationStatusEnum.EXPIRED_ORDER } }), false);
+    assert.equal(getOrderPollInterval({ data: { ...status(), reconciliationStatus: ReconciliationStatusEnum.UNDERPAID } }), 3000);
+  });
+
+  it('backs off temporary failures, caps delay, and resumes normal polling after success', () => {
+    assert.equal(getOrderPollInterval({ error: new Error('offline'), errorUpdateCount: 1 }), 6000);
+    assert.equal(getOrderPollInterval({ error: new Error('offline'), errorUpdateCount: 3 }), 24000);
+    assert.equal(getOrderPollInterval({ error: new Error('offline'), errorUpdateCount: 10 }), 30000);
+    assert.equal(getOrderPollInterval({ data: status(), errorUpdateCount: 10 }), 3000);
+  });
+
+  it('hides stale/full-price QR after a partial payment and never shows QR for terminal orders', () => {
+    const checkout: ICheckoutOrderResponse = {
+      ...status(), originalPrice: 100000, discountAmount: 0, course: null,
+      paymentInfo: { bankAccount: '123456', bankCode: 'MB', accountName: 'TEST', amount: 100000, orderCode: 'MD7K2P9X4A6B', qrUrl: 'https://qr.sepay.vn/img' },
+    };
+    assert.equal(getCurrentPaymentInfo(checkout, status())?.amount, 100000);
+    assert.equal(getCurrentPaymentInfo(checkout, { ...status(), receivedAmount: 40000 }), undefined);
+    for (const state of [OrderStatusEnum.PAID, OrderStatusEnum.CANCELLED, OrderStatusEnum.EXPIRED]) {
+      assert.equal(getCurrentPaymentInfo(checkout, status(state)), undefined);
+    }
+    assert.equal(getCurrentPaymentInfo(checkout, { ...status(), reconciliationStatus: ReconciliationStatusEnum.INVALID_ACCOUNT }), undefined);
+    checkout.paymentInfo!.amount = 60000;
+    assert.equal(getCurrentPaymentInfo(checkout, { ...status(), receivedAmount: 40000 })?.amount, 60000);
   });
 });

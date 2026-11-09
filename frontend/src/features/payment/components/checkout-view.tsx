@@ -1,16 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Icon } from '@/components/ui/icon';
-import { useOrderStatusQuery } from '../api/payment.api';
+import { useCheckoutOrderQuery, useOrderStatusQuery } from '../api/payment.api';
 import { enrollmentKeys } from '@/features/course/api/enrollment.api';
 import { courseKeys } from '@/features/course/api/course.api';
 import { OrderStatusEnum } from 'share-lib';
+import { calculateSecondsRemaining, formatCountdown, getCurrentPaymentInfo, isFatalPaymentError, requiresPaymentReview, shouldCheckExpiry } from '../utils/checkout.util';
 
 interface CheckoutViewProps {
   orderCode: string;
@@ -24,28 +24,41 @@ function formatVND(amount: number): string {
 }
 
 export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Element {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
+  const expiryCheckedKey = useRef<string | null>(null);
+  const copyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { data: checkout, isLoading, error: checkoutError, refetch: refetchDetails } = useCheckoutOrderQuery(orderCode);
 
   const {
     data: orderStatus,
-    isLoading,
-    isError,
+    error: statusError,
+    dataUpdatedAt,
     refetch,
   } = useOrderStatusQuery(orderCode, {
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      if (data?.isPaid || data?.status === OrderStatusEnum.PAID || data?.isExpired) {
-        return false;
-      }
-      return 3000;
-    },
+    enabled: Boolean(checkout),
+    initialData: checkout,
   });
 
-  const isPaid = orderStatus?.isPaid || orderStatus?.status === OrderStatusEnum.PAID;
-  const isExpired = orderStatus?.isExpired || orderStatus?.status === OrderStatusEnum.EXPIRED;
+  const status = orderStatus?.status === OrderStatusEnum.PAID ? orderStatus
+    : checkout?.status === OrderStatusEnum.PAID ? checkout : orderStatus ?? checkout;
+  const isError = (!checkout && Boolean(checkoutError)) || isFatalPaymentError(checkoutError) || isFatalPaymentError(statusError);
+  const isPaid = status?.status === OrderStatusEnum.PAID;
+  const isExpired = status?.status === OrderStatusEnum.EXPIRED;
+  const isCancelled = status?.status === OrderStatusEnum.CANCELLED;
+  const needsReview = requiresPaymentReview(status?.reconciliationStatus);
+
+  useEffect(() => {
+    if (checkout && status?.status === OrderStatusEnum.PENDING && checkout.receivedAmount !== status.receivedAmount) {
+      void refetchDetails();
+    }
+  }, [checkout, status?.status, status?.receivedAmount, refetchDetails]);
+
+  useEffect(() => () => {
+    if (copyTimeout.current) clearTimeout(copyTimeout.current);
+  }, []);
 
   // Invalidate queries when order is paid
   useEffect(() => {
@@ -57,16 +70,16 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
 
   // Countdown timer logic
   useEffect(() => {
-    if (!orderStatus?.expiresAt || isPaid || isExpired) return;
-
-    const targetTime = new Date(orderStatus.expiresAt).getTime();
+    if (!status?.expiresAt || isPaid || isExpired || isCancelled || needsReview) return;
+    const key = `${orderCode}:${status.expiresAt}`;
+    const clockOffset = new Date(status.serverTime).getTime() - dataUpdatedAt;
 
     const updateTimer = () => {
-      const now = Date.now();
-      const diff = Math.max(0, Math.floor((targetTime - now) / 1000));
+      const diff = calculateSecondsRemaining(status.expiresAt, Date.now(), clockOffset);
       setSecondsRemaining(diff);
 
-      if (diff <= 0) {
+      if (shouldCheckExpiry(key, diff, expiryCheckedKey.current)) {
+        expiryCheckedKey.current = key;
         void refetch();
       }
     };
@@ -74,21 +87,17 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [orderStatus?.expiresAt, isPaid, isExpired, refetch]);
+  }, [orderCode, status?.expiresAt, status?.serverTime, dataUpdatedAt, isPaid, isExpired, isCancelled, needsReview, refetch]);
 
-  const countdownFormatted = useMemo(() => {
-    if (secondsRemaining === null || secondsRemaining <= 0) return '00:00';
-    const minutes = Math.floor(secondsRemaining / 60);
-    const seconds = secondsRemaining % 60;
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  }, [secondsRemaining]);
+  const countdownFormatted = formatCountdown(secondsRemaining ?? 0);
 
   const handleCopy = async (text: string, fieldName: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedField(fieldName);
       toast.success(`Đã sao chép ${fieldName}`);
-      setTimeout(() => setCopiedField(null), 2000);
+      if (copyTimeout.current) clearTimeout(copyTimeout.current);
+      copyTimeout.current = setTimeout(() => setCopiedField(null), 2000);
     } catch {
       toast.error('Không thể sao chép');
     }
@@ -105,7 +114,7 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
     );
   }
 
-  if (isError || !orderStatus) {
+  if (isError || !status || !checkout) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center py-12 px-4">
         <div className="max-w-md w-full bg-white border border-[#e5e7eb] rounded-2xl p-8 text-center shadow-xs">
@@ -125,7 +134,7 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
             </Link>
             <button
               type="button"
-              onClick={() => void refetch()}
+              onClick={() => { void refetchDetails(); void refetch(); }}
               className="px-4 py-2 rounded-xl bg-[#027D88] text-white text-xs font-semibold hover:bg-[#02666F] transition-colors"
             >
               Thử lại
@@ -136,12 +145,18 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
     );
   }
 
-  const course = orderStatus.course;
-  const paymentInfo = orderStatus.paymentInfo;
+  const course = checkout.course;
+  // Never show a stale QR for the full price after a partial transfer has been received.
+  const paymentInfo = getCurrentPaymentInfo(checkout, status);
 
   return (
     <div className="w-full min-h-screen bg-[#fbfbfb] py-8 lg:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-[1100px] mx-auto space-y-6">
+        {(statusError || checkoutError) && (
+          <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Kết nối đang gián đoạn, hệ thống sẽ kiểm tra lại. Nếu đã chuyển tiền, vui lòng không chuyển thêm.
+          </p>
+        )}
         {/* Navigation Breadcrumb */}
         <div className="flex items-center justify-between">
           <Link
@@ -214,7 +229,7 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
               </Link>
             </div>
           </div>
-        ) : isExpired ? (
+        ) : isExpired || isCancelled || needsReview ? (
           /* ============================================================== */
           /* EXPIRED STATE                                                  */
           /* ============================================================== */
@@ -225,22 +240,29 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
 
             <div className="space-y-2 max-w-lg mx-auto">
               <h2 className="text-xl sm:text-2xl font-extrabold text-neutral-900">
-                Đơn hàng đã hết hạn thanh toán
+                {needsReview ? 'Giao dịch cần được đối soát' : isCancelled ? 'Đơn hàng đã được hủy' : 'Đơn hàng đã hết hạn thanh toán'}
               </h2>
               <p className="text-sm text-neutral-600">
-                Thời gian hiệu lực 15 phút cho mã thanh toán <strong className="text-neutral-800">{orderCode}</strong> đã kết thúc.
-                Vui lòng khởi tạo đơn hàng mới để tiếp tục.
+                Mã đơn hàng: <strong className="text-neutral-800">{orderCode}</strong>.
+                {' '}Nếu đã chuyển tiền, vui lòng không chuyển thêm hoặc tạo đơn mới. Bạn có thể kiểm tra lại thanh toán hoặc liên hệ quản trị viên kèm mã đơn để đối soát.
               </p>
             </div>
 
-            <div className="pt-2">
-              <Link
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => { void refetch(); void refetchDetails(); }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-3 px-8 text-sm shadow-sm transition-all"
+              >
+                Kiểm tra lại thanh toán
+              </button>
+              {!needsReview && status.receivedAmount === 0 && <Link
                 href={course ? `/courses/${course.id}` : '/courses'}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-3 px-8 text-sm shadow-sm transition-all"
               >
                 <Icon icon="lucide:rotate-ccw" className="size-4" />
-                <span>Tạo đơn hàng mới</span>
-              </Link>
+                <span>Chưa chuyển tiền? Về trang khóa học</span>
+              </Link>}
             </div>
           </div>
         ) : (
@@ -257,6 +279,19 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
                     Mở app ngân hàng quét mã QR hoặc chuyển khoản thủ công với nội dung bên dưới
                   </p>
                 </div>
+
+                {status.receivedAmount > 0 && (
+                  <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    Đã nhận {formatVND(status.receivedAmount)}. Vui lòng chuyển phần còn thiếu {formatVND(Math.max(0, status.amount - status.receivedAmount))} với cùng mã đơn trước khi hết hạn.
+                  </p>
+                )}
+
+                {!paymentInfo && (
+                  <p role="status" className="text-sm text-neutral-600">
+                    Đang cập nhật thông tin chuyển khoản. Vui lòng không sử dụng mã QR cũ.
+                    {' '}<button type="button" onClick={() => void refetchDetails()} className="font-semibold text-[#027D88] underline">Tải lại thông tin</button>
+                  </p>
+                )}
 
                 {/* VietQR Code Display */}
                 {paymentInfo?.qrUrl && (
@@ -405,7 +440,7 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
                       {countdownFormatted}
                     </div>
                     <span className="text-[11px] text-neutral-500 mt-1 block">
-                      Đơn hàng sẽ tự động hủy nếu không thanh toán
+                      Mã thanh toán sẽ hết hạn nếu chưa thanh toán đủ
                     </span>
                   </div>
                 </div>
@@ -443,9 +478,9 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
                       <h3 className="text-sm font-bold text-neutral-900 leading-snug line-clamp-2">
                         {course.title}
                       </h3>
-                      {course.instructor && (
+                      {course.instructorName && (
                         <p className="text-xs text-neutral-500 mt-1">
-                          Giảng viên: {course.instructor.fullName}
+                          Giảng viên: {course.instructorName}
                         </p>
                       )}
                     </div>
@@ -454,22 +489,22 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
                   <div className="border-t border-[#f2f2f2] pt-4 space-y-2 text-xs">
                     <div className="flex items-center justify-between text-neutral-600">
                       <span>Giá gốc:</span>
-                      <span className={course.originalPrice && course.originalPrice > course.price ? 'line-through' : ''}>
-                        {formatVND(course.originalPrice || course.price)}
+                      <span className={checkout.discountAmount > 0 ? 'line-through' : ''}>
+                        {formatVND(checkout.originalPrice)}
                       </span>
                     </div>
 
-                    {course.originalPrice && course.originalPrice > course.price && (
+                    {checkout.discountAmount > 0 && (
                       <div className="flex items-center justify-between text-emerald-600 font-semibold">
                         <span>Tiết kiệm:</span>
-                        <span>-{formatVND(course.originalPrice - course.price)}</span>
+                        <span>-{formatVND(checkout.discountAmount)}</span>
                       </div>
                     )}
 
                     <div className="border-t border-[#f2f2f2] pt-2 flex items-baseline justify-between">
                       <span className="text-sm font-bold text-neutral-900">Tổng thanh toán:</span>
                       <span className="text-xl font-extrabold text-[#027D88]">
-                        {formatVND(orderStatus.amount)}
+                        {formatVND(status.amount)}
                       </span>
                     </div>
                   </div>
@@ -482,4 +517,3 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
     </div>
   );
 }
-

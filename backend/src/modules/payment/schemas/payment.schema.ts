@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
-import { ReconciliationStatusEnum } from 'share-lib';
+import { ReconciliationStatusEnum, IPaymentAuditEntry, IPayment } from 'share-lib';
 import { BaseAbstractDocument } from '../../base/index.js';
 import { OrderEntity } from '../../enrollment/schemas/order.schema.js';
 
@@ -31,8 +31,8 @@ export class PaymentEntity extends BaseAbstractDocument {
   @Prop({ type: String, default: '', trim: true })
   accountNumber: string;
 
-  @Prop({ type: Date, default: Date.now })
-  transactionDate: Date;
+  @Prop({ type: Date, default: null })
+  transactionDate: Date | null;
 
   @Prop({ type: String, default: '', trim: true })
   content: string;
@@ -47,10 +47,27 @@ export class PaymentEntity extends BaseAbstractDocument {
 
   @Prop({ type: MongooseSchema.Types.Mixed, default: {} })
   rawPayload?: Record<string, unknown>;
+
+  @Prop({ type: Date, default: null })
+  appliedAt?: Date | null;
+
+  @Prop({ type: Date })
+  verifiedAt?: Date;
+
+  @Prop({ type: String })
+  payloadHash?: string;
+
+  @Prop({ type: Number, default: 0, min: 0 })
+  excessAmount?: number;
+
+  @Prop({ type: MongooseSchema.Types.Mixed, default: null })
+  resolution?: IPayment['resolution'];
+
+  @Prop({ type: [MongooseSchema.Types.Mixed], default: [] })
+  auditHistory?: IPaymentAuditEntry[];
 }
 
 export const PaymentSchema = SchemaFactory.createForClass(PaymentEntity);
 
 PaymentSchema.index({ createdAt: -1 });
 PaymentSchema.index({ orderCode: 1, reconciliationStatus: 1 });
-

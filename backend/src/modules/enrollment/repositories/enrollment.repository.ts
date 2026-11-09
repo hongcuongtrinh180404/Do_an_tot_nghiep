@@ -168,6 +168,14 @@ export class EnrollmentRepository extends BaseMongoRepository<IEnrollment, Enrol
     return doc ? this.toDomain(doc) : null;
   }
 
+  async ensureIndexes(): Promise<void> {
+    await this.model.createIndexes();
+  }
+
+  async hasRevokedEnrollment(userId: string, courseId: string, orderId: string, session: ClientSession): Promise<boolean> {
+    return Boolean(await this.model.exists({ userId, courseId, orderId, deletedAt: { $ne: null } }).session(session).exec());
+  }
+
   async findUserEnrollments(
     userId: string,
     session?: ClientSession,
@@ -222,4 +230,3 @@ export class EnrollmentRepository extends BaseMongoRepository<IEnrollment, Enrol
     return map;
   }
 }
-

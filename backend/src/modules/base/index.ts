@@ -20,5 +20,8 @@ export * from './interceptors/transform.interceptor.js';
 // Pipes
 export * from './pipes/parse-object-id.pipe.js';
 
+// Utilities
+export * from './utils/mongo-error.util.js';
+
 // Module
 export * from './base.module.js';

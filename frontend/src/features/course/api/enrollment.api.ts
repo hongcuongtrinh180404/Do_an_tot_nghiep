@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import type { IApiResponse, ICourse, IOrder, IEnrollment, ISection } from 'share-lib';
+import type { IApiResponse, ICourse, IEnrollment, ISection } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 import { courseKeys } from './course.api';
 
@@ -41,11 +41,11 @@ export const enrollmentApi = {
     return res.data.data.isEnrolled;
   },
 
-  async mockPurchase(
+  async registerFreeCourse(
     courseId: string,
-  ): Promise<{ order: IOrder; enrollment: IEnrollment }> {
-    const res = await apiClient.post<IApiResponse<{ order: IOrder; enrollment: IEnrollment }>>(
-      '/enrollments/purchase',
+  ): Promise<IEnrollment> {
+    const res = await apiClient.post<IApiResponse<IEnrollment>>(
+      '/enrollments/register-free',
       { courseId },
     );
     return res.data.data;
@@ -86,13 +86,13 @@ export function usePublicCourseDetailQuery(idOrSlug: string, enabled: boolean = 
   });
 }
 
-export function useMockPurchaseMutation(courseId: string) {
+export function useRegisterFreeCourseMutation(courseId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => enrollmentApi.mockPurchase(courseId),
+    mutationFn: () => enrollmentApi.registerFreeCourse(courseId),
     onSuccess: () => {
-      toast.success('Mua khóa học thành công! Bạn có thể bắt đầu học ngay bây giờ.');
+      toast.success('Đăng ký khóa học miễn phí thành công! Bạn có thể bắt đầu học ngay.');
       // Invalidate both enrollment and course caches
       void queryClient.invalidateQueries({ queryKey: enrollmentKeys.all });
       void queryClient.invalidateQueries({ queryKey: courseKeys.all });
@@ -103,9 +103,8 @@ export function useMockPurchaseMutation(courseId: string) {
       };
       const message =
         axiosError?.response?.data?.message ||
-        'Đã xảy ra lỗi khi xử lý mua khóa học. Vui lòng thử lại sau.';
+        'Không thể đăng ký khóa học miễn phí. Vui lòng thử lại sau.';
       toast.error(message);
     },
   });
 }
-

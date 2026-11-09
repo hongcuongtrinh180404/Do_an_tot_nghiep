@@ -17,6 +17,8 @@
     "start:prod": "node dist/main",
     "lint": "oxlint --type-aware src/ test/",
     "test": "vitest run",
+    "test:payment": "vitest run src/modules/payment/tests src/modules/enrollment/tests",
+    "test:payment:integration": "vitest run --config vitest.config.e2e.ts test/payment/",
     "test:gemini": "tsx scripts/test-gemini.ts",
     "test:river": "tsx scripts/test-river.ts",
     "test:watch": "vitest",

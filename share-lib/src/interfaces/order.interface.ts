@@ -1,4 +1,18 @@
 import { OrderStatusEnum } from '../enums/order-status.enum.js';
+import { ReconciliationStatusEnum } from '../enums/reconciliation-status.enum.js';
+
+export interface IOrderCourseSnapshot {
+  title: string;
+  slug: string;
+  thumbnailUrl?: string | null;
+  instructorName?: string;
+}
+
+export interface IOrderBankSnapshot {
+  bankAccount: string;
+  bankCode: string;
+  accountName: string;
+}
 
 export interface IOrder {
   id: string;
@@ -13,6 +27,12 @@ export interface IOrder {
   paidAt?: Date | string | null;
   instructorCommissionRate?: number;
   instructorEarnings?: number;
+  pendingCheckoutKey?: string;
+  paymentRevision?: number;
+  receivedAmount?: number;
+  lastPaymentStatus?: ReconciliationStatusEnum;
+  courseSnapshot?: IOrderCourseSnapshot;
+  bankSnapshot?: IOrderBankSnapshot;
   status: OrderStatusEnum;
   createdAt: Date | string;
   updatedAt: Date | string;

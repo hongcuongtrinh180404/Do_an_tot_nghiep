@@ -1,291 +1,103 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  NotFoundException,
-  BadRequestException,
-  ConflictException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
-import {
-  CourseStatusEnum,
-  CourseLevelEnum,
-  RoleEnum,
-  UserStatusEnum,
-  IUser,
-  ICourse,
-  IEnrollment,
-  IOrder,
-  OrderStatusEnum,
-} from 'share-lib';
+import { CourseStatusEnum, RoleEnum, UserStatusEnum } from 'share-lib';
 import { EnrollmentService } from '../services/enrollment.service.js';
 import { EnrollmentRepository } from '../repositories/enrollment.repository.js';
-import { OrderRepository } from '../repositories/order.repository.js';
 import { CourseRepository } from '../../course/repositories/course.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 
 describe('EnrollmentService', () => {
+  const course = { id: 'course', title: 'Free course', price: 0, status: CourseStatusEnum.PUBLISHED, instructorId: 'teacher' };
+  const enrollment = { id: 'enrollment', userId: 'student', courseId: 'course', orderId: null, course };
+  const session = {} as ClientSession;
   let service: EnrollmentService;
-  let mockEnrollmentRepository: {
-    findByUserAndCourse: ReturnType<typeof vi.fn>;
-    findUserEnrollments: ReturnType<typeof vi.fn>;
-    countByCourseId: ReturnType<typeof vi.fn>;
-    create: ReturnType<typeof vi.fn>;
-    withTransaction: ReturnType<typeof vi.fn>;
-  };
-  let mockOrderRepository: {
-    create: ReturnType<typeof vi.fn>;
-    findByOrderCode: ReturnType<typeof vi.fn>;
-  };
-  let mockCourseRepository: {
-    findById: ReturnType<typeof vi.fn>;
-    findByInstructorId: ReturnType<typeof vi.fn>;
-  };
-  let mockUserRepository: {
-    findById: ReturnType<typeof vi.fn>;
-  };
-  let mockClsService: Partial<ClsService>;
-
-  const mockUser: IUser = {
-    id: 'user-1',
-    email: 'student@example.com',
-    username: 'student1',
-    role: RoleEnum.STUDENT,
-    status: UserStatusEnum.ACTIVE,
-    isEmailVerified: true,
-    firstName: 'Van A',
-    lastName: 'Nguyen',
-    fullName: 'Nguyen Van A',
-    avatarUrl: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-
-  const mockCourse: ICourse = {
-    id: 'course-1',
-    title: 'Khóa học TypeScript Chuyên Sâu',
-    slug: 'khoa-hoc-typescript-chuyen-sau',
-    price: 299000,
-    instructorId: 'inst-1',
-    status: CourseStatusEnum.PUBLISHED,
-    level: CourseLevelEnum.INTERMEDIATE,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-
-  const mockEnrollment: IEnrollment = {
-    id: 'enrollment-1',
-    userId: 'user-1',
-    courseId: 'course-1',
-    orderId: 'order-1',
-    enrolledAt: new Date(),
-    course: mockCourse,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  let enrollments: { findByUserAndCourse: ReturnType<typeof vi.fn>; findUserEnrollments: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn>; withTransaction: ReturnType<typeof vi.fn> };
+  let courses: { findById: ReturnType<typeof vi.fn>; findForEnrollment: ReturnType<typeof vi.fn>; findByInstructorId: ReturnType<typeof vi.fn> };
+  let users: { findById: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
-    mockEnrollmentRepository = {
-      findByUserAndCourse: vi.fn(),
-      findUserEnrollments: vi.fn(),
-      countByCourseId: vi.fn(),
-      create: vi.fn(),
-      withTransaction: vi.fn((cb: (session: ClientSession) => Promise<unknown>) =>
-        cb({} as ClientSession),
-      ),
+    enrollments = {
+      findByUserAndCourse: vi.fn().mockResolvedValue(null),
+      findUserEnrollments: vi.fn().mockResolvedValue([enrollment]),
+      create: vi.fn().mockResolvedValue(enrollment),
+      withTransaction: vi.fn(async (operation: (session: ClientSession) => Promise<unknown>) => operation(session)),
     };
-
-    mockOrderRepository = {
-      create: vi.fn(),
-      findByOrderCode: vi.fn(),
+    courses = {
+      findById: vi.fn().mockResolvedValue(course), findForEnrollment: vi.fn().mockResolvedValue(course),
+      findByInstructorId: vi.fn().mockResolvedValue([]),
     };
-
-    mockCourseRepository = {
-      findById: vi.fn(),
-      findByInstructorId: vi.fn(),
-    };
-
-    mockUserRepository = {
-      findById: vi.fn(),
-    };
-
-    mockClsService = {
-      get: vi.fn(),
-      set: vi.fn(),
-    };
-
+    users = { findById: vi.fn().mockResolvedValue({ id: 'student', status: UserStatusEnum.ACTIVE }) };
     service = new EnrollmentService(
-      mockEnrollmentRepository as unknown as EnrollmentRepository,
-      mockOrderRepository as unknown as OrderRepository,
-      mockCourseRepository as unknown as CourseRepository,
-      mockUserRepository as unknown as UserRepository,
-      mockClsService as ClsService,
+      enrollments as unknown as EnrollmentRepository, courses as unknown as CourseRepository,
+      users as unknown as UserRepository, { get: vi.fn() } as unknown as ClsService,
     );
   });
 
-  describe('checkEnrollment', () => {
-    it('1. should return true if user is the instructor of published course', async () => {
-      mockCourseRepository.findById.mockResolvedValue({
-        ...mockCourse,
-        instructorId: 'user-1',
-      });
-
-      const result = await service.checkEnrollment('user-1', 'course-1');
-      expect(result).toBe(true);
-      expect(mockEnrollmentRepository.findByUserAndCourse).not.toHaveBeenCalled();
-    });
-
-    it('2. should return true if user has an active enrollment record', async () => {
-      mockCourseRepository.findById.mockResolvedValue(mockCourse);
-      mockEnrollmentRepository.findByUserAndCourse.mockResolvedValue(mockEnrollment);
-
-      const result = await service.checkEnrollment('user-1', 'course-1');
-      expect(result).toBe(true);
-    });
-
-    it('3. should return false if course not found or deleted', async () => {
-      mockCourseRepository.findById.mockResolvedValue(null);
-
-      const result = await service.checkEnrollment('user-1', 'course-1');
-      expect(result).toBe(false);
-    });
-
-    it('4. should return false if enrollment is deleted or not found', async () => {
-      mockCourseRepository.findById.mockResolvedValue(mockCourse);
-      mockEnrollmentRepository.findByUserAndCourse.mockResolvedValue(null);
-
-      const result = await service.checkEnrollment('user-1', 'course-1');
-      expect(result).toBe(false);
-    });
+  it('recognizes the author of a published course', async () => {
+    expect(await service.checkEnrollment('teacher', 'course')).toBe(true);
+    expect(enrollments.findByUserAndCourse).not.toHaveBeenCalled();
   });
 
-  describe('getMyPurchasedCourses', () => {
-    it('5. should return enrolled courses for student', async () => {
-      mockEnrollmentRepository.findUserEnrollments.mockResolvedValue([mockEnrollment]);
-
-      const result = await service.getMyPurchasedCourses('user-1', RoleEnum.STUDENT);
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('course-1');
-      expect(mockCourseRepository.findByInstructorId).not.toHaveBeenCalled();
-    });
-
-    it('6. should merge authored published courses for instructor', async () => {
-      mockEnrollmentRepository.findUserEnrollments.mockResolvedValue([mockEnrollment]);
-      const authoredCourse: ICourse = {
-        ...mockCourse,
-        id: 'course-authored-2',
-        instructorId: 'inst-user',
-        status: CourseStatusEnum.PUBLISHED,
-      };
-      mockCourseRepository.findByInstructorId.mockResolvedValue([authoredCourse]);
-
-      const result = await service.getMyPurchasedCourses('inst-user', RoleEnum.INSTRUCTOR);
-      expect(result).toHaveLength(2);
-      expect(result.map((c) => c.id)).toContain('course-1');
-      expect(result.map((c) => c.id)).toContain('course-authored-2');
-    });
-
-    it('7. should not duplicate course if instructor bought their own course', async () => {
-      mockEnrollmentRepository.findUserEnrollments.mockResolvedValue([mockEnrollment]);
-      mockCourseRepository.findByInstructorId.mockResolvedValue([mockCourse]);
-
-      const result = await service.getMyPurchasedCourses('user-1', RoleEnum.INSTRUCTOR);
-      expect(result).toHaveLength(1);
-    });
+  it('recognizes an active enrollment', async () => {
+    enrollments.findByUserAndCourse.mockResolvedValue(enrollment);
+    expect(await service.checkEnrollment('student', 'course')).toBe(true);
   });
 
-  describe('mockPurchase', () => {
-    it('8. should successfully purchase a course and create Order and Enrollment in transaction', async () => {
-      mockUserRepository.findById.mockResolvedValue(mockUser);
-      mockCourseRepository.findById.mockResolvedValue(mockCourse);
-      mockEnrollmentRepository.findByUserAndCourse.mockResolvedValue(null);
+  it('does not grant access to missing courses or missing enrollments', async () => {
+    expect(await service.checkEnrollment('student', 'course')).toBe(false);
+    courses.findById.mockResolvedValue(null);
+    expect(await service.checkEnrollment('student', 'course')).toBe(false);
+  });
 
-      const createdOrder: IOrder = {
-        id: 'order-123',
-        orderCode: 'DH123456',
-        userId: 'user-1',
-        courseId: 'course-1',
-        amount: 299000,
-        status: OrderStatusEnum.PAID,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      mockOrderRepository.create.mockResolvedValue(createdOrder);
+  it('returns enrolled courses and merges published authored courses without duplicates', async () => {
+    expect(await service.getMyPurchasedCourses('student', RoleEnum.STUDENT)).toEqual([course]);
+    courses.findByInstructorId.mockResolvedValue([course, { ...course, id: 'authored' }, { ...course, id: 'draft', status: CourseStatusEnum.DRAFT }]);
+    expect((await service.getMyPurchasedCourses('teacher', RoleEnum.INSTRUCTOR)).map((item) => item.id)).toEqual(['course', 'authored']);
+  });
 
-      const createdEnrollment: IEnrollment = {
-        id: 'enrollment-123',
-        userId: 'user-1',
-        courseId: 'course-1',
-        orderId: 'order-123',
-        enrolledAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      mockEnrollmentRepository.create.mockResolvedValue(createdEnrollment);
+  it('registers a free course without creating any order or payment', async () => {
+    expect(await service.registerFreeCourse('student', 'course')).toEqual(enrollment);
+    expect(enrollments.create).toHaveBeenCalledWith({
+      userId: 'student', courseId: 'course', orderId: null, enrolledAt: expect.any(Date),
+    }, session);
+    expect(courses.findForEnrollment).toHaveBeenCalledWith('course', session);
+    expect(users.findById).toHaveBeenCalledWith('student', session);
+  });
 
-      const result = await service.mockPurchase('user-1', 'course-1');
+  it.each([100000, -1, NaN])('rejects direct registration for a non-free price (%s)', async (price) => {
+    courses.findForEnrollment.mockResolvedValue({ ...course, price });
+    await expect(service.registerFreeCourse('student', 'course')).rejects.toThrow(BadRequestException);
+    expect(enrollments.create).not.toHaveBeenCalled();
+  });
 
-      expect(result.order).toEqual(createdOrder);
-      expect(result.enrollment).toEqual(createdEnrollment);
-      expect(mockOrderRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: 'user-1',
-          courseId: 'course-1',
-          amount: 299000,
-          status: OrderStatusEnum.PAID,
-        }),
-        expect.anything(),
-      );
-      expect(mockEnrollmentRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: 'user-1',
-          courseId: 'course-1',
-          orderId: 'order-123',
-        }),
-        expect.anything(),
-      );
-    });
+  it('is idempotent when the free course is already enrolled', async () => {
+    enrollments.findByUserAndCourse.mockResolvedValue(enrollment);
+    expect(await service.registerFreeCourse('student', 'course')).toEqual(enrollment);
+    expect(enrollments.create).not.toHaveBeenCalled();
+  });
 
-    it('9. should throw NotFoundException if course does not exist', async () => {
-      mockUserRepository.findById.mockResolvedValue(mockUser);
-      mockCourseRepository.findById.mockResolvedValue(null);
+  it('returns the winning enrollment after a concurrent unique-key collision', async () => {
+    enrollments.withTransaction.mockRejectedValue({ code: 11000 });
+    enrollments.findByUserAndCourse.mockResolvedValue(enrollment);
+    expect(await service.registerFreeCourse('student', 'course')).toEqual(enrollment);
+  });
 
-      await expect(service.mockPurchase('user-1', 'nonexistent')).rejects.toThrow(
-        NotFoundException,
-      );
-    });
+  it('rejects invalid users', async () => {
+    users.findById.mockResolvedValue(null);
+    await expect(service.registerFreeCourse('student', 'course')).rejects.toThrow(BadRequestException);
+  });
 
-    it('10. should throw BadRequestException if course is not PUBLISHED', async () => {
-      mockUserRepository.findById.mockResolvedValue(mockUser);
-      mockCourseRepository.findById.mockResolvedValue({
-        ...mockCourse,
-        status: CourseStatusEnum.DRAFT,
-      });
+  it('rejects missing courses', async () => {
+    courses.findForEnrollment.mockResolvedValue(null);
+    await expect(service.registerFreeCourse('student', 'course')).rejects.toThrow(NotFoundException);
+  });
 
-      await expect(service.mockPurchase('user-1', 'course-1')).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('11. should throw ConflictException if instructor purchases their own course', async () => {
-      mockUserRepository.findById.mockResolvedValue(mockUser);
-      mockCourseRepository.findById.mockResolvedValue({
-        ...mockCourse,
-        instructorId: 'user-1',
-      });
-
-      await expect(service.mockPurchase('user-1', 'course-1')).rejects.toThrow(
-        ConflictException,
-      );
-    });
-
-    it('12. should throw ConflictException if user already has an active enrollment', async () => {
-      mockUserRepository.findById.mockResolvedValue(mockUser);
-      mockCourseRepository.findById.mockResolvedValue(mockCourse);
-      mockEnrollmentRepository.findByUserAndCourse.mockResolvedValue(mockEnrollment);
-
-      await expect(service.mockPurchase('user-1', 'course-1')).rejects.toThrow(
-        ConflictException,
-      );
-    });
+  it('rejects unpublished courses and author self-registration', async () => {
+    courses.findForEnrollment.mockResolvedValue({ ...course, status: CourseStatusEnum.DRAFT });
+    await expect(service.registerFreeCourse('student', 'course')).rejects.toThrow(BadRequestException);
+    courses.findForEnrollment.mockResolvedValue(course);
+    await expect(service.registerFreeCourse('teacher', 'course')).rejects.toThrow(ConflictException);
   });
 });

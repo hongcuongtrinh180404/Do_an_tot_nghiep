@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
-import { OrderStatusEnum } from 'share-lib';
+import { OrderStatusEnum, ReconciliationStatusEnum } from 'share-lib';
+import type { IOrderCourseSnapshot, IOrderBankSnapshot } from 'share-lib';
 import { BaseAbstractDocument } from '../../base/index.js';
 import { UserEntity } from '../../user/schemas/user.schema.js';
 import { CourseEntity } from '../../course/schemas/course.schema.js';
@@ -52,6 +53,25 @@ export class OrderEntity extends BaseAbstractDocument {
   @Prop({ type: Number, default: 0, min: 0 })
   instructorEarnings?: number;
 
+  // Present only while a new checkout is PENDING. Legacy rows need no migration.
+  @Prop({ type: String, required: false })
+  pendingCheckoutKey?: string;
+
+  @Prop({ type: Number, default: 0 })
+  paymentRevision?: number;
+
+  @Prop({ type: Number, default: 0, min: 0 })
+  receivedAmount?: number;
+
+  @Prop({ type: String, enum: Object.values(ReconciliationStatusEnum) })
+  lastPaymentStatus?: ReconciliationStatusEnum;
+
+  @Prop({ type: MongooseSchema.Types.Mixed })
+  courseSnapshot?: IOrderCourseSnapshot;
+
+  @Prop({ type: MongooseSchema.Types.Mixed })
+  bankSnapshot?: IOrderBankSnapshot;
+
   @Prop({
     type: String,
     enum: Object.values(OrderStatusEnum),
@@ -65,3 +85,4 @@ export const OrderSchema = SchemaFactory.createForClass(OrderEntity);
 
 OrderSchema.index({ userId: 1, createdAt: -1 });
 OrderSchema.index({ userId: 1, courseId: 1, status: 1 });
+OrderSchema.index({ pendingCheckoutKey: 1 }, { unique: true, sparse: true, name: 'unique_pending_checkout' });

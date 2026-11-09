@@ -8,6 +8,7 @@ import { PaymentController } from './payment.controller.js';
 import { EnrollmentModule } from '../enrollment/enrollment.module.js';
 import { CourseModule } from '../course/course.module.js';
 import { UserModule } from '../user/user.module.js';
+import { PaymentReadinessService } from './services/payment-readiness.service.js';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { UserModule } from '../user/user.module.js';
     PaymentRepository,
     SepayService,
     PaymentService,
+    PaymentReadinessService,
   ],
   exports: [
     PaymentRepository,
@@ -31,4 +33,3 @@ import { UserModule } from '../user/user.module.js';
   ],
 })
 export class PaymentModule {}
-

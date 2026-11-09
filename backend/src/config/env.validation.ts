@@ -82,11 +82,19 @@ export const envValidationSchema = Joi.object({
   RIVER_API_KEY_3: Joi.string().allow('').default(''),
 
   // SePay Payment Configuration
-  SEPAY_BANK_ACCOUNT: Joi.string().allow('').default(''),
-  SEPAY_BANK_CODE: Joi.string().allow('').default(''),
-  SEPAY_ACCOUNT_NAME: Joi.string().allow('').default(''),
-  SEPAY_WEBHOOK_SECRET: Joi.string().allow('').default(''),
-  SEPAY_PAYMENT_PREFIX: Joi.string().default('MD'),
-  SEPAY_PAYMENT_EXPIRE_MINUTES: Joi.number().default(15),
+  SEPAY_BANK_ACCOUNT: Joi.string().trim().pattern(/^[A-Z0-9]{1,64}$/i).when('NODE_ENV', {
+    is: 'production', then: Joi.required(), otherwise: Joi.allow('').default(''),
+  }),
+  SEPAY_BANK_CODE: Joi.string().trim().uppercase().pattern(/^[A-Z0-9]{2,20}$/).when('NODE_ENV', {
+    is: 'production', then: Joi.required(), otherwise: Joi.allow('').default(''),
+  }),
+  SEPAY_ACCOUNT_NAME: Joi.string().trim().when('NODE_ENV', {
+    is: 'production', then: Joi.required(), otherwise: Joi.allow('').default(''),
+  }),
+  SEPAY_WEBHOOK_SECRET: Joi.string().min(32).when('NODE_ENV', {
+    is: 'production', then: Joi.required(), otherwise: Joi.allow('').default(''),
+  }),
+  SEPAY_PAYMENT_PREFIX: Joi.string().trim().uppercase().valid('MD').default('MD'),
+  SEPAY_PAYMENT_EXPIRE_MINUTES: Joi.number().integer().min(1).max(1440).default(15),
 });
 

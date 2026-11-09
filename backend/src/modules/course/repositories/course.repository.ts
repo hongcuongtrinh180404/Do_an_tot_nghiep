@@ -142,6 +142,13 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
     return doc ? this.toDomain(doc) : null;
   }
 
+  /** Minimal, unpopulated lookup for enrollment/payment transactions. */
+  async findForEnrollment(id: string, session: ClientSession): Promise<Pick<ICourse, 'id' | 'price' | 'status' | 'instructorId' | 'deletedAt'> | null> {
+    const doc = await this.model.findOne({ _id: id, deletedAt: null })
+      .select('price status instructorId').session(session).lean().exec();
+    return doc ? this.toDomain(doc) : null;
+  }
+
   async findBySlug(slug: string, session?: ClientSession): Promise<ICourse | null> {
     const doc = await this.model
       .findOne({

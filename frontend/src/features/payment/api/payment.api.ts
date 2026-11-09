@@ -1,19 +1,20 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type {
   IApiResponse,
   ICreateOrderResponse,
   IOrderStatusResponse,
+  ICheckoutOrderResponse,
 } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
-import { enrollmentKeys } from '@/features/course/api/enrollment.api';
-import { courseKeys } from '@/features/course/api/course.api';
+import { getOrderPollInterval, isFatalPaymentError } from '../utils/checkout.util';
 
 export const paymentKeys = {
   all: ['payments'] as const,
   orderStatus: (orderCode: string) => [...paymentKeys.all, 'order-status', orderCode] as const,
+  orderDetail: (orderCode: string) => [...paymentKeys.all, 'order-detail', orderCode] as const,
 };
 
 export const paymentApi = {
@@ -27,15 +28,20 @@ export const paymentApi = {
 
   async getOrderStatus(orderCode: string): Promise<IOrderStatusResponse> {
     const res = await apiClient.get<IApiResponse<IOrderStatusResponse>>(
-      `/payments/order-status/${orderCode}`,
+      `/payments/order-status/${encodeURIComponent(orderCode)}`,
+    );
+    return res.data.data;
+  },
+
+  async getCheckoutOrder(orderCode: string): Promise<ICheckoutOrderResponse> {
+    const res = await apiClient.get<IApiResponse<ICheckoutOrderResponse>>(
+      `/payments/orders/${encodeURIComponent(orderCode)}`,
     );
     return res.data.data;
   },
 };
 
 export function useCreateOrderMutation() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (courseId: string) => paymentApi.createOrder(courseId),
     onError: (error: unknown) => {
@@ -51,15 +57,29 @@ export function useOrderStatusQuery(
   orderCode: string,
   options?: {
     enabled?: boolean;
-    refetchInterval?: number | false | ((query: { state: { data?: IOrderStatusResponse } }) => number | false);
+    initialData?: IOrderStatusResponse;
   },
 ) {
   return useQuery({
     queryKey: paymentKeys.orderStatus(orderCode),
     queryFn: () => paymentApi.getOrderStatus(orderCode),
     enabled: Boolean(orderCode) && (options?.enabled ?? true),
-    refetchInterval: options?.refetchInterval ?? 3000,
+    initialData: options?.initialData,
+    refetchInterval: (query) => getOrderPollInterval(query.state),
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: (query) => getOrderPollInterval(query.state) !== false,
+    retry: false,
     staleTime: 1000,
   });
 }
 
+export function useCheckoutOrderQuery(orderCode: string) {
+  return useQuery({
+    queryKey: paymentKeys.orderDetail(orderCode),
+    queryFn: () => paymentApi.getCheckoutOrder(orderCode),
+    enabled: Boolean(orderCode),
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+    retry: (failureCount, error) => !isFatalPaymentError(error) && failureCount < 2,
+  });
+}

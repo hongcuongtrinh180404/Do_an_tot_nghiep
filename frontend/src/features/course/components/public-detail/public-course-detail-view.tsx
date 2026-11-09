@@ -9,7 +9,7 @@ import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
 import {
   usePublicCourseDetailQuery,
   useCheckEnrollmentQuery,
-  useMockPurchaseMutation,
+  useRegisterFreeCourseMutation,
 } from '../../api/enrollment.api';
 import { useCreateOrderMutation } from '@/features/payment/api/payment.api';
 import { canManageCourse } from '../../utils/course-access.util';
@@ -58,7 +58,7 @@ export function PublicCourseDetailView({
     isLoggedIn,
   );
 
-  const purchaseMutation = useMockPurchaseMutation(course?.id || courseId);
+  const freeEnrollmentMutation = useRegisterFreeCourseMutation(course?.id || courseId);
   const createOrderMutation = useCreateOrderMutation();
 
   const isInstructorOwner = canManageCourse(user, course);
@@ -137,7 +137,7 @@ export function PublicCourseDetailView({
 
     // Khóa học miễn phí (0 VND): Đăng ký trực tiếp không qua SePay
     if (course.price === 0) {
-      purchaseMutation.mutate();
+      freeEnrollmentMutation.mutate();
       return;
     }
 
@@ -241,7 +241,7 @@ export function PublicCourseDetailView({
             isInstructorOwner={isInstructorOwner}
             isLoggedIn={isLoggedIn}
             isPending={
-              purchaseMutation.isPending ||
+              freeEnrollmentMutation.isPending ||
               createOrderMutation.isPending ||
               isEnrollmentLoading
             }

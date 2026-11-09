@@ -1,57 +1,22 @@
 # Payment SePay — Development History & Gotchas
 
-> **Module:** Payment SePay & Enrollment Management
+## 2026-11-09 — Payment integrity hardening
 
----
+- Loại bỏ luồng mua trực tiếp tự cấp quyền cho khóa có phí, API cũ và hook frontend tương ứng. Đăng ký khóa miễn phí chuyển sang `register-free`, backend bắt buộc kiểm tra giá 0 và không tạo đơn thanh toán.
+- Mã mới: `MD` + 10 ký tự A–Z/0–9, có cả chữ/số, dùng crypto; collision được xử lý tại INSERT. Mã ngắn chỉ còn hỗ trợ đọc/đối soát lịch sử.
+- Thêm sparse unique checkout key, snapshot giá/khóa học/ngân hàng; không sửa/xóa hàng loạt dữ liệu lịch sử.
+- Bắt buộc replica set/sharded cluster và unique index khi bật thanh toán. Loại bỏ fallback standalone vì không bảo đảm toàn vẹn.
+- Webhook chỉ ACK sau transaction commit; lỗi lưu đối soát không còn bị nuốt. Không tái tạo raw body bằng JSON.stringify.
+- Khóa ghi từng đơn để xử lý đồng thời và cộng dồn partial payments; chống dùng lại receipt/enrollment, phân biệt giao dịch chuyển thêm với doanh thu hợp lệ.
+- Cập nhật hết hạn có điều kiện, không ghi đè PAID. Dùng thời gian ngân hàng theo +07:00 để chấp nhận webhook đến trễ nhưng chuyển tiền đúng hạn.
+- Thêm API đối soát ADMIN, reprocess receipt đã xác thực và ghi nhận hoàn tiền bên ngoài có audit. Không thêm API tự tạo giao dịch hoặc tự đánh dấu PAID.
+- Tách endpoint chi tiết khỏi status polling; frontend backoff, dừng đúng trạng thái, sửa countdown lệch đồng hồ và ẩn QR cũ sau partial payment.
+- Bổ sung unit test, test frontend trên helper/API thực và integration MongoDB replica set + HTTP trong database test độc lập. Chạy SePay Test mode qua Dashboard là bước kiểm thử môi trường riêng, không được coi các test local là giao dịch Live.
 
-## 1. Milestone & Feature Status
+## Lưu ý vận hành
 
-- **Trạng thái hiện tại:** `COMPLETED` (Đã hoàn thiện trọn vẹn tích hợp thanh toán SePay VietQR và Webhook bảo mật HMAC-SHA256).
-- **Kế hoạch triển khai:** Đã triển khai và kiểm thử tự động toàn bộ luồng mua khóa học thực tế.
-
----
-
-## 2. Technical Notes & Gotchas
-
-- **Milestone 1 (Mock Purchase & Enrollment Architecture Foundation)**:
-  - **Mục tiêu**: Xây dựng nền tảng sở hữu khóa học (`Enrollment`), ghi nhận giao dịch (`Order`) bằng MongoDB Session Transactions, phục vụ chức năng mua khóa học giả lập trước khi kết nối SePay thật.
-  - **Kiến trúc triển khai**:
-    - **Schema & Indexes**:
-      - `OrderEntity` (`orders`): Lưu `orderCode` (unique), `userId`, `courseId`, `amount`, `status` (`OrderStatusEnum.PAID`).
-      - `EnrollmentEntity` (`enrollments`): Lưu `userId`, `courseId`, `orderId`, `enrolledAt`. Compound unique index `{ userId: 1, courseId: 1, deletedAt: 1 }` triệt tiêu triệt để race condition mua trùng lặp.
-    - **Transaction Idempotency**:
-      - `mockPurchase` chạy toàn bộ trong MongoDB `ClientSession` (`withTransaction`).
-      - Kiểm tra trùng lặp lần 2 ngay bên trong session transaction trước khi ghi nhận đơn hàng.
-    - **Đặc quyền Giảng viên (Instructor Ownership)**:
-      - Giảng viên tự động sở hữu các khóa học do mình xuất bản (`status === PUBLISHED`).
-      - Endpoint `GET /api/v1/enrollments/my-courses` tự động UNION các khóa học do giảng viên tạo đã xuất bản vào danh sách khóa học đã mua.
-    - **Kiểm thử tự động**:
-      - 12/12 unit tests đạt chuẩn AAA trong `enrollment.service.spec.ts`.
-
-- **Milestone 2 (SePay VietQR & HMAC-SHA256 Webhook Integration)**:
-  - **Mục tiêu**: Thay thế cơ chế mua giả lập bằng thanh toán chuyển khoản ngân hàng thực tế qua VietQR và Webhook SePay bảo mật chữ ký HMAC-SHA256.
-  - **Kiến trúc triển khai**:
-    - **Bảo mật HMAC-SHA256**:
-      - Cấu hình `rawBody: true` tại `NestFactory.create(AppModule, { rawBody: true })` để lấy raw Buffer nguyên vẹn.
-      - Xác minh timestamp trong khoảng 300 giây (5 phút), chống replay attack.
-      - Chuỗi ký: `${timestamp}.${raw_body}`, băm HMAC-SHA256 với `SEPAY_WEBHOOK_SECRET`.
-      - So sánh constant-time bằng `crypto.timingSafeEqual` triệt tiêu timing attack.
-    - **Mã thanh toán SePay (Payment Pattern)**:
-      - Tiền tố `MD` (cấu hình qua `SEPAY_PAYMENT_PREFIX`), hậu tố 5 chữ số ngẫu nhiên (10000 - 99999).
-      - Cơ chế collision retry kiểm tra trùng mã trong CSDL MongoDB.
-    - **Xử lý nghiệp vụ & Idempotency**:
-      - Bỏ qua giao dịch tiền ra (`transferType: 'out'`).
-      - Kiểm tra số tài khoản nhận khớp `SEPAY_BANK_ACCOUNT`.
-      - Chống xử lý trùng webhook dựa trên `sepayTransactionId` (unique index trong bảng `payments`).
-      - Cấp quyền học viên (`Enrollment`) và cập nhật đơn hàng (`Order.status = PAID`) chạy trong MongoDB Session Transaction (`withTransaction`) với fallback an toàn cho standalone MongoDB.
-      - Xử lý chuyển thừa tiền (`OVERPAID`): tự động kích hoạt quyền học và ghi cờ đối soát.
-      - Xử lý chuyển thiếu tiền (`UNDERPAID`): không kích hoạt và lưu log đối soát.
-      - Tái sử dụng đơn hàng PENDING còn hạn khi học viên click lại để tránh sinh rác đơn.
-    - **Frontend Checkout Flow**:
-      - Trang thanh toán `/checkout/[orderCode]` hiển thị mã VietQR, STK, Chủ TK, Số tiền, Nội dung chuyển khoản.
-      - Đồng hồ đếm ngược 15 phút thời hạn thanh toán.
-      - Polling trạng thái đơn hàng mỗi 3 giây; khi thanh toán thành công, tự động hiển thị màn hình chúc mừng và nút "Bắt đầu học ngay".
-      - Giữ nguyên luồng đăng ký miễn phí trực tiếp cho các khóa học 0 VNĐ.
-    - **Kiểm thử tự động**:
-      - 26/26 unit tests trong `payment.service.spec.ts` và `sepay.service.spec.ts` đạt 100% pass.
-      - Toàn bộ 83 backend tests và 63 frontend tests pass hoàn hảo.
+1. `createdAt` của Mongoose là immutable. Test ngày giao dịch cũ phải backdate fixture qua raw collection có chủ đích; không nới kiểm tra thời gian production để test qua.
+2. Khi chuyển sang mã 10 ký tự, cấu hình cả Test mode và Live trên SePay; chúng độc lập. Không để mẫu ngắn đứng trước mẫu mới gây trích mã bị cắt.
+3. Receipt cũ thiếu `verifiedAt`/`payloadHash` cần Replay có chữ ký hợp lệ từ SePay trước khi xử lý lại.
+4. Endpoint resolve chỉ lưu bằng chứng hoàn tiền ngoài hệ thống; không tích hợp API hoàn tiền ngân hàng.
+5. Không chia sẻ endpoint, secret hay database giữa Test mode và production vì payload Test mode giống Live.

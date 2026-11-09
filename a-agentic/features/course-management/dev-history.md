@@ -394,7 +394,7 @@
          - `CourseInstructorTab`: Hồ sơ giảng viên, huy hiệu chuyên gia, thống kê đánh giá/học viên và tiểu sử chuyên môn.
        - **Cột Phải (Thẻ Mua Khóa Học Sticky)**:
          - `CoursePurchaseCard`: Thẻ Sticky trên desktop (`lg:sticky lg:top-24`) và thanh Sticky Bottom Action Bar trên thiết bị di động (`lg:hidden`).
-         - Trước khi mua: Giá bán hiện tại, giá gốc gạch ngang, % giảm giá, nút CTA ("Mua ngay" / "Đăng ký miễn phí") tích hợp `useMockPurchaseMutation`.
+         - Trước khi mua: Giá bán hiện tại, giá gốc gạch ngang, % giảm giá, nút CTA ("Mua ngay" / "Đăng ký miễn phí"). Từ 2026-11-09: khóa có phí dùng `useCreateOrderMutation` (SePay), khóa miễn phí dùng `useRegisterFreeCourseMutation`.
          - Sau khi mua: Huy hiệu "Đã đăng ký", thanh tiến độ học tập (bắt đầu chuẩn xác từ 0%), nút "Bắt đầu học" điều hướng sang trình học chuyên biệt `/courses/[courseId]/lessons/[firstLessonId]`.
          - Danh sách quyền lợi học viên (Perks list).
   - **Kiểm định chất lượng**:
@@ -415,8 +415,8 @@
     - ESLint frontend đạt 0 lỗi.
     - 76/76 unit tests backend liên quan đến phê duyệt và quản trị khóa học (`course-approval.service.spec.ts`, `course-moderation.service.spec.ts`, `course.controller.spec.ts`) vượt qua thành công.
 
-- **Milestone 33 (Public Course Catalog Database Integration, Mock Purchase with Transaction, Purchased Courses Page `/my-courses`, and Lesson Paywall Protection)**:
-  - **Mục tiêu**: Xóa bỏ toàn bộ mock data ở phía người học, kết nối API backend thực tế để hiển thị các khóa học công khai (`PUBLISHED`), cung cấp chức năng Mua khóa học giả lập (Mock Purchase), trang Khóa học đã mua (`/my-courses`) và bảo vệ nội dung bài giảng.
+- **Milestone 33 (Public Course Catalog Database Integration, Enrollment Foundation, Purchased Courses Page `/my-courses`, and Lesson Paywall Protection)**:
+  - **Mục tiêu**: Kết nối API backend thực tế để hiển thị các khóa học công khai (`PUBLISHED`), xây dựng nền tảng sở hữu khóa học, trang Khóa học đã mua (`/my-courses`) và bảo vệ nội dung bài giảng. Từ 2026-11-09, mọi khóa có phí phải đi qua SePay; các cơ chế mua tạm thời của giai đoạn này đã được loại bỏ.
   - **Backend API & Service**:
     - `GET /api/v1/courses`: Endpoint Public có phân trang, tìm kiếm regex theo tiêu đề/mô tả, lọc theo danh mục, cấp độ, khoảng giá, và sắp xếp. Bắt buộc điều kiện `{ status: CourseStatusEnum.PUBLISHED, deletedAt: null }`.
     - `GET /api/v1/courses/public/:idOrSlug`: Trả về chi tiết khóa học công khai kèm danh sách chương và bài giảng (tên, thứ tự, thời lượng, cờ `isPreview`).
