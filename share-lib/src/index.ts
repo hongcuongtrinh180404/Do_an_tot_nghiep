@@ -30,6 +30,7 @@ export * from './interfaces/course-mindmap.interface.js';
 export * from './interfaces/lesson-mindmap.interface.js';
 export * from './interfaces/lesson-quiz.interface.js';
 export * from './interfaces/lesson-summary.interface.js';
+export * from './interfaces/review.interface.js';
 
 // Constants
 export * from './constants/auth.constants.js';

@@ -127,6 +127,8 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
         category,
         rejectionReason: (plain.rejectionReason as string | undefined) ?? null,
         reviewedAt: (plain.reviewedAt as Date | undefined) ?? null,
+        ratingAvg: Number(plain.ratingAvg ?? 0),
+        reviewCount: Number(plain.reviewCount ?? 0),
       } as unknown as ICourse;
     });
   }
@@ -142,13 +144,32 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
     return doc ? this.toDomain(doc) : null;
   }
 
+  async updateRatingStats(
+    courseId: string,
+    ratingAvg: number,
+    reviewCount: number,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.model
+      .updateOne(
+        { _id: courseId },
+        {
+          $set: {
+            ratingAvg,
+            reviewCount,
+          },
+        },
+        session ? { session } : {},
+      )
+      .exec();
+  }
+
   /** Minimal, unpopulated lookup for enrollment/payment transactions. */
   async findForEnrollment(id: string, session: ClientSession): Promise<Pick<ICourse, 'id' | 'price' | 'status' | 'instructorId' | 'deletedAt'> | null> {
     const doc = await this.model.findOne({ _id: id, deletedAt: null })
       .select('price status instructorId').session(session).lean().exec();
     return doc ? this.toDomain(doc) : null;
   }
-
   async findBySlug(slug: string, session?: ClientSession): Promise<ICourse | null> {
     const doc = await this.model
       .findOne({

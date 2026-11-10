@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectConnection } from '@nestjs/mongoose';
-import { Connection } from 'mongoose';
+import type { Connection } from 'mongoose';
 import { SepayService } from './sepay.service.js';
 import { PaymentRepository } from '../repositories/payment.repository.js';
 import { OrderRepository } from '../../enrollment/repositories/order.repository.js';

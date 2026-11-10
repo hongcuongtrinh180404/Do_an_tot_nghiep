@@ -79,6 +79,12 @@ export class CourseEntity extends BaseAbstractDocument {
     index: true,
   })
   categoryId?: Types.ObjectId | null;
+
+  @Prop({ type: Number, default: 0, min: 0, max: 5 })
+  ratingAvg?: number;
+
+  @Prop({ type: Number, default: 0, min: 0 })
+  reviewCount?: number;
 }
 
 export const CourseSchema = SchemaFactory.createForClass(CourseEntity);
@@ -104,3 +110,6 @@ CourseSchema.index({ categoryId: 1, status: 1, deletedAt: 1, createdAt: -1 });
 
 // 5. Admin Moderation Query Index: Optimized for querying courses pending approval
 CourseSchema.index({ status: 1, approvalRequestedAt: -1, deletedAt: 1 });
+
+// 6. Rating & Popularity Catalog Query Index: Sắp xếp theo đánh giá trung bình & lượt đánh giá
+CourseSchema.index({ status: 1, ratingAvg: -1, reviewCount: -1, deletedAt: 1 });

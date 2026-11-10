@@ -15,5 +15,6 @@ import { LearningProgressController } from './learning-progress.controller.js';
   ],
   controllers: [LearningProgressController],
   providers: [LearningProgressRepository, LearningProgressService],
+  exports: [LearningProgressRepository, LearningProgressService],
 })
 export class LearningProgressModule {}

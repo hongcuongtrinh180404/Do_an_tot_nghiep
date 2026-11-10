@@ -20,7 +20,7 @@ interface ITabItem {
 export function CourseDetailTabs({
   activeTab,
   onSelectTab,
-  reviewCount = 583,
+  reviewCount = 0,
 }: CourseDetailTabsProps): React.JSX.Element {
   const tabs: ITabItem[] = [
     { id: 'curriculum', label: 'Nội dung', icon: 'lucide:book-open' },

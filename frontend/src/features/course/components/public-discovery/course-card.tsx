@@ -135,11 +135,18 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
 
         {/* Stats: Rating + Student Count */}
         <div className="mt-2 flex items-center gap-3 text-xs text-[#666666]">
-          <div className="flex items-center gap-1 font-semibold text-[#161616]">
-            <Icon icon="lucide:star" className="size-3.5 fill-[#ffd100] text-[#ffd100]" />
-            <span>{course.rating.toFixed(1)}</span>
-            <span className="text-xs font-normal text-[#666666]">({course.reviewCount})</span>
-          </div>
+          {course.reviewCount > 0 ? (
+            <div className="flex items-center gap-1 font-semibold text-[#161616]">
+              <Icon icon="lucide:star" className="size-3.5 fill-[#ffd100] text-[#ffd100]" />
+              <span>{course.rating.toFixed(1)}</span>
+              <span className="text-xs font-normal text-[#666666]">({course.reviewCount})</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 text-xs text-[#666666]">
+              <Icon icon="lucide:star" className="size-3.5 text-neutral-300" />
+              <span>Chưa có đánh giá</span>
+            </div>
+          )}
           <span>•</span>
           <div className="flex items-center gap-1 text-xs">
             <Icon icon="lucide:users" className="size-3.5" />

@@ -197,7 +197,7 @@ export function PublicCourseDetailView({
             <CourseDetailTabs
               activeTab={activeTab}
               onSelectTab={setActiveTab}
-              reviewCount={583}
+              reviewCount={course.reviewCount ?? 0}
             />
 
             {/* 4. Active Tab Content Pane */}
@@ -223,7 +223,11 @@ export function PublicCourseDetailView({
               )}
 
               {activeTab === 'reviews' && (
-                <CourseReviewsTab rating={4.9} reviewCount={583} />
+                <CourseReviewsTab
+                  courseId={course.id}
+                  initialRating={course.ratingAvg}
+                  initialReviewCount={course.reviewCount}
+                />
               )}
 
               {activeTab === 'instructor' && (

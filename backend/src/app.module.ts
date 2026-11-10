@@ -17,6 +17,7 @@ import { AssemblyAiModule } from './modules/assemblyai/assemblyai.module.js';
 import { GeminiModule } from './modules/gemini/gemini.module.js';
 import { TranscriptAnalysisModule } from './modules/transcript-analysis/transcript-analysis.module.js';
 import { LearningProgressModule } from './modules/learning-progress/learning-progress.module.js';
+import { ReviewModule } from './modules/review/review.module.js';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { LearningProgressModule } from './modules/learning-progress/learning-pro
     PaymentModule,
     TranscriptAnalysisModule,
     LearningProgressModule,
+    ReviewModule,
   ],
   controllers: [AppController],
   providers: [AppService],

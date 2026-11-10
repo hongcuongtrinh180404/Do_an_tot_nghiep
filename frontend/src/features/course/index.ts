@@ -43,3 +43,4 @@ export * from './components/delete-lesson-material-dialog';
 export * from './components/delete-lesson-dialog';
 export * from './components/player';
 export * from './api/transcript-analysis.api';
+export * from './api/review.api';

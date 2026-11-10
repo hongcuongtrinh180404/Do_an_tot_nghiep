@@ -126,11 +126,18 @@ export function CourseDetailHeader({
       {/* 5. Key Statistics Bar */}
       <div className="flex flex-wrap items-center gap-y-2 gap-x-4 pt-1 text-xs text-[#666666]">
         {/* Rating */}
-        <div className="flex items-center gap-1 font-bold text-[#161616]">
-          <Icon icon="lucide:star" className="size-4 fill-[#ffd100] text-[#ffd100]" />
-          <span>4.9</span>
-          <span className="font-normal text-[#666666]">(583 đánh giá)</span>
-        </div>
+        {course.reviewCount && course.reviewCount > 0 ? (
+          <div className="flex items-center gap-1 font-bold text-[#161616]">
+            <Icon icon="lucide:star" className="size-4 fill-[#ffd100] text-[#ffd100]" />
+            <span>{(course.ratingAvg ?? 0).toFixed(1)}</span>
+            <span className="font-normal text-[#666666]">({course.reviewCount} đánh giá)</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 font-medium text-[#666666]">
+            <Icon icon="lucide:star" className="size-4 text-neutral-300" />
+            <span>Chưa có đánh giá</span>
+          </div>
+        )}
 
         <span aria-hidden="true" className="text-neutral-300">•</span>
 
