@@ -16,6 +16,7 @@ export interface UseVideoPlayerReturn {
   togglePlay: () => void;
   seek: (seconds: number) => void;
   seekRelative: (deltaSeconds: number) => void;
+  setSeekHandler: (handler: ((seconds: number) => void) | null) => void;
   setVolumeLevel: (level: number) => void;
   toggleMute: () => void;
   setRate: (rate: number) => void;
@@ -26,6 +27,10 @@ export interface UseVideoPlayerReturn {
 export function useVideoPlayer(): UseVideoPlayerReturn {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const seekHandlerRef = useRef<((seconds: number) => void) | null>(null);
+  const setSeekHandler = useCallback((handler: ((seconds: number) => void) | null) => {
+    seekHandlerRef.current = handler;
+  }, []);
 
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -42,7 +47,7 @@ export function useVideoPlayer(): UseVideoPlayerReturn {
     if (!video) return;
 
     if (video.paused || video.ended) {
-      void video.play();
+      void video.play().catch(() => undefined);
     } else {
       video.pause();
     }
@@ -50,6 +55,7 @@ export function useVideoPlayer(): UseVideoPlayerReturn {
 
   // Seek to absolute time
   const seek = useCallback((seconds: number) => {
+    if (seekHandlerRef.current) { seekHandlerRef.current(seconds); return; }
     const video = videoRef.current;
     if (!video) return;
 
@@ -63,10 +69,8 @@ export function useVideoPlayer(): UseVideoPlayerReturn {
     const video = videoRef.current;
     if (!video) return;
 
-    const newTime = Math.max(0, Math.min(video.currentTime + deltaSeconds, video.duration || 0));
-    video.currentTime = newTime;
-    setCurrentTime(newTime);
-  }, []);
+    seek(video.currentTime + deltaSeconds);
+  }, [seek]);
 
   // Set Volume (0 to 1)
   const setVolumeLevel = useCallback((level: number) => {
@@ -208,6 +212,7 @@ export function useVideoPlayer(): UseVideoPlayerReturn {
     togglePlay,
     seek,
     seekRelative,
+    setSeekHandler,
     setVolumeLevel,
     toggleMute,
     setRate,

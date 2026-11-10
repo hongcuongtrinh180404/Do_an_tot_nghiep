@@ -15,6 +15,7 @@ import { CourseRepository } from '../repositories/course.repository.js';
 import { CourseCategoryRepository } from '../repositories/course-category.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
+import { CourseMindmapRepository } from '../repositories/course-mindmap.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { StorageService } from '../../storage/index.js';
 import { LessonService } from '../services/lesson.service.js';
@@ -39,9 +40,12 @@ describe('Public Courses and Access Control', () => {
   let mockLessonRepository: {
     findById: ReturnType<typeof vi.fn>;
     findBySectionId: ReturnType<typeof vi.fn>;
+    getCourseVideoStats: ReturnType<typeof vi.fn>;
   };
   let mockEnrollmentRepository: {
     findByUserAndCourse: ReturnType<typeof vi.fn>;
+    countByCourseIds: ReturnType<typeof vi.fn>;
+    countByCourseId: ReturnType<typeof vi.fn>;
   };
   let mockUserRepository: Partial<UserRepository>;
   let mockStorageService: Partial<StorageService>;
@@ -114,19 +118,25 @@ describe('Public Courses and Access Control', () => {
     mockLessonRepository = {
       findById: vi.fn(),
       findBySectionId: vi.fn(),
+      getCourseVideoStats: vi.fn().mockResolvedValue([]),
     };
     mockEnrollmentRepository = {
       findByUserAndCourse: vi.fn(),
+      countByCourseIds: vi.fn().mockResolvedValue(new Map()),
+      countByCourseId: vi.fn().mockResolvedValue(0),
     };
     mockUserRepository = {};
     mockStorageService = {};
     mockClsService = { get: vi.fn(), set: vi.fn() };
+    const mockCourseMindmapRepository = {};
 
     courseService = new CourseService(
       mockCourseRepository as unknown as CourseRepository,
       mockCategoryRepository as unknown as CourseCategoryRepository,
       mockSectionRepository as unknown as SectionRepository,
       mockLessonRepository as unknown as LessonRepository,
+      mockCourseMindmapRepository as unknown as CourseMindmapRepository,
+      mockEnrollmentRepository as unknown as EnrollmentRepository,
       mockUserRepository as unknown as UserRepository,
       mockStorageService as StorageService,
       mockClsService as ClsService,

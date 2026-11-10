@@ -138,11 +138,10 @@ export function CourseReviewsTab({
                   <Icon
                     key={star}
                     icon="lucide:star"
-                    className={`size-5 ${
-                      star <= Math.round(averageRating)
+                    className={`size-5 ${star <= Math.round(averageRating)
                         ? 'fill-[#ffd100] text-[#ffd100]'
                         : 'text-neutral-300'
-                    }`}
+                      }`}
                   />
                 ))}
               </div>
@@ -248,11 +247,10 @@ export function CourseReviewsTab({
                 <Icon
                   key={star}
                   icon="lucide:star"
-                  className={`size-4 ${
-                    star <= myReview.rating
+                  className={`size-4 ${star <= myReview.rating
                       ? 'fill-[#ffd100] text-[#ffd100]'
                       : 'text-neutral-300'
-                  }`}
+                    }`}
                 />
               ))}
             </div>
@@ -336,11 +334,10 @@ export function CourseReviewsTab({
               return (
                 <article
                   key={review.id}
-                  className={`rounded-2xl border p-5 transition-colors ${
-                    isOwner
+                  className={`rounded-2xl border p-5 transition-colors ${isOwner
                       ? 'border-[#027D88]/30 bg-[#f9fefe]'
                       : 'border-[#e5e7eb] bg-white'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-4">
                     {/* User Info */}
@@ -415,11 +412,10 @@ export function CourseReviewsTab({
                       <Icon
                         key={star}
                         icon="lucide:star"
-                        className={`size-3.5 ${
-                          star <= review.rating
+                        className={`size-3.5 ${star <= review.rating
                             ? 'fill-[#ffd100] text-[#ffd100]'
                             : 'text-neutral-300'
-                        }`}
+                          }`}
                       />
                     ))}
                   </div>

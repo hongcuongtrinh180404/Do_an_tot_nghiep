@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ILessonQuiz, RoleEnum } from 'share-lib';
+import { studentQuiz } from './utils/lesson-quiz-version.util.js';
 import { ApiResponse, ParseObjectIdPipe } from '../base/index.js';
 import { Public } from '../auth/decorators/public.decorator.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -26,9 +27,16 @@ export class LessonQuizController {
   @Public()
   async getQuizzes(
     @Param('id', ParseObjectIdPipe) id: string,
-  ): Promise<ApiResponse<ILessonQuiz[]>> {
+  ) {
     const quizzes = await this.lessonQuizService.getQuizzesByLessonId(id);
-    return ApiResponse.success(quizzes, 'Lấy danh sách câu hỏi video thành công');
+    return ApiResponse.success(quizzes.map((quiz) => studentQuiz(quiz)), 'Lấy danh sách câu hỏi video thành công');
+  }
+
+  @Get(':id/quizzes/manage')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
+  async getManagementQuizzes(@Param('id', ParseObjectIdPipe) id: string): Promise<ApiResponse<ILessonQuiz[]>> {
+    return ApiResponse.success(await this.lessonQuizService.getQuizzesByLessonId(id));
   }
 
   @Post(':id/quizzes')

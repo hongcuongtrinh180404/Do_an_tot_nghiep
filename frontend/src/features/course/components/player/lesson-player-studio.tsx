@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ILesson, ISection, LessonContentTypeEnum, LessonTranscriptionStatusEnum, RoleEnum } from 'share-lib';
+import { ILesson, ISection, LearningStatusEnum, LessonContentTypeEnum, LessonTranscriptionStatusEnum, RoleEnum } from 'share-lib';
 import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
 import {
   courseKeys,
@@ -22,6 +22,8 @@ import { LessonNavSidebar } from './lesson-nav-sidebar';
 import { LessonTabsContainer } from './lesson-tabs-container';
 import { useLessonLearningProgress } from './use-lesson-learning-progress';
 import { LearningProgressSummary } from '../learning-progress-summary';
+import { useLessonCheckpoints } from './use-lesson-checkpoints';
+import { useLessonCompletionListQuery } from '../../api/lesson-completion.api';
 
 interface LessonPlayerStudioProps {
   courseId: string;
@@ -56,7 +58,7 @@ export function LessonPlayerStudio({
   // Reset editor state and media listeners together whenever the effective permission changes.
   return (
     <LessonPlayerStudioContent
-      key={`${lesson.id}:${mode}:${canEdit}`}
+      key={`${lesson.id}:${lesson.content?.url}:${mode}:${canEdit}:${user?.id ?? 'guest'}`}
       courseId={courseId}
       lesson={lesson}
       backUrl={backUrl}
@@ -136,7 +138,15 @@ function LessonPlayerStudioContent({
     videoUrl: lesson.content?.url,
     videoRef: player.videoRef,
     enabled: mode === 'learn' && lesson.content?.type === LessonContentTypeEnum.VIDEO,
+    onRestorePosition: player.seek,
   });
+  const checkpoints = useLessonCheckpoints({
+    userId, courseId, lessonId: lesson.id, player,
+    enabled: mode === 'learn' && lesson.content?.type === LessonContentTypeEnum.VIDEO,
+    enrolled: Boolean(learning.progress),
+    eligibilityReady: !userId || (!learning.isLoading && !learning.isError),
+  });
+  const lessonCompletions = useLessonCompletionListQuery(userId, courseId, mode === 'learn' && Boolean(learning.progress));
 
   // Dynamic Sidebar Height Synchronization with 16:9 Video Player Card
   const [sidebarHeight, setSidebarHeight] = useState<number | null>(null);
@@ -225,13 +235,18 @@ function LessonPlayerStudioContent({
           <LearningProgressSummary progress={learning.progress} isLoading={learning.isLoading}
             isError={learning.isError} onRetry={() => void learning.refetch()} saveState={learning.saveState} />
         )}
+        {mode === 'learn' && checkpoints.completion && (
+          <p className="text-sm font-medium text-foreground">
+            {checkpoints.completion.status === LearningStatusEnum.COMPLETED ? 'Bài học đã hoàn thành' : 'Bài học chưa hoàn thành'}
+          </p>
+        )}
         {/* 2. Top Tier: 16:9 Video + Dynamically Synchronized Sidebar Height */}
         <div className="w-full flex flex-col lg:flex-row items-start gap-6 xl:gap-[40px]">
           {/* Left Block: 16:9 Video Player Standalone Card (~70% width) */}
           <section
             ref={videoCardRef}
             aria-label="Khung phát video chính"
-            className="flex-1 min-w-0 w-full aspect-video bg-card border border-border rounded-2xl shadow-xs overflow-hidden relative flex flex-col"
+            className={`min-w-0 w-full ${checkpoints.active ? 'flex-none h-[440px] sm:h-auto sm:aspect-video lg:flex-1' : 'flex-1 aspect-video'} bg-card border border-border rounded-2xl shadow-xs overflow-hidden relative flex flex-col`}
           >
             <LessonVideoScreen
               player={player}
@@ -243,6 +258,7 @@ function LessonPlayerStudioContent({
               documentFileName={lesson.content?.fileName}
               timelineMarkers={timelineMarkers}
               isInstructor={canEdit}
+              checkpoints={checkpoints}
             />
           </section>
 
@@ -268,6 +284,7 @@ function LessonPlayerStudioContent({
               onSeek={player.seek}
               formatTime={player.formatTime}
               onRefreshTranscription={() => void refetchTranscript()}
+              completions={lessonCompletions.data}
             />
           </aside>
         </div>
@@ -284,6 +301,8 @@ function LessonPlayerStudioContent({
             duration={player.duration || lesson.content?.duration || transcript?.durationSeconds}
             onSeek={player.seek}
             onPauseVideo={() => player.videoRef.current?.pause()}
+            studentQuizzes={checkpoints.quizzes}
+            onOpenQuiz={checkpoints.openCheckpoint}
           />
         </section>
       </div>

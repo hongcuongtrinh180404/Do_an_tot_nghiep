@@ -874,7 +874,27 @@ export class CourseService extends BaseService<ICourse, string> {
       }
     }
 
-    return this.courseRepository.findPublicCoursesWithPagination(query, categoryId, session);
+    const paginated = await this.courseRepository.findPublicCoursesWithPagination(query, categoryId, session);
+    const courseIds = paginated.items.map((c) => c.id);
+    if (courseIds.length > 0) {
+      const [countMap, videoStats] = await Promise.all([
+        this.enrollmentRepository.countByCourseIds(courseIds),
+        this.lessonRepository.getCourseVideoStats(courseIds),
+      ]);
+      const videoStatsMap = new Map(videoStats.map((s) => [s.courseId, s]));
+      paginated.items = paginated.items.map((c) => {
+        const stats = videoStatsMap.get(c.id);
+        const totalDuration = (c as { totalDuration?: number }).totalDuration ?? stats?.totalSeconds ?? 0;
+        return {
+          ...c,
+          studentsCount: countMap.get(c.id) ?? c.studentsCount ?? 0,
+          totalDuration,
+          lessonsCount: stats?.videoCount ?? c.lessonsCount ?? 0,
+        };
+      });
+    }
+
+    return paginated;
   }
 
   async getPublicCourseDetail(
@@ -886,7 +906,11 @@ export class CourseService extends BaseService<ICourse, string> {
       throw new NotFoundException('Không tìm thấy khóa học công khai');
     }
 
-    const sections = await this.sectionRepository.findByCourseId(course.id, session);
+    const [sections, studentsCount] = await Promise.all([
+      this.sectionRepository.findByCourseId(course.id, session),
+      this.enrollmentRepository.countByCourseId(course.id),
+    ]);
+
     const sectionsWithLessons = await Promise.all(
       sections.map(async (sec) => {
         const lessons = await this.lessonRepository.findBySectionId(sec.id, session);
@@ -906,6 +930,7 @@ export class CourseService extends BaseService<ICourse, string> {
 
     return {
       ...course,
+      studentsCount,
       sections: sectionsWithLessons,
     };
   }

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Icon } from '@/components/ui/icon';
 import { ActionConfirmDialog } from '@/components/shared/dialog/action-confirm-dialog';
 import { useLessonQuizzesQuery } from '../../api/lesson-quiz.api';
+import type { IStudentLessonQuiz } from 'share-lib';
 import { LessonMindmapTab } from './tabs/lesson-mindmap-tab';
 import { LessonQuizTab } from './tabs/lesson-quiz-tab';
 import { LessonSummaryTab } from './tabs/lesson-summary-tab';
@@ -54,6 +55,8 @@ export interface LessonTabsContainerProps {
   onSeek?: (timestamp: number) => void;
   onPauseVideo?: () => void;
   onTestGemini?: (tabId: TabConfig['id']) => void;
+  studentQuizzes?: IStudentLessonQuiz[];
+  onOpenQuiz?: (timestamp: number) => void;
 }
 
 export function LessonTabsContainer({
@@ -64,10 +67,12 @@ export function LessonTabsContainer({
   onSeek,
   onPauseVideo,
   onTestGemini,
+  studentQuizzes,
+  onOpenQuiz,
 }: LessonTabsContainerProps): React.JSX.Element {
   const [activeTabId, setActiveTabId] = useState<TabConfig['id']>('summary');
   const [isQuizRegenerateOpen, setIsQuizRegenerateOpen] = useState(false);
-  const { data: quizzes = [], isLoading: isQuizzesLoading, isError: isQuizzesError } = useLessonQuizzesQuery(lessonId);
+  const { data: quizzes = [], isLoading: isQuizzesLoading, isError: isQuizzesError } = useLessonQuizzesQuery(lessonId, isInstructor);
 
   // AI Mutations for quick-trigger from tab bar buttons
   const { mutate: generateMindmap, isPending: isMindmapGenerating } =
@@ -214,6 +219,8 @@ export function LessonTabsContainer({
             onPauseVideo={onPauseVideo}
             onGenerateQuiz={() => requestAiGeneration('quiz')}
             isGenerating={isQuizGenerating}
+            studentQuizzes={studentQuizzes}
+            onOpenQuiz={onOpenQuiz}
           />
         )}
       </div>
@@ -222,7 +229,7 @@ export function LessonTabsContainer({
         onOpenChange={setIsQuizRegenerateOpen}
         title="Tạo lại câu hỏi bằng AI?"
         description={`Thao tác này sẽ thay thế toàn bộ ${quizzes.length} câu hỏi hiện tại, bao gồm các câu hỏi đã thêm hoặc chỉnh sửa thủ công.`}
-        noticeText="Các câu hỏi hiện tại sẽ không được giữ lại trong danh sách chính thức."
+        noticeText="Các câu hỏi hiện tại sẽ được thay thế. Học viên cần hoàn thành bộ câu hỏi mới để hoàn thành bài học."
         variant="warning"
         confirmText="Thay thế bằng 10 câu hỏi AI"
         onConfirm={() => {

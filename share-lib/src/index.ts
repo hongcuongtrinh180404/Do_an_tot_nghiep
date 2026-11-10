@@ -21,6 +21,7 @@ export * from './interfaces/order.interface.js';
 export * from './interfaces/payment.interface.js';
 export * from './interfaces/enrollment.interface.js';
 export * from './interfaces/learning-progress.interface.js';
+export * from './interfaces/lesson-completion.interface.js';
 export * from './interfaces/course-approval.interface.js';
 export * from './interfaces/course-category.interface.js';
 export * from './interfaces/section.interface.js';

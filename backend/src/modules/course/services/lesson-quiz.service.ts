@@ -177,22 +177,13 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
 
     await this.assertNotPendingApproval(trimmedLessonId);
 
-    if (dto.timestamp < 0) {
+    const normalized = dto.questions.map((question) => ({
+      ...this.normalizeQuiz({ ...question, timestamp: dto.timestamp }, lesson.content?.duration),
+      id: question.id, order: question.order,
+    }));
+    if (!Number.isSafeInteger(dto.timestamp) || dto.timestamp < 0 ||
+      (lesson.content?.duration && dto.timestamp > lesson.content.duration)) {
       throw new BadRequestException('Mốc thời gian (timestamp) không hợp lệ');
-    }
-
-    // Validate từng câu hỏi
-    for (const q of dto.questions) {
-      if (!q.question.trim()) {
-        throw new BadRequestException(`Nội dung câu hỏi số ${q.order} không được để trống`);
-      }
-      if (!q.options || q.options.length < 2) {
-        throw new BadRequestException(`Câu hỏi số ${q.order} phải có ít nhất 2 phương án trả lời`);
-      }
-      const hasCorrect = q.options.some((opt) => opt.isCorrect);
-      if (!hasCorrect) {
-        throw new BadRequestException(`Câu hỏi số ${q.order} phải có ít nhất một đáp án đúng`);
-      }
     }
 
     this.logger.log(
@@ -202,7 +193,8 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
     return this.lessonQuizRepo.syncQuizzesAtTimestamp(
       trimmedLessonId,
       dto.timestamp,
-      dto.questions.map((q) => ({
+      normalized.map((q) => ({
+        id: q.id,
         order: q.order,
         question: q.question.trim(),
         questionType: q.questionType,

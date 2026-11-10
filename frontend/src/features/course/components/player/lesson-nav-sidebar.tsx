@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ISection, ITranscribedSentence, LessonTranscriptionStatusEnum } from 'share-lib';
+import { ISection, ITranscribedSentence, LessonTranscriptionStatusEnum, type ILessonCompletionSummary } from 'share-lib';
 import { TimelineMarker } from './lesson-video-screen';
 import { LessonTimelineTab } from './lesson-timeline-tab';
 import { LessonCurriculumTab } from './lesson-curriculum-tab';
@@ -29,6 +29,7 @@ interface LessonNavSidebarProps {
   formatTime: (seconds: number) => string;
   onSelectLesson?: (lessonId: string) => void;
   onRefreshTranscription?: () => void;
+  completions?: ILessonCompletionSummary[];
 }
 
 export function LessonNavSidebar({
@@ -48,6 +49,7 @@ export function LessonNavSidebar({
   formatTime,
   onSelectLesson,
   onRefreshTranscription,
+  completions,
 }: LessonNavSidebarProps): React.JSX.Element {
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>('timeline');
 
@@ -200,6 +202,7 @@ export function LessonNavSidebar({
             sections={sections}
             onSelectLesson={onSelectLesson}
             formatTime={formatTime}
+            completions={completions}
           />
         )}
       </div>

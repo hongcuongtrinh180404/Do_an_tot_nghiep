@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from '@/components/ui/icon';
-import { ISection, LessonContentTypeEnum } from 'share-lib';
+import { ISection, LearningStatusEnum, LessonContentTypeEnum, type ILessonCompletionSummary } from 'share-lib';
 import { useSectionLessonsQuery } from '../../api/course.api';
 import { getLessonUrl, type CourseViewMode } from '../../utils/course-view-mode.util';
 
@@ -12,6 +12,7 @@ interface SectionItemRowProps {
   currentLessonId: string;
   onLessonClick: (lessonId: string) => void;
   formatTime: (seconds: number) => string;
+  completions?: ILessonCompletionSummary[];
 }
 
 function SectionItemRow({
@@ -19,6 +20,7 @@ function SectionItemRow({
   currentLessonId,
   onLessonClick,
   formatTime,
+  completions,
 }: SectionItemRowProps): React.JSX.Element {
   const { data: lessons, isLoading } = useSectionLessonsQuery(section.id);
   const lessonList = lessons ?? [];
@@ -43,6 +45,7 @@ function SectionItemRow({
 
         {lessonList.map((les) => {
           const isActive = les.id === currentLessonId;
+          const completed = completions?.some((item) => item.lessonId === les.id && item.status === LearningStatusEnum.COMPLETED);
 
           return (
             <button
@@ -59,7 +62,9 @@ function SectionItemRow({
               <div className="flex items-center gap-2.5 min-w-0">
                 {/* Status Icon */}
                 <div className="shrink-0">
-                  {isActive ? (
+                  {completed ? (
+                    <Icon icon="lucide:circle-check" className="size-5 text-emerald-600 dark:text-emerald-400" aria-label="Bài học đã hoàn thành" />
+                  ) : isActive ? (
                     <div className="size-6 rounded-md bg-sky-500 text-white flex items-center justify-center shadow-xs">
                       <Icon icon="lucide:play" className="size-3 fill-current" />
                     </div>
@@ -126,6 +131,7 @@ interface LessonCurriculumTabProps {
   sections?: ISection[];
   onSelectLesson?: (lessonId: string) => void;
   formatTime: (seconds: number) => string;
+  completions?: ILessonCompletionSummary[];
 }
 
 export function LessonCurriculumTab({
@@ -135,6 +141,7 @@ export function LessonCurriculumTab({
   sections,
   onSelectLesson,
   formatTime,
+  completions,
 }: LessonCurriculumTabProps): React.JSX.Element {
   const router = useRouter();
 
@@ -169,7 +176,8 @@ export function LessonCurriculumTab({
           section={sec}
           currentLessonId={currentLessonId}
           onLessonClick={handleLessonClick}
-          formatTime={formatTime}
+            formatTime={formatTime}
+            completions={completions}
         />
       ))}
     </div>

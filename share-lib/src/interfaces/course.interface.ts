@@ -22,6 +22,8 @@ export interface ICourse {
   instructorId: string;
   status: CourseStatusEnum;
   studentsCount?: number;
+  totalDuration?: number;
+  lessonsCount?: number;
   ratingAvg?: number;
   reviewCount?: number;
   approvalRequestedAt?: Date | string | null;

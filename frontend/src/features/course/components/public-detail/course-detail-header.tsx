@@ -80,9 +80,8 @@ export function CourseDetailHeader({
               {[1, 2, 3].map((dot) => (
                 <span
                   key={dot}
-                  className={`size-1.5 rounded-full ${
-                    dot <= levelInfo.dots ? 'bg-[#027D88]' : 'bg-neutral-300'
-                  }`}
+                  className={`size-1.5 rounded-full ${dot <= levelInfo.dots ? 'bg-[#027D88]' : 'bg-neutral-300'
+                    }`}
                 />
               ))}
             </div>

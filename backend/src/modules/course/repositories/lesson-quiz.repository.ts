@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, ClientSession } from 'mongoose';
 import { ILessonQuiz, QuizQuestionTypeEnum } from 'share-lib';
@@ -86,6 +86,14 @@ export class LessonQuizRepository extends BaseMongoRepository<
     return docs.map((d) => this.toDomain(d as unknown as LessonQuizEntity));
   }
 
+  async findByLessonIds(lessonIds: string[]): Promise<ILessonQuiz[]> {
+    if (lessonIds.length === 0) return [];
+    const docs = await this.model.find({
+      lessonId: { $in: lessonIds.map((id) => new Types.ObjectId(id)) }, deletedAt: null,
+    } as Record<string, unknown>).sort({ timestamp: 1, order: 1, _id: 1 }).exec();
+    return docs.map((doc) => this.toDomain(doc));
+  }
+
   /**
    * Thay thế/đồng bộ toàn bộ danh sách câu hỏi tại một mốc thời gian cụ thể
    */
@@ -93,6 +101,7 @@ export class LessonQuizRepository extends BaseMongoRepository<
     lessonId: string,
     timestamp: number,
     quizzes: Array<{
+      id?: string;
       order: number;
       question: string;
       questionType: QuizQuestionTypeEnum;
@@ -101,17 +110,27 @@ export class LessonQuizRepository extends BaseMongoRepository<
     }>,
     session?: ClientSession,
   ): Promise<ILessonQuiz[]> {
+    if (!session) {
+      return this.withTransaction((transaction) => this.syncQuizzesAtTimestamp(lessonId, timestamp, quizzes, transaction));
+    }
     const lessonObjectId = Types.ObjectId.isValid(lessonId)
       ? new Types.ObjectId(lessonId)
       : lessonId;
 
-    // 1. Soft-delete các câu hỏi cũ tại cùng mốc thời gian
+    const clusterFilter = { lessonId: lessonObjectId, timestamp: { $gte: Math.max(0, timestamp - 2), $lte: timestamp + 2 }, deletedAt: null };
+    const existing = await this.model.find(clusterFilter as Record<string, unknown>).session(session).exec();
+    const existingIds = new Set(existing.map((quiz) => String(quiz._id)));
+    const retainedIds = quizzes.filter((quiz) => quiz.id).map((quiz) => quiz.id!);
+    if (new Set(retainedIds).size !== retainedIds.length || retainedIds.some((id) => !existingIds.has(id))) {
+      throw new BadRequestException('Câu hỏi cần đồng bộ không thuộc checkpoint này hoặc bị trùng ID');
+    }
+
+    // Preserve stable identities. Only removed questions are soft-deleted.
     await this.model
       .updateMany(
         {
-          lessonId: lessonObjectId,
-          timestamp,
-          deletedAt: null,
+          ...clusterFilter,
+          _id: { $nin: retainedIds.map((id) => new Types.ObjectId(id)) },
         } as Record<string, unknown>,
         {
           $set: { deletedAt: new Date() },
@@ -124,8 +143,14 @@ export class LessonQuizRepository extends BaseMongoRepository<
       return [];
     }
 
-    // 2. Chèn danh sách câu hỏi mới
-    const documentsToInsert = quizzes.map((q) => ({
+    for (const quiz of quizzes.filter((item) => item.id)) {
+      const { id, ...content } = quiz;
+      await this.model.updateOne({ _id: id, lessonId: lessonObjectId, deletedAt: null } as Record<string, unknown>, {
+        $set: { ...content, timestamp },
+      }, { session }).exec();
+    }
+
+    const documentsToInsert = quizzes.filter((quiz) => !quiz.id).map((q) => ({
       lessonId: lessonObjectId,
       timestamp,
       order: q.order,
@@ -136,11 +161,8 @@ export class LessonQuizRepository extends BaseMongoRepository<
       deletedAt: null,
     }));
 
-    const insertedDocs = await this.model.insertMany(documentsToInsert, {
-      session: session ?? undefined,
-    });
-
-    return insertedDocs.map((d) => this.toDomain(d as unknown as LessonQuizEntity));
+    if (documentsToInsert.length > 0) await this.model.insertMany(documentsToInsert, { session });
+    return this.findByLessonIdAndTimestamp(lessonId, timestamp, session);
   }
 
   /**
@@ -191,6 +213,9 @@ export class LessonQuizRepository extends BaseMongoRepository<
     }>,
     session?: ClientSession,
   ): Promise<ILessonQuiz[]> {
+    if (!session) {
+      return this.withTransaction((transaction) => this.replaceAllQuizzesForLesson(lessonId, quizzes, transaction));
+    }
     const lessonObjectId = Types.ObjectId.isValid(lessonId)
       ? new Types.ObjectId(lessonId)
       : lessonId;

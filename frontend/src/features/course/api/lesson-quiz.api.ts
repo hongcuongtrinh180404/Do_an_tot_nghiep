@@ -42,7 +42,7 @@ export function getLessonQuizErrorMessage(error: unknown): string {
 
 export const lessonQuizApi = {
   async getQuizzes(lessonId: string): Promise<ILessonQuiz[]> {
-    const res = await apiClient.get<IApiResponse<ILessonQuiz[]>>(`/lessons/${lessonId}/quizzes`);
+    const res = await apiClient.get<IApiResponse<ILessonQuiz[]>>(`/lessons/${lessonId}/quizzes/manage`);
     return res.data.data;
   },
 
@@ -93,11 +93,11 @@ export const lessonQuizApi = {
   },
 };
 
-export function useLessonQuizzesQuery(lessonId: string | undefined) {
+export function useLessonQuizzesQuery(lessonId: string | undefined, enabled = true) {
   return useQuery({
     queryKey: lessonId ? lessonQuizKeys.byLesson(lessonId) : ['lesson-quizzes', 'disabled'],
     queryFn: () => lessonQuizApi.getQuizzes(lessonId!),
-    enabled: Boolean(lessonId),
+    enabled: Boolean(lessonId) && enabled,
     staleTime: 1000 * 60 * 5, // 5 minutes cache
   });
 }

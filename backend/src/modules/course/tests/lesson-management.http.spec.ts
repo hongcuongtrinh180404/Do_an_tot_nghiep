@@ -29,12 +29,13 @@ const quizId = '607f1f77bcf86cd799439044';
 const materialId = '607f1f77bcf86cd799439055';
 
 interface ProtectedRoute {
-  method: 'post' | 'put' | 'delete';
+  method: 'get' | 'post' | 'put' | 'delete';
   path: string;
   upload?: boolean;
 }
 
 const protectedRoutes: ProtectedRoute[] = [
+  { method: 'get', path: `/lessons/${lessonId}/quizzes/manage` },
   { method: 'post', path: `/sections/${sectionId}/lessons` },
   { method: 'post', path: `/lessons/${lessonId}/materials`, upload: true },
   { method: 'delete', path: `/lessons/${lessonId}/materials/${materialId}` },
@@ -123,6 +124,7 @@ describe('Lesson authoring HTTP authorization (isolated, no database or AI calls
     for (const service of services) {
       for (const method of Object.values(service)) method.mockResolvedValue({ id: lessonId });
     }
+    quizService.getQuizzesByLessonId.mockResolvedValue([]);
   });
 
   function send(route: ProtectedRoute, role: RoleEnum, userId = 'owner') {

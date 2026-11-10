@@ -28,27 +28,45 @@ export interface IPublicCoursesResult {
   totalPages: number;
 }
 
+function formatCourseDuration(totalSeconds?: number | null, lessonsCount?: number | null): string {
+  if (totalSeconds && totalSeconds > 0) {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    if (hours > 0 && minutes > 0) return `${hours}h ${minutes}p`;
+    if (hours > 0) return `${hours} giờ`;
+    if (minutes > 0) return `${minutes} phút`;
+    return `${Math.round(totalSeconds)} giây`;
+  }
+  if (lessonsCount && lessonsCount > 0) {
+    return `${lessonsCount} bài học`;
+  }
+  return 'Nhiều bài học';
+}
+
 function mapCourseToPublicCard(course: ICourse): IPublicCourseCard {
   const instructorName = course.instructor?.fullName || 'Giảng viên Mindly';
-  const instructorAvatar =
-    course.instructor?.avatarUrl ||
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80';
-  const categoryName = course.category?.name || 'Công nghệ thông tin';
-  const categorySlug = course.category?.slug || 'cong-nghe-thong-tin';
+  const instructorAvatar = course.instructor?.avatarUrl || '';
+  const categoryName = course.category?.name || 'Chuyên môn';
+  const categorySlug = course.category?.slug || '';
+  const studentCount = course.studentsCount ?? 0;
+  const rating = course.ratingAvg ?? 0;
+  const reviewCount = course.reviewCount ?? 0;
+  const lessonsCount = course.lessonsCount ?? 0;
+  const isFeatured = studentCount >= 5 || (reviewCount > 0 && rating >= 4.5);
 
   return {
     ...course,
     instructorName,
     instructorTitle: 'Chuyên gia giảng dạy',
     instructorAvatar,
-    rating: course.ratingAvg ?? 0,
-    reviewCount: course.reviewCount ?? 0,
-    studentCount: 1,
-    durationFormatted: 'Nhiều bài học',
-    lessonsCount: 1,
+    rating,
+    reviewCount,
+    studentCount,
+    durationFormatted: formatCourseDuration(course.totalDuration, course.lessonsCount),
+    lessonsCount,
     categorySlug,
     categoryName,
-    isFeatured: true,
+    isFeatured,
     aiFeatures: {
       hasMindmap: true,
       hasInVideoQuiz: true,

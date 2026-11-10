@@ -13,6 +13,108 @@
 
 ## 2. Technical Notes & Gotchas
 
+### [2026-11-10] - Milestone 46: Hệ thống Điểm Chặn Video Tương Tác (In-Video Quiz Checkpoints), Chống Gian Lận Lộ Đáp Án & Xác Thực Hoàn Thành Bài Học (Anti-Cheat In-Video Quiz Gating & Verified Lesson Completion)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - **Lộ đáp án qua Public API (Answer Key Leakage)**: Tuyến API công khai `GET /lessons/:id/quizzes` trước đây trả về nguyên vẹn mảng câu hỏi kèm `options[].isCorrect` và `explanation`. Học viên chỉ cần mở tab Network trên trình duyệt hoặc inspect state là có thể biết trước 100% đáp án đúng mà không cần động não làm bài.
+  - **Gian lận tua video bỏ qua câu hỏi (Seek Bypass / Scrubbing Cheat)**: Học viên có thể kéo thanh tua (seekbar) vượt qua các mốc câu hỏi tương tác để nhảy thẳng về cuối bài học mà không bị chặn, dẫn đến việc bỏ qua các điểm kiểm tra kiến thức bắt buộc.
+  - **Mất tính ổn định ID & Hỏng lịch sử học viên khi giảng viên sửa câu hỏi (ID Instability on Sync)**: Phương thức `syncQuizzesAtTimestamp` cũ xử lý bằng cách xóa mềm (`deletedAt: new Date()`) toàn bộ câu hỏi tại mốc và chèn mới (`insertMany`). Hành vi này làm thay đổi toàn bộ `_id` của câu hỏi dù nội dung câu hỏi không thay đổi, làm đứt gãy mối liên kết với lịch sử trả lời của học viên đã nộp bài trước đó.
+  - **Xung đột phiên bản câu hỏi đồng thời (Stale Concurrency Race)**: Nếu giảng viên cập nhật nội dung hoặc đáp án đúng trong lúc học viên đang mở modal làm bài, học viên nộp bài dựa trên dữ liệu cũ sẽ bị chấm sai hoặc gây sai lệch dữ liệu mà không có cảnh báo.
+  - **Xác thực hoàn thành bài học lỏng lẻo**: Trạng thái hoàn thành (`COMPLETED`) của bài học chưa được gắn kết chặt chẽ giữa việc xem hết video và việc hoàn thành đầy đủ tất cả câu hỏi tương tác.
+
+- **Nguyên nhân cốt lõi & Thách thức kỹ thuật (Root Cause & Technical Challenges)**:
+  - Cần phân tách triệt để giữa Dữ liệu Câu hỏi dành cho Học viên (`IStudentLessonQuiz` - lược bỏ `isCorrect`, giấu `explanation` trước khi nộp) và Dữ liệu Quản lý cho Giảng viên/Admin (`ILessonQuiz` - giữ nguyên đáp án qua route được bảo vệ).
+  - Điều khiển dòng tua video (Seek Flow Control) trong HTML5 Video: Học viên có thể tua một quãng dài qua nhiều checkpoint (ví dụ tua từ 01:00 đến 05:00 trong khi có câu hỏi tại 02:00 và 04:00). Bộ điều khiển phải chặn chính xác tại checkpoint đầu tiên chưa hoàn thành (02:00), lưu vết đích đến mong muốn (05:00), dừng video, bắt buộc làm bài (`required: true`), và chỉ cho phép tiếp tục sau khi học viên nộp bài xong.
+  - Xử lý cụm câu hỏi trong cửa sổ $\pm 2$ giây (Cluster Checkpoints): Các câu hỏi cách nhau $\le 2$s cần được gộp thành một điểm checkpoint duy nhất trên seekbar để tránh hiện tượng pop-up lặp lại liên tục gây gián đoạn trải nghiệm học tập.
+  - Xác thực phiên bản bằng Content Hashing (SHA-256): Cần thuật toán băm nội dung (`quizRevision`) độc lập với thứ tự các phương án để phát hiện thay đổi nội dung câu hỏi, trả về mã `409 Conflict`, nhưng không hủy bài nộp của học viên nếu giảng viên chỉ thay đổi mốc thời gian, thứ tự hay giải thích.
+
+- **Giải pháp Kiến trúc & Triển khai Toàn diện (Solution & Implementation)**:
+  1. **Tầng Hợp đồng Dữ liệu Dùng chung (`share-lib`)**:
+     - Định nghĩa `ILessonQuizAnswer`: Lưu bài nộp của học viên (`quizId`, `quizRevision`, `selectedOptionIds`, `isCorrect`, `correctOptionIds`, `submittedAt`).
+     - Định nghĩa `IStudentLessonQuiz`: Sanitize câu hỏi cho học viên (`Omit<ILessonQuiz, 'options' | 'explanation'>`, `options` chỉ chứa `{ id, label, text }`, chỉ trả về `answer` và `explanation` khi đã hoàn thành bài nộp).
+     - Định nghĩa `ILessonCompletionSummary` & `ILessonCompletion`: Trạng thái tiến độ bài học (`status`, `completedQuestions`, `totalQuestions`, `videoEnded`, `quizzesVersion`, `mediaVersion`).
+     - Định nghĩa DTOs nộp bài: `ISubmitLessonQuizAnswer`, `ICompleteLessonVideo`.
+  2. **Tầng Bảo mật & Quản lý Quiz Backend (`backend/src/modules/course/`)**:
+     - Tiện ích băm phiên bản `lesson-quiz-version.util.ts`:
+       - `contentVersion(value)`: Băm SHA-256 payload JSON.
+       - `quizRevision(quiz)`: Băm SHA-256 của `{ question, questionType, options (sắp xếp tăng dần theo id) }`. Thay đổi mốc thời gian, thứ tự hoặc giải thích không làm vô hiệu hóa câu trả lời đã nộp.
+       - `studentQuiz(quiz, answer)`: Loại bỏ `isCorrect` khỏi options, ẩn `explanation` nếu chưa có bài nộp hợp lệ.
+     - Cập nhật `LessonQuizController`:
+       - `GET /lessons/:id/quizzes`: Đánh dấu `@Public()`, tự động sanitize toàn bộ câu hỏi qua `studentQuiz` trước khi gửi về client, bảo vệ tuyệt đối chống lộ đáp án.
+       - `GET /lessons/:id/quizzes/manage`: Được bảo vệ bởi `@Roles(INSTRUCTOR, ADMIN)` và `LessonManagementGuard`, trả về dữ liệu nguyên bản phục vụ soạn thảo giáo trình.
+     - Tối ưu `LessonQuizRepository`:
+       - Bổ sung `findByLessonIds(lessonIds)` phục vụ truy vấn theo lô (batch query) cho Sidebar, triệt tiêu N+1 queries.
+       - Nâng cấp `syncQuizzesAtTimestamp`: Chạy trong transaction `withTransaction`. Sử dụng bộ lọc cluster trong khoảng `[timestamp - 2, timestamp + 2]`, bảo toàn định danh ổn định (Preserve Stable Identity) bằng cách `updateOne` cho câu hỏi đã có ID, chỉ xóa mềm những câu bị loại bỏ, và `insertMany` cho câu hỏi mới.
+  3. **Module Tiến độ Hoàn thành Bài học Xác thực (`backend/src/modules/learning-progress/`)**:
+     - Tạo Mongoose Schema `LessonCompletionEntity` (`lesson_completions` collection) với compound index `{ userId: 1, courseId: 1, lessonId: 1 }`.
+     - `LessonCompletionRepository`: Quản lý lưu trữ câu trả lời của học viên (`saveAnswer`), ghi nhận video kết thúc (`saveVideoEnded`), truy vấn tiến độ theo bài và theo khóa học.
+     - `LessonCompletionService`:
+       - Kiểm tra hợp lệ ghi danh (`requireEnrollment`) và loại nội dung video (`requireLesson`).
+       - `submitAnswer`: So khớp `quizRevision`, trả về `409 Conflict` nếu câu hỏi đã bị chỉnh sửa, chấm điểm tự động phía server (`isCorrect`), lưu bài nộp và trả về trạng thái bài học mới nhất.
+       - `videoEnded`: So khớp `mediaVersion` (SHA-256 của video URL + publicId), kiểm tra vị trí xem thực tế phải chạm sát thời lượng video (`Math.abs(positionSeconds - duration) <= 1`), ngăn chặn gọi API hoàn thành khống.
+       - Quy tắc tính toán trạng thái `status`:
+         - Bài học có Quiz: `COMPLETED` khi học viên hoàn thành TẤT CẢ câu hỏi (`completedQuestions === quizzes.length`).
+         - Bài học không có Quiz: `COMPLETED` khi video đã xem đến cuối (`videoEnded === true`).
+     - `LessonCompletionController`:
+       - `GET /learning-progress/courses/:courseId/lessons`: Batch query cho Sidebar bài học.
+       - `GET /learning-progress/courses/:courseId/lessons/:lessonId`: Chi tiết tiến độ bài học hiện tại.
+       - `POST /learning-progress/courses/:courseId/lessons/:lessonId/quiz-answers`: Nộp bài quiz.
+       - `POST /learning-progress/courses/:courseId/lessons/:lessonId/video-ended`: Ghi nhận xem hết video.
+  4. **Trình Điều Khiển Điểm Chặn Checkpoint Phía Frontend (`LessonCheckpointController`)**:
+     - `LessonCheckpointController` (`frontend/src/features/course/utils/lesson-checkpoint-controller.ts`):
+       - State machine thuần túy, sở hữu độc quyền logic điểm dừng và tua video.
+       - `groupQuizCheckpoints`: Gộp các câu hỏi trong phạm vi $\pm 2$s thành một checkpoint duy nhất.
+       - Thuật toán Chặn Tua Video (Seek Gating): Khi học viên tua tới mốc thời gian $T$, kiểm tra xem có bất kỳ checkpoint nào $\le T$ còn câu hỏi chưa hoàn thành hay không (`blocker(target)`). Nếu có:
+         - Hủy lệnh nhảy đến $T$.
+         - Dừng video (`port.pause()`).
+         - Tua video về đúng mốc của checkpoint bị chặn (`rawSeek(next.timestamp)`).
+         - Kích hoạt modal câu hỏi bắt buộc (`required: true`).
+         - Ghi nhớ $T$ vào `pendingTarget`. Khi học viên nộp bài xong, tự động giải phóng hàng đợi (`drain()`) và dẫn học viên tiếp tục hành trình đến đích ban đầu.
+       - Hỗ trợ mốc 00:00: Kích hoạt đúng một lần khi bắt đầu bài học, không bị kẹt lặp vô hạn.
+       - Chế độ Xem lại (Review Mode): Checkpoint đã làm xong vẫn có thể mở lại để xem đáp án đúng và lời giải thích, nhưng không chặn video (`required: false`) và có thể đóng bất cứ lúc nào để tiếp tục xem.
+     - Hook `useLessonCheckpoints` (`use-lesson-checkpoints.ts`):
+       - Kết nối bộ điều khiển với thẻ Video HTML5 (`timeupdate`, `seeking`, `seeked`, `ended`, `play`, `pause`).
+       - Đồng bộ câu hỏi từ API `lessonCompletionApi.getLesson` và tự động cập nhật khi học viên nộp bài.
+  5. **Tối Ưu Trải Nghiệm Giao Diện Người Dùng (`frontend/src/features/course/`)**:
+     - `StudentInVideoQuizModal`: Thiết kế Clean & Minimalist. Hỗ trợ điều hướng câu hỏi trong cụm (`Câu X / Y`), nộp bài với loading state, hiển thị ngay kết quả đúng/sai kèm giải thích chi tiết sau khi nộp thành công.
+     - `LessonVideoScreen`:
+       - Hiển thị micro-gem checkpoints trên seekbar: chấm màu xanh ngọc (`lucide:circle-check`) cho checkpoint đã hoàn thành, màu vàng hổ phách cho checkpoint chưa làm.
+       - Tách biệt thanh scrubber trượt mượt mà (`scrubTime`), chỉ phát lệnh seek thực sự khi người dùng thả tay (`onPointerUp`).
+     - Tách biệt `LessonQuizTab`:
+       - Giảng viên: Giao diện quản lý toàn diện (tạo/sửa/xóa marker, sinh câu hỏi AI, xem trước đáp án).
+       - Học viên: Danh sách câu hỏi kèm trạng thái hoàn thành, click vào để mở modal xem lại hoặc nhảy đến mốc thời gian trong video.
+     - Đồng bộ trạng thái bài học: Hiển thị badge trạng thái bài học và đánh dấu checkmark hoàn thành trên Sidebar giáo trình.
+  6. **Bộ Kiểm Thử Toàn Diện (Unit Tests)**:
+     - `lesson-quiz-sync.repository.spec.ts`: Kiểm thử bảo toàn ID và xóa mềm có chọn lọc khi sync.
+     - `lesson-completion.service.spec.ts`: 24 test cases kiểm thử logic nộp bài, chống gian lận, xung đột phiên bản revision, và logic tính toán hoàn thành.
+     - `lesson-checkpoint-controller.spec.ts`: 23 test cases kiểm thử toàn diện mọi kịch bản tua video, chặn seek, phục hồi playback, gộp cụm checkpoint, và xử lý mốc 0s/cuối video.
+
+- **Gotchas & Quy Tắc Bất Biến (Lessons Learned & Invariants)**:
+  - **Quy tắc Bất biến 1 (Never Trust the Client for Answers)**: Tuyệt đối không bao giờ trả về `isCorrect` hoặc `explanation` trong payload public trước khi học viên nộp bài. Việc đánh giá đúng/sai PHẢI diễn ra 100% tại backend.
+  - **Quy tắc Bất biến 2 (Revision Integrity)**: Mỗi bài nộp của học viên phải đi kèm `quizRevision`. Nếu giảng viên thay đổi cấu trúc câu hỏi (đổi nội dung hoặc đáp án) trong lúc học viên đang làm, backend phải ném `409 Conflict` để buộc học viên tải lại dữ liệu mới, ngăn chặn ghi nhận sai lệch.
+  - **Quy tắc Bất biến 3 (Seek Gating Priority)**: Bộ điều khiển checkpoint phải luôn ưu tiên checkpoint chưa hoàn thành gần nhất phía trước vị trí tua đến (`blocker(target)`). Video tuyệt đối không được phép phát qua điểm chặn khi chưa hoàn thành quiz.
+
+---
+
+### [2026-11-10] - Milestone 45: Redesign CourseCard theo chuẩn Anti-Slop Design Taste & Đồng bộ dữ liệu thực tế MongoDB
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Giao diện Card khóa học công khai (`public-discovery/course-card.tsx`) trước đây phân mảnh với nhiều khối rườm rà (banner giới thiệu AI thừa, tách biệt dòng giảm giá và nút mua).
+  - Nhiều trường dữ liệu hiển thị trên Card bị hardcode ở tầng Frontend Service (`studentCount: 1`, `durationFormatted: 'Nhiều bài học'`, `isFeatured: true`), dẫn đến việc dữ liệu hiển thị không trung thực với thực tế cơ sở dữ liệu MongoDB.
+  - Backend API `GET /api/v1/courses` (public) trước đây chưa tính toán và trả về `studentsCount` (tổng số ghi danh từ `enrollments`) cũng như thống kê tổng thời lượng/số bài học thực tế từ `lessons`.
+- **Giải pháp & Triển khai**:
+  1. **Đồng bộ Dữ liệu Thực tế (Data Fidelity)**:
+     - Bổ sung `totalDuration` và `lessonsCount` vào interface `ICourse` trong `share-lib`.
+     - Cập nhật `CourseService.findPublicCourses`: Tích hợp đếm học viên qua `enrollmentRepository.countByCourseIds` và tổng hợp thời lượng qua `lessonRepository.getCourseVideoStats`, loại bỏ hoàn toàn các trường dữ liệu giả lập.
+     - Cập nhật `public-courses.service.ts`: Xóa bỏ các giá trị hardcode; tính toán động `isFeatured` (khi `studentsCount >= 5` hoặc `ratingAvg >= 4.5`), `durationFormatted` và `studentCount`.
+  2. **Tái thiết kế Giao diện Card (UI/UX Anti-Slop)**:
+     - Bổ sung ruy băng chéo góc trên bên phải `GIẢM X%` (chỉ hiển thị khi `hasDiscount && originalPrice > price`).
+     - Tích hợp Nút Mua hàng duy nhất màu Teal `#027D88`: `[🛒 Mua ngay • Giá bán (Giá gốc gạch ngang)]`, loại bỏ icon lấp lánh và banner AI thừa, tối ưu khoảng trắng và độ tương phản.
+     - Xử lý mượt mà trạng thái Miễn phí `[🛒 Đăng ký ngay • Miễn phí]` và trạng thái Chưa có đánh giá `☆ Chưa có đánh giá • X học viên`.
+  3. **Kiểm thử**:
+     - Bổ sung `public-course-card.spec.ts` kiểm thử toàn diện các quy tắc giảm giá, miễn phí, huy hiệu best seller.
+     - Cập nhật và pass 100% (13/13) bộ test `course-public.spec.ts` backend.
+
 ### [2026-11-08] - Milestone 44: Hệ thống theo dõi tiến độ học tập thực tế & Quản lý phiên phát video chống gian lận (Anti-Cheat Real-Time Learning Progress Tracking)
 
 - **Bối cảnh & Vấn đề (Problem Statement)**:

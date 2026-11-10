@@ -10,7 +10,7 @@ import { SaveLessonQuizDto } from '../dto/save-lesson-quiz.dto.js';
 describe('Individual lesson quiz HTTP contracts', () => {
   const lessonId = '607f1f77bcf86cd799439011';
   const quizId = '607f1f77bcf86cd799439022';
-  const service = { createQuiz: vi.fn(), updateQuiz: vi.fn() };
+  const service = { createQuiz: vi.fn(), updateQuiz: vi.fn(), getQuizzesByLessonId: vi.fn() };
   const guard = { canActivate: vi.fn() };
   const payload = {
     timestamp: 30,
@@ -40,6 +40,7 @@ describe('Individual lesson quiz HTTP contracts', () => {
     guard.canActivate.mockReturnValue(true);
     service.createQuiz.mockResolvedValue({ ...payload, id: quizId, lessonId, order: 1 });
     service.updateQuiz.mockResolvedValue({ ...payload, id: quizId, lessonId, order: 1 });
+    service.getQuizzesByLessonId.mockResolvedValue([{ ...payload, id: quizId, lessonId, order: 1, explanation: 'Lời giải chỉ dành cho câu đã nộp' }]);
   });
 
   afterAll(async () => { await app?.close(); });
@@ -64,6 +65,15 @@ describe('Individual lesson quiz HTTP contracts', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ success: true, data: { id: quizId } });
     expect(service.updateQuiz).toHaveBeenCalledWith(quizId, expect.any(SaveLessonQuizDto));
+  });
+
+  it('never exposes answer keys or explanations through the public learner route', async () => {
+    const response = await fetch(`${baseUrl}/lessons/${lessonId}/quizzes`);
+    expect(response.status).toBe(200);
+    const result = await response.json();
+    expect(result.data[0].answer).toBeNull();
+    expect(result.data[0].explanation).toBeNull();
+    expect(result.data[0].options.every((option: object) => !('isCorrect' in option))).toBe(true);
   });
 
   it.each([

@@ -6,12 +6,30 @@
 
 ## 1. Milestone & Feature Status
 
-- **Trạng thái hiện tại:** `IN_PROGRESS` (Hoàn thành tầng giao diện Lesson Player Studio 70/30 và 3 Tab container).
-- **Kế hoạch triển khai:** Sprint 3 (Giai đoạn 3: Cài đặt & Lập trình giao diện Studio Player).
+- **Trạng thái hiện tại:** `IN_PROGRESS` (Hoàn thành hệ thống Điểm Chặn Video Tương Tác In-Video Quiz Checkpoints, Chống gian lận lộ đáp án & Hoàn thành bài học xác thực).
+- **Kế hoạch triển khai:** Sprint 3 (Hoàn thiện đồng bộ tiến độ học tập và kiểm thử E2E).
 
 ---
 
 ## 2. Technical Notes & Gotchas
+
+- **Hệ Thống Điểm Chặn Video Tương Tác (In-Video Quiz Checkpoints) & Chống Gian Lận Tua Video (`LessonCheckpointController` + `lesson-completion`)**:
+  - *Mục tiêu:* Ngăn chặn tuyệt đối việc học viên tua qua (seek bypass) các mốc kiểm tra kiến thức video mà không trả lời câu hỏi, bảo mật đáp án không bị lộ qua mạng, và xác thực hoàn thành bài học 100% tại backend.
+  - *Chống lộ đáp án (Answer Key Sanitization):* API `GET /lessons/:id/quizzes` (công khai) trả về danh sách câu hỏi đã được loại bỏ `isCorrect` và ẩn `explanation` qua hàm tiện ích `studentQuiz`. Chỉ giảng viên/admin (`GET /lessons/:id/quizzes/manage`) mới có quyền xem đáp án và giải thích chi tiết trước khi nộp.
+  - *State Machine Điều khiển Tua (`LessonCheckpointController`):*
+    - Gộp các câu hỏi cách nhau $\le 2$s thành 1 checkpoint duy nhất (`groupQuizCheckpoints`).
+    - Khi học viên tua vượt qua một hoặc nhiều checkpoint chưa hoàn thành, bộ điều khiển lập tức hủy lệnh nhảy, ép tạm dừng video (`port.pause()`), tua ngược về checkpoint chưa làm gần nhất (`rawSeek(next.timestamp)`), mở modal bắt buộc (`required: true`) và ghi nhớ đích đến ban đầu vào `pendingTarget`.
+    - Sau khi học viên nộp bài xong, controller tự động giải phóng hàng đợi (`drain()`) và dẫn học viên tiếp tục hành trình đến đích đến ban đầu.
+    - Phân tách chế độ Xem lại (Review): Điểm dừng đã hoàn thành có thể mở lại để xem giải thích mà không khóa video (`required: false`).
+  - *Bảo vệ Tính Toàn Vẹn Bằng Băm Phiên Bản (SHA-256 Revision):*
+    - Mỗi câu hỏi được sinh một chuỗi băm `quizRevision` từ `{ question, questionType, options }`.
+    - Khi học viên nộp bài, backend so khớp `quizRevision` với CSDL. Nếu giảng viên vừa chỉnh sửa nội dung/đáp án câu hỏi, request trả về `409 Conflict` yêu cầu học viên tải lại dữ liệu mới, ngăn ngừa việc chấm điểm sai lệch.
+  - *Bảo Toàn Định Danh Câu Hỏi Khi Giảng Viên Đồng Bộ (Stable ID Preservation):*
+    - `LessonQuizRepository.syncQuizzesAtTimestamp` sử dụng transaction MongoDB và bộ lọc cluster $\pm 2$s để cập nhật tại chỗ (`updateOne`) cho các câu hỏi đã có ID, chỉ xóa mềm câu hỏi bị gỡ bỏ, và chỉ `insertMany` cho câu hỏi thực sự mới. Điều này bảo vệ 100% lịch sử nộp bài của học viên không bị đứt gãy khi giảng viên chỉnh sửa bài giảng.
+  - *Xác Thực Hoàn Thành Bài Học (`LessonCompletionService`):*
+    - Bài học có Quiz: Chỉ đạt `COMPLETED` khi học viên hoàn thành TẤT CẢ câu hỏi (`completedQuestions === quizzes.length`).
+    - Bài học không có Quiz: Chỉ đạt `COMPLETED` khi video kết thúc thực tế (`Math.abs(positionSeconds - duration) <= 1`) và `mediaVersion` khớp với CSDL.
+    - Thanh điều hướng Sidebar sử dụng batch read `GET /learning-progress/courses/:courseId/lessons` để nạp toàn bộ trạng thái bài học chỉ trong 1 round-trip, triệt tiêu lỗi N+1 queries.
 
 - **Theo dõi tiến độ học tập thực tế & Chống gian lận tua nhanh trong Studio Player (Anti-Cheat Playback Clock & Session Lease)**:
   - *Mục tiêu:* Tự động ghi nhận thời gian học thực tế khi học viên xem video bài giảng trong phòng học Studio Player (`LessonPlayerStudio`), ngăn chặn mọi thủ thuật tua nhanh hoặc gian lận thời lượng.

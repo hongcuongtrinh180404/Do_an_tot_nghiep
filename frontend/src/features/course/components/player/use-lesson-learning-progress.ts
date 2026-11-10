@@ -13,6 +13,7 @@ interface Options {
   videoUrl?: string;
   videoRef: RefObject<HTMLVideoElement | null>;
   enabled: boolean;
+  onRestorePosition?: (seconds: number) => void;
 }
 
 interface ActiveSession {
@@ -27,7 +28,7 @@ function errorMessage(error: unknown): string {
     'Chưa lưu được tiến độ. Kiểm tra kết nối rồi phát lại video.';
 }
 
-export function useLessonLearningProgress({ userId, courseId, lessonId, videoUrl, videoRef, enabled }: Options) {
+export function useLessonLearningProgress({ userId, courseId, lessonId, videoUrl, videoRef, enabled, onRestorePosition }: Options) {
   const queryClient = useQueryClient();
   const query = useCourseLearningProgressQuery(userId, courseId, enabled);
   const [saveState, setSaveState] = useState('');
@@ -44,12 +45,15 @@ export function useLessonLearningProgress({ userId, courseId, lessonId, videoUrl
       restoredMedia.current = mediaKey;
       // Never jump a player that the learner has already started interacting with.
       if (resumeLessonId === lessonId && video.paused && video.currentTime === 0 && resumePosition > 0 &&
-        Number.isFinite(video.duration) && resumePosition < video.duration) video.currentTime = resumePosition;
+        Number.isFinite(video.duration) && resumePosition < video.duration) {
+        if (onRestorePosition) onRestorePosition(resumePosition);
+        else video.currentTime = resumePosition;
+      }
     };
     if (video.readyState >= 1) restore();
     else video.addEventListener('loadedmetadata', restore, { once: true });
     return () => video.removeEventListener('loadedmetadata', restore);
-  }, [eligible, userId, courseId, lessonId, videoUrl, resumeLessonId, resumePosition, videoRef]);
+  }, [eligible, userId, courseId, lessonId, videoUrl, resumeLessonId, resumePosition, videoRef, onRestorePosition]);
 
   useEffect(() => {
     const video = videoRef.current;

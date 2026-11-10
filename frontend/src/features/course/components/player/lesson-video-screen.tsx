@@ -15,8 +15,9 @@ import {
 import { UseVideoPlayerReturn } from './use-video-player';
 import { TimelinePinMarker } from './lesson-timeline-pin-marker';
 import { CreateQuizMarkerModal } from './create-quiz-marker-modal';
-import { InVideoQuizPromptOverlay } from './in-video-quiz-prompt-overlay';
 import { StudentInVideoQuizModal } from './student-in-video-quiz-modal';
+import { groupQuizCheckpoints } from '../../utils/lesson-checkpoint-controller';
+import type { LessonCheckpoints } from './use-lesson-checkpoints';
 import {
   useLessonQuizzesQuery,
   useMoveMergeLessonQuizClusterMutation,
@@ -37,6 +38,7 @@ interface LessonVideoScreenProps {
   documentFileName?: string;
   timelineMarkers?: TimelineMarker[];
   isInstructor?: boolean;
+  checkpoints: LessonCheckpoints;
 }
 
 const SPEED_OPTIONS = [0.75, 1, 1.25, 1.5, 2];
@@ -51,6 +53,7 @@ export function LessonVideoScreen({
   documentFileName,
   timelineMarkers = [],
   isInstructor = false,
+  checkpoints,
 }: LessonVideoScreenProps): React.JSX.Element {
   const {
     videoRef,
@@ -75,6 +78,9 @@ export function LessonVideoScreen({
 
   const [showControls, setShowControls] = useState<boolean>(true);
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState<boolean>(false);
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
+  const scrubbingRef = useRef(false);
+  const scrubTargetRef = useRef<number | null>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hoverLeaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -97,7 +103,7 @@ export function LessonVideoScreen({
   const [autoAddNewQuestion, setAutoAddNewQuestion] = useState<boolean>(false);
 
   // Real quizzes query from backend
-  const { data: dbQuizzes = [] } = useLessonQuizzesQuery(lessonId);
+  const { data: dbQuizzes = [] } = useLessonQuizzesQuery(lessonId, isInstructor);
 
   // Mutation to move or merge quiz clusters
   const moveMergeMutation = useMoveMergeLessonQuizClusterMutation(lessonId);
@@ -154,74 +160,9 @@ export function LessonVideoScreen({
     return map;
   }, [dbQuizzes]);
 
-  // Student In-Video Interactive Prompt & Modal States
-  const [activePromptTimestamp, setActivePromptTimestamp] = useState<number | null>(null);
-  const [studentQuizTimestamp, setStudentQuizTimestamp] = useState<number | null>(null);
-  const [isStudentQuizModalOpen, setIsStudentQuizModalOpen] = useState<boolean>(false);
-  const handledQuizTimestampsRef = useRef<Set<number>>(new Set());
-
-  // Listen to video currentTime during playback: pause video and prompt student when hitting a quiz checkpoint
-  useEffect(() => {
-    if (
-      !isPlaying ||
-      activePromptTimestamp !== null ||
-      isStudentQuizModalOpen ||
-      isQuizModalOpen ||
-      isDraggingCluster ||
-      mergeConfirmData !== null
-    ) {
-      return;
-    }
-
-    const currentSec = Math.floor(currentTime);
-    for (const timestamp of quizCheckpoints.keys()) {
-      if (
-        Math.abs(currentSec - timestamp) <= 1 &&
-        !handledQuizTimestampsRef.current.has(timestamp)
-      ) {
-        if (videoRef.current) {
-          videoRef.current.pause();
-        }
-        handledQuizTimestampsRef.current.add(timestamp);
-        setActivePromptTimestamp(timestamp);
-        break;
-      }
-    }
-  }, [
-    currentTime,
-    isPlaying,
-    quizCheckpoints,
-    activePromptTimestamp,
-    isStudentQuizModalOpen,
-    isQuizModalOpen,
-    isDraggingCluster,
-    mergeConfirmData,
-    videoRef,
-  ]);
-
-  const handleSkipPrompt = () => {
-    setActivePromptTimestamp(null);
-    if (videoRef.current) {
-      videoRef.current.play().catch(() => { });
-    }
-  };
-
-  const handleTakeQuiz = () => {
-    const targetTime = activePromptTimestamp;
-    setActivePromptTimestamp(null);
-    if (targetTime !== null) {
-      setStudentQuizTimestamp(targetTime);
-      setIsStudentQuizModalOpen(true);
-    }
-  };
-
-  const handleCompleteAndResumeVideo = () => {
-    setIsStudentQuizModalOpen(false);
-    setStudentQuizTimestamp(null);
-    if (videoRef.current) {
-      videoRef.current.play().catch(() => { });
-    }
-  };
+  const isStudentQuizModalOpen = checkpoints.active !== null;
+  const studentCheckpoints = useMemo(() => groupQuizCheckpoints(checkpoints.quizzes), [checkpoints.quizzes]);
+  const timelineCheckpoints = isInstructor ? quizCheckpoints : studentCheckpoints;
 
   // Calculate mouse position and timestamp on hover over timeline slider
   const handleSliderMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -256,10 +197,8 @@ export function LessonVideoScreen({
   };
 
   // Click on Pin Marker or Checkpoint Dot: pause video, get precise clickedTime, and open question modal
-  const handlePinClick = (e: React.MouseEvent, time: number) => {
+  const handlePinClick = (time: number) => {
     if (!isInstructor) return;
-    e.stopPropagation();
-    e.preventDefault();
     if (hoverLeaveTimeoutRef.current) {
       clearTimeout(hoverLeaveTimeoutRef.current);
       hoverLeaveTimeoutRef.current = null;
@@ -281,6 +220,16 @@ export function LessonVideoScreen({
     setSelectedQuizTime(targetTime);
     setAutoAddNewQuestion(false);
     setIsQuizModalOpen(true);
+  };
+
+  const handleCheckpointActivate = (event: React.MouseEvent<HTMLElement> | React.KeyboardEvent<HTMLElement>) => {
+    if ('key' in event && event.key !== 'Enter' && event.key !== ' ') return;
+    event.stopPropagation();
+    event.preventDefault();
+    if (isDraggingCluster) return;
+    const timestamp = Number(event.currentTarget.dataset.checkpointTime);
+    if (isInstructor) handlePinClick(timestamp);
+    else checkpoints.openCheckpoint(timestamp);
   };
 
   // Click on "Thêm câu hỏi" button when hovering on existing checkpoint: auto append next question
@@ -567,7 +516,6 @@ export function LessonVideoScreen({
 
       // Don't intercept video controls if quiz prompt, quiz modal, drag mode, or merge confirm is active
       if (
-        activePromptTimestamp !== null ||
         isStudentQuizModalOpen ||
         isQuizModalOpen ||
         isDraggingCluster ||
@@ -601,7 +549,6 @@ export function LessonVideoScreen({
     seekRelative,
     toggleMute,
     toggleFullscreen,
-    activePromptTimestamp,
     isStudentQuizModalOpen,
     isQuizModalOpen,
     isDraggingCluster,
@@ -612,10 +559,13 @@ export function LessonVideoScreen({
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isDraggingCluster) return;
     const nextTime = parseFloat(e.target.value);
-    seek(nextTime);
+    if (scrubbingRef.current) {
+      scrubTargetRef.current = nextTime;
+      setScrubTime(nextTime);
+    } else seek(nextTime);
   };
 
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const progressPercent = duration > 0 ? ((scrubTime ?? currentTime) / duration) * 100 : 0;
   const bufferPercent = duration > 0 ? (bufferedEnd / duration) * 100 : 0;
 
   // Render Document State
@@ -686,7 +636,7 @@ export function LessonVideoScreen({
         }`}
     >
       {/* 16:9 Video Canvas Container */}
-      <div className="relative w-full aspect-video max-h-full flex items-center justify-center bg-black">
+      <div className={`relative w-full ${isStudentQuizModalOpen ? 'h-full sm:h-auto sm:aspect-video' : 'aspect-video'} max-h-full flex items-center justify-center bg-black`}>
         <video
           ref={videoRef}
           src={videoUrl}
@@ -757,18 +707,25 @@ export function LessonVideoScreen({
 
             {/* Real Database Quiz Checkpoints on Timeline (Subtle Micro-Gems) */}
             {duration > 0 &&
-              Array.from(quizCheckpoints.entries()).map(([ts, questions]) => {
+              Array.from(timelineCheckpoints.keys()).map((ts) => {
+                const questions = timelineCheckpoints.get(ts)!;
                 const quizPercent = (ts / duration) * 100;
                 if (quizPercent > 100) return null;
                 const sampleQ = questions[0]?.question || 'Câu hỏi tương tác';
                 const isSnapTarget = snapTarget?.timestamp === ts;
                 const isSourceBeingDragged = isDraggingCluster && dragSource?.timestamp === ts;
                 const isMultiple = questions.length >= 2;
+                const completed = !isInstructor && questions.every((question) => 'answer' in question && Boolean(question.answer));
 
                 return (
                   <div
                     key={`quiz-db-${ts}`}
-                    title={`[${formatTime(ts)}] ${questions.length} câu hỏi: ${sampleQ}`}
+                    title={`[${formatTime(ts)}] ${completed ? 'Đã hoàn thành · ' : ''}${questions.length} câu hỏi: ${sampleQ}`}
+                    role="button"
+                    tabIndex={0}
+                    data-checkpoint-time={ts}
+                    aria-label={`${completed ? 'Ôn tập' : 'Mở câu hỏi'} tại ${formatTime(ts)}`}
+                    onKeyDown={handleCheckpointActivate}
                     style={{ left: `${quizPercent}%` }}
                     className={`absolute top-1/2 -translate-y-1/2 -ml-1.5 size-3 flex items-center justify-center z-30 pointer-events-auto cursor-pointer group/checkpoint transition-all ${isSourceBeingDragged ? 'opacity-30 scale-75' : ''
                       }`}
@@ -782,7 +739,7 @@ export function LessonVideoScreen({
                         setHoveredDotCheckpoint({
                           timestamp: ts,
                           percent: quizPercent,
-                          questions,
+                          questions: quizCheckpoints.get(ts) ?? [],
                         });
                       }
                     }}
@@ -795,26 +752,17 @@ export function LessonVideoScreen({
                         setHoveredDotCheckpoint(null);
                       }, 350);
                     }}
-                    onClick={(e) => {
-                      if (isDraggingCluster) return;
-                      e.stopPropagation();
-                      e.preventDefault();
-                      if (isInstructor) {
-                        handlePinClick(e, ts);
-                      } else {
-                        seek(ts);
-                      }
-                    }}
+                    onClick={handleCheckpointActivate}
                   >
                     {/* Micro-gem marker on track (Subtle Amber Notch / Gem) */}
-                    <div
+                    {completed ? <Icon icon="lucide:circle-check" className="size-3.5 text-emerald-400" aria-hidden="true" /> : <div
                       className={`transition-all duration-150 ${isSnapTarget
                         ? 'size-3 rounded-full bg-emerald-400 ring-4 ring-emerald-400/50 scale-125'
                         : isMultiple
                           ? 'w-2.5 h-1.5 rounded-full bg-amber-400 border border-zinc-950 ring-1 ring-amber-300 group-hover/checkpoint:scale-125'
                           : 'size-1.5 rounded-full bg-amber-400 border border-zinc-950 group-hover/checkpoint:scale-125'
                         }`}
-                    />
+                    />}
                   </div>
                 );
               })}
@@ -825,7 +773,7 @@ export function LessonVideoScreen({
                 percent={hoverSlider.percent}
                 time={hoverSlider.time}
                 formatTime={formatTime}
-                onClick={(e) => handlePinClick(e, hoverSlider.time)}
+                onClick={(event) => { event.stopPropagation(); event.preventDefault(); handlePinClick(hoverSlider.time); }}
                 label="Thêm câu hỏi"
               />
             )}
@@ -949,8 +897,26 @@ export function LessonVideoScreen({
               min={0}
               max={duration || 100}
               step={0.1}
-              value={currentTime}
+              value={scrubTime ?? currentTime}
               onChange={handleSliderChange}
+              onPointerDown={(event) => {
+                if (isDraggingCluster) return;
+                scrubbingRef.current = true;
+                scrubTargetRef.current = null;
+                event.currentTarget.setPointerCapture(event.pointerId);
+              }}
+              onPointerUp={() => {
+                scrubbingRef.current = false;
+                const target = scrubTargetRef.current;
+                scrubTargetRef.current = null;
+                setScrubTime(null);
+                if (target !== null) seek(target);
+              }}
+              onPointerCancel={() => {
+                scrubbingRef.current = false;
+                scrubTargetRef.current = null;
+                setScrubTime(null);
+              }}
               aria-label="Thanh tua video"
               className={`absolute inset-x-0 w-full h-full opacity-0 cursor-pointer z-20 ${isDraggingCluster ? 'pointer-events-none' : ''
                 }`}
@@ -1098,27 +1064,26 @@ export function LessonVideoScreen({
           </div>
         </div>
 
-        {/* Student In-Video Prompt Overlay */}
-        {activePromptTimestamp !== null && (
-          <InVideoQuizPromptOverlay
-            timestamp={activePromptTimestamp}
+        {/* Student In-Video Quiz Modal */}
+        {!isInstructor && checkpoints.active && (
+          <StudentInVideoQuizModal
+            key={`${checkpoints.active.timestamp}:${checkpoints.active.quizzes[0]?.id}:${checkpoints.active.quizzes[0]?.revision}`}
+            timestamp={checkpoints.active.timestamp}
             formatTime={formatTime}
-            questionCount={quizCheckpoints.get(activePromptTimestamp)?.length || 1}
-            onTakeQuiz={handleTakeQuiz}
-            onSkip={handleSkipPrompt}
+            quizzes={checkpoints.active.quizzes}
+            required={checkpoints.active.required}
+            canSubmit={checkpoints.enforced}
+            submitting={checkpoints.submitting}
+            error={checkpoints.error}
+            onSubmit={checkpoints.submit}
+            onClose={checkpoints.close}
           />
         )}
-
-        {/* Student In-Video Quiz Modal */}
-        {studentQuizTimestamp !== null && (
-          <StudentInVideoQuizModal
-            open={isStudentQuizModalOpen}
-            onOpenChange={setIsStudentQuizModalOpen}
-            timestamp={studentQuizTimestamp}
-            formatTime={formatTime}
-            quizzes={quizCheckpoints.get(studentQuizTimestamp) || []}
-            onCompleteAndResume={handleCompleteAndResumeVideo}
-          />
+        {!isInstructor && checkpoints.isError && (
+          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/90 p-4 text-sm text-white" role="alert">
+            <p>Không tải được câu hỏi bài học.</p>
+            <Button type="button" variant="secondary" onClick={() => { void checkpoints.retry(); }}>Thử lại</Button>
+          </div>
         )}
 
         {/* Dialog for Creating / Editing Quiz at Selected Timestamp (Instructor Mode) */}
