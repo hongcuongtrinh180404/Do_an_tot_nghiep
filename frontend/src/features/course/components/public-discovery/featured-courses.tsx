@@ -8,7 +8,7 @@ import { usePublicCoursesCatalogQuery } from '../../api/public-courses.api';
 
 export function FeaturedCourses(): React.JSX.Element {
   const { data, isLoading } = usePublicCoursesCatalogQuery({
-    limit: 6,
+    limit: 8,
     sort: 'popular',
   });
 
@@ -37,10 +37,10 @@ export function FeaturedCourses(): React.JSX.Element {
           </Link>
         </div>
 
-        {/* Featured Courses Grid: 3 columns on desktop */}
+        {/* Featured Courses Grid: 4 columns on desktop */}
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 3 }).map((_, idx) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, idx) => (
               <div
                 key={idx}
                 className="h-80 w-full animate-pulse rounded-lg border border-[#e5e7eb] bg-muted/40"
@@ -48,7 +48,7 @@ export function FeaturedCourses(): React.JSX.Element {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {featuredCourses.map((course, idx) => (
               <div key={course.id} className={`taste-enter taste-enter-delay-${idx + 1}`}>
                 <CourseCard course={course} />

@@ -143,10 +143,10 @@ export function RecentCourses({
           </div>
         )}
 
-        {/* Course Grid: 3 columns on desktop, 2 on tablet, 1 on mobile */}
+        {/* Course Grid: 4 columns on desktop, 3 on tablet, 2 on small tablet, 1 on mobile */}
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, idx) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, idx) => (
               <div
                 key={idx}
                 className="h-80 w-full animate-pulse rounded-lg border border-[#e5e7eb] bg-muted/40"
@@ -154,7 +154,7 @@ export function RecentCourses({
             ))}
           </div>
         ) : courses.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {courses.map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}

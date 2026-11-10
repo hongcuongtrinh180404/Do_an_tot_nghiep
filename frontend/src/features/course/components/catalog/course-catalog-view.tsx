@@ -80,7 +80,7 @@ export function CourseCatalogView(): React.JSX.Element {
       levels: selectedLevels,
       sort: sortParam,
       page: currentPage,
-      limit: 9,
+      limit: 12,
     }),
     [qParam, selectedCategories, selectedPrices, selectedLevels, sortParam, currentPage],
   );
@@ -248,7 +248,7 @@ export function CourseCatalogView(): React.JSX.Element {
     <div className="w-full bg-[#fbfbfb] min-h-[calc(100vh-4rem)] text-[#161616]">
       {/* 1. Breadcrumbs & Page Header */}
       <div className="border-b border-neutral-200 bg-white">
-        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {/* Breadcrumb nav */}
           <nav aria-label="Đường dẫn trang" className="flex items-center gap-2 text-xs text-neutral-500 mb-3">
             <Link href="/" className="hover:text-neutral-900 transition-colors">
@@ -296,11 +296,11 @@ export function CourseCatalogView(): React.JSX.Element {
       </div>
 
       {/* 2. Main 2-column Catalog Layout */}
-      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row items-start gap-8">
           
           {/* Left Column: Desktop Filter Sidebar */}
-          <div className="hidden lg:block w-72 xl:w-80 shrink-0 sticky top-20">
+          <div className="hidden lg:block w-72 shrink-0 sticky top-20">
             <CourseCatalogFilters
               selectedCategories={selectedCategories}
               onToggleCategory={handleToggleCategory}
@@ -373,8 +373,8 @@ export function CourseCatalogView(): React.JSX.Element {
             <div className="mt-6">
               {isLoading ? (
                 /* Skeleton Loading Grid */
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {Array.from({ length: 6 }).map((_, idx) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-5">
+                  {Array.from({ length: 8 }).map((_, idx) => (
                     <div
                       key={idx}
                       className="rounded-lg border border-neutral-200 bg-white p-4 space-y-4 animate-pulse"
@@ -387,9 +387,9 @@ export function CourseCatalogView(): React.JSX.Element {
                   ))}
                 </div>
               ) : data && data.items.length > 0 ? (
-                /* Verified Results Grid */
+                /* Verified Results Grid: 4 columns on desktop */
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-5">
                     {data.items.map((course) => (
                       <CourseCard key={course.id} course={course} />
                     ))}

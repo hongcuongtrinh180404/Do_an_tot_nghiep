@@ -132,14 +132,14 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
       {/* Card Body */}
       <div className="flex flex-1 flex-col p-4">
         {/* Title: 2 lines clamp */}
-        <h3 className="line-clamp-2 text-sm sm:text-base font-bold text-[#161616] leading-snug group-hover:text-[#027D88] transition-colors min-h-[2.5rem]">
+        <h3 className="line-clamp-2 text-sm sm:text-base font-bold text-[#161616] leading-snug group-hover:text-[#027D88] transition-colors">
           <Link href={`/courses/${course.id}`}>
             {course.title}
           </Link>
         </h3>
 
         {/* Instructor */}
-        <div className="mt-2.5 flex items-center gap-2">
+        <div className="mt-1.5 flex items-center gap-2">
           {course.instructorAvatar ? (
             <div className="relative size-5 rounded-full overflow-hidden shrink-0 border border-[#e5e7eb]">
               <Image
