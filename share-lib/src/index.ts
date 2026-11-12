@@ -10,6 +10,7 @@ export * from './enums/quiz-question-type.enum.js';
 export * from './enums/order-status.enum.js';
 export * from './enums/reconciliation-status.enum.js';
 export * from './enums/learning-status.enum.js';
+export * from './enums/review-status.enum.js';
 
 // Interfaces
 export * from './interfaces/user.interface.js';

@@ -9,3 +9,4 @@ export * from './components/admin-tab-placeholder';
 export * from './users';
 export * from './categories';
 export * from './courses';
+export * from './reviews';

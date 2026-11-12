@@ -16,6 +16,7 @@ import {
   useDeleteReviewMutation,
 } from '../../api/review.api';
 import { ReviewForm } from './review-form';
+import { ReportReviewDialog } from './report-review-dialog';
 
 interface CourseReviewsTabProps {
   courseId: string;
@@ -48,6 +49,7 @@ export function CourseReviewsTab({
   const [page, setPage] = useState<number>(1);
   const [isEditingMyReview, setIsEditingMyReview] = useState<boolean>(false);
   const [reviewToDeleteId, setReviewToDeleteId] = useState<string | null>(null);
+  const [reviewToReportId, setReviewToReportId] = useState<string | null>(null);
 
   // Queries
   const { data: stats } = useCourseReviewStatsQuery(courseId);
@@ -205,12 +207,25 @@ export function CourseReviewsTab({
           </div>
         ) : myReview && !isEditingMyReview ? (
           /* Đã có đánh giá -> Hiển thị review của chính mình */
-          <div className="rounded-2xl border-2 border-[#027D88]/30 bg-[#f3fcfc] p-6 space-y-3 shadow-xs">
+          <div
+            className={`rounded-2xl border-2 p-6 space-y-3 shadow-xs ${
+              myReview.status === 'hidden'
+                ? 'border-amber-300 bg-amber-50/50'
+                : 'border-[#027D88]/30 bg-[#f3fcfc]'
+            }`}
+          >
             <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#027D88] text-white text-[11px] font-bold">
-                  <Icon icon="lucide:check" className="size-3" />
-                  <span>Đánh giá của bạn</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-white text-[11px] font-bold ${
+                    myReview.status === 'hidden' ? 'bg-amber-600' : 'bg-[#027D88]'
+                  }`}
+                >
+                  <Icon
+                    icon={myReview.status === 'hidden' ? 'lucide:eye-off' : 'lucide:check'}
+                    className="size-3"
+                  />
+                  <span>{myReview.status === 'hidden' ? 'Đánh giá đã bị ẩn' : 'Đánh giá của bạn'}</span>
                 </span>
                 <span className="text-xs text-[#666666]">
                   {formatReviewDate(myReview.updatedAt || myReview.createdAt)}
@@ -223,14 +238,16 @@ export function CourseReviewsTab({
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsEditingMyReview(true)}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#027D88]/30 text-[#027D88] hover:bg-[#027D88]/10 text-xs font-semibold transition-colors"
-                >
-                  <Icon icon="lucide:edit-3" className="size-3.5" />
-                  <span>Chỉnh sửa</span>
-                </button>
+                {myReview.status !== 'hidden' && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingMyReview(true)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#027D88]/30 text-[#027D88] hover:bg-[#027D88]/10 text-xs font-semibold transition-colors"
+                  >
+                    <Icon icon="lucide:edit-3" className="size-3.5" />
+                    <span>Chỉnh sửa</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setReviewToDeleteId(myReview.id)}
@@ -241,6 +258,22 @@ export function CourseReviewsTab({
                 </button>
               </div>
             </div>
+
+            {/* Hidden Notice */}
+            {myReview.status === 'hidden' && (
+              <div className="rounded-xl border border-amber-300 bg-amber-100/70 p-3.5 text-xs text-amber-900 space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-amber-950">
+                  <Icon icon="lucide:alert-triangle" className="size-4 text-amber-700 shrink-0" />
+                  <span>Đánh giá này đã bị Quản trị viên ẩn do vi phạm quy tắc cộng đồng</span>
+                </div>
+                <p className="leading-relaxed pl-5.5 text-amber-900">
+                  <strong>Lý do ẩn:</strong> {myReview.hideReason || 'Nội dung nhận xét vi phạm tiêu chuẩn cộng đồng.'}
+                </p>
+                <p className="text-[11px] text-amber-800 pl-5.5">
+                  Đánh giá bị ẩn không hiển thị tại trang khóa học và không tính vào điểm trung bình. Đánh giá hiện bị khóa chỉnh sửa.
+                </p>
+              </div>
+            )}
 
             <div className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map((star) => (
@@ -380,8 +413,8 @@ export function CourseReviewsTab({
                       </div>
                     </div>
 
-                    {/* Owner Action Buttons */}
-                    {isOwner && (
+                    {/* Actions */}
+                    {isOwner ? (
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
@@ -403,7 +436,17 @@ export function CourseReviewsTab({
                           <Icon icon="lucide:trash-2" className="size-4" />
                         </button>
                       </div>
-                    )}
+                    ) : isLoggedIn ? (
+                      <button
+                        type="button"
+                        onClick={() => setReviewToReportId(review.id)}
+                        aria-label="Báo cáo vi phạm"
+                        title="Báo cáo đánh giá vi phạm"
+                        className="p-1.5 rounded-lg text-neutral-400 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <Icon icon="lucide:flag" className="size-3.5" />
+                      </button>
+                    ) : null}
                   </div>
 
                   {/* Stars Rating */}
@@ -477,6 +520,18 @@ export function CourseReviewsTab({
         cancelText="Hủy"
         isLoading={deleteMutation.isPending}
         onConfirm={handleConfirmDelete}
+      />
+
+      {/* ========================================================= */}
+      {/* 5. DIALOG BÁO CÁO ĐÁNH GIÁ VI PHẠM                        */}
+      {/* ========================================================= */}
+      <ReportReviewDialog
+        open={Boolean(reviewToReportId)}
+        onOpenChange={(open) => {
+          if (!open) setReviewToReportId(null);
+        }}
+        reviewId={reviewToReportId}
+        courseId={courseId}
       />
     </div>
   );

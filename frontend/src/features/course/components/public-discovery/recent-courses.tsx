@@ -60,8 +60,8 @@ export function RecentCourses({
                 type="button"
                 onClick={() => setSelectedLevel('all')}
                 className={`rounded px-2.5 py-1 font-medium transition-colors ${selectedLevel === 'all'
-                    ? 'bg-[#161616] text-white font-semibold'
-                    : 'text-[#666666] hover:text-[#161616]'
+                  ? 'bg-[#161616] text-white font-semibold'
+                  : 'text-[#666666] hover:text-[#161616]'
                   }`}
               >
                 Mọi trình độ
@@ -70,8 +70,8 @@ export function RecentCourses({
                 type="button"
                 onClick={() => setSelectedLevel(CourseLevelEnum.BEGINNER)}
                 className={`rounded px-2.5 py-1 font-medium transition-colors ${selectedLevel === CourseLevelEnum.BEGINNER
-                    ? 'bg-[#161616] text-white font-semibold'
-                    : 'text-[#666666] hover:text-[#161616]'
+                  ? 'bg-[#161616] text-white font-semibold'
+                  : 'text-[#666666] hover:text-[#161616]'
                   }`}
               >
                 Cơ bản
@@ -80,8 +80,8 @@ export function RecentCourses({
                 type="button"
                 onClick={() => setSelectedLevel(CourseLevelEnum.INTERMEDIATE)}
                 className={`rounded px-2.5 py-1 font-medium transition-colors ${selectedLevel === CourseLevelEnum.INTERMEDIATE
-                    ? 'bg-[#161616] text-white font-semibold'
-                    : 'text-[#666666] hover:text-[#161616]'
+                  ? 'bg-[#161616] text-white font-semibold'
+                  : 'text-[#666666] hover:text-[#161616]'
                   }`}
               >
                 Trung cấp
@@ -90,8 +90,8 @@ export function RecentCourses({
                 type="button"
                 onClick={() => setSelectedLevel(CourseLevelEnum.ADVANCED)}
                 className={`rounded px-2.5 py-1 font-medium transition-colors ${selectedLevel === CourseLevelEnum.ADVANCED
-                    ? 'bg-[#161616] text-white font-semibold'
-                    : 'text-[#666666] hover:text-[#161616]'
+                  ? 'bg-[#161616] text-white font-semibold'
+                  : 'text-[#666666] hover:text-[#161616]'
                   }`}
               >
                 Nâng cao

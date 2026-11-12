@@ -10,16 +10,23 @@ import {
   IReview,
   ICourseReviewStats,
   IReviewEligibility,
-  CourseStatusEnum,
+  ReviewStatusEnum,
+  IAdminReviewStats,
 } from 'share-lib';
 import { BaseService, isDuplicateKeyError, PaginationResult } from '../../base/index.js';
 import { ReviewRepository } from '../repositories/review.repository.js';
 import { CourseRepository } from '../../course/repositories/course.repository.js';
 import { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
 import { LearningProgressService } from '../../learning-progress/services/learning-progress.service.js';
+import { UserRepository } from '../../user/repositories/user.repository.js';
 import { CreateReviewDto } from '../dto/create-review.dto.js';
 import { UpdateReviewDto } from '../dto/update-review.dto.js';
 import { QueryReviewsDto } from '../dto/query-reviews.dto.js';
+import { AdminQueryReviewsDto } from '../dto/admin-query-reviews.dto.js';
+import { HideReviewDto } from '../dto/hide-review.dto.js';
+import { RestoreReviewDto } from '../dto/restore-review.dto.js';
+import { AdminDeleteReviewDto } from '../dto/admin-delete-review.dto.js';
+import { ReportReviewDto } from '../dto/report-review.dto.js';
 
 @Injectable()
 export class ReviewService extends BaseService<IReview, string> {
@@ -28,10 +35,15 @@ export class ReviewService extends BaseService<IReview, string> {
     protected readonly courseRepository: CourseRepository,
     protected readonly enrollmentRepository: EnrollmentRepository,
     protected readonly learningProgressService: LearningProgressService,
+    protected readonly userRepository: UserRepository,
     cls: ClsService,
   ) {
     super(reviewRepository, cls, ReviewService.name);
   }
+
+  // =========================================================================
+  // 1. PUBLIC & STUDENT METHODS
+  // =========================================================================
 
   async checkEligibility(userId: string, courseId: string): Promise<IReviewEligibility> {
     const course = await this.courseRepository.findById(courseId);
@@ -131,6 +143,7 @@ export class ReviewService extends BaseService<IReview, string> {
             courseId,
             rating: dto.rating,
             comment: dto.comment ?? null,
+            status: ReviewStatusEnum.VISIBLE,
             createdById: userId,
             updatedById: userId,
           },
@@ -166,8 +179,14 @@ export class ReviewService extends BaseService<IReview, string> {
       throw new NotFoundException('Không tìm thấy đánh giá');
     }
 
+    // Admin không được tự ý sửa nội dung hoặc thay đổi số sao của học viên
     if (review.userId !== userId) {
-      throw new ForbiddenException('Bạn không có quyền chỉnh sửa đánh giá của người khác');
+      throw new ForbiddenException('Bạn không có quyền chỉnh sửa nội dung hoặc số sao đánh giá của người khác');
+    }
+
+    // Đánh giá đang bị ẩn thì học viên bị khóa, không được chỉnh sửa
+    if (review.status === ReviewStatusEnum.HIDDEN) {
+      throw new ForbiddenException('Đánh giá của bạn đã bị Quản trị viên ẩn do vi phạm quy tắc cộng đồng và đang bị khóa chỉnh sửa.');
     }
 
     // Xác minh học viên vẫn sở hữu khóa học hợp lệ
@@ -233,6 +252,7 @@ export class ReviewService extends BaseService<IReview, string> {
   }
 
   async getMyReview(userId: string, courseId: string): Promise<IReview | null> {
+    // Học viên vẫn xem được đánh giá của mình kể cả khi bị ẩn (status === 'hidden')
     return this.reviewRepository.findByUserAndCourse(userId, courseId);
   }
 
@@ -250,5 +270,239 @@ export class ReviewService extends BaseService<IReview, string> {
   async getCourseStats(courseId: string): Promise<ICourseReviewStats> {
     return this.reviewRepository.calculateCourseReviewStats(courseId);
   }
-}
 
+  async reportReview(
+    userId: string,
+    reviewId: string,
+    dto: ReportReviewDto,
+  ): Promise<IReview> {
+    const review = await this.reviewRepository.findById(reviewId);
+    if (!review || review.deletedAt) {
+      throw new NotFoundException('Không tìm thấy đánh giá để báo cáo');
+    }
+
+    if (review.userId === userId) {
+      throw new BadRequestException('Bạn không thể tự báo cáo đánh giá của chính mình');
+    }
+
+    const reportingUser = await this.userRepository.findById(userId);
+    const userName = reportingUser?.fullName || 'Người dùng ẩn danh';
+
+    const updated = await this.reviewRepository.addReportEntry(reviewId, {
+      userId,
+      userName,
+      reason: dto.reason,
+      createdAt: new Date(),
+    });
+
+    if (!updated) {
+      throw new NotFoundException('Không thể cập nhật báo cáo cho đánh giá');
+    }
+
+    return updated;
+  }
+
+  // =========================================================================
+  // 2. ADMIN MODERATION METHODS
+  // =========================================================================
+
+  async adminGetReviews(dto: AdminQueryReviewsDto): Promise<PaginationResult<IReview>> {
+    return this.reviewRepository.findAdminReviews(dto);
+  }
+
+  async adminGetStats(): Promise<IAdminReviewStats> {
+    return this.reviewRepository.getAdminStats();
+  }
+
+  async adminGetReviewDetail(id: string): Promise<IReview> {
+    const review = await this.reviewRepository.findReviewByIdWithDetails(id);
+    if (!review) {
+      throw new NotFoundException('Không tìm thấy đánh giá');
+    }
+    return review;
+  }
+
+  async adminHideReview(
+    adminId: string,
+    reviewId: string,
+    dto: HideReviewDto,
+  ): Promise<IReview> {
+    const review = await this.reviewRepository.findById(reviewId);
+    if (!review) {
+      throw new NotFoundException('Không tìm thấy đánh giá');
+    }
+
+    if (review.deletedAt || review.status === ReviewStatusEnum.DELETED) {
+      throw new BadRequestException('Đánh giá này đã bị xóa mềm, không thể thực hiện ẩn');
+    }
+
+    const adminUser = await this.userRepository.findById(adminId);
+    const adminName = adminUser?.fullName || 'Quản trị viên';
+
+    return await this.reviewRepository.withTransaction(async (session) => {
+      const updated = await this.reviewRepository.addModerationEntry(
+        reviewId,
+        {
+          action: 'HIDE',
+          adminId,
+          adminName,
+          reason: dto.reason,
+          createdAt: new Date(),
+        },
+        {
+          status: ReviewStatusEnum.HIDDEN,
+          hideReason: dto.reason,
+          updatedById: adminId,
+        },
+        session,
+      );
+
+      if (!updated) {
+        throw new NotFoundException('Không thể cập nhật trạng thái ẩn cho đánh giá');
+      }
+
+      // Đánh giá bị ẩn không được tính vào điểm trung bình và tổng số đánh giá công khai
+      const stats = await this.reviewRepository.calculateCourseReviewStats(review.courseId, session);
+      await this.courseRepository.updateRatingStats(
+        review.courseId,
+        stats.averageRating,
+        stats.totalReviews,
+        session,
+      );
+
+      return updated;
+    });
+  }
+
+  async adminRestoreReview(
+    adminId: string,
+    reviewId: string,
+    dto: RestoreReviewDto,
+  ): Promise<IReview> {
+    const review = await this.reviewRepository.findById(reviewId);
+    if (!review) {
+      throw new NotFoundException('Không tìm thấy đánh giá');
+    }
+
+    const adminUser = await this.userRepository.findById(adminId);
+    const adminName = adminUser?.fullName || 'Quản trị viên';
+    const reason = dto.reason || 'Khôi phục hiển thị đánh giá công khai';
+
+    return await this.reviewRepository.withTransaction(async (session) => {
+      const updated = await this.reviewRepository.addModerationEntry(
+        reviewId,
+        {
+          action: 'RESTORE',
+          adminId,
+          adminName,
+          reason,
+          createdAt: new Date(),
+        },
+        {
+          status: ReviewStatusEnum.VISIBLE,
+          hideReason: null,
+          deletedAt: null,
+          updatedById: adminId,
+        },
+        session,
+      );
+
+      if (!updated) {
+        throw new NotFoundException('Không thể cập nhật trạng thái khôi phục cho đánh giá');
+      }
+
+      // Điểm trung bình và tổng số đánh giá được tính toán lại
+      const stats = await this.reviewRepository.calculateCourseReviewStats(review.courseId, session);
+      await this.courseRepository.updateRatingStats(
+        review.courseId,
+        stats.averageRating,
+        stats.totalReviews,
+        session,
+      );
+
+      return updated;
+    });
+  }
+
+  async adminDeleteReview(
+    adminId: string,
+    reviewId: string,
+    dto: AdminDeleteReviewDto,
+  ): Promise<boolean> {
+    const review = await this.reviewRepository.findById(reviewId);
+    if (!review) {
+      throw new NotFoundException('Không tìm thấy đánh giá');
+    }
+
+    const adminUser = await this.userRepository.findById(adminId);
+    const adminName = adminUser?.fullName || 'Quản trị viên';
+    const reason = dto.reason || 'Admin xóa mềm đánh giá vi phạm';
+
+    return await this.reviewRepository.withTransaction(async (session) => {
+      const updated = await this.reviewRepository.addModerationEntry(
+        reviewId,
+        {
+          action: 'DELETE',
+          adminId,
+          adminName,
+          reason,
+          createdAt: new Date(),
+        },
+        {
+          status: ReviewStatusEnum.DELETED,
+          deletedAt: new Date(),
+          updatedById: adminId,
+        },
+        session,
+      );
+
+      if (!updated) {
+        return false;
+      }
+
+      // Tính toán lại thống kê sau khi xóa
+      const stats = await this.reviewRepository.calculateCourseReviewStats(review.courseId, session);
+      await this.courseRepository.updateRatingStats(
+        review.courseId,
+        stats.averageRating,
+        stats.totalReviews,
+        session,
+      );
+
+      return true;
+    });
+  }
+
+  async adminDismissReports(
+    adminId: string,
+    reviewId: string,
+  ): Promise<IReview> {
+    const review = await this.reviewRepository.findById(reviewId);
+    if (!review) {
+      throw new NotFoundException('Không tìm thấy đánh giá');
+    }
+
+    const adminUser = await this.userRepository.findById(adminId);
+    const adminName = adminUser?.fullName || 'Quản trị viên';
+
+    const dismissed = await this.reviewRepository.dismissReports(reviewId);
+    if (!dismissed) {
+      throw new NotFoundException('Không thể bỏ qua báo cáo cho đánh giá này');
+    }
+
+    // Ghi nhận vào lịch sử kiểm duyệt
+    const withEntry = await this.reviewRepository.addModerationEntry(
+      reviewId,
+      {
+        action: 'RESTORE',
+        adminId,
+        adminName,
+        reason: 'Quản trị viên xem xét và bỏ qua các báo cáo vi phạm',
+        createdAt: new Date(),
+      },
+      {},
+    );
+
+    return withEntry || dismissed;
+  }
+}

@@ -87,6 +87,14 @@ export const reviewApi = {
     );
     return res.data.data.success;
   },
+
+  async reportReview(reviewId: string, reason: string): Promise<IReview> {
+    const res = await apiClient.post<IApiResponse<IReview>>(
+      `/reviews/${reviewId}/report`,
+      { reason },
+    );
+    return res.data.data;
+  },
 };
 
 export function useCourseReviewStatsQuery(courseId: string, enabled: boolean = true) {
@@ -186,6 +194,29 @@ export function useDeleteReviewMutation(courseId: string) {
       const msg =
         (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         'Không thể xóa đánh giá. Vui lòng thử lại sau.';
+      toast.error(msg);
+    },
+  });
+}
+
+export function useReportReviewMutation(courseId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ reviewId, reason }: { reviewId: string; reason: string }) =>
+      reviewApi.reportReview(reviewId, reason),
+    onSuccess: () => {
+      toast.success('Gửi báo cáo vi phạm thành công. Quản trị viên sẽ sớm kiểm duyệt.');
+      if (courseId) {
+        void queryClient.invalidateQueries({ queryKey: reviewKeys.list(courseId) });
+      } else {
+        void queryClient.invalidateQueries({ queryKey: reviewKeys.all });
+      }
+    },
+    onError: (error: unknown) => {
+      const msg =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        'Không thể gửi báo cáo vi phạm. Vui lòng thử lại sau.';
       toast.error(msg);
     },
   });

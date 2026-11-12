@@ -1,25 +1,27 @@
 import type { Metadata } from 'next';
 import React from 'react';
-import { AdminTabPlaceholder } from '@/features/admin';
+import { AdminReviewsView } from '@/features/admin/reviews';
 
 export const metadata: Metadata = {
-  title: 'Kiểm Duyệt Đánh Giá & Bình Luận | DATN Portal Admin',
-  description: 'Giám sát và kiểm duyệt phản hồi, đánh giá khóa học từ học viên',
+  title: 'Kiểm Duyệt & Quản Lý Đánh Giá | DATN Portal Admin',
+  description: 'Giám sát, tìm kiếm, lọc và kiểm duyệt đánh giá khóa học từ học viên',
 };
 
 export default function AdminReviewsPage(): React.JSX.Element {
   return (
-    <AdminTabPlaceholder
-      title="Kiểm duyệt Đánh giá & Bình luận"
-      description="Kiểm duyệt phản hồi, đánh giá khóa học và thảo luận cộng đồng của học viên."
-      icon="lucide:message-square-check"
-      badge="Kiểm duyệt nội dung"
-      stats={[
-        { label: 'Chờ duyệt', value: '--', hint: 'Cần quản trị viên duyệt', icon: 'lucide:inbox' },
-        { label: 'Bình luận hôm nay', value: '--', hint: 'Bài học & video', icon: 'lucide:message-circle' },
-        { label: 'Báo cáo vi phạm', value: '--', hint: 'Từ học viên/giảng viên', icon: 'lucide:flag' },
-        { label: 'Điểm TB toàn sàn', value: '--', hint: 'Hài lòng dịch vụ', icon: 'lucide:star' },
-      ]}
-    />
+    <div className="flex flex-col flex-1 min-h-0 h-full p-4 md:p-6 space-y-4">
+      {/* Title & Description */}
+      <div className="shrink-0 space-y-1">
+        <h1 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
+          Quản Lý & Kiểm Duyệt Đánh Giá Khóa Học
+        </h1>
+        <p className="text-xs md:text-sm text-muted-foreground">
+          Theo dõi toàn bộ đánh giá học viên trên hệ thống, xử lý phản ánh vi phạm và ẩn/khôi phục đánh giá minh bạch.
+        </p>
+      </div>
+
+      {/* Main Interactive Table & Views */}
+      <AdminReviewsView />
+    </div>
   );
 }

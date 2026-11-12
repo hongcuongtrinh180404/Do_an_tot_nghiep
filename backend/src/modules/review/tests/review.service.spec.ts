@@ -1,12 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
-import { CourseStatusEnum } from 'share-lib';
+import { CourseStatusEnum, ReviewStatusEnum } from 'share-lib';
 import { ReviewService } from '../services/review.service.js';
 import { ReviewRepository } from '../repositories/review.repository.js';
 import { CourseRepository } from '../../course/repositories/course.repository.js';
 import { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
 import { LearningProgressService } from '../../learning-progress/services/learning-progress.service.js';
+import { UserRepository } from '../../user/repositories/user.repository.js';
 
 describe('ReviewService', () => {
   let service: ReviewService;
@@ -14,9 +20,11 @@ describe('ReviewService', () => {
   let mockCourseRepo: Record<string, unknown>;
   let mockEnrollmentRepo: Record<string, unknown>;
   let mockProgressService: Record<string, unknown>;
+  let mockUserRepo: Record<string, unknown>;
   let mockCls: ClsService;
 
   const userId = 'user_student_1';
+  const adminId = 'user_admin_1';
   const instructorId = 'user_instructor_1';
   const courseId = 'course_test_1';
   const reviewId = 'review_test_1';
@@ -30,6 +38,12 @@ describe('ReviewService', () => {
       findByUserAndCourse: vi.fn(),
       findCourseReviews: vi.fn(),
       calculateCourseReviewStats: vi.fn(),
+      findReviewByIdWithDetails: vi.fn(),
+      findAdminReviews: vi.fn(),
+      getAdminStats: vi.fn(),
+      addModerationEntry: vi.fn(),
+      addReportEntry: vi.fn(),
+      dismissReports: vi.fn(),
       withTransaction: vi.fn().mockImplementation((fn: (s: unknown) => unknown) => fn({})),
     };
 
@@ -46,6 +60,14 @@ describe('ReviewService', () => {
       getProgress: vi.fn(),
     };
 
+    mockUserRepo = {
+      findById: vi.fn().mockResolvedValue({
+        id: adminId,
+        fullName: 'Admin Test',
+        email: 'admin@example.com',
+      }),
+    };
+
     mockCls = {
       get: vi.fn().mockReturnValue(userId),
     } as unknown as ClsService;
@@ -55,6 +77,7 @@ describe('ReviewService', () => {
       mockCourseRepo as unknown as CourseRepository,
       mockEnrollmentRepo as unknown as EnrollmentRepository,
       mockProgressService as unknown as LearningProgressService,
+      mockUserRepo as unknown as UserRepository,
       mockCls,
     );
   });
@@ -243,6 +266,7 @@ describe('ReviewService', () => {
         courseId,
         rating: 5,
         comment: 'Khóa học tuyệt đỉnh',
+        status: ReviewStatusEnum.VISIBLE,
       };
       (mockReviewRepo.create as ReturnType<typeof vi.fn>).mockResolvedValue(mockCreated);
       (mockReviewRepo.calculateCourseReviewStats as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -298,12 +322,27 @@ describe('ReviewService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('13. should update rating and recalculate stats when owner edits review', async () => {
+    it('13. should throw ForbiddenException if review is currently hidden by admin', async () => {
+      (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: reviewId,
+        userId,
+        courseId,
+        status: ReviewStatusEnum.HIDDEN,
+        hideReason: 'Vi phạm ngôn từ',
+      });
+
+      await expect(
+        service.updateReview(userId, reviewId, { rating: 4 }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('14. should update rating and recalculate stats when owner edits active review', async () => {
       (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: reviewId,
         userId,
         courseId,
         rating: 5,
+        status: ReviewStatusEnum.VISIBLE,
       });
       (mockEnrollmentRepo.findByUserAndCourse as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: 'enrollment_1',
@@ -313,6 +352,7 @@ describe('ReviewService', () => {
         userId,
         courseId,
         rating: 4,
+        status: ReviewStatusEnum.VISIBLE,
       });
       (mockReviewRepo.calculateCourseReviewStats as ReturnType<typeof vi.fn>).mockResolvedValue({
         averageRating: 4.0,
@@ -328,7 +368,7 @@ describe('ReviewService', () => {
   });
 
   describe('deleteReview', () => {
-    it('14. should throw ForbiddenException if user tries to delete another student review', async () => {
+    it('15. should throw ForbiddenException if user tries to delete another student review', async () => {
       (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: reviewId,
         userId: 'other_user',
@@ -340,7 +380,7 @@ describe('ReviewService', () => {
       );
     });
 
-    it('15. should soft-delete review, recalculate stats, and update course', async () => {
+    it('16. should soft-delete review, recalculate stats, and update course', async () => {
       (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: reviewId,
         userId,
@@ -359,5 +399,218 @@ describe('ReviewService', () => {
       expect(mockCourseRepo.updateRatingStats).toHaveBeenCalledWith(courseId, 0, 0, expect.anything());
     });
   });
-});
 
+  describe('Admin Moderation Methods', () => {
+    it('17. should call findAdminReviews with query parameters', async () => {
+      const mockResult = { items: [], total: 0, page: 1, limit: 10, totalPages: 1 };
+      (mockReviewRepo.findAdminReviews as ReturnType<typeof vi.fn>).mockResolvedValue(mockResult);
+
+      const result = await service.adminGetReviews({ page: 1, limit: 10, isPagination: true, status: 'visible' });
+
+      expect(mockReviewRepo.findAdminReviews).toHaveBeenCalled();
+      expect(result).toEqual(mockResult);
+    });
+
+    it('18. should return review details with student, course, history and reports', async () => {
+      const mockDetail = {
+        id: reviewId,
+        userId,
+        courseId,
+        rating: 5,
+        status: ReviewStatusEnum.VISIBLE,
+      };
+      (mockReviewRepo.findReviewByIdWithDetails as ReturnType<typeof vi.fn>).mockResolvedValue(mockDetail);
+
+      const result = await service.adminGetReviewDetail(reviewId);
+
+      expect(result).toEqual(mockDetail);
+    });
+
+    it('19. should throw NotFoundException when hiding a non-existent review', async () => {
+      (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+      await expect(
+        service.adminHideReview(adminId, 'non_existent', { reason: 'Spam' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('20. should hide review, append moderation history, and recalculate stats without hidden review', async () => {
+      const existing = {
+        id: reviewId,
+        userId,
+        courseId,
+        status: ReviewStatusEnum.VISIBLE,
+        rating: 5,
+      };
+      (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(existing);
+      (mockReviewRepo.addModerationEntry as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ...existing,
+        status: ReviewStatusEnum.HIDDEN,
+        hideReason: 'Nội dung phản cảm',
+      });
+      (mockReviewRepo.calculateCourseReviewStats as ReturnType<typeof vi.fn>).mockResolvedValue({
+        averageRating: 0,
+        totalReviews: 0,
+      });
+
+      const result = await service.adminHideReview(adminId, reviewId, {
+        reason: 'Nội dung phản cảm',
+      });
+
+      expect(mockReviewRepo.addModerationEntry).toHaveBeenCalledWith(
+        reviewId,
+        expect.objectContaining({
+          action: 'HIDE',
+          adminId,
+          reason: 'Nội dung phản cảm',
+        }),
+        expect.objectContaining({
+          status: ReviewStatusEnum.HIDDEN,
+          hideReason: 'Nội dung phản cảm',
+        }),
+        expect.anything(),
+      );
+      expect(mockCourseRepo.updateRatingStats).toHaveBeenCalledWith(courseId, 0, 0, expect.anything());
+      expect(result.status).toBe(ReviewStatusEnum.HIDDEN);
+    });
+
+    it('21. should restore hidden review, update status to visible, and recalculate stats', async () => {
+      const existing = {
+        id: reviewId,
+        userId,
+        courseId,
+        status: ReviewStatusEnum.HIDDEN,
+        rating: 5,
+      };
+      (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(existing);
+      (mockReviewRepo.addModerationEntry as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ...existing,
+        status: ReviewStatusEnum.VISIBLE,
+        hideReason: null,
+      });
+      (mockReviewRepo.calculateCourseReviewStats as ReturnType<typeof vi.fn>).mockResolvedValue({
+        averageRating: 5.0,
+        totalReviews: 1,
+      });
+
+      const result = await service.adminRestoreReview(adminId, reviewId, {
+        reason: 'Đã xác minh không vi phạm',
+      });
+
+      expect(mockReviewRepo.addModerationEntry).toHaveBeenCalledWith(
+        reviewId,
+        expect.objectContaining({
+          action: 'RESTORE',
+          adminId,
+          reason: 'Đã xác minh không vi phạm',
+        }),
+        expect.objectContaining({
+          status: ReviewStatusEnum.VISIBLE,
+          hideReason: null,
+        }),
+        expect.anything(),
+      );
+      expect(mockCourseRepo.updateRatingStats).toHaveBeenCalledWith(courseId, 5.0, 1, expect.anything());
+      expect(result.status).toBe(ReviewStatusEnum.VISIBLE);
+    });
+
+    it('22. should soft-delete review by admin with reason and update course stats', async () => {
+      const existing = {
+        id: reviewId,
+        userId,
+        courseId,
+        status: ReviewStatusEnum.VISIBLE,
+      };
+      (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(existing);
+      (mockReviewRepo.addModerationEntry as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ...existing,
+        status: ReviewStatusEnum.DELETED,
+      });
+      (mockReviewRepo.calculateCourseReviewStats as ReturnType<typeof vi.fn>).mockResolvedValue({
+        averageRating: 0,
+        totalReviews: 0,
+      });
+
+      const success = await service.adminDeleteReview(adminId, reviewId, {
+        reason: 'Vi phạm nghiêm trọng',
+      });
+
+      expect(success).toBe(true);
+      expect(mockReviewRepo.addModerationEntry).toHaveBeenCalledWith(
+        reviewId,
+        expect.objectContaining({
+          action: 'DELETE',
+          adminId,
+        }),
+        expect.objectContaining({
+          status: ReviewStatusEnum.DELETED,
+        }),
+        expect.anything(),
+      );
+      expect(mockCourseRepo.updateRatingStats).toHaveBeenCalledWith(courseId, 0, 0, expect.anything());
+    });
+
+    it('23. should allow student to report review with reason', async () => {
+      const otherStudentId = 'student_other_2';
+      const existing = {
+        id: reviewId,
+        userId: otherStudentId,
+        courseId,
+      };
+      (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(existing);
+      (mockReviewRepo.addReportEntry as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ...existing,
+        reportCount: 1,
+      });
+
+      const result = await service.reportReview(userId, reviewId, {
+        reason: 'Ngôn từ xúc phạm',
+      });
+
+      expect(mockReviewRepo.addReportEntry).toHaveBeenCalledWith(
+        reviewId,
+        expect.objectContaining({
+          userId,
+          reason: 'Ngôn từ xúc phạm',
+        }),
+      );
+      expect(result.reportCount).toBe(1);
+    });
+
+    it('24. should prevent student from reporting their own review', async () => {
+      const existing = {
+        id: reviewId,
+        userId: userId,
+        courseId,
+      };
+      (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(existing);
+
+      await expect(
+        service.reportReview(userId, reviewId, { reason: 'Test' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('25. should dismiss reports and log to history by admin', async () => {
+      const existing = {
+        id: reviewId,
+        userId,
+        courseId,
+        reportCount: 2,
+      };
+      (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(existing);
+      (mockReviewRepo.dismissReports as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ...existing,
+        reportCount: 0,
+      });
+      (mockReviewRepo.addModerationEntry as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ...existing,
+        reportCount: 0,
+      });
+
+      const result = await service.adminDismissReports(adminId, reviewId);
+
+      expect(mockReviewRepo.dismissReports).toHaveBeenCalledWith(reviewId);
+      expect(result.reportCount).toBe(0);
+    });
+  });
+});
