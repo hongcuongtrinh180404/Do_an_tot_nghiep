@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
@@ -81,6 +81,7 @@ export function LessonVideoScreen({
   const [scrubTime, setScrubTime] = useState<number | null>(null);
   const scrubbingRef = useRef(false);
   const scrubTargetRef = useRef<number | null>(null);
+  const controlsHoveredRef = useRef(false);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hoverLeaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -472,25 +473,50 @@ export function LessonVideoScreen({
   // Controls are always visible when paused; auto-hides after 2.5s when playing
   const isControlsVisible = !isPlaying || showControls;
 
-  // Auto-hide controls when playing after 2.5s of inactivity
-  const handleMouseMove = () => {
-    setShowControls(true);
-    if (controlsTimeoutRef.current) {
+  const clearControlsTimeout = useCallback(() => {
+    if (controlsTimeoutRef.current !== null) {
       clearTimeout(controlsTimeoutRef.current);
+      controlsTimeoutRef.current = null;
     }
-    if (isPlaying) {
-      controlsTimeoutRef.current = setTimeout(() => {
-        setShowControls(false);
-        setIsSpeedMenuOpen(false);
-      }, 2500);
-    }
+  }, []);
+
+  // A stationary pointer over the controls or an active scrub is not inactivity.
+  const scheduleControlsHide = useCallback(() => {
+    clearControlsTimeout();
+    if (!isPlaying || controlsHoveredRef.current || scrubbingRef.current) return;
+    controlsTimeoutRef.current = setTimeout(() => {
+      controlsTimeoutRef.current = null;
+      if (controlsHoveredRef.current || scrubbingRef.current) return;
+      setShowControls(false);
+      setIsSpeedMenuOpen(false);
+    }, 2500);
+  }, [isPlaying, clearControlsTimeout]);
+
+  const handlePointerMove = () => {
+    setShowControls(true);
+    scheduleControlsHide();
+  };
+
+  const handleControlsPointerEnter = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'touch') return;
+    controlsHoveredRef.current = true;
+    clearControlsTimeout();
+    setShowControls(true);
+  };
+
+  const handleControlsPointerLeave = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'touch') return;
+    controlsHoveredRef.current = false;
+    scheduleControlsHide();
   };
 
   useEffect(() => {
+    scheduleControlsHide();
+    return clearControlsTimeout;
+  }, [scheduleControlsHide, clearControlsTimeout]);
+
+  useEffect(() => {
     return () => {
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
       if (hoverLeaveTimeoutRef.current) {
         clearTimeout(hoverLeaveTimeoutRef.current);
       }
@@ -565,6 +591,14 @@ export function LessonVideoScreen({
     } else seek(nextTime);
   };
 
+  const handleScrubCancel = () => {
+    if (!scrubbingRef.current) return;
+    scrubbingRef.current = false;
+    scrubTargetRef.current = null;
+    setScrubTime(null);
+    scheduleControlsHide();
+  };
+
   const progressPercent = duration > 0 ? ((scrubTime ?? currentTime) / duration) * 100 : 0;
   const bufferPercent = duration > 0 ? (bufferedEnd / duration) * 100 : 0;
 
@@ -625,9 +659,12 @@ export function LessonVideoScreen({
   return (
     <div
       ref={containerRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => {
-        if (isPlaying) {
+      onPointerMove={handlePointerMove}
+      onPointerLeave={(event) => {
+        if (event.pointerType === 'touch') return;
+        controlsHoveredRef.current = false;
+        clearControlsTimeout();
+        if (isPlaying && !scrubbingRef.current) {
           setShowControls(false);
           setIsSpeedMenuOpen(false);
         }
@@ -665,15 +702,17 @@ export function LessonVideoScreen({
 
         {/* Bottom Cinema Controls Overlay (taste-skill-ignore: neutral scrim over video footage) */}
         <div
+          onPointerEnter={handleControlsPointerEnter}
+          onPointerLeave={handleControlsPointerLeave}
           className={`absolute bottom-0 inset-x-0 p-3 sm:p-4 bg-gradient-to-t from-black/95 via-black/75 to-transparent transition-opacity duration-300 z-20 space-y-2 /* taste-skill-ignore */ ${isControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
         >
-          {/* Progress Slider Bar with Buffer, Timeline Markers & Pin Marker (Cinema Luxury 2px) */}
+          {/* Keep the seek strip interactive even while the rest of the controls are hidden. */}
           <div
             ref={sliderTrackRef}
             onMouseMove={handleSliderMouseMove}
             onMouseLeave={handleSliderMouseLeave}
-            className="relative w-full group/slider flex items-center h-4 cursor-pointer"
+            className="relative w-full group/slider flex items-center h-4 cursor-pointer pointer-events-auto"
           >
             {/* Background Track (Ultra-thin 2px, expands to 3px on hover) */}
             <div className="absolute inset-x-0 h-[2px] group-hover/slider:h-[3px] bg-white/20 rounded-full overflow-hidden transition-all duration-150">
@@ -900,9 +939,11 @@ export function LessonVideoScreen({
               value={scrubTime ?? currentTime}
               onChange={handleSliderChange}
               onPointerDown={(event) => {
-                if (isDraggingCluster) return;
+                if (isDraggingCluster || event.button !== 0) return;
                 scrubbingRef.current = true;
                 scrubTargetRef.current = null;
+                clearControlsTimeout();
+                setShowControls(true);
                 event.currentTarget.setPointerCapture(event.pointerId);
               }}
               onPointerUp={() => {
@@ -911,12 +952,9 @@ export function LessonVideoScreen({
                 scrubTargetRef.current = null;
                 setScrubTime(null);
                 if (target !== null) seek(target);
+                scheduleControlsHide();
               }}
-              onPointerCancel={() => {
-                scrubbingRef.current = false;
-                scrubTargetRef.current = null;
-                setScrubTime(null);
-              }}
+              onPointerCancel={handleScrubCancel}
               aria-label="Thanh tua video"
               className={`absolute inset-x-0 w-full h-full opacity-0 cursor-pointer z-20 ${isDraggingCluster ? 'pointer-events-none' : ''
                 }`}

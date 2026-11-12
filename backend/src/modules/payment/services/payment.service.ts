@@ -1,6 +1,6 @@
 import {
   Injectable, NotFoundException, BadRequestException, ConflictException,
-  ForbiddenException, ServiceUnavailableException,
+  ForbiddenException, ServiceUnavailableException, Optional,
 } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
@@ -11,6 +11,7 @@ import {
 } from 'share-lib';
 import { BaseService, isDuplicateKeyError } from '../../base/index.js';
 import { PaymentRepository } from '../repositories/payment.repository.js';
+import { CommissionSettingRepository } from '../repositories/commission-setting.repository.js';
 import { OrderRepository, OrderStatusRecord } from '../../enrollment/repositories/order.repository.js';
 import { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
 import { CourseRepository } from '../../course/repositories/course.repository.js';
@@ -37,6 +38,7 @@ export class PaymentService extends BaseService<IPayment, string> {
     protected readonly userRepository: UserRepository,
     protected readonly sepayService: SepayService,
     cls: ClsService,
+    @Optional() protected readonly commissionSettingRepository?: CommissionSettingRepository,
   ) {
     super(paymentRepository, cls, PaymentService.name);
   }
@@ -66,14 +68,33 @@ export class PaymentService extends BaseService<IPayment, string> {
 
       const originalPrice = Number.isSafeInteger(course.originalPrice) && (course.originalPrice ?? 0) > course.price
         ? course.originalPrice! : course.price;
+
+      let platformRate = 30;
+      const instructor = course.instructorId ? await this.userRepository.findById(course.instructorId) : null;
+      if (typeof instructor?.commissionRate === 'number' && Number.isFinite(instructor.commissionRate)) {
+        platformRate = instructor.commissionRate;
+      } else if (this.commissionSettingRepository) {
+        const defaultSetting = await this.commissionSettingRepository.getCurrentSetting();
+        if (defaultSetting && typeof defaultSetting.defaultRate === 'number' && Number.isFinite(defaultSetting.defaultRate)) {
+          platformRate = defaultSetting.defaultRate;
+        }
+      }
+      const platformEarnings = Math.round((course.price * platformRate) / 100);
+      const instructorEarnings = course.price - platformEarnings;
+      const instructorCommissionRate = Number((1 - platformRate / 100).toFixed(4));
+
       try {
         const order = await this.orderRepository.create({
           orderCode: this.sepayService.generateOrderCode(), userId, courseId,
+          instructorId: course.instructorId,
           amount: course.price, originalPrice, discountAmount: originalPrice - course.price,
           paymentMethod: 'SEPAY_BANK_TRANSFER', status: OrderStatusEnum.PENDING,
           expiresAt: new Date(Date.now() + config.expireMinutes * 60000),
           pendingCheckoutKey: `${userId}:${courseId}`,
-          instructorCommissionRate: 0.7, instructorEarnings: Math.round(course.price * 0.7),
+          platformCommissionRate: platformRate,
+          platformEarnings,
+          instructorCommissionRate,
+          instructorEarnings,
           courseSnapshot: {
             title: course.title, slug: course.slug, thumbnailUrl: course.thumbnailUrl,
             instructorName: course.instructor?.fullName,

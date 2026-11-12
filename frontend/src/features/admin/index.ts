@@ -10,3 +10,4 @@ export * from './users';
 export * from './categories';
 export * from './courses';
 export * from './reviews';
+export * from './revenue';

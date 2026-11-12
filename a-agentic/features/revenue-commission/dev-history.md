@@ -1,0 +1,73 @@
+# Revenue & Commission Management — Dev History
+
+> **Module:** Revenue & Commission Management
+
+---
+
+## 2026-11-12: Triển khai Quản lý Doanh thu & Hoa hồng Admin Mindly
+
+### 1. Yêu cầu & Bối cảnh
+- Triển khai toàn diện tính năng Quản lý Doanh thu dành cho Admin với đúng 2 tab: "Tổng quan doanh thu" và "Doanh thu giảng viên".
+- Chuyển hướng mục "Quản lý đơn hàng" (`/admin/orders`) thành "Quản lý Đơn hàng, Giao dịch & Doanh thu" (`/admin/revenue`). Xóa bỏ hoàn toàn route cũ `/admin/orders`.
+- Tính toán chia doanh thu chính xác: Nền tảng ($R\%$) và Giảng viên ($(100-R)\%$). Bất biến: Tổng tiền nền tảng + giảng viên luôn bằng tổng số tiền thanh toán thực tế của học viên.
+- Xử lý đơn hàng lịch sử cũ (legacy fallback 30% Mindly / 70% giảng viên).
+- Cấu hình hoa hồng mặc định qua biểu tượng bánh răng ở góc trên bên phải tab Doanh thu giảng viên.
+- Điều chỉnh hoa hồng riêng theo từng giảng viên tại trang chi tiết `/admin/revenue/instructors/[instructorId]`.
+- Lưu vết lịch sử thay đổi hoa hồng bất biến.
+- Danh sách giao dịch thành công dạng thẻ ngang (Card ngang), không dùng bảng, tuyệt đối không hiển thị badge trạng thái thanh toán trên thẻ. Drawer chi tiết 5 nhóm thông tin.
+
+### 2. Implementation Details
+
+#### Shared Library (`share-lib`):
+- `share-lib/src/interfaces/order.interface.ts`: Bổ sung `instructorId`, `platformCommissionRate`, `platformEarnings`, `instructorEarnings`.
+- `share-lib/src/interfaces/user.interface.ts`: Bổ sung `commissionRate`, `commissionRateUpdatedAt`, `commissionRateUpdatedById`.
+- `share-lib/src/interfaces/revenue.interface.ts`: Định nghĩa bộ interfaces cho KPI, Chart, Transaction Cards, Transaction Detail, Instructor Summary/Detail/Courses, Commission Config/History.
+
+#### Backend (`backend/`):
+- Schemas: `CommissionSettingEntity`, `CommissionHistoryEntity`. Bổ sung trường & compound indexes trên `OrderEntity` và `UserEntity`.
+- Repositories: `CommissionSettingRepository`, `CommissionHistoryRepository`, `OrderRepository` (implement 7 aggregation pipelines tối ưu cho doanh thu, hỗ trợ legacy fallback), `UserRepository`.
+- Service: `RevenueService` kế thừa `BaseService`, quản lý trọn vẹn nghiệp vụ doanh thu, hoa hồng, làm tròn chuẩn xác. Cập nhật `PaymentService.createOrder` để snapshot tỷ lệ hoa hồng lúc tạo đơn hàng.
+- Controller: `RevenueController` với `@Roles(RoleEnum.ADMIN)`.
+- Tests: 12 unit tests cho `RevenueService` trong `revenue.service.spec.ts`. Toàn bộ 60 tests module payment vượt qua 100%.
+
+#### Frontend (`frontend/`):
+- Xóa bỏ trang `/admin/orders`, cập nhật menu admin sang `/admin/revenue`.
+- Xây dựng API client và TanStack Query hooks trong `features/admin/revenue/api/revenue-admin.api.ts`.
+- Components:
+  - `revenue-time-filter.tsx`: Bộ lọc thời gian chuẩn giờ VN UTC+7 (presets + custom).
+  - `revenue-kpi-cards.tsx`: 4 thẻ KPI doanh thu kèm skeleton.
+  - `revenue-chart.tsx`: Biểu đồ SVG chuyên nghiệp thể hiện 3 luồng doanh thu.
+  - `transaction-card.tsx` & `transaction-cards-list.tsx`: Thẻ ngang không có badge trạng thái, tìm kiếm 1 ô tổng hợp, select sắp xếp, pagination chuẩn 10/20/50.
+  - `transaction-detail-drawer.tsx`: Drawer chi tiết trượt ngang 5 nhóm thông tin rõ ràng.
+  - `default-commission-dialog.tsx`: Modal cài đặt hoa hồng mặc định hệ thống.
+  - `instructor-commission-dialog.tsx`: Modal điều chỉnh hoa hồng giảng viên.
+  - `instructors-revenue-table.tsx`: Bảng thống kê giảng viên kèm link xem chi tiết và nút bánh răng.
+  - `revenue-view.tsx`: Giao diện 2 tab chính đồng bộ URL query params.
+  - `instructor-detail-view.tsx`: Giao diện chi tiết doanh thu giảng viên với banner, KPI, lịch sử hoa hồng, danh sách khóa học và giao dịch gần đây.
+
+### 3. Root Causes & Gotchas Resolved
+- **Gotcha 1: `PaginationResult` name collision**: Cả `users-admin.api.ts` và `revenue-admin.api.ts` cùng export `PaginationResult`, dẫn đến lỗi TS2308 khi export trong `src/features/admin/index.ts`. Giải pháp: đổi thành `RevenuePaginationResult<T>` trong revenue API client tương tự như `AdminCoursesPaginationResult<T>`.
+- **Gotcha 2: Button `asChild` không hỗ trợ trong `@base-ui/react/button`**: Dự án dùng `@base-ui/react/button` thay vì Radix UI, nên prop `asChild` bị báo lỗi type. Giải pháp: render trực tiếp thẻ `<Link>` của Next.js với class button tiện ích.
+- **Gotcha 3: Cache stale types của `.next` sau khi xóa thư mục `/admin/orders`**: Next.js cache kiểu trang cũ gây lỗi TS2307. Giải pháp: xóa thư mục `frontend/.next`, `tsc --noEmit` hoàn thành thành công không còn lỗi nào.
+
+---
+
+## 2026-11-12 (Update): Cấu hình hoa hồng mặc định ghi đè toàn bộ giảng viên & khóa học
+
+### 1. Yêu cầu & Bối cảnh
+- Khi Admin thay đổi tỷ lệ hoa hồng mặc định tại biểu tượng bánh răng, hệ thống phải áp dụng đồng loạt cho **TẤT CẢ giảng viên**, ghi đè toàn bộ tỷ lệ hoa hồng riêng từng cài đặt trước đó, và áp dụng ngay lập tức cho các giao dịch mua khóa học mới.
+
+### 2. Triển khai
+- **Shared Library (`share-lib`)**: Thêm `targetType?: 'SYSTEM' | 'INSTRUCTOR'` vào `ICommissionHistoryItem`.
+- **Backend (`backend/`)**:
+  - `UpdateCommissionConfigDto`: Bổ sung trường `reason?: string` kèm validation & transformer.
+  - `UserRepository`: Thêm `updateAllInstructorsCommissionRate(newRate, adminId, session)` thực thi `updateMany` trên toàn bộ user role `INSTRUCTOR`.
+  - `CommissionHistoryRepository`: Cập nhật schema & query `findByInstructorId` truy vấn cả lịch sử cá nhân lẫn lịch sử hệ thống (`targetType: 'SYSTEM'`).
+  - `RevenueService`: Bọc `updateCommissionConfig` trong MongoDB Transaction: cập nhật setting hệ thống $\rightarrow$ ghi đè toàn bộ giảng viên $\rightarrow$ ghi log lịch sử `targetType: 'SYSTEM'`.
+  - Unit tests: Bổ sung test kiểm tra gọi đồng thời `updateAllInstructorsCommissionRate` và `create` history với `SYSTEM`.
+- **Frontend (`frontend/`)**:
+  - `revenue-admin.api.ts`: Cập nhật `updateCommissionConfig` nhận object `{ defaultRate, reason }` và invalidate toàn bộ query liên quan (`all`, `commissionConfig`).
+  - `default-commission-dialog.tsx`: Bổ sung ô nhập lý do bắt buộc, cập nhật cảnh báo ghi đè toàn bộ giảng viên, và bước xác nhận 2 bước rõ ràng.
+  - `instructor-detail-view.tsx`: Bổ sung cột và Badge phân biệt "Toàn hệ thống" vs "Tùy chỉnh riêng" trong bảng lịch sử hoa hồng của từng giảng viên.
+
+

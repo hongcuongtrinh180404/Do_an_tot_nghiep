@@ -18,7 +18,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   },
   {
     title: 'Quản lý Đơn hàng, Giao dịch & Doanh thu',
-    href: '/admin/orders',
+    href: '/admin/revenue',
     icon: 'lucide:receipt',
   },
   {

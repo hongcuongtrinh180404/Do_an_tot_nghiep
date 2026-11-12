@@ -6,6 +6,7 @@ import { DialogLayout } from '@/components/shared/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Icon } from '@/components/ui/icon';
+import { RatingStars } from '@/components/shared/rating/rating-stars';
 import {
   useAdminReviewDetailQuery,
   useAdminDismissReportsMutation,
@@ -158,17 +159,12 @@ export function ReviewDetailDialog({
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-muted-foreground">Điểm đánh giá:</span>
               <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Icon
-                    key={star}
-                    icon="lucide:star"
-                    className={`size-4 ${
-                      star <= review.rating
-                        ? 'fill-amber-400 text-amber-400'
-                        : 'text-muted-foreground/30'
-                    }`}
-                  />
-                ))}
+                <RatingStars
+                  rating={review.rating}
+                  size="md"
+                  fillClassName="fill-amber-400 text-amber-400"
+                  emptyClassName="text-muted-foreground/30"
+                />
                 <span className="text-xs font-bold text-foreground ml-1.5">
                   {review.rating}/5 sao
                 </span>

@@ -29,6 +29,14 @@ export class OrderEntity extends BaseAbstractDocument {
   })
   courseId: Types.ObjectId;
 
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: UserEntity.name,
+    default: null,
+    index: true,
+  })
+  instructorId?: Types.ObjectId | null;
+
   @Prop({ type: Number, required: true, min: [0, 'Order amount cannot be negative'] })
   amount: number;
 
@@ -46,6 +54,12 @@ export class OrderEntity extends BaseAbstractDocument {
 
   @Prop({ type: Date, default: null })
   paidAt?: Date | null;
+
+  @Prop({ type: Number, default: 30, min: 0, max: 100 })
+  platformCommissionRate?: number;
+
+  @Prop({ type: Number, default: 0, min: 0 })
+  platformEarnings?: number;
 
   @Prop({ type: Number, default: 0.7, min: 0, max: 1 })
   instructorCommissionRate?: number;
@@ -85,4 +99,6 @@ export const OrderSchema = SchemaFactory.createForClass(OrderEntity);
 
 OrderSchema.index({ userId: 1, createdAt: -1 });
 OrderSchema.index({ userId: 1, courseId: 1, status: 1 });
+OrderSchema.index({ instructorId: 1, status: 1, paidAt: -1 });
+OrderSchema.index({ status: 1, paidAt: -1 });
 OrderSchema.index({ pendingCheckoutKey: 1 }, { unique: true, sparse: true, name: 'unique_pending_checkout' });

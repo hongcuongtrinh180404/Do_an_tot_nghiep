@@ -19,12 +19,15 @@ export interface IOrder {
   orderCode: string;
   userId: string;
   courseId: string;
+  instructorId?: string;
   amount: number;
   originalPrice?: number;
   discountAmount?: number;
   paymentMethod?: string;
   expiresAt?: Date | string;
   paidAt?: Date | string | null;
+  platformCommissionRate?: number;
+  platformEarnings?: number;
   instructorCommissionRate?: number;
   instructorEarnings?: number;
   pendingCheckoutKey?: string;

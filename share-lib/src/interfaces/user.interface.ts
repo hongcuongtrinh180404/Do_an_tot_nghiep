@@ -12,6 +12,9 @@ export interface IUser {
   bio?: string | null;
   role: RoleEnum;
   status: UserStatusEnum;
+  commissionRate?: number;
+  commissionRateUpdatedAt?: Date | string | null;
+  commissionRateUpdatedById?: string | null;
   googleSub?: string | null;
   isEmailVerified?: boolean;
   emailVerificationToken?: string | null;
@@ -52,6 +55,9 @@ export interface IUserProfile {
   bio?: string | null;
   role: RoleEnum;
   status: UserStatusEnum;
+  commissionRate?: number;
+  commissionRateUpdatedAt?: Date | string | null;
+  commissionRateUpdatedById?: string | null;
   googleSub?: string | null;
   isEmailVerified?: boolean;
   hasPassword?: boolean;

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Icon } from '@/components/ui/icon';
+import { RatingStars } from '@/components/shared/rating/rating-stars';
 import { DeleteConfirmDialog } from '@/components/shared/dialog/delete-confirm-dialog';
 import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
 import {
@@ -135,18 +136,7 @@ export function CourseReviewsTab({
               <div className="text-4xl sm:text-5xl font-extrabold text-[#161616] tracking-tight">
                 {averageRating.toFixed(1)}
               </div>
-              <div className="flex items-center justify-center gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Icon
-                    key={star}
-                    icon="lucide:star"
-                    className={`size-5 ${star <= Math.round(averageRating)
-                        ? 'fill-[#ffd100] text-[#ffd100]'
-                        : 'text-neutral-300'
-                      }`}
-                  />
-                ))}
-              </div>
+              <RatingStars rating={averageRating} size="lg" className="justify-center" />
               <p className="text-xs text-[#666666]">
                 Dựa trên <strong>{totalReviews}</strong> lượt đánh giá
               </p>
@@ -275,18 +265,7 @@ export function CourseReviewsTab({
               </div>
             )}
 
-            <div className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Icon
-                  key={star}
-                  icon="lucide:star"
-                  className={`size-4 ${star <= myReview.rating
-                      ? 'fill-[#ffd100] text-[#ffd100]'
-                      : 'text-neutral-300'
-                    }`}
-                />
-              ))}
-            </div>
+            <RatingStars rating={myReview.rating} size="md" />
 
             {myReview.comment && (
               <p className="text-sm text-[#161616] leading-relaxed whitespace-pre-line">
@@ -450,18 +429,7 @@ export function CourseReviewsTab({
                   </div>
 
                   {/* Stars Rating */}
-                  <div className="mt-3 flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Icon
-                        key={star}
-                        icon="lucide:star"
-                        className={`size-3.5 ${star <= review.rating
-                            ? 'fill-[#ffd100] text-[#ffd100]'
-                            : 'text-neutral-300'
-                          }`}
-                      />
-                    ))}
-                  </div>
+                  <RatingStars rating={review.rating} size="sm" className="mt-3" />
 
                   {/* Comment */}
                   {review.comment && (

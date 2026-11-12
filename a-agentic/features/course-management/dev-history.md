@@ -2033,3 +2033,30 @@
 - **ESLint**: `npm --prefix frontend run lint` đạt 0 lỗi (clean).
 - **Design Taste**: `node .agent/skills/design-taste-frontend/scripts/lint.mjs` đạt 0 FAIL.
 
+
+---
+
+## [2026-11-12] Sửa lỗi hiển thị sao đánh giá: chuyển đổi từ ngôi sao rỗng viền sang solid yellow full sao
+
+### 1. Bối cảnh & Nguyên nhân gốc rễ (Root Cause)
+- **Hiện tượng**: Tại các mục đánh giá (nhận xét từ học viên `CourseReviewsTab`, form nhập đánh giá `StarRatingInput`, chi tiết đánh giá admin), các ngôi sao chỉ có viền vàng `stroke`, bên trong bị rỗng/trong suốt.
+- **Nguyên nhân kỹ thuật**: Icon `lucide:star` từ `@iconify/react` có vector con `<path>` hoặc `<polygon>` mang presentation attribute `fill="none"`. Khi thẻ cha `<svg>` được gắn class `fill-[#ffd100]`, thuộc tính `fill` kế thừa từ cha bị presentation attribute `fill="none"` trên thẻ con ghi đè. Do đó ngôi sao chỉ nhận `stroke="currentColor"` (màu chữ vàng) mà không tô màu ruột.
+
+### 2. Các thay đổi kỹ thuật (Implementation)
+- **`frontend/src/app/globals.css`**:
+  - Bổ sung CSS rule cấp cao ép các phần tử vector con (`path`, `polygon`) kế thừa thuộc tính `fill` khi phần tử `<svg>` mang các class utility `fill-*`:
+    ```css
+    svg[class*="fill-"]:not([class*="fill-none"]) path,
+    svg[class*="fill-"]:not([class*="fill-none"]) polygon {
+      fill: inherit !important;
+    }
+    ```
+- **`frontend/src/components/shared/rating/rating-stars.tsx`**:
+  - Tạo mới component `RatingStars` chuẩn hóa với các kích thước `xs`, `sm`, `md`, `lg`, `xl`. Mặc định tô đầy màu vàng thương hiệu Mindly `#ffd100` (`fill-[#ffd100] text-[#ffd100]`) cho các sao đạt điểm và viền xám nhẹ `text-neutral-300` cho các sao chưa đạt.
+- **`frontend/src/features/course/components/public-detail/course-reviews-tab.tsx`**:
+  - Thay thế các đoạn map sao thủ công bằng `<RatingStars />` tại: Hộp điểm trung bình to, Đánh giá của tôi (`myReview`), và Danh sách nhận xét học viên (`reviewsData.items`).
+- **`frontend/src/features/admin/reviews/components/review-detail-dialog.tsx`**:
+  - Tích hợp `<RatingStars />` với tone màu `amber-400`.
+
+### 3. Kiểm định chất lượng
+- **TypeScript Typecheck**: `npx --prefix frontend tsc --noEmit --project frontend/tsconfig.json` đạt 0 lỗi (Exit code 0).

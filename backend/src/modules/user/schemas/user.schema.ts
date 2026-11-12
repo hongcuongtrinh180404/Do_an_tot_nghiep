@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 import { RoleEnum, UserStatusEnum, AuthProviderEnum } from 'share-lib';
 import { BaseAbstractDocument } from '../../base/index.js';
 
@@ -53,6 +53,19 @@ export class UserEntity extends BaseAbstractDocument {
     index: true,
   })
   status: UserStatusEnum;
+
+  @Prop({ type: Number, default: 30, min: 0, max: 100 })
+  commissionRate?: number;
+
+  @Prop({ type: Date, default: null })
+  commissionRateUpdatedAt?: Date | null;
+
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'UserEntity',
+    default: null,
+  })
+  commissionRateUpdatedById?: Types.ObjectId | null;
 
   @Prop({ type: Boolean, default: false, index: true })
   isEmailVerified: boolean;

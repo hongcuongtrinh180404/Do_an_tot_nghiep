@@ -420,3 +420,15 @@
   transform-origin: center center;
   will-change: transform;
 }
+
+/* ==========================================================================
+   Iconify / SVG Fill Utility Fix
+   Forces child vector paths and polygons to inherit fill when the parent SVG
+   has fill utilities (e.g. fill-[#ffd100], fill-gold-100, fill-amber-400, fill-current).
+   This solves the issue where Lucide icons in Iconify have presentation attribute
+   fill="none" on <path>, preventing parent fill inheritance.
+   ========================================================================== */
+svg[class*="fill-"]:not([class*="fill-none"]) path,
+svg[class*="fill-"]:not([class*="fill-none"]) polygon {
+  fill: inherit !important;
+}

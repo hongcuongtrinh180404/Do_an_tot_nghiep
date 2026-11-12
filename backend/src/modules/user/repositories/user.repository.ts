@@ -417,4 +417,48 @@ export class UserRepository extends BaseMongoRepository<IUser, UserEntity> {
 
     return this.findManyWithPagination(options, session);
   }
+
+  async updateCommissionRate(
+    userId: string,
+    rate: number,
+    adminId: string,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    const doc = await this.model
+      .findOneAndUpdate(
+        { _id: new Types.ObjectId(userId), deletedAt: null },
+        {
+          $set: {
+            commissionRate: rate,
+            commissionRateUpdatedAt: new Date(),
+            commissionRateUpdatedById: new Types.ObjectId(adminId),
+          },
+        },
+        { returnDocument: 'after', session: session ?? null },
+      )
+      .lean()
+      .exec();
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  async updateAllInstructorsCommissionRate(
+    newRate: number,
+    adminId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    const result = await this.model
+      .updateMany(
+        { role: RoleEnum.INSTRUCTOR, deletedAt: null },
+        {
+          $set: {
+            commissionRate: newRate,
+            commissionRateUpdatedAt: new Date(),
+            commissionRateUpdatedById: new Types.ObjectId(adminId),
+          },
+        },
+        session ? { session } : {},
+      )
+      .exec();
+    return result.modifiedCount;
+  }
 }

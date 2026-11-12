@@ -55,9 +55,15 @@ export function useVideoPlayer(): UseVideoPlayerReturn {
 
   // Seek to absolute time
   const seek = useCallback((seconds: number) => {
-    if (seekHandlerRef.current) { seekHandlerRef.current(seconds); return; }
     const video = videoRef.current;
     if (!video) return;
+
+    if (seekHandlerRef.current) {
+      seekHandlerRef.current(seconds);
+      // Mirror the accepted position, including checkpoint redirects, before the range commits.
+      setCurrentTime(video.currentTime);
+      return;
+    }
 
     const clampedTime = Math.max(0, Math.min(seconds, video.duration || 0));
     video.currentTime = clampedTime;
