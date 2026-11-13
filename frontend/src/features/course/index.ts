@@ -33,6 +33,7 @@ export * from './api/lesson-content.api';
 export * from './components/mindmap/course-mindmap-view';
 export * from './api/course-mindmap.api';
 export * from './hooks/use-course-mindmap';
+export * from './hooks/use-user-course-ownership';
 export * from './utils/mindmap-layout.util';
 export * from './utils/mindmap-converter.util';
 export * from './components/inline';

@@ -7,6 +7,7 @@ import { CommissionSettingRepository } from '../repositories/commission-setting.
 import { CommissionHistoryRepository } from '../repositories/commission-history.repository.js';
 import { OrderRepository } from '../../enrollment/repositories/order.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
+import { ReviewRepository } from '../../review/repositories/review.repository.js';
 
 describe('RevenueService', () => {
   let service: RevenueService;
@@ -33,6 +34,10 @@ describe('RevenueService', () => {
     findById: ReturnType<typeof vi.fn>;
     updateCommissionRate: ReturnType<typeof vi.fn>;
     updateAllInstructorsCommissionRate: ReturnType<typeof vi.fn>;
+  };
+  let reviewRepo: {
+    calculateInstructorReviewStats: ReturnType<typeof vi.fn>;
+    findInstructorReviews: ReturnType<typeof vi.fn>;
   };
   let cls: ClsService;
 
@@ -68,6 +73,21 @@ describe('RevenueService', () => {
       updateAllInstructorsCommissionRate: vi.fn(),
     };
 
+    reviewRepo = {
+      calculateInstructorReviewStats: vi.fn().mockResolvedValue({
+        averageRating: 4.8,
+        totalReviews: 25,
+        distribution: [
+          { stars: 5, count: 20, percentage: 80 },
+          { stars: 4, count: 5, percentage: 20 },
+          { stars: 3, count: 0, percentage: 0 },
+          { stars: 2, count: 0, percentage: 0 },
+          { stars: 1, count: 0, percentage: 0 },
+        ],
+      }),
+      findInstructorReviews: vi.fn(),
+    };
+
     cls = {
       get: vi.fn().mockReturnValue(mockAdminId),
     } as unknown as ClsService;
@@ -77,6 +97,7 @@ describe('RevenueService', () => {
       commissionHistoryRepo as unknown as CommissionHistoryRepository,
       orderRepo as unknown as OrderRepository,
       userRepo as unknown as UserRepository,
+      reviewRepo as unknown as ReviewRepository,
       cls,
     );
   });
@@ -323,6 +344,91 @@ describe('RevenueService', () => {
           appliedById: mockAdminId,
         },
         expect.anything(),
+      );
+    });
+  });
+
+  describe('getInstructorTeachingOverview', () => {
+    it('should throw NotFoundException if instructor not found', async () => {
+      userRepo.findById.mockResolvedValue(null);
+      await expect(
+        service.getInstructorTeachingOverview('nonexistent', { timeRange: 'all' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return combined KPI and review stats for teaching overview', async () => {
+      userRepo.findById.mockResolvedValue({
+        id: mockInstructorId,
+        role: RoleEnum.INSTRUCTOR,
+      });
+
+      orderRepo.getInstructorRevenueKpi.mockResolvedValue({
+        totalRevenue: 10000000,
+        instructorEarnings: 7000000,
+        totalCourses: 5,
+        successfulSales: 20,
+      });
+
+      const overview = await service.getInstructorTeachingOverview(mockInstructorId, {
+        timeRange: 'all',
+      });
+
+      expect(overview).toEqual({
+        totalRevenue: 10000000,
+        instructorEarnings: 7000000,
+        successfulSales: 20,
+        averageRating: 4.8,
+        totalReviews: 25,
+      });
+      expect(orderRepo.getInstructorRevenueKpi).toHaveBeenCalled();
+      expect(reviewRepo.calculateInstructorReviewStats).toHaveBeenCalledWith(mockInstructorId);
+    });
+  });
+
+  describe('getInstructorCoursesStats', () => {
+    it('should query instructor courses revenue with search and sort', async () => {
+      userRepo.findById.mockResolvedValue({
+        id: mockInstructorId,
+        role: RoleEnum.INSTRUCTOR,
+      });
+
+      orderRepo.getInstructorCoursesRevenue.mockResolvedValue({
+        items: [
+          {
+            id: 'c1',
+            title: 'Khóa học React Pro',
+            status: 'PUBLISHED',
+            price: 500000,
+            thumbnailUrl: null,
+            successfulSales: 10,
+            totalRevenue: 5000000,
+            instructorEarnings: 3500000,
+          },
+        ],
+        total: 1,
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+      });
+
+      const result = await service.getInstructorCoursesStats(mockInstructorId, {
+        timeRange: 'all',
+        search: 'React',
+        sort: 'revenue_desc',
+        page: 1,
+        limit: 10,
+      });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].instructorEarnings).toBe(3500000);
+      expect(orderRepo.getInstructorCoursesRevenue).toHaveBeenCalledWith(
+        mockInstructorId,
+        undefined,
+        undefined,
+        1,
+        10,
+        'React',
+        'revenue_desc',
       );
     });
   });

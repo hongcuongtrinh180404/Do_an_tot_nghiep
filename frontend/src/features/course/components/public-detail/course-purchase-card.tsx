@@ -90,6 +90,25 @@ export function CoursePurchaseCard({
                 </div>
               )}
             </div>
+          ) : isInstructorOwner ? (
+            <div className="space-y-3 mb-5 p-4 rounded-xl bg-[#f3fcfc] border border-[#027D88]/20">
+              <div className="flex items-center gap-2 text-[#027D88] text-sm font-bold">
+                <Icon icon="lucide:shield-check" className="size-5 text-[#027D88]" />
+                <span>Khóa học do bạn giảng dạy</span>
+              </div>
+              <p className="text-xs text-[#666666] leading-relaxed">
+                Bạn là tác giả của khóa học này. Bạn có toàn quyền truy cập toàn bộ bài giảng và quản lý nội dung.
+              </p>
+              <div className="pt-1">
+                <Link
+                  href={`/courses/${course.id}?mode=edit`}
+                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-2.5 px-3 text-xs transition-colors shadow-2xs"
+                >
+                  <Icon icon="lucide:settings" className="size-4" />
+                  <span>Quản lý &amp; Biên tập</span>
+                </Link>
+              </div>
+            </div>
           ) : (
             <div className="space-y-3 mb-5 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
               <div className="flex items-center gap-2 text-emerald-800 text-sm font-bold">

@@ -1,0 +1,590 @@
+{
+  "cong-nghe-thong-tin": {
+    "photos": [
+      {
+        "id": 1181359,
+        "url": "https://images.pexels.com/photos/1181359/pexels-photo-1181359.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/woman-programming-on-a-notebook-1181359/",
+        "author": "Christina Morillo",
+        "description": "A developer typing code on a laptop with a Python book beside in an office.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 574077,
+        "url": "https://images.pexels.com/photos/574077/pexels-photo-574077.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/person-using-macbook-pro-574077/",
+        "author": "Lukas Blazek",
+        "description": "Person coding on a laptop with HTML code on screen, showcasing development work.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 31343632,
+        "url": "https://images.pexels.com/photos/31343632/pexels-photo-31343632.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/colorful-javascript-code-display-on-screen-31343632/",
+        "author": "Rashed Paykary",
+        "description": "Vibrant JavaScript code displayed on a screen, highlighting programming concepts and software development.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 6424585,
+        "url": "https://images.pexels.com/photos/6424585/pexels-photo-6424585.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/computer-program-on-the-monitor-6424585/",
+        "author": "Nemuel Sereti",
+        "description": "Close-up of a computer screen displaying colorful programming code in JavaScript.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      }
+    ],
+    "video": {
+      "id": 2278095,
+      "url": "https://videos.pexels.com/video-files/2278095/2278095-hd_1280_720_30fps.mp4",
+      "page": "https://www.pexels.com/video/person-encoding-in-a-computer-2278095/",
+      "author": "Nino Souza",
+      "description": "Close-up of JavaScript code being edited on a monitor, showcasing programming skills.",
+      "license": "Pexels License",
+      "licenseUrl": "https://www.pexels.com/license/"
+    }
+  },
+  "thiet-ke-do-hoa": {
+    "photos": [
+      {
+        "id": 7971537,
+        "url": "https://images.pexels.com/photos/7971537/pexels-photo-7971537.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/a-woman-using-a-computer-7971537/",
+        "author": "Darlene Alderson",
+        "description": "A woman using a computer for image editing in a bright, modern office setting.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 16313660,
+        "url": "https://images.pexels.com/photos/16313660/pexels-photo-16313660.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/photographer-working-on-wacom-tablet-and-laptop-on-desk-16313660/",
+        "author": "Kawê  Rodrigues",
+        "description": "A photographer working at a creative setup with a laptop and Wacom tablet, focused on editing photos indoors.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 20456575,
+        "url": "https://images.pexels.com/photos/20456575/pexels-photo-20456575.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/male-hand-drawing-on-a-graphic-tablet-with-a-pencil-20456575/",
+        "author": "Jakub Zerdzicki",
+        "description": "A digital artist using a graphics tablet and stylus in a modern workspace. High-tech creative process.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 326514,
+        "url": "https://images.pexels.com/photos/326514/pexels-photo-326514.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/full-frame-shot-of-computer-326514/",
+        "author": "Tranmautritam",
+        "description": "A modern computer screen displaying web design work, showcasing creative visuals in a workspace.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      }
+    ],
+    "video": {
+      "id": 8126007,
+      "url": "https://videos.pexels.com/video-files/8126007/8126007-hd_1280_720_25fps.mp4",
+      "page": "https://www.pexels.com/video/people-choosing-a-color-8126007/",
+      "author": "Ivan S",
+      "description": "Hands collaborating over color palettes in a creative workspace.",
+      "license": "Pexels License",
+      "licenseUrl": "https://www.pexels.com/license/"
+    }
+  },
+  "marketing": {
+    "photos": [
+      {
+        "id": 6476260,
+        "url": "https://images.pexels.com/photos/6476260/pexels-photo-6476260.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/a-group-of-people-discussing-charts-6476260/",
+        "author": "Mikael Blomkvist",
+        "description": "A diverse team collaborating on digital marketing strategies at a desk, using laptops and tablets.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 7693201,
+        "url": "https://images.pexels.com/photos/7693201/pexels-photo-7693201.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/a-person-holding-black-android-smartphone-7693201/",
+        "author": "Yan Krukau",
+        "description": "A top view on charts and smartphone in an office, showcasing data analytics.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 7651801,
+        "url": "https://images.pexels.com/photos/7651801/pexels-photo-7651801.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/person-holding-a-white-paper-document-7651801/",
+        "author": "Kindel Media",
+        "description": "A modern workspace showing hands analyzing marketing data on a laptop and paper documents.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 7947999,
+        "url": "https://images.pexels.com/photos/7947999/pexels-photo-7947999.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/person-using-black-and-gray-laptop-7947999/",
+        "author": "RDNE Stock project",
+        "description": "Focused business analysis with charts and graphs on a laptop in a modern office setting.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      }
+    ],
+    "video": {
+      "id": 7687928,
+      "url": "https://videos.pexels.com/video-files/7687928/7687928-hd_1280_720_30fps.mp4",
+      "page": "https://www.pexels.com/video/close-up-video-of-papers-on-table-7687928/",
+      "author": "Kindel Media",
+      "description": "Team discussing marketing strategies with reports and charts in office setting.",
+      "license": "Pexels License",
+      "licenseUrl": "https://www.pexels.com/license/"
+    }
+  },
+  "tai-chinh": {
+    "photos": [
+      {
+        "id": 4968631,
+        "url": "https://images.pexels.com/photos/4968631/pexels-photo-4968631.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/counting-dollar-bills-4968631/",
+        "author": "https://kaboompics.com/",
+        "description": "Two people handling cash and budgeting with a calculator and notebook at a table.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 5900178,
+        "url": "https://images.pexels.com/photos/5900178/pexels-photo-5900178.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/person-paying-bills-5900178/",
+        "author": "https://kaboompics.com/",
+        "description": "A person using a calculator and cash to plan a household budget.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 7693686,
+        "url": "https://images.pexels.com/photos/7693686/pexels-photo-7693686.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/a-businessman-reviewing-business-analytics-7693686/",
+        "author": "Yan Krukau",
+        "description": "Team reviewing financial charts and digital data on tablets in an office setting.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 7567443,
+        "url": "https://images.pexels.com/photos/7567443/pexels-photo-7567443.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/hands-holding-a-smartphone-with-data-on-screen-7567443/",
+        "author": "Tima Miroshnichenko",
+        "description": "Hands using smartphone beside laptop with stock charts, showcasing digital trading.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      }
+    ],
+    "video": {
+      "id": 5981287,
+      "url": "https://videos.pexels.com/video-files/5981287/5981287-hd_1366_720_25fps.mp4",
+      "page": "https://www.pexels.com/video/accounting-of-finances-with-receipts-5981287/",
+      "author": "https://kaboompics.com/",
+      "description": "An organized workspace featuring a laptop, calculator, and financial documents.",
+      "license": "Pexels License",
+      "licenseUrl": "https://www.pexels.com/license/"
+    }
+  },
+  "ngoai-ngu": {
+    "photos": [
+      {
+        "id": 10549488,
+        "url": "https://images.pexels.com/photos/10549488/pexels-photo-10549488.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/the-word-english-made-of-beads-with-letters-lying-on-pink-background-10549488/",
+        "author": "Djordje Vezilic",
+        "description": "Scattered letter beads form the word 'English' on a pink background, symbolizing language learning.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 5649522,
+        "url": "https://images.pexels.com/photos/5649522/pexels-photo-5649522.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/high-angle-shot-of-man-and-woman-studying-together-5649522/",
+        "author": "Thirdman",
+        "description": "Two adults engaged in online learning, one taking notes during an English study session.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 5649518,
+        "url": "https://images.pexels.com/photos/5649518/pexels-photo-5649518.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/a-woman-sitting-by-the-table-while-wearing-eyeglasses-5649518/",
+        "author": "Thirdman",
+        "description": "A woman engaged in an online English course session in a modern educational setting.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 6476782,
+        "url": "https://images.pexels.com/photos/6476782/pexels-photo-6476782.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/a-man-standing-in-front-of-the-room-6476782/",
+        "author": "Mikael Blomkvist",
+        "description": "A young man gives a presentation on data analysis in a modern office setting.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      }
+    ],
+    "video": {
+      "id": 4443259,
+      "url": "https://videos.pexels.com/video-files/4443259/4443259-hd_1280_720_25fps.mp4",
+      "page": "https://www.pexels.com/video/man-wearing-headphones-writing-on-a-notebook-4443259/",
+      "author": "Polina Tankilevitch",
+      "description": "Person studying with headphones, notebook, and laptop at home.",
+      "license": "Pexels License",
+      "licenseUrl": "https://www.pexels.com/license/"
+    }
+  },
+  "tin-hoc-van-phong": {
+    "photos": [
+      {
+        "id": 1128207,
+        "url": "https://images.pexels.com/photos/1128207/pexels-photo-1128207.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/turned-on-silver-laptop-on-tabletop-1128207/",
+        "author": "EVG Kowalievska",
+        "description": "Sleek office desk setup featuring a laptop, glass of water, and open window view.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 6694560,
+        "url": "https://images.pexels.com/photos/6694560/pexels-photo-6694560.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/business-data-printout-on-white-paper-6694560/",
+        "author": "Tima Miroshnichenko",
+        "description": "A top-down view of analytical data sheets and a laptop, ideal for business analysis themes.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 7735769,
+        "url": "https://images.pexels.com/photos/7735769/pexels-photo-7735769.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/a-person-holding-a-document-7735769/",
+        "author": "Mikhail Nilov",
+        "description": "A businesswoman reviewing financial spreadsheets with charts and graphs in an office setting.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 7580704,
+        "url": "https://images.pexels.com/photos/7580704/pexels-photo-7580704.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/person-holding-white-printer-paper-7580704/",
+        "author": "RDNE Stock project",
+        "description": "A business analyst reviews a colorful bar chart and documents at a desk, indicating data analysis.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      }
+    ],
+    "video": {
+      "id": 854167,
+      "url": "https://videos.pexels.com/video-files/854167/854167-hd_1280_720_25fps.mp4",
+      "page": "https://www.pexels.com/video/black-and-white-video-of-person-typing-on-keyboard-854167/",
+      "author": "Coverr",
+      "description": "Black and white close-up of typing on a MacBook keyboard, showcasing fingers in action.",
+      "license": "Pexels License",
+      "licenseUrl": "https://www.pexels.com/license/"
+    }
+  },
+  "bat-dong-san": {
+    "photos": [
+      {
+        "id": 17000987,
+        "url": "https://images.pexels.com/photos/17000987/pexels-photo-17000987.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/railing-on-sunlit-balcony-17000987/",
+        "author": "hi room",
+        "description": "Bright and sunny view of modern urban apartments from a balcony.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 31656168,
+        "url": "https://images.pexels.com/photos/31656168/pexels-photo-31656168.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/modern-apartment-building-with-green-courtyard-31656168/",
+        "author": "SHOX ART",
+        "description": "Contemporary apartment complex with landscaped courtyard and balconies.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 16495231,
+        "url": "https://images.pexels.com/photos/16495231/pexels-photo-16495231.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/windows-in-a-house-building-in-sunlight-16495231/",
+        "author": "Pablo Di Zara",
+        "description": "Exterior view of contemporary office buildings in Cologne, Germany, under a clear blue sky.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 4534504,
+        "url": "https://images.pexels.com/photos/4534504/pexels-photo-4534504.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/facade-of-modern-concrete-building-against-cloudless-sky-4534504/",
+        "author": "Adrien Olichon",
+        "description": "Contemporary building with reflective glass windows on a clear day.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      }
+    ],
+    "video": {
+      "id": 34042850,
+      "url": "https://videos.pexels.com/video-files/34042850/14437383_1280_720_30fps.mp4",
+      "page": "https://www.pexels.com/video/elevated-view-of-praia-grande-cityscape-34042850/",
+      "author": "Victor Cedini",
+      "description": "Aerial view of high-rise buildings in Praia Grande, Brazil during daytime.",
+      "license": "Pexels License",
+      "licenseUrl": "https://www.pexels.com/license/"
+    }
+  },
+  "edit-video": {
+    "photos": [
+      {
+        "id": 11063289,
+        "url": "https://images.pexels.com/photos/11063289/pexels-photo-11063289.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/computer-and-a-laptop-with-editing-software-11063289/",
+        "author": "Amar  Preciado",
+        "description": "A professional video editing workspace featuring monitors, keyboard, and microphones in a studio setting.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 1188751,
+        "url": "https://images.pexels.com/photos/1188751/pexels-photo-1188751.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/adobe-premier-application-screengrab-1188751/",
+        "author": "Alex Fu",
+        "description": "Close-up of a video editing timeline interface on a computer screen, showcasing professional software in action.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 695730,
+        "url": "https://images.pexels.com/photos/695730/pexels-photo-695730.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/computer-monitor-turned-on-695730/",
+        "author": "Francesco Paggiaro",
+        "description": "Detailed view of a video editing software interface showing multi-track timeline and colorful design.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 30229850,
+        "url": "https://images.pexels.com/photos/30229850/pexels-photo-30229850.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/professional-video-editing-workspace-with-keyboard-30229850/",
+        "author": "Jakub Zerdzicki",
+        "description": "A close-up of a video editing setup featuring a mechanical keyboard and color grading on a monitor.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      }
+    ],
+    "video": {
+      "id": 5092427,
+      "url": "https://videos.pexels.com/video-files/5092427/5092427-hd_1280_720_60fps.mp4",
+      "page": "https://www.pexels.com/video/professional-doing-video-editing-and-mixing-5092427/",
+      "author": "Gilmer Diaz Estela",
+      "description": "Man editing videos on a computer screen in a dark room, ensuring precise changes.",
+      "license": "Pexels License",
+      "licenseUrl": "https://www.pexels.com/license/"
+    }
+  },
+  "tiktok": {
+    "photos": [
+      {
+        "id": 9040531,
+        "url": "https://images.pexels.com/photos/9040531/pexels-photo-9040531.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/woman-in-white-long-sleeve-shirt-wearing-black-framed-eyeglasses-holding-white-notepad-9040531/",
+        "author": "Alena Darmel",
+        "description": "Young woman in glasses working indoors with laptop and camera, smiling while taking notes.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 8357239,
+        "url": "https://images.pexels.com/photos/8357239/pexels-photo-8357239.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/woman-while-cooking-being-recorded-with-smartphone-on-stabilizer-8357239/",
+        "author": "Ron Lach",
+        "description": "A woman records a cooking tutorial on a smartphone with stabilizer. Modern kitchen setting.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 9040535,
+        "url": "https://images.pexels.com/photos/9040535/pexels-photo-9040535.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/woman-in-a-white-long-sleeves-holding-a-pen-and-notebook-9040535/",
+        "author": "Alena Darmel",
+        "description": "Vlogger recording content with a camera, holding notes and using a laptop in a modern setting.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 39570848,
+        "url": "https://images.pexels.com/photos/39570848/pexels-photo-39570848.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/young-videographer-with-camera-and-gimbal-on-white-background-39570848/",
+        "author": "Sanket  Mishra",
+        "description": "Smiling young man holding a professional camera and gimbal, showcasing videography equipment.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      }
+    ],
+    "video": {
+      "id": 9032611,
+      "url": "https://videos.pexels.com/video-files/9032611/9032611-hd_1280_720_25fps.mp4",
+      "page": "https://www.pexels.com/video/woman-fixing-the-camera-before-starting-9032611/",
+      "author": "Alena Darmel",
+      "description": "A woman records a video blog at her home, using notes and a camera.",
+      "license": "Pexels License",
+      "licenseUrl": "https://www.pexels.com/license/"
+    }
+  },
+  "phong-thuy": {
+    "photos": [
+      {
+        "id": 2187966,
+        "url": "https://images.pexels.com/photos/2187966/pexels-photo-2187966.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/black-cooking-pot-in-the-middle-of-a-room-2187966/",
+        "author": "Evgeny Tchebotarev",
+        "description": "A serene Japanese tatami room with sunlight streaming in and a traditional fire pit.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 28461033,
+        "url": "https://images.pexels.com/photos/28461033/pexels-photo-28461033.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/modern-home-office-with-green-plant-decor-28461033/",
+        "author": "Alpha En",
+        "description": "A stylish home office with a desk, chair, and lush green plants near a window with blinds.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 23224447,
+        "url": "https://images.pexels.com/photos/23224447/pexels-photo-23224447.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/interior-of-a-traditional-japanese-house-23224447/",
+        "author": "Ten Ten",
+        "description": "Elegant Japanese teahouse interior featuring a floral arrangement and circular window view.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 1743555,
+        "url": "https://images.pexels.com/photos/1743555/pexels-photo-1743555.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/white-wooden-closed-door-1743555/",
+        "author": "Satoshi Hirayama",
+        "description": "A tranquil Japanese interior hallway with wooden floors and sliding doors illuminated by sunlight.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      }
+    ],
+    "video": {
+      "id": 34955072,
+      "url": "https://videos.pexels.com/video-files/34955072/14807037_1280_720_50fps.mp4",
+      "page": "https://www.pexels.com/video/bright-and-modern-home-interior-design-34955072/",
+      "author": "Owen Mathias",
+      "description": "Explore a beautifully lit modern home interior with elegant decor.",
+      "license": "Pexels License",
+      "licenseUrl": "https://www.pexels.com/license/"
+    }
+  },
+  "shopee": {
+    "photos": [
+      {
+        "id": 6214474,
+        "url": "https://images.pexels.com/photos/6214474/pexels-photo-6214474.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/brown-cardboard-box-on-stainless-steel-shopping-cart-6214474/",
+        "author": "Nataliya Vaitkevich",
+        "description": "Laptop displaying online shopping with boxes and cart, representing ecommerce.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 5878878,
+        "url": "https://images.pexels.com/photos/5878878/pexels-photo-5878878.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/yellow-sand-on-glass-surface-5878878/",
+        "author": "cottonbro studio",
+        "description": "A detailed view of a professional photography studio setup, capturing products with precise lighting.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 7620626,
+        "url": "https://images.pexels.com/photos/7620626/pexels-photo-7620626.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/person-shopping-online-7620626/",
+        "author": "Ivan S",
+        "description": "Person using a credit card for online shopping on a laptop surrounded by shipping boxes.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 6214388,
+        "url": "https://images.pexels.com/photos/6214388/pexels-photo-6214388.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/black-smartphone-on-miniature-shopping-cart-6214388/",
+        "author": "Nataliya Vaitkevich",
+        "description": "A smartphone with a shopping cart depicting the concept of online shopping in a colorful studio setup.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      }
+    ],
+    "video": {
+      "id": 7287308,
+      "url": "https://videos.pexels.com/video-files/7287308/7287308-hd_1280_720_25fps.mp4",
+      "page": "https://www.pexels.com/video/woman-packing-the-item-in-brown-box-7287308/",
+      "author": "Kampus Production",
+      "description": "Woman packing scarf in a box for an online store order. Startup business concept.",
+      "license": "Pexels License",
+      "licenseUrl": "https://www.pexels.com/license/"
+    }
+  },
+  "yoga": {
+    "photos": [
+      {
+        "id": 39190415,
+        "url": "https://images.pexels.com/photos/39190415/pexels-photo-39190415.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/group-yoga-class-in-minimalist-studio-setting-39190415/",
+        "author": "Vitaly Gariev",
+        "description": "Adults practicing yoga poses in a modern, minimalist studio.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 373936,
+        "url": "https://images.pexels.com/photos/373936/pexels-photo-373936.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/woman-in-white-top-with-closed-eyes-373936/",
+        "author": "Burst",
+        "description": "A young woman meditating indoors, focusing on relaxation and mindfulness.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 36715238,
+        "url": "https://images.pexels.com/photos/36715238/pexels-photo-36715238.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/outdoor-yoga-session-in-autumn-park-36715238/",
+        "author": "Vitaly Gariev",
+        "description": "Three people practicing yoga in a park during fall surrounded by trees.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      },
+      {
+        "id": 16131310,
+        "url": "https://images.pexels.com/photos/16131310/pexels-photo-16131310.jpeg?auto=compress&cs=tinysrgb&w=1440",
+        "page": "https://www.pexels.com/photo/man-wearing-white-clothing-standing-on-hands-in-a-gym-16131310/",
+        "author": "Lê Đức",
+        "description": "A man balances in an advanced yoga pose on a mat indoors, showcasing strength and focus.",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/"
+      }
+    ],
+    "video": {
+      "id": 8480625,
+      "url": "https://videos.pexels.com/video-files/8480625/8480625-hd_1280_720_25fps.mp4",
+      "page": "https://www.pexels.com/video/women-in-a-yoga-class-8480625/",
+      "author": "Yan Krukau",
+      "description": "Calm yoga class indoors with diverse group meditating.",
+      "license": "Pexels License",
+      "licenseUrl": "https://www.pexels.com/license/"
+    }
+  }
+}

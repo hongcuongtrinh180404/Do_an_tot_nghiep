@@ -17,9 +17,11 @@ import { PaymentService } from './services/payment.service.js';
 import { RevenueService } from './services/revenue.service.js';
 import { PaymentController } from './payment.controller.js';
 import { RevenueController } from './revenue.controller.js';
+import { InstructorTeachingStatsController } from './instructor-teaching-stats.controller.js';
 import { EnrollmentModule } from '../enrollment/enrollment.module.js';
 import { CourseModule } from '../course/course.module.js';
 import { UserModule } from '../user/user.module.js';
+import { ReviewModule } from '../review/review.module.js';
 import { PaymentReadinessService } from './services/payment-readiness.service.js';
 
 @Module({
@@ -31,9 +33,10 @@ import { PaymentReadinessService } from './services/payment-readiness.service.js
     ]),
     EnrollmentModule,
     UserModule,
+    ReviewModule,
     forwardRef(() => CourseModule),
   ],
-  controllers: [PaymentController, RevenueController],
+  controllers: [PaymentController, RevenueController, InstructorTeachingStatsController],
   providers: [
     PaymentRepository,
     CommissionSettingRepository,

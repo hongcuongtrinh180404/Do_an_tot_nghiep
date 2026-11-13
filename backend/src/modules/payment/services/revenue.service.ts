@@ -14,6 +14,7 @@ import {
   type IInstructorCourseRevenue,
   type ICommissionConfig,
   type ICommissionHistoryItem,
+  type ITeachingStatsOverview,
   RoleEnum,
 } from 'share-lib';
 import { BaseService, PaginationResult } from '../../base/index.js';
@@ -24,6 +25,7 @@ import {
 import { CommissionHistoryRepository } from '../repositories/commission-history.repository.js';
 import { OrderRepository } from '../../enrollment/repositories/order.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
+import { ReviewRepository } from '../../review/repositories/review.repository.js';
 import {
   RevenueTimeRangeQueryDto,
   RevenueTransactionsQueryDto,
@@ -31,6 +33,7 @@ import {
   UpdateCommissionConfigDto,
   UpdateInstructorCommissionDto,
 } from '../dto/revenue.dto.js';
+import { InstructorCoursesRevenueQueryDto } from '../dto/instructor-teaching-stats.dto.js';
 import {
   parseRevenueTimeRange,
 } from '../utils/revenue-date.util.js';
@@ -42,6 +45,7 @@ export class RevenueService extends BaseService<ICommissionSettingDomain, string
     protected readonly commissionHistoryRepository: CommissionHistoryRepository,
     protected readonly orderRepository: OrderRepository,
     protected readonly userRepository: UserRepository,
+    protected readonly reviewRepository: ReviewRepository,
     cls: ClsService,
   ) {
     super(commissionSettingRepository, cls, RevenueService.name);
@@ -62,8 +66,10 @@ export class RevenueService extends BaseService<ICommissionSettingDomain, string
       query.startDate,
       query.endDate,
     );
-    const dbItems = await this.orderRepository.getRevenueChart(startDate, endDate, groupBy);
-    return this.fillMissingChartData(dbItems, startDate, endDate, groupBy);
+    const effectiveStart = startDate ?? new Date(Date.now() - 365 * 86400000);
+    const effectiveEnd = endDate ?? new Date();
+    const dbItems = await this.orderRepository.getRevenueChart(effectiveStart, effectiveEnd, groupBy);
+    return this.fillMissingChartData(dbItems, effectiveStart, effectiveEnd, groupBy);
   }
 
   private fillMissingChartData(
@@ -240,6 +246,64 @@ export class RevenueService extends BaseService<ICommissionSettingDomain, string
       endDate,
       query.page,
       query.limit,
+    );
+  }
+
+  async getInstructorTeachingOverview(
+    instructorId: string,
+    query: RevenueTimeRangeQueryDto,
+  ): Promise<ITeachingStatsOverview> {
+    const user = await this.userRepository.findById(instructorId);
+    if (!user || user.deletedAt || (user.role !== RoleEnum.INSTRUCTOR && user.role !== RoleEnum.ADMIN)) {
+      throw new NotFoundException('Không tìm thấy thông tin giảng viên');
+    }
+
+    const { startDate, endDate } = parseRevenueTimeRange(
+      query.timeRange,
+      query.startDate,
+      query.endDate,
+    );
+
+    const kpi = await this.orderRepository.getInstructorRevenueKpi(
+      instructorId,
+      startDate,
+      endDate,
+    );
+
+    const reviewStats = await this.reviewRepository.calculateInstructorReviewStats(instructorId);
+
+    return {
+      totalRevenue: kpi.totalRevenue,
+      instructorEarnings: kpi.instructorEarnings,
+      successfulSales: kpi.successfulSales,
+      averageRating: reviewStats.averageRating,
+      totalReviews: reviewStats.totalReviews,
+    };
+  }
+
+  async getInstructorCoursesStats(
+    instructorId: string,
+    query: InstructorCoursesRevenueQueryDto,
+  ): Promise<PaginationResult<IInstructorCourseRevenue>> {
+    const user = await this.userRepository.findById(instructorId);
+    if (!user || user.deletedAt || (user.role !== RoleEnum.INSTRUCTOR && user.role !== RoleEnum.ADMIN)) {
+      throw new NotFoundException('Không tìm thấy thông tin giảng viên');
+    }
+
+    const { startDate, endDate } = parseRevenueTimeRange(
+      query.timeRange,
+      query.startDate,
+      query.endDate,
+    );
+
+    return this.orderRepository.getInstructorCoursesRevenue(
+      instructorId,
+      startDate,
+      endDate,
+      query.page,
+      query.limit,
+      query.search,
+      query.sort,
     );
   }
 

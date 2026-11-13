@@ -253,15 +253,15 @@ export function ReviewDetailDialog({
                           entry.action === 'HIDE'
                             ? 'bg-amber-100 text-amber-800'
                             : entry.action === 'RESTORE'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-rose-100 text-rose-800'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-rose-100 text-rose-800'
                         }
                       >
                         {entry.action === 'HIDE'
                           ? 'ẨN ĐÁNH GIÁ'
                           : entry.action === 'RESTORE'
-                          ? 'KHÔI PHỤC'
-                          : 'XÓA MỀM'}
+                            ? 'KHÔI PHỤC'
+                            : 'XÓA MỀM'}
                       </Badge>
                       <span className="text-[11px] text-muted-foreground">
                         {formatDate(entry.createdAt)}

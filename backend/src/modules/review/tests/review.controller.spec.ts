@@ -20,6 +20,8 @@ describe('ReviewController', () => {
       createReview: vi.fn(),
       updateReview: vi.fn(),
       deleteReview: vi.fn(),
+      getInstructorStats: vi.fn(),
+      getInstructorReviews: vi.fn(),
     };
 
     controller = new ReviewController(mockService as unknown as ReviewService);
@@ -82,6 +84,31 @@ describe('ReviewController', () => {
 
     expect(mockService.deleteReview).toHaveBeenCalledWith('user_1', 'rev_1');
     expect(res.data.success).toBe(true);
+  });
+
+  it('7. should have @Roles metadata for instructor endpoints', () => {
+    const statsRoles = reflector.get<RoleEnum[]>(ROLES_KEY, ReviewController.prototype.getInstructorStats);
+    const reviewsRoles = reflector.get<RoleEnum[]>(ROLES_KEY, ReviewController.prototype.getInstructorReviews);
+
+    expect(statsRoles).toContain(RoleEnum.INSTRUCTOR);
+    expect(reviewsRoles).toContain(RoleEnum.INSTRUCTOR);
+  });
+
+  it('8. should call service.getInstructorStats and getInstructorReviews', async () => {
+    const mockStats = { averageRating: 4.9, totalReviews: 10, distribution: [] };
+    (mockService.getInstructorStats as ReturnType<typeof vi.fn>).mockResolvedValue(mockStats);
+
+    const statsRes = await controller.getInstructorStats('inst_1', 'course_1');
+    expect(mockService.getInstructorStats).toHaveBeenCalledWith('inst_1', 'course_1');
+    expect(statsRes.data).toEqual(mockStats);
+
+    const mockReviews = { items: [], total: 0, page: 1, limit: 10, totalPages: 1 };
+    (mockService.getInstructorReviews as ReturnType<typeof vi.fn>).mockResolvedValue(mockReviews);
+
+    const query = { page: 1, limit: 10, sort: 'created_desc' };
+    const revsRes = await controller.getInstructorReviews('inst_1', query);
+    expect(mockService.getInstructorReviews).toHaveBeenCalledWith('inst_1', query);
+    expect(revsRes.data).toEqual(mockReviews);
   });
 });
 

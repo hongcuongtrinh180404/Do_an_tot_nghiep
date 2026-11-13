@@ -28,7 +28,7 @@ export interface IPublicCoursesResult {
   totalPages: number;
 }
 
-function formatCourseDuration(totalSeconds?: number | null, lessonsCount?: number | null): string {
+export function formatCourseDuration(totalSeconds?: number | null, lessonsCount?: number | null): string {
   if (totalSeconds && totalSeconds > 0) {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -43,26 +43,57 @@ function formatCourseDuration(totalSeconds?: number | null, lessonsCount?: numbe
   return 'Nhiều bài học';
 }
 
-function mapCourseToPublicCard(course: ICourse): IPublicCourseCard {
-  const instructorName = course.instructor?.fullName || 'Giảng viên Mindly';
-  const instructorAvatar = course.instructor?.avatarUrl || '';
-  const categoryName = course.category?.name || 'Chuyên môn';
-  const categorySlug = course.category?.slug || '';
+export function mapCourseToPublicCard(
+  course: ICourse,
+  fallbackDurationMs?: number | null,
+): IPublicCourseCard {
+  const rawCat = course.categoryId as unknown;
+  const categoryName =
+    course.category?.name ||
+    (rawCat !== null && typeof rawCat === 'object' && 'name' in (rawCat as Record<string, unknown>)
+      ? String((rawCat as Record<string, unknown>).name)
+      : 'Chuyên môn');
+  const categorySlug =
+    course.category?.slug ||
+    (rawCat !== null && typeof rawCat === 'object' && 'slug' in (rawCat as Record<string, unknown>)
+      ? String((rawCat as Record<string, unknown>).slug)
+      : '');
+
+  const rawInst = course.instructorId as unknown;
+  const instructorName =
+    course.instructor?.fullName ||
+    (rawInst !== null && typeof rawInst === 'object' && 'fullName' in (rawInst as Record<string, unknown>)
+      ? String((rawInst as Record<string, unknown>).fullName)
+      : 'Giảng viên Mindly');
+  const instructorAvatar =
+    course.instructor?.avatarUrl ||
+    (rawInst !== null && typeof rawInst === 'object' && 'avatarUrl' in (rawInst as Record<string, unknown>)
+      ? String((rawInst as Record<string, unknown>).avatarUrl || '')
+      : '');
+
   const studentCount = course.studentsCount ?? 0;
   const rating = course.ratingAvg ?? 0;
   const reviewCount = course.reviewCount ?? 0;
   const lessonsCount = course.lessonsCount ?? 0;
   const isFeatured = studentCount >= 5 || (reviewCount > 0 && rating >= 4.5);
 
+  const durationSec =
+    course.totalDuration && course.totalDuration > 0
+      ? course.totalDuration
+      : fallbackDurationMs && fallbackDurationMs > 0
+        ? Math.round(fallbackDurationMs / 1000)
+        : 0;
+
   return {
     ...course,
+    thumbnailUrl: course.thumbnailUrl || '',
     instructorName,
     instructorTitle: 'Chuyên gia giảng dạy',
     instructorAvatar,
     rating,
     reviewCount,
     studentCount,
-    durationFormatted: formatCourseDuration(course.totalDuration, course.lessonsCount),
+    durationFormatted: formatCourseDuration(durationSec, lessonsCount),
     lessonsCount,
     categorySlug,
     categoryName,

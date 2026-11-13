@@ -35,9 +35,9 @@ describe('EnrollmentService', () => {
     );
   });
 
-  it('recognizes the author of a published course', async () => {
-    expect(await service.checkEnrollment('teacher', 'course')).toBe(true);
-    expect(enrollments.findByUserAndCourse).not.toHaveBeenCalled();
+  it('does not consider authorship as an active enrollment', async () => {
+    expect(await service.checkEnrollment('teacher', 'course')).toBe(false);
+    expect(enrollments.findByUserAndCourse).toHaveBeenCalledWith('teacher', 'course', undefined);
   });
 
   it('recognizes an active enrollment', async () => {
@@ -51,10 +51,10 @@ describe('EnrollmentService', () => {
     expect(await service.checkEnrollment('student', 'course')).toBe(false);
   });
 
-  it('returns enrolled courses and merges published authored courses without duplicates', async () => {
+  it('returns only enrolled courses and does not include authored courses for instructors', async () => {
     expect(await service.getMyPurchasedCourses('student', RoleEnum.STUDENT)).toEqual([course]);
     courses.findByInstructorId.mockResolvedValue([course, { ...course, id: 'authored' }, { ...course, id: 'draft', status: CourseStatusEnum.DRAFT }]);
-    expect((await service.getMyPurchasedCourses('teacher', RoleEnum.INSTRUCTOR)).map((item) => item.id)).toEqual(['course', 'authored']);
+    expect(await service.getMyPurchasedCourses('teacher', RoleEnum.INSTRUCTOR)).toEqual([course]);
   });
 
   it('registers a free course without creating any order or payment', async () => {

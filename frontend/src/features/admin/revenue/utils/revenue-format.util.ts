@@ -19,10 +19,10 @@ export function formatDateVn(dateStr?: string | null): string {
   }
 }
 
-export function formatTimeVn(dateStr?: string | null): string {
+export function formatTimeVn(dateStr?: string | Date | null): string {
   if (!dateStr) return '--';
   try {
-    const d = new Date(dateStr);
+    const d = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
     if (!Number.isFinite(d.getTime())) return '--';
     const hours = String(d.getHours()).padStart(2, '0');
     const minutes = String(d.getMinutes()).padStart(2, '0');
@@ -32,10 +32,10 @@ export function formatTimeVn(dateStr?: string | null): string {
   }
 }
 
-export function formatDateTimeVn(dateStr?: string | null): string {
+export function formatDateTimeVn(dateStr?: string | Date | null): string {
   if (!dateStr) return '--';
   try {
-    const d = new Date(dateStr);
+    const d = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
     if (!Number.isFinite(d.getTime())) return '--';
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');

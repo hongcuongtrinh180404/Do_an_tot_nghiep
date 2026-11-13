@@ -156,8 +156,8 @@ export function MindlyLogo({
             .mindly-brand-slogan {
               font-family: var(--font-heading), var(--font-roboto), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
               font-weight: 800;
-              font-size: 8.8px;
-              letter-spacing: 3.8px;
+              font-size: 9.2px;
+              letter-spacing: 3.4px;
             }
           `}
         </style>

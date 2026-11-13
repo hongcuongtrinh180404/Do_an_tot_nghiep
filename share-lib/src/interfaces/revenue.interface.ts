@@ -103,6 +103,15 @@ export interface IInstructorCourseRevenue {
   thumbnailUrl?: string | null;
   successfulSales: number;
   totalRevenue: number;
+  instructorEarnings?: number;
+}
+
+export interface ITeachingStatsOverview {
+  totalRevenue: number;
+  instructorEarnings: number;
+  successfulSales: number;
+  averageRating: number;
+  totalReviews: number;
 }
 
 export interface ICommissionConfig {

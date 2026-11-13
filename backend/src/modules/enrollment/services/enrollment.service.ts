@@ -39,11 +39,6 @@ export class EnrollmentService extends BaseService<IEnrollment, string> {
       return false;
     }
 
-    // Giảng viên tạo khóa học tự động được xem là sở hữu khóa học khi khóa học đã công khai
-    if (course.instructorId === userId && course.status === CourseStatusEnum.PUBLISHED) {
-      return true;
-    }
-
     const enrollment = await this.enrollmentRepository.findByUserAndCourse(
       userId,
       courseId,
@@ -55,7 +50,7 @@ export class EnrollmentService extends BaseService<IEnrollment, string> {
 
   async getMyPurchasedCourses(
     userId: string,
-    userRole?: RoleEnum,
+    _userRole?: RoleEnum,
     session?: ClientSession,
   ): Promise<ICourse[]> {
     const enrollments = await this.enrollmentRepository.findUserEnrollments(userId, session);
@@ -65,18 +60,6 @@ export class EnrollmentService extends BaseService<IEnrollment, string> {
     for (const enrollment of enrollments) {
       if (enrollment.course && !enrollment.course.deletedAt) {
         courseMap.set(enrollment.course.id, enrollment.course);
-      }
-    }
-
-    // Nếu người dùng là Giảng viên (hoặc có khóa học do mình xuất bản), tự động đưa vào danh sách Khóa học đã mua
-    if (userRole === RoleEnum.INSTRUCTOR || userRole === RoleEnum.ADMIN) {
-      const authoredCourses = await this.courseRepository.findByInstructorId(userId, session);
-      for (const authored of authoredCourses) {
-        if (authored.status === CourseStatusEnum.PUBLISHED && !authored.deletedAt) {
-          if (!courseMap.has(authored.id)) {
-            courseMap.set(authored.id, authored);
-          }
-        }
       }
     }
 
@@ -125,7 +108,7 @@ export class EnrollmentService extends BaseService<IEnrollment, string> {
 
     // Kiểm tra nếu giảng viên mua chính khóa học của mình
     if (course.instructorId === userId) {
-      throw new ConflictException('Bạn là giảng viên tạo khóa học này, bạn đã tự động sở hữu khóa học');
+      throw new ConflictException('Bạn là giảng viên tạo khóa học này, không thể tự đăng ký khóa học của chính mình');
     }
 
     const existingEnrollment = await this.enrollmentRepository.findByUserAndCourse(

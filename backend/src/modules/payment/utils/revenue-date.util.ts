@@ -3,8 +3,8 @@
  */
 
 export interface ParsedTimeRange {
-  startDate: Date;
-  endDate: Date;
+  startDate?: Date;
+  endDate?: Date;
   groupBy: 'day' | 'month';
 }
 
@@ -98,6 +98,15 @@ export function parseRevenueTimeRange(
   const range = (timeRange || '30days').toLowerCase();
 
   switch (range) {
+    case 'all':
+    case 'all_time': {
+      return {
+        startDate: undefined,
+        endDate: undefined,
+        groupBy: 'month',
+      };
+    }
+
     case 'today': {
       return {
         startDate: createVnDate(vn.year, vn.month, vn.day, 0, 0, 0, 0),

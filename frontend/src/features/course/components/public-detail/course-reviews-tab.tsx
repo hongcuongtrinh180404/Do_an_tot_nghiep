@@ -198,18 +198,16 @@ export function CourseReviewsTab({
         ) : myReview && !isEditingMyReview ? (
           /* Đã có đánh giá -> Hiển thị review của chính mình */
           <div
-            className={`rounded-2xl border-2 p-6 space-y-3 shadow-xs ${
-              myReview.status === 'hidden'
+            className={`rounded-2xl border-2 p-6 space-y-3 shadow-xs ${myReview.status === 'hidden'
                 ? 'border-amber-300 bg-amber-50/50'
                 : 'border-[#027D88]/30 bg-[#f3fcfc]'
-            }`}
+              }`}
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-2 flex-wrap">
                 <span
-                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-white text-[11px] font-bold ${
-                    myReview.status === 'hidden' ? 'bg-amber-600' : 'bg-[#027D88]'
-                  }`}
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-white text-[11px] font-bold ${myReview.status === 'hidden' ? 'bg-amber-600' : 'bg-[#027D88]'
+                    }`}
                 >
                   <Icon
                     icon={myReview.status === 'hidden' ? 'lucide:eye-off' : 'lucide:check'}
@@ -347,8 +345,8 @@ export function CourseReviewsTab({
                 <article
                   key={review.id}
                   className={`rounded-2xl border p-5 transition-colors ${isOwner
-                      ? 'border-[#027D88]/30 bg-[#f9fefe]'
-                      : 'border-[#e5e7eb] bg-white'
+                    ? 'border-[#027D88]/30 bg-[#f9fefe]'
+                    : 'border-[#e5e7eb] bg-white'
                     }`}
                 >
                   <div className="flex items-start justify-between gap-4">

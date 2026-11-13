@@ -44,6 +44,8 @@ describe('ReviewService', () => {
       addModerationEntry: vi.fn(),
       addReportEntry: vi.fn(),
       dismissReports: vi.fn(),
+      calculateInstructorReviewStats: vi.fn(),
+      findInstructorReviews: vi.fn(),
       withTransaction: vi.fn().mockImplementation((fn: (s: unknown) => unknown) => fn({})),
     };
 
@@ -611,6 +613,41 @@ describe('ReviewService', () => {
 
       expect(mockReviewRepo.dismissReports).toHaveBeenCalledWith(reviewId);
       expect(result.reportCount).toBe(0);
+    });
+
+    it('26. should return instructor review stats via repository', async () => {
+      const mockStats = {
+        averageRating: 4.9,
+        totalReviews: 30,
+        distribution: [
+          { stars: 5, count: 27, percentage: 90 },
+          { stars: 4, count: 3, percentage: 10 },
+          { stars: 3, count: 0, percentage: 0 },
+          { stars: 2, count: 0, percentage: 0 },
+          { stars: 1, count: 0, percentage: 0 },
+        ],
+      };
+      (mockReviewRepo.calculateInstructorReviewStats as ReturnType<typeof vi.fn>).mockResolvedValue(mockStats);
+
+      const res = await service.getInstructorStats(instructorId, courseId);
+      expect(res).toEqual(mockStats);
+      expect(mockReviewRepo.calculateInstructorReviewStats).toHaveBeenCalledWith(instructorId, courseId);
+    });
+
+    it('27. should return instructor reviews list via repository', async () => {
+      const mockList = {
+        items: [],
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+      };
+      (mockReviewRepo.findInstructorReviews as ReturnType<typeof vi.fn>).mockResolvedValue(mockList);
+
+      const query = { page: 1, limit: 10, sort: 'created_desc' };
+      const res = await service.getInstructorReviews(instructorId, query);
+      expect(res).toEqual(mockList);
+      expect(mockReviewRepo.findInstructorReviews).toHaveBeenCalledWith(instructorId, query);
     });
   });
 });

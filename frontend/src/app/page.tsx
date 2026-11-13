@@ -48,7 +48,7 @@ function HomeContent(): React.JSX.Element {
   }, [router]);
 
   return (
-    <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden flex flex-col bg-background text-foreground selection:bg-foreground selection:text-background">
+    <div className="min-h-[100dvh] w-full max-w-full overflow-x-clip flex flex-col bg-background text-foreground selection:bg-foreground selection:text-background">
       {/* 1. Global Navigation Header */}
       <PublicHeader
         onSearchSubmit={handleSearchSubmit}

@@ -48,6 +48,44 @@
 ### 3. Root Causes & Gotchas Resolved
 - **Gotcha 1: `PaginationResult` name collision**: Cả `users-admin.api.ts` và `revenue-admin.api.ts` cùng export `PaginationResult`, dẫn đến lỗi TS2308 khi export trong `src/features/admin/index.ts`. Giải pháp: đổi thành `RevenuePaginationResult<T>` trong revenue API client tương tự như `AdminCoursesPaginationResult<T>`.
 - **Gotcha 2: Button `asChild` không hỗ trợ trong `@base-ui/react/button`**: Dự án dùng `@base-ui/react/button` thay vì Radix UI, nên prop `asChild` bị báo lỗi type. Giải pháp: render trực tiếp thẻ `<Link>` của Next.js với class button tiện ích.
+
+---
+
+## 2026-11-12: Triển khai Trang "Thống kê giảng dạy" Dành Riêng Cho Giảng Viên
+
+### 1. Yêu cầu & Bối cảnh
+- Xây dựng trang Thống kê giảng dạy (`/instructor/statistics`) chuyên biệt cho tài khoản Giảng viên theo dõi 4 phân khu chính:
+  1. Tổng quan (4 KPI Cards: Tổng doanh thu trước hoa hồng, Thu nhập sau hoa hồng theo tỷ lệ thực tế từng giao dịch, Lượt mua thành công, Đánh giá trung bình kèm số lượng đánh giá hợp lệ).
+  2. Doanh thu theo khóa học (Bảng thống kê với thumbnail, tên, số lượt mua, tổng doanh thu, thu nhập sau hoa hồng, tìm kiếm, sắp xếp doanh thu/thu nhập/lượt mua, phân trang, hiển thị cả khóa 0 doanh thu và khóa học ngừng bán).
+  3. Thống kê đánh giá (Điểm TB, tổng lượt đánh giá, phân bổ thanh tiến trình 1-5 sao theo tỷ lệ thực tế, lọc theo tất cả khóa học hoặc từng khóa học cụ thể).
+  4. Đánh giá gần đây (Card nhận xét học viên với tên, avatar, khóa học, điểm sao, nội dung nhận xét, thời gian, hỗ trợ lọc theo khóa học, lọc 1-5 sao, sắp xếp mới nhất/cũ nhất, phân trang).
+- Bảo mật nghiêm ngặt: Phân quyền tại Backend `@Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)`, cách ly dữ liệu bằng `@CurrentUser('id')`, không lộ thông tin giao dịch, số tài khoản học viên hay mã SePay.
+- Giao diện chuẩn Anti-Slop (`design-taste-frontend` v2, `references/app-screens.md`): Không icon viền dạ quang, không gradient sặc sỡ, cấm màu tím (Purple Ban), typography sắc nét, căn phải chuẩn xác số liệu tiền tệ `tabular-nums`.
+
+### 2. Implementation Details
+- **`share-lib`**:
+  - `IInstructorCourseRevenue`: Thêm `instructorEarnings?: number`.
+  - `ITeachingStatsOverview`: Định nghĩa interface cho 4 KPI tổng quan.
+- **Backend (`backend/src/modules/`)**:
+  - `OrderRepository.getInstructorCoursesRevenue`: Bổ sung tham số `search` (regex case-insensitive), `sort` (`revenue_desc`, `earnings_desc`, `sales_desc`), projection `instructorEarnings` từ đơn hàng kèm fallback.
+  - `ReviewRepository`: Bổ sung `calculateInstructorReviewStats` (hỗ trợ lọc theo `courseId` hoặc tổng hợp tất cả khóa học) và `findInstructorReviews` (lọc đánh giá hợp lệ `status === ReviewStatusEnum.VISIBLE` và `deletedAt === null`, hỗ trợ lọc sao, lọc khóa học, sắp xếp, phân trang).
+  - `RevenueService`: Thêm `getInstructorTeachingOverview` và `getInstructorCoursesStats`.
+  - `InstructorTeachingStatsController`: Khởi tạo controller `@Controller('instructor/teaching-stats')` với 2 endpoint `@Get('overview')` và `@Get('courses')`.
+  - `ReviewController`: Bổ sung 2 endpoint `@Get('instructor/stats')` và `@Get('instructor')`.
+  - Tests: Đầy đủ 52 unit test cases vượt qua 100% trong `instructor-teaching-stats.controller.spec.ts`, `revenue.service.spec.ts`, `review.controller.spec.ts`, `review.service.spec.ts`.
+- **Frontend (`frontend/src/features/instructor/statistics/`)**:
+  - `teaching-stats.api.ts`: API client và TanStack Query hooks.
+  - `teaching-revenue-time-filter.tsx`: Bộ lọc thời gian (Tất cả thời gian [mặc định], 7 ngày, 30 ngày, Tháng này, Năm nay).
+  - `teaching-overview-cards.tsx`: 4 thẻ KPI tổng quan chuẩn typography.
+  - `course-revenue-table.tsx`: Bảng doanh thu theo khóa học với tìm kiếm, sắp xếp và phân trang.
+  - `teaching-review-stats-section.tsx`: Thống kê phân bổ sao 1-5 kèm lọc theo khóa học.
+  - `teaching-recent-reviews-section.tsx`: Thẻ nhận xét học viên, xử lý đánh giá chỉ có sao không có văn bản.
+  - `teaching-stats-view.tsx`: Điều phối 4 section mượt mà trên 1 trang.
+  - `page.tsx`: Route `/instructor/statistics` bọc trong `InstructorCourseAccess`.
+  - Điều hướng: Thêm nút "Thống kê giảng dạy" vào `CourseHeader`, `PublicHeader` (desktop nav, mobile drawer, user popover).
+
+### 3. Root Causes & Gotchas Resolved
+- **Gotcha: Mặc định lọc thời gian "Tất cả thời gian"**: Trong `revenue-date.util.ts`, trước đây `all` bị rơi vào `default` (30 ngày). Đã bổ sung `case 'all': case 'all_time':` trả về `startDate: undefined, endDate: undefined`, qua đó không áp đặt điều kiện ngày tháng lên MongoDB query, đảm bảo trả về chính xác toàn bộ lịch sử giao dịch.
 - **Gotcha 3: Cache stale types của `.next` sau khi xóa thư mục `/admin/orders`**: Next.js cache kiểu trang cũ gây lỗi TS2307. Giải pháp: xóa thư mục `frontend/.next`, `tsc --noEmit` hoàn thành thành công không còn lỗi nào.
 
 ---

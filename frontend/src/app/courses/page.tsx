@@ -31,7 +31,7 @@ function CatalogSkeleton(): React.JSX.Element {
 
 function CoursesPageContent(): React.JSX.Element {
   return (
-    <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden flex flex-col bg-background text-foreground">
+    <div className="min-h-[100dvh] w-full max-w-full overflow-x-clip flex flex-col bg-background text-foreground">
       {/* 1. Global Navigation Header */}
       <PublicHeader />
 

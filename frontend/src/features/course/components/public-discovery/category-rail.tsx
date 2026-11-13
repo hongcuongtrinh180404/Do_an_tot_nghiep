@@ -88,15 +88,15 @@ export function CategoryRail({
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 md:mb-8 gap-4">
           <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#161616]">
+            <div className="flex flex-wrap items-baseline gap-2.5 sm:gap-3">
+              <h2 className="text-2xl sm:text-[26px] md:text-[28px] lg:text-[30px] font-bold tracking-tight text-[#161616] dark:text-neutral-100">
                 Khám phá theo lĩnh vực chuyên môn
               </h2>
-              <span className="text-xs sm:text-sm text-neutral-500 font-medium">
+              <span className="text-xs sm:text-sm text-neutral-500 font-medium whitespace-nowrap">
                 {isLoading ? 'Đang tải...' : `${totalCourses} khóa học sẵn có`}
               </span>
             </div>
-            <p className="mt-1 text-sm sm:text-base text-neutral-600">
+            <p className="mt-1.5 text-[15px] sm:text-base text-neutral-600 dark:text-neutral-400 leading-relaxed">
               Tuyển tập các khóa học video chất lượng cao tích hợp bộ công cụ trợ lý AI
             </p>
           </div>
@@ -159,10 +159,10 @@ export function CategoryRail({
                     className="object-cover size-full transform transition-transform duration-500 ease-out group-hover:scale-105"
                   />
 
-                  {/* Gentle bottom scrim overlay for text contrast (reduced >50%, bright inside) */}
+                  {/* Enhanced bottom scrim gradient overlay for strong text legibility on bright artworks */}
                   <div
                     aria-hidden="true"
-                    className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/40 via-black/15 to-transparent transition-opacity"
+                    className="absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity pointer-events-none"
                   />
 
                   {/* Active Selected Check Indicator */}
@@ -173,8 +173,8 @@ export function CategoryRail({
                   ) : null}
 
                   {/* Category Name at Bottom-Left */}
-                  <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4 z-10 flex flex-col justify-end">
-                    <h3 className="text-white text-xs sm:text-sm md:text-base font-semibold leading-snug tracking-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] line-clamp-2">
+                  <div className="absolute inset-x-0 bottom-0 p-3.5 sm:p-4 z-10 flex flex-col justify-end text-left pointer-events-none">
+                    <h3 className="text-white text-base sm:text-[17px] lg:text-[18px] font-semibold md:font-bold leading-snug tracking-tight drop-shadow-[0_1.5px_3px_rgba(0,0,0,0.85)] line-clamp-2 break-words">
                       {category.name}
                     </h3>
                   </div>

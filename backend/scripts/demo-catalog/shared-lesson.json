@@ -1,0 +1,77 @@
+{
+  "title": "Phương pháp học trực tuyến và thực hành hiệu quả",
+  "overview": "Video demo 7 phút hướng dẫn xác định mục tiêu, chia nhỏ nội dung, ghi chú chủ động, tự kiểm tra, thực hành, nhận phản hồi và duy trì lịch học. Các nguyên tắc có thể áp dụng cho mọi danh mục khóa học.",
+  "conclusion": "Hoàn thành một chu trình học: đặt mục tiêu rõ, học từng phần, tự giải thích, thực hành có sản phẩm, kiểm tra kết quả và lên lịch ôn lại.",
+  "topics": [
+    {
+      "title": "Đặt mục tiêu có thể kiểm tra",
+      "explanation": "Một mục tiêu học tập cần hành động cụ thể, sản phẩm đầu ra và thời hạn. Mục tiêu càng rõ, bạn càng dễ chọn nội dung và biết mình đã tiến bộ ở đâu.",
+      "example": "Thay vì nói học Excel tốt hơn, hãy đặt mục tiêu: tối nay tạo một bảng chi tiêu có công thức tổng và kiểm tra kết quả bằng phép tính tay.",
+      "narration": "Chào mừng bạn đến với bài học về phương pháp học trực tuyến và thực hành hiệu quả. Trong bảy phút, chúng ta sẽ đi qua một chu trình học có thể áp dụng cho nhiều lĩnh vực. Bước đầu tiên là đặt mục tiêu có thể kiểm tra. Một mục tiêu tốt có ba thành phần: hành động cụ thể, sản phẩm đầu ra và thời hạn. Thay vì nói tôi muốn học Excel tốt hơn, hãy nói tối nay tôi sẽ tạo một bảng chi tiêu có công thức tổng và kiểm tra kết quả bằng phép tính tay. Nếu học ngoại ngữ, sản phẩm có thể là một đoạn ghi âm giới thiệu bản thân. Nếu học thiết kế, đó có thể là một poster có tiêu đề dễ đọc. Hãy dành một phút viết mục tiêu của bạn trước khi xem bài giảng. Sau mỗi buổi học, nhìn lại sản phẩm để đánh giá tiến bộ.",
+      "question": "Mục tiêu nào có thể kiểm tra rõ nhất sau một buổi học?",
+      "options": ["Tạo bảng chi tiêu có công thức tổng trước tối nay", "Học giỏi hơn vào một lúc nào đó", "Xem càng nhiều video càng tốt", "Biết tất cả mọi thứ về Excel"],
+      "answer": 0,
+      "answerExplanation": "Mục tiêu này nêu rõ hành động, sản phẩm đầu ra và thời hạn, nên có thể đối chiếu sau buổi học."
+    },
+    {
+      "title": "Chia nhỏ nội dung và chuẩn bị môi trường",
+      "explanation": "Chia mục tiêu lớn thành từng nhiệm vụ nhỏ. Chuẩn bị công cụ, chọn khoảng thời gian phù hợp và giảm thông báo gây xao nhãng trước khi bắt đầu.",
+      "example": "Một buổi học làm báo cáo có thể chia thành: nhập dữ liệu, kiểm tra dữ liệu, tính chỉ số và trình bày kết quả. Hoàn thành từng bước rồi mới chuyển tiếp.",
+      "narration": "Bước thứ hai là chia nhỏ nội dung và chuẩn bị môi trường. Một mục tiêu lớn thường khiến chúng ta khó bắt đầu vì chưa biết làm gì trước. Hãy tách mục tiêu thành những nhiệm vụ nhỏ có thứ tự. Ví dụ, để làm một báo cáo, bạn cần nhập dữ liệu, kiểm tra dữ liệu, tính chỉ số rồi trình bày kết quả. Mỗi bước có một dấu hiệu hoàn thành rõ ràng. Trước buổi học, mở sẵn tài liệu, chuẩn bị công cụ ghi chú và đóng những cửa sổ không liên quan. Chọn một khoảng thời gian vừa sức, sau đó dành một khoảng nghỉ ngắn. Thời lượng phù hợp có thể khác nhau giữa mỗi người và mỗi nhiệm vụ. Điều quan trọng là tập trung vào một việc thay vì liên tục chuyển qua lại. Khi gặp một khái niệm khó, đánh dấu nó và dành riêng một lượt thực hành để xử lý.",
+      "question": "Cách nào giúp bắt đầu một nhiệm vụ học tập lớn?",
+      "options": ["Mở đồng thời mọi tài liệu và ứng dụng", "Chia thành các bước nhỏ có dấu hiệu hoàn thành", "Chờ đến khi có cả ngày rảnh", "Bỏ qua công cụ cần chuẩn bị"],
+      "answer": 1,
+      "answerExplanation": "Các bước nhỏ giúp xác định việc cần làm trước, kiểm tra tiến độ và giảm cảm giác quá tải."
+    },
+    {
+      "title": "Ghi chú bằng lời của mình",
+      "explanation": "Ghi ý chính, ví dụ và câu hỏi thay vì chép toàn bộ lời giảng. Sau mỗi phần, thử giải thích lại bằng một câu đơn giản và liên hệ với tình huống thực tế.",
+      "example": "Chia trang ghi chú thành ba mục: điều vừa học, ví dụ minh họa và điều còn thắc mắc. Thêm một dòng mô tả cách bạn có thể áp dụng kiến thức.",
+      "narration": "Bước thứ ba là ghi chú bằng lời của mình. Ghi chú không phải cuộc thi chép nhanh. Nếu chỉ sao lại mọi câu trên màn hình, bạn có thể bận viết mà chưa hiểu ý chính. Hãy chia trang ghi chú thành ba phần: điều vừa học, ví dụ minh họa và điều còn thắc mắc. Khi video trình bày một khái niệm, dừng lại và thử giải thích nó bằng một câu đơn giản. Sau đó viết một ví dụ gần với công việc hoặc đời sống của bạn. Nếu chưa giải thích được, quay lại đúng đoạn cần xem thay vì xem lại toàn bộ từ đầu. Có thể dùng sơ đồ tư duy để thể hiện quan hệ giữa các ý, nhưng mỗi nhánh nên có nội dung rõ ràng. Kết thúc phần học, thêm một dòng trả lời câu hỏi: kiến thức này giúp tôi làm được việc gì? Câu trả lời sẽ dẫn bạn sang bước thực hành.",
+      "question": "Một trang ghi chú chủ động nên ưu tiên nội dung nào?",
+      "options": ["Chép nguyên văn mọi câu trong video", "Chỉ ghi thời lượng video", "Ý chính, ví dụ và câu hỏi bằng lời của mình", "Chỉ trang trí mà không ghi nội dung"],
+      "answer": 2,
+      "answerExplanation": "Tự diễn đạt và gắn ví dụ giúp kiểm tra mức hiểu, đồng thời làm rõ câu hỏi cần giải quyết."
+    },
+    {
+      "title": "Tự kiểm tra bằng cách truy hồi",
+      "explanation": "Tạm đóng tài liệu và thử nhớ lại kiến thức. Trả lời câu hỏi trước khi xem đáp án, giải thích lý do lựa chọn rồi đối chiếu để tìm lỗ hổng cần ôn.",
+      "example": "Sau khi học một quy trình ba bước, hãy viết lại ba bước từ trí nhớ, so với tài liệu và đánh dấu phần bị thiếu hoặc nhầm thứ tự.",
+      "narration": "Bước thứ tư là tự kiểm tra bằng cách truy hồi. Đọc lại một đoạn quen thuộc có thể tạo cảm giác rằng bạn đã hiểu, nhưng cảm giác quen chưa chứng minh bạn có thể sử dụng kiến thức. Hãy tạm đóng tài liệu và thử nhớ lại nội dung. Ví dụ, sau khi học một quy trình ba bước, viết lại các bước từ trí nhớ rồi đối chiếu với tài liệu. Khi trả lời câu hỏi trắc nghiệm, chọn đáp án trước khi xem phần giải thích và nói rõ vì sao bạn chọn. Nếu trả lời sai, xác định mình nhầm khái niệm, bỏ sót dữ kiện hay đọc chưa kỹ câu hỏi. Ghi lại một câu sửa lỗi để lần sau kiểm tra lại. Những câu hỏi trong video là điểm dừng để suy nghĩ, không chỉ là thao tác bấm tiếp. Sau vài ngày, làm lại câu hỏi mà không nhìn ghi chú để xem kiến thức còn được nhớ đến đâu.",
+      "question": "Hành động nào là một ví dụ của truy hồi kiến thức?",
+      "options": ["Đọc đáp án trước khi trả lời", "Đọc lại cùng một đoạn mà không tự hỏi", "Chỉ xem phần đã tô màu", "Đóng tài liệu và viết lại quy trình từ trí nhớ"],
+      "answer": 3,
+      "answerExplanation": "Truy hồi yêu cầu tự nhớ lại thông tin trước khi đối chiếu, từ đó phát hiện phần chưa hiểu hoặc đã quên."
+    },
+    {
+      "title": "Thực hành với một sản phẩm nhỏ",
+      "explanation": "Chuyển kiến thức thành hành động bằng một bài tập có đầu vào, yêu cầu và kết quả cụ thể. Bắt đầu từ ví dụ mẫu rồi thay đổi một dữ kiện để kiểm tra khả năng vận dụng.",
+      "example": "Sau khi làm theo mẫu bảng chi tiêu, thêm một nhóm chi mới và kiểm tra công thức. Khi học viết nội dung, tự viết một bài cho đối tượng khác với ví dụ.",
+      "narration": "Bước thứ năm là thực hành với một sản phẩm nhỏ. Xem người khác làm chỉ là khởi đầu; bạn cần tự đưa ra lựa chọn và xử lý lỗi của mình. Chọn một bài tập có đầu vào, yêu cầu và kết quả cụ thể. Đầu tiên, làm theo ví dụ mẫu để hiểu thứ tự thao tác. Tiếp theo, thay đổi một dữ kiện rồi thực hiện lại. Nếu học bảng tính, thêm một nhóm chi mới và kiểm tra công thức tổng. Nếu học viết nội dung, viết một bài cho nhóm người đọc khác với ví dụ. Nếu học ngoại ngữ, thay bối cảnh của đoạn hội thoại và tự ghi âm. Đừng cố làm một dự án quá lớn ngay trong lần đầu. Một sản phẩm nhỏ hoàn thành và kiểm tra được sẽ cho phản hồi rõ hơn. Lưu lại bản đầu cùng bản đã sửa để nhìn thấy sự khác biệt giữa hiểu lý thuyết và làm được trong thực tế.",
+      "question": "Sau khi làm được ví dụ mẫu, bước tiếp theo hữu ích là gì?",
+      "options": ["Thay đổi một dữ kiện và tự thực hiện lại", "Chỉ xem lại video mà không thao tác", "Xóa kết quả để không phải kiểm tra", "Chuyển ngay sang dự án lớn nhất"],
+      "answer": 0,
+      "answerExplanation": "Thay đổi dữ kiện kiểm tra khả năng vận dụng, thay vì chỉ lặp lại thao tác đã nhìn thấy trong mẫu."
+    },
+    {
+      "title": "Nhận phản hồi và sửa lỗi có mục đích",
+      "explanation": "Đánh giá sản phẩm bằng tiêu chí đã đặt ra. Hỏi phản hồi cụ thể, phân biệt lỗi ảnh hưởng kết quả với chi tiết trang trí và sửa từng vấn đề theo mức ưu tiên.",
+      "example": "Thay vì hỏi bài này có tốt không, hãy hỏi người xem có hiểu thông điệp chính trong năm giây không. Dùng câu trả lời để sửa tiêu đề hoặc bố cục.",
+      "narration": "Bước thứ sáu là nhận phản hồi và sửa lỗi có mục đích. Sau khi hoàn thành sản phẩm, quay lại tiêu chí trong mục tiêu ban đầu. Kết quả đã đúng yêu cầu chưa? Người khác có kiểm tra được cách làm không? Khi nhờ phản hồi, hãy đặt câu hỏi cụ thể. Thay vì hỏi bài này có tốt không, hãy hỏi người xem có hiểu thông điệp chính trong năm giây hay không. Với một bảng tính, có thể hỏi tổng tiền có khớp dữ liệu nguồn không. Với đoạn nói tiếng Anh, hỏi phần nào người nghe chưa hiểu rõ. Ghi lại phản hồi, phân biệt vấn đề ảnh hưởng kết quả với chi tiết mang tính sở thích. Chọn một hoặc hai điểm quan trọng để sửa trước, rồi kiểm tra lại. Không phải mọi góp ý đều phù hợp mục tiêu của bạn. Hãy giải thích lý do chấp nhận hoặc chưa áp dụng, dựa trên yêu cầu và bằng chứng thực tế.",
+      "question": "Câu hỏi phản hồi nào giúp cải thiện poster rõ nhất?",
+      "options": ["Bạn có thích mọi thứ trong poster không?", "Bạn có hiểu thông điệp chính trong năm giây không?", "Poster có nhiều màu hơn mọi poster khác không?", "Bạn có thể khen poster này không?"],
+      "answer": 1,
+      "answerExplanation": "Câu hỏi cụ thể gắn với tiêu chí truyền đạt giúp xác định phần cần sửa và đánh giá lại sau thay đổi."
+    },
+    {
+      "title": "Ôn tập cách quãng và duy trì lịch học",
+      "explanation": "Phân bố các lượt ôn qua nhiều ngày, kết hợp tự kiểm tra và thực hành ngắn. Theo dõi sản phẩm, lỗi đã sửa và nhiệm vụ tiếp theo để duy trì tiến bộ.",
+      "example": "Sau buổi học đầu, tự kiểm tra vào ngày hôm sau, vài ngày sau và tuần tiếp theo. Điều chỉnh lịch theo phần đã nhớ chắc và phần còn khó.",
+      "narration": "Bước cuối cùng là ôn tập cách quãng và duy trì lịch học. Thay vì dồn mọi lượt ôn vào một buổi, hãy phân bố chúng qua nhiều ngày. Sau buổi học đầu, tự kiểm tra vào ngày hôm sau, vài ngày sau và tuần tiếp theo. Đây là lịch gợi ý; bạn có thể điều chỉnh theo nội dung và mức độ nhớ của mình. Mỗi lượt ôn nên có một câu hỏi hoặc một bài thực hành nhỏ, thay vì chỉ mở tài liệu để đọc lướt. Dùng nhật ký ngắn gồm ba dòng: tôi đã làm được gì, lỗi nào đã sửa và bước tiếp theo là gì. Khi lịch học bị gián đoạn, bắt đầu lại bằng một nhiệm vụ nhỏ vừa sức. Chúng ta vừa hoàn thành chu trình đặt mục tiêu, chia nhỏ, ghi chú, tự kiểm tra, thực hành, nhận phản hồi và ôn lại. Bây giờ hãy chọn một kỹ năng, viết mục tiêu cụ thể và thực hiện sản phẩm đầu tiên của bạn.",
+      "question": "Lịch ôn nào phù hợp với nguyên tắc ôn tập cách quãng?",
+      "options": ["Dồn tất cả lượt ôn vào một buổi rồi bỏ hẳn", "Chỉ đọc lướt khi tình cờ thấy tài liệu", "Tự kiểm tra vào nhiều ngày và điều chỉnh theo mức nhớ", "Không bao giờ xem lại phần đã học"],
+      "answer": 2,
+      "answerExplanation": "Các lượt tự kiểm tra được phân bố theo thời gian giúp theo dõi phần đã nhớ và phần cần luyện thêm."
+    }
+  ]
+}

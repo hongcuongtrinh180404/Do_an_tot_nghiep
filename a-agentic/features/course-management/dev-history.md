@@ -13,6 +13,148 @@
 
 ## 2. Technical Notes & Gotchas
 
+### [2026-11-12] - Milestone 53: Tối Ưu Bố Cục Full-Width Trải Đều Section "News and Highlights" (NewsHighlightsCarousel)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trên trang chủ (`/`), section *"News and highlights"* (`NewsHighlightsCarousel`) trước đây sử dụng chiều rộng thẻ cố định theo pixel (`w-[170px] sm:w-[200px] md:w-[218px]`) và nằm trong container giới hạn `max-w-[1440px]`.
+  - Hậu quả: Thẻ khóa học không lấp đầy track hiển thị, để lại khoảng trống dư thừa lớn ở hai bên mép và bên phải track, số lượng thẻ hiển thị không tự động co giãn tối ưu theo độ rộng màn hình thực tế của người dùng.
+- **Giải pháp Triển khai (Solution & Implementation)**:
+  1. **Container Full-Width (Full-bleed 100vw)**:
+     - Thay thế `mx-auto max-w-[1440px]` bằng `w-full px-4 sm:px-6 lg:px-8`, cho phép dải slider mở rộng toàn bộ bề ngang trình duyệt.
+  2. **Tính toán Chiều rộng Thẻ Động Không Khoảng Trống Dư (Responsive Mathematical Widths)**:
+     - Áp dụng công thức `w-[calc((100% - (N - 1) * gap) / N)]` cho từng breakpoint:
+       - Mobile (`<640px`): 2 cards (`w-[calc((100%-12px)/2)]`).
+       - Small Tablet (`sm: 640px`): 3 cards (`sm:w-[calc((100%-32px)/3)]`).
+       - Medium Tablet (`md: 768px`): 4 cards (`md:w-[calc((100%-48px)/4)]`).
+       - Desktop/Laptop & Ultra-wide (`lg: 1024px+`, `xl: 1280px+` & `2xl: 1536px+`): 6 cards (`lg:w-[calc((100%-80px)/6)] xl:w-[calc((100%-80px)/6)] 2xl:w-[calc((100%-80px)/6)]`), đáp ứng yêu cầu người dùng nhìn thấy trọn vẹn 6 khóa học cùng lúc với tỷ lệ cân đối hoàn hảo.
+  3. **Bảo toàn Thiết kế & Logic**:
+     - Giữ nguyên vị trí nút điều hướng (`sm:left-[216px] md:left-[234px]` và `sm:right-[216px] md:right-[234px]`) theo đúng yêu cầu người dùng.
+     - Giữ nguyên tỉ lệ ảnh 3:4 (`aspect-[3/4]`), hiệu ứng hover zoom thumbnail, hiệu ứng trượt mở giá tiền, overlay gradient và toàn bộ logic cuộn snap.
+  4. **Kiểm thử & Đảm bảo Chất lượng**:
+     - Bổ sung test file `frontend/src/features/course/tests/news-highlights-layout.spec.ts` kiểm định container full-width, chuỗi class responsive và bảo toàn layout. Pass 100% (4/4 tests).
+
+
+### [2026-11-12] - Milestone 52: Đồng Bộ Hóa Thiết Kế Card Khóa Học Trên Trang "Khóa Học Đã Mua" (/my-courses) Chuẩn Single Source of Truth
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trên trang `/my-courses` ("Khóa học đã mua của tôi"), giao diện các thẻ khóa học trước đây được code theo dạng ad-hoc, gây ra sự không đồng nhất về mặt thị giác so với các thẻ trên Trang chủ (`FeaturedCourses`, `RecentCourses`) và trang Catalog (`CourseCatalogView`):
+    1. Ảnh thumbnail thiếu thanh overlay đen bán trong suốt ở đáy chứa **Level Dots** (chấm tròn biểu thị cấp độ) và **Thời lượng video** (icon đồng hồ + tổng thời lượng).
+    2. Xuất hiện khối badge thô *"Tích hợp Mindmap AI & Quiz dừng video"* gây phình to và vỡ tỉ lệ thẻ.
+    3. Thanh tiến độ học tập có thiết kế thô kệch, đường kẻ đen dày nặng nề, thiếu tính tinh tế.
+    4. Footer bị cắt đôi bằng đường kẻ `border-t`, bên trái là chữ cấp độ và bên phải là một nút nhỏ `Tiếp tục học`, trong khi thẻ chuẩn tại trang chủ là nút Full-Width đồng nhất.
+    5. Khung thẻ dùng `hover:border-[#161616]` (viền đen) thay vì chuẩn `hover:border-[#027D88]/40 hover:shadow-md`.
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Nâng cấp `CourseCard` (`frontend/src/features/course/components/public-discovery/course-card.tsx`)**:
+     - Thiết lập `CourseCard` làm **Single Source of Truth** cho toàn bộ hệ thống card khóa học trên Mindly.
+     - Mở rộng `CourseCardProps` hỗ trợ `progress?: ICourseLearningProgress | null`, `resumeLessonId?: string | null`, và `onInstructorClick?: (instructorId?: string) => void`.
+     - Tích hợp thanh tiến độ học tập thanh mảnh (`h-1.5` rounded-full) với dải màu gradient teal (`#027D88` → `#00a3af`), hiển thị % rõ nét (dạng số `tabular-nums` với 2 chữ số thập phân) cùng thời gian xem video đã tích lũy (`formatWatchedDuration`).
+     - Nút hành động Full-Width khi đã sở hữu: tự động hiển thị `"Tiếp tục học"` (với icon `play-circle`) và điều hướng thẳng vào bài học dở dang (`/courses/${course.id}/lessons/${resumeLessonId}`), hoặc `"Vào học"` nếu chưa có bài học dở.
+     - Cho phép click vào avatar/tên giảng viên để kích hoạt modal hồ sơ giảng viên (`InstructorProfileDialog`) khi được truyền `onInstructorClick`.
+  2. **Chuẩn hóa Adapter Mapping (`frontend/src/features/course/services/public-courses.service.ts`)**:
+     - `export` hàm `mapCourseToPublicCard` và `formatCourseDuration` để chuyển đổi `ICourse` sang `IPublicCourseCard`, đồng thời tự động tính toán `durationFormatted` dựa trên cả `course.totalDuration` hoặc `progress.totalDurationMs`.
+  3. **Tái cấu trúc trang `/my-courses` (`frontend/src/app/my-courses/page.tsx`)**:
+     - Thay thế toàn bộ HTML `<article>` tự viết trước đây bằng component chuẩn `<CourseCard />`.
+     - Đồng bộ hệ thống lưới: `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6`.
+     - Cập nhật Skeleton loading đồng bộ kích thước chuẩn.
+  4. **Kiểm thử & Đảm bảo chất lượng**:
+     - Cập nhật và bổ sung 13 unit test cases trong `public-course-card.spec.ts` (test CTA button logic, duration formatting và card mapping) pass 100%.
+     - Type-check TypeScript toàn bộ frontend đạt 0 lỗi.
+
+### [2026-11-12] - Milestone 51: Nâng Cấp Typography & Độ Tương Phản Visual Hierarchy Cho Section CategoryRail
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trên trang chủ Mindly, section *"Khám phá theo lĩnh vực chuyên môn"* (`CategoryRail`) có tên các danh mục trên thẻ khóa học (như “Công nghệ thông tin”, “Thiết kế đồ họa”, “Marketing”...) kích thước quá nhỏ (`text-xs` đến `text-sm`), độ tương phản yếu khi đặt trên các hình minh họa nền sáng (ví dụ: ảnh Shopee nền trắng/cam, Bất động sản nền trắng).
+  - Lớp scrim gradient cũ (`h-1/2 from-black/40 via-black/15`) quá mỏng, khiến chữ trắng khó đọc.
+  - Tiêu đề section (`h2`) chưa đủ tầm phân cấp thị giác so với kích cỡ màn hình desktop.
+- **Giải pháp Triển khai (Solution & Implementation)**:
+  1. **Tên danh mục trên từng card**:
+     - Nâng kích thước chữ lên `16px–18px` (`text-base sm:text-[17px] lg:text-[18px]`), trọng số `font-semibold md:font-bold` (600–700), màu chữ `text-white`.
+     - Padding chuẩn `14px–16px` (`p-3.5 sm:p-4`) so với mép card.
+     - Xử lý xuống tối đa 2 dòng: `line-clamp-2 break-words text-left`, đi kèm `pointer-events-none` để không cản trở tương tác click thẻ `Link`.
+  2. **Gradient tương phản nền**:
+     - Nâng chiều cao lớp overlay lên `h-[60%]` với gradient đậm nét hơn: `bg-gradient-to-t from-black/80 via-black/40 to-transparent`, kết hợp `drop-shadow-[0_1.5px_3px_rgba(0,0,0,0.85)]` giúp chữ trắng đọc rõ tuyệt đối ngay cả trên background sáng chói nhất.
+  3. **Tiêu đề & Mô tả section**:
+     - Tiêu đề chính `h2` nâng lên `26px–30px` (`text-2xl sm:text-[26px] md:text-[28px] lg:text-[30px] font-bold tracking-tight text-[#161616] dark:text-neutral-100`).
+     - Mô tả `p` nâng lên `15px–16px` (`text-[15px] sm:text-base leading-relaxed`).
+     - Số lượng khóa học hiển thị dạng plain text tinh tế `text-xs sm:text-sm text-neutral-500 font-medium whitespace-nowrap` căn theo baseline của tiêu đề, không dùng badge pill gây rối mắt.
+  4. **Bảo toàn 100% bố cục & hiệu ứng**:
+     - Giữ nguyên bố cục 6 cột desktop, tỉ lệ khung hình 1:1, bo góc `rounded-2xl`, hiệu ứng hover scale và shadow elevation.
+- **Kiểm định chất lượng**:
+  - Script test định lượng kiểm tra toàn diện các quy chuẩn typography, padding và gradient pass 100%.
+  - ESLint pass không có lỗi.
+
+### [2026-11-12] - Milestone 50: Cập Nhật Nút Hành Động Trên Course Card Theo Trạng Thái Sở Hữu Khóa Học (Anti-N+1 & Anti-FOAC)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trên các trang công khai (Trang chủ, Trang khám phá /courses, danh mục và kết quả tìm kiếm), các thẻ khóa học (`CourseCard`) trước đây chỉ hiển thị cố định nút *"Mua ngay"* (hoặc *"Đăng ký ngay"*), kèm giá tiền.
+  - Khi học viên đã sở hữu khóa học (thanh toán thành công hoặc đã đăng ký miễn phí), thẻ vẫn hiển thị "Mua ngay", gây hiểu nhầm cho học viên rằng họ chưa sở hữu và buộc phải nhấp vào trang chi tiết mới thấy trạng thái đã mua.
+  - Nguy cơ kỹ thuật cần giải quyết triệt để:
+    1. **Nguy cơ N+1 Request**: Nếu mỗi `CourseCard` tự gọi riêng API `GET /enrollments/check/:id`, một trang có 12-24 khóa học sẽ tạo ra hàng chục requests lãng phí.
+    2. **Hiện tượng giật nút (Flash of Alternative Content - FOAC)**: Khi trang vừa tải, nếu chưa có thông tin auth mà hiển thị ngay "Mua ngay" rồi nhảy sang "Vào học", trải nghiệm người dùng sẽ bị giật cục.
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Custom Hook Tập Trung `useUserCourseOwnership` (`frontend/src/features/course/hooks/use-user-course-ownership.ts`)**:
+     - Sử dụng API bulk hiện có `GET /enrollments/my-courses` thông qua `useMyPurchasedCoursesQuery(isLoggedIn)`.
+     - Tận dụng cơ chế deduplication và caching của TanStack Query: Chỉ có **duy nhất 1 request** được kích hoạt cho toàn bộ danh sách card trên trang.
+     - Chuyển mảng khóa học đã mua thành `Set<string>` của các `course.id` để tối ưu tra cứu $O(1)$.
+     - Hỗ trợ kiểm tra quyền tác giả (`canManageCourse`) cho giảng viên xem khóa học mình đã tạo.
+     - Phát hiện token trong `localStorage` để phân biệt khách vãng lai (không có độ trễ, render ngay "Mua ngay" / "Đăng ký miễn phí") với học viên đã đăng nhập (quản lý cờ `isCheckingOwnership`).
+  2. **Cập nhật `CourseCard` (`frontend/src/features/course/components/public-discovery/course-card.tsx`)**:
+     - Giữ nguyên 100% thiết kế giao diện thẻ (không gắn thêm badge gây rối layout thumbnail).
+     - Khi `isCheckingOwnership`: Hiển thị nút loading placeholder với kích thước chuẩn, ngăn ngừa giật layout và chống chớp nhầm nút "Mua ngay".
+     - Khi `isEnrolled === true`: Nút chuyển thành **"Vào học"** (icon `lucide:play-circle`, loại bỏ hiển thị giá tiền và thông báo mua), click điều hướng tới trang chi tiết khóa học `/courses/:id`.
+     - Khi `isEnrolled === false`:
+       - Khóa học 0đ: Hiển thị **"Đăng ký miễn phí"** • Miễn phí.
+       - Khóa học có phí: Hiển thị **"Mua ngay"** • [Giá VNĐ].
+     - Hỗ trợ prop `isEnrolled?: boolean` để thuận tiện cho unit test hoặc component cha cung cấp sẵn context.
+  3. **Đồng bộ phản ứng tức thì (Reactivity)**:
+     - Tận dụng `queryClient.invalidateQueries({ queryKey: enrollmentKeys.all })` có sẵn tại `useRegisterFreeCourseMutation` và `CheckoutView` (SePay callback), đảm bảo trạng thái "Vào học" cập nhật ngay lập tức sau khi giao dịch hoàn tất.
+  4. **Kiểm định chất lượng & Trợ năng**:
+     - Bộ unit test `frontend/src/features/course/tests/public-course-card.spec.ts` kiểm tra 10/10 test cases: tính toán giảm giá, best seller, phân nhánh CTA "Mua ngay" / "Đăng ký miễn phí" / "Vào học", tra cứu Set $O(1)$, và quyền giảng viên.
+     - Kiểm tra kiểu dữ liệu với `tsc --noEmit` đạt 0 lỗi, lint đạt 0 warning.
+
+### [2026-11-12] - Milestone 49: Tách Biệt Triệt Để Nghiệp Vụ Khóa Học Giảng Dạy Khỏi Mục Khóa Học Đã Mua (/my-courses)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Ở Milestone 40, phương thức `getMyPurchasedCourses` (`EnrollmentService`) đã gộp các khóa học do giảng viên tạo (`findByInstructorId`) ở trạng thái `PUBLISHED` vào kết quả trả về của API `GET /enrollments/my-courses`.
+  - Hậu quả: Khi giảng viên xuất bản khóa học của chính mình, khóa học đó tự động hiển thị trong mục *"Khóa học đã mua của tôi"* (`/my-courses`), tạo nên sự nhập nhằng giữa khóa học giảng dạy (quản lý tại `/courses`) và khóa học đăng ký học tập (học viên tại `/my-courses`).
+  - Hơn nữa, trên trang chi tiết công khai (`/courses/:id`), thẻ thông tin mua hiển thị nhầm thanh tiến độ học 0% của học viên cho tác giả khóa học.
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Backend (`EnrollmentService`)**:
+     - `getMyPurchasedCourses`: Loại bỏ hoàn toàn khối code truy vấn `courseRepository.findByInstructorId` và gộp khóa học của tác giả. API giờ đây chỉ trả về duy nhất các khóa học có bản ghi `Enrollment` hợp lệ từ `enrollmentRepository.findUserEnrollments`.
+     - `checkEnrollment`: Bỏ logic tự động trả về `true` cho tác giả khi khóa học `PUBLISHED`. Tuân thủ nguyên tắc cốt lõi: *"Authorship is not enrollment"*. Quyền xem nội dung bài giảng của giảng viên được bảo đảm trực tiếp và độc lập tại `LessonService.getLessonForUser` (`course.instructorId === userId`).
+     - `createFreeEnrollment`: Chuẩn hóa thông báo lỗi: *"Bạn là giảng viên tạo khóa học này, không thể tự đăng ký khóa học của chính mình"*.
+     - Unit Tests: Cập nhật `enrollment.service.spec.ts` khẳng định `getMyPurchasedCourses` không chứa authored courses của giảng viên và `checkEnrollment` phản ánh chính xác trạng thái ghi danh. Đạt 17/17 tests PASS.
+  2. **Frontend (`/my-courses` & `CoursePurchaseCard`)**:
+     - `frontend/src/app/my-courses/page.tsx`: Loại bỏ logic xử lý đặc thù cho owner (badge `"Khóa học của bạn"`, nút đôi "Vào học"/"Quản lý"), đưa thẻ về chuẩn học viên (`"Tiếp tục học"` / `"Vào học"`).
+     - `frontend/src/features/course/components/public-detail/course-purchase-card.tsx`: Đối với `isInstructorOwner`, thẻ hiển thị rõ ràng: `"Khóa học do bạn giảng dạy"`, giải thích quyền tác giả, cung cấp nút chuyển sang `"Quản lý & Biên tập"`, và ẩn thanh tiến độ học tập của học viên.
+- **Kiểm định chất lượng**:
+  - Backend Unit Tests: `vitest run src/modules/enrollment` (17 tests PASS), `vitest run src/modules/payment/tests` (29 tests PASS), `vitest run src/modules/course/tests/course-public.spec.ts` (17 tests PASS).
+  - Frontend TypeScript Check: `tsc --noEmit` đạt 0 Errors.
+
+### [2026-11-12] - Milestone 48: Tối Ưu Hóa Smart Sticky Header (Hide on Scroll Down / Show on Scroll Up) Chuẩn UI/UX & Clean Frontend Architecture
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Header toàn trang (`PublicHeader`) trước đây có đoạn code scroll listener tự tạo chưa tối ưu:
+    - **Lỗi cuộn chậm từng pixel (Slow Scroll Delta Bug)**: Cập nhật `prevScrollY.current` liên tục trên từng event khiến việc cuộn chuột hoặc vuốt trackpad chậm (1-2px/tick) không bao giờ chạm tới ngưỡng chênh lệch 5px để mở lại Header, gây ức chế cho người dùng.
+    - **Re-render thừa & Không throttle**: Đăng ký sự kiện `scroll` gọi `setState` trực tiếp không thông qua `requestAnimationFrame`, gây lãng phí chu kỳ render và tiềm ẩn hiện tượng giật khung hình (frame drops).
+    - **Thiếu nhận diện tương tác người dùng**: Header tự động ẩn ngay cả khi người dùng đang focus vào ô Search hoặc đang di chuyển bàn phím (Tab).
+    - **Lỗi nảy trang (Elastic Bouncing)**: Trên iOS Safari và macOS, khi người dùng kéo quá đỉnh trang (overscroll âm), Header có thể bị nhấp nháy chuyển trạng thái sai lệch.
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Custom Hook `useSmartHeaderScroll` (`frontend/src/hooks/use-smart-header-scroll.ts`)**:
+     - Áp dụng thuật toán **Direction Reversal Pivot & Accumulation**: Ghi nhận mốc quay đầu `pivotScrollYRef`. Khi người dùng đổi hướng cuộn và khoảng cách tích lũy $\ge$ `threshold` (8px), Header lập tức hiển thị hoặc ẩn đi, hoạt động hoàn hảo cho cả cuộn nhanh lẫn cuộn chậm từng pixel.
+     - Đồng bộ theo chu kỳ làm mới màn hình với `requestAnimationFrame` và sự kiện `passive: true`.
+     - Sử dụng `isVisibleRef` để so sánh trước khi kích hoạt `setIsVisible`, triệt tiêu toàn bộ re-render thừa.
+     - Lọc bỏ triệt để hiện tượng nảy trang (Rubber-banding) ở đầu trang (`scrollY < 0`) và đáy trang (`scrollY > maxScrollY`).
+     - Hỗ trợ cờ `disabled`: Tự động khóa trạng thái hiển thị của Header khi có tương tác (mở drawer, popover hoặc focus).
+  2. **Tích hợp `PublicHeader` (`frontend/src/features/course/components/public-discovery/public-header.tsx`)**:
+     - Giữ nguyên 100% bố cục, màu sắc `#161616`, kích thước `h-16`, logo và các nút CTA hiện có.
+     - Kết nối `onFocusCapture` và `onBlurCapture` để đảm bảo Header không bao giờ bị ẩn khi người dùng đang nhập liệu tìm kiếm hoặc điều hướng phím Tab.
+     - Hiệu ứng CSS GPU-composited: `transition-transform duration-300 ease-out will-change-transform motion-reduce:transition-none` kết hợp `sticky top-0 z-40 w-full`, loại bỏ hoàn toàn hiện tượng layout shift (CLS = 0).
+     - Bổ sung `aria-hidden={!showHeader}` và `pointer-events-none` khi ẩn nhằm nâng cao tính trợ năng (a11y).
+  3. **Unit Tests Toàn Diện**:
+     - Tạo bộ kiểm thử `frontend/src/features/course/tests/smart-header-scroll.spec.ts` kiểm tra 6/6 kịch bản chuyển trạng thái cuộn, đỉnh trang, tích lũy cuộn chậm, nảy trang iOS và tương tác khóa hiển thị.
+
+
 ### [2026-11-10] - Milestone 46: Hệ thống Điểm Chặn Video Tương Tác (In-Video Quiz Checkpoints), Chống Gian Lận Lộ Đáp Án & Xác Thực Hoàn Thành Bài Học (Anti-Cheat In-Video Quiz Gating & Verified Lesson Completion)
 
 - **Bối cảnh & Vấn đề (Problem Statement)**:
@@ -2060,3 +2202,32 @@
 
 ### 3. Kiểm định chất lượng
 - **TypeScript Typecheck**: `npx --prefix frontend tsc --noEmit --project frontend/tsconfig.json` đạt 0 lỗi (Exit code 0).
+
+---
+
+## [2026-11-12] Nâng cấp tỷ lệ Logo & Hệ thống Typography Header theo chuẩn `design-taste-frontend`
+
+### 1. Bối cảnh & Nguyên nhân gốc rễ (Root Cause)
+- **Hiện tượng**: Logo thương hiệu Mindly trên thanh header bị nhỏ (`h-9 sm:h-10`, chiều cao 36px–40px). Khi chứa slogan `"MAP YOUR MIND"`, chữ slogan bị co lại chỉ còn ~4.2px thực tế, làm mờ nhòe nhận diện thương hiệu. Đồng thời các link điều hướng (`text-sm`), ô tìm kiếm (`h-10`) và các nút hành động (`size="sm"`) tạo cảm giác thiếu trọng lượng thị giác trên màn hình máy tính lớn.
+- **Tiêu chuẩn thiết kế áp dụng (`design-taste-frontend`)**:
+  - *"Get the big thing big and the small things small before anything else exists."*
+  - *"Running text in the full ink at 16px or more; grey is for secondary notes."*
+  - *"A plain bar: wordmark, a few links, one action. No bar chrome."*
+
+### 2. Các thay đổi kỹ thuật (Implementation)
+- **`frontend/src/components/brand/mindly-logo.tsx`**:
+  - Tối ưu kích cỡ font chữ slogan SVG trong `<defs>` từ `8.8px / letter-spacing 3.8px` lên `9.2px / letter-spacing 3.4px` giúp slogan sắc nét và dễ đọc rõ ràng khi hiển thị ở kích cỡ lớn.
+- **`frontend/src/features/course/components/public-discovery/public-header.tsx`**:
+  - **Chiều cao Header**: Nâng từ `h-16` (64px) lên `h-[68px] sm:h-[72px]` (72px desktop), bảo đảm khoảng đệm trên dưới cân đối tỷ lệ vàng (vertical rhythm).
+  - **Kích thước Logo**: Tăng từ `h-9 sm:h-10` lên `h-11 sm:h-12 w-auto` (44px mobile, 48px desktop).
+  - **Typography Nav Links**: Chuyển từ `text-sm font-medium text-neutral-300` sang `text-[15px] font-medium text-neutral-200 hover:text-white` với khoảng cách rộng rãi `gap-6 lg:gap-8`.
+  - **Ô tìm kiếm khóa học**: Tăng chiều cao lên `h-11` (44px), `rounded-xl`, nền `#222222` sang trọng, chữ `text-[15px]`, icon kính lúp `size-4.5` tại `pl-3.5`.
+  - **Nút đăng nhập & Đăng ký**: Tăng lên `h-10` (40px), font `text-[15px]`, padding `px-4` và `px-5`. Trên mobile (< sm), nút "Tham gia miễn phí" chuyển vào mobile drawer, giữ "Đăng nhập" cạnh nút menu hamburger để chống tràn layout ở màn hình 375px/390px.
+  - **Avatar người dùng**: Tăng từ `size-9 sm:size-10` lên `size-10 sm:size-11` (44px) tương xứng với logo mới.
+  - **Smart Sticky Header**: Cập nhật `topOffset: 72` trong `useSmartHeaderScroll` khớp chính xác với chiều cao 72px của thanh header.
+- **`frontend/src/features/admin/revenue/utils/revenue-format.util.ts`**:
+  - Mở rộng kiểu dữ liệu đầu vào cho `formatDateTimeVn` và `formatTimeVn` chấp nhận `string | Date | null | undefined`, giải quyết triệt để lỗi type mismatch khi đối tượng Date được truyền từ các model review/stats.
+
+### 3. Kiểm định chất lượng
+- **TypeScript Typecheck**: `cd frontend; npx tsc --noEmit` đạt 0 lỗi (Exit code 0).
+- **Unit Test**: `npx vitest run src/features/course/tests/smart-header-scroll.spec.ts` pass 100% (38/38 tests).

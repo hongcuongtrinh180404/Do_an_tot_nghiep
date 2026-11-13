@@ -30,6 +30,7 @@ import { HideReviewDto } from './dto/hide-review.dto.js';
 import { RestoreReviewDto } from './dto/restore-review.dto.js';
 import { AdminDeleteReviewDto } from './dto/admin-delete-review.dto.js';
 import { ReportReviewDto } from './dto/report-review.dto.js';
+import { InstructorQueryReviewsDto } from './dto/instructor-query-reviews.dto.js';
 
 @Controller('reviews')
 export class ReviewController {
@@ -192,5 +193,29 @@ export class ReviewController {
   ): Promise<ApiResponse<{ success: boolean }>> {
     const success = await this.reviewService.deleteReview(userId, id);
     return ApiResponse.success({ success }, 'Xóa đánh giá thành công');
+  }
+
+  // =========================================================================
+  // 3. INSTRUCTOR ENDPOINTS (@Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN))
+  // =========================================================================
+
+  @Get('instructor/stats')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  async getInstructorStats(
+    @CurrentUser('id') instructorId: string,
+    @Query('courseId') courseId?: string,
+  ): Promise<ApiResponse<ICourseReviewStats>> {
+    const stats = await this.reviewService.getInstructorStats(instructorId, courseId);
+    return ApiResponse.success(stats, 'Lấy thống kê đánh giá giảng viên thành công');
+  }
+
+  @Get('instructor')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  async getInstructorReviews(
+    @CurrentUser('id') instructorId: string,
+    @Query() query: InstructorQueryReviewsDto,
+  ): Promise<ApiResponse<PaginationResult<IReview>>> {
+    const result = await this.reviewService.getInstructorReviews(instructorId, query);
+    return ApiResponse.success(result, 'Lấy danh sách đánh giá giảng viên thành công');
   }
 }

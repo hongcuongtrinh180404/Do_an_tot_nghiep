@@ -27,6 +27,7 @@ import { HideReviewDto } from '../dto/hide-review.dto.js';
 import { RestoreReviewDto } from '../dto/restore-review.dto.js';
 import { AdminDeleteReviewDto } from '../dto/admin-delete-review.dto.js';
 import { ReportReviewDto } from '../dto/report-review.dto.js';
+import { InstructorQueryReviewsDto } from '../dto/instructor-query-reviews.dto.js';
 
 @Injectable()
 export class ReviewService extends BaseService<IReview, string> {
@@ -504,5 +505,23 @@ export class ReviewService extends BaseService<IReview, string> {
     );
 
     return withEntry || dismissed;
+  }
+
+  // =========================================================================
+  // 3. INSTRUCTOR METHODS
+  // =========================================================================
+
+  async getInstructorStats(
+    instructorId: string,
+    courseId?: string,
+  ): Promise<ICourseReviewStats> {
+    return this.reviewRepository.calculateInstructorReviewStats(instructorId, courseId);
+  }
+
+  async getInstructorReviews(
+    instructorId: string,
+    query: InstructorQueryReviewsDto,
+  ): Promise<PaginationResult<IReview>> {
+    return this.reviewRepository.findInstructorReviews(instructorId, query);
   }
 }

@@ -63,7 +63,7 @@ export function NewsHighlightsCarousel({
       aria-label="Tin tức và khóa học nổi bật"
       className="w-full bg-[#141414] py-8 sm:py-10 text-white relative select-none"
     >
-      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         {/* Section Title */}
         <div className="mb-4 sm:mb-5">
           <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
@@ -106,14 +106,14 @@ export function NewsHighlightsCarousel({
               <Link
                 key={item.id}
                 href={`/courses/${item.slug}`}
-                className="group relative flex-none w-[170px] sm:w-[200px] md:w-[218px] aspect-[3/4] rounded-xl sm:rounded-2xl overflow-hidden snap-start focus:outline-none focus:ring-2 focus:ring-white/70 bg-zinc-900 shadow-md"
+                className="group relative flex-none w-[calc((100%-12px)/2)] sm:w-[calc((100%-32px)/3)] md:w-[calc((100%-48px)/4)] lg:w-[calc((100%-80px)/6)] xl:w-[calc((100%-80px)/6)] 2xl:w-[calc((100%-80px)/6)] aspect-[3/4] rounded-xl sm:rounded-2xl overflow-hidden snap-start focus:outline-none focus:ring-2 focus:ring-white/70 bg-zinc-900 shadow-md"
               >
                 {/* Background Image with Zoom on Hover */}
                 <Image
                   src={item.thumbnailUrl}
                   alt={item.title}
                   fill
-                  sizes="(max-width: 640px) 170px, (max-width: 768px) 200px, 218px"
+                  sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
                   className="object-cover w-full h-full transition-transform duration-300 ease-out group-hover:scale-105"
                 />
 

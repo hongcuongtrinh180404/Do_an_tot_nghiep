@@ -30,17 +30,24 @@ export function CourseHeader(): React.JSX.Element {
       </div>
 
       {/* Action Buttons */}
-      <div className="flex items-center gap-2.5 shrink-0">
+      <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+        <Link
+          href="/instructor/statistics"
+          className={buttonVariants({ variant: 'outline', size: 'sm', className: 'text-xs font-medium' })}
+        >
+          <Icon icon="lucide:bar-chart-3" className="size-3.5 mr-1.5 text-primary" />
+          Thống kê giảng dạy
+        </Link>
         <Link
           href="/"
-          className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          className={buttonVariants({ variant: 'outline', size: 'sm', className: 'text-xs' })}
         >
           <Icon icon="lucide:arrow-left" className="size-3.5 mr-1.5" />
           Về Trang Chủ
         </Link>
         <Link
           href="/courses/new"
-          className={buttonVariants({ size: 'sm' })}
+          className={buttonVariants({ size: 'sm', className: 'text-xs' })}
         >
           <Icon icon="lucide:plus" className="size-3.5 mr-1" />
           Tạo khóa học

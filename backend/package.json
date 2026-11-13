@@ -28,7 +28,11 @@
     "cleanup:sessions": "tsx scripts/cleanup-sessions.ts",
     "seed": "nest start --entryFile database/seeds/seed",
     "seed:refresh": "nest start --entryFile database/seeds/seed -- --refresh",
-    "seed:reviews": "tsx scripts/sync-reviews-seed.ts"
+    "seed:reviews": "tsx scripts/sync-reviews-seed.ts",
+    "seed:catalog:prepare": "node --env-file=.env --import tsx scripts/demo-catalog/index.ts prepare",
+    "seed:catalog:render": "node --env-file=.env --import tsx scripts/demo-catalog/index.ts render",
+    "seed:catalog:import": "node --env-file=.env --import tsx scripts/demo-catalog/index.ts import",
+    "seed:catalog:verify": "node --env-file=.env --import tsx scripts/demo-catalog/index.ts verify"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1143.0",

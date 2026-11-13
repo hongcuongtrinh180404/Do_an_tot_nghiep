@@ -3,15 +3,53 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { CourseLevelEnum } from 'share-lib';
+import { CourseLevelEnum, type ICourseLearningProgress } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import type { IPublicCourseCard } from './mock-discovery-data';
+import { useUserCourseOwnership } from '../../hooks/use-user-course-ownership';
 
-interface CourseCardProps {
+export interface CourseCardProps {
   course: IPublicCourseCard;
+  /**
+   * Tùy chọn truyền trực tiếp trạng thái sở hữu (hữu ích cho unit test hoặc khi component cha đã có sẵn context).
+   * Nếu không truyền, CourseCard sẽ tự động tra cứu từ hook `useUserCourseOwnership`.
+   */
+  isEnrolled?: boolean;
+  /**
+   * Tiến độ học tập của người dùng (khi hiển thị trong Khóa học của tôi)
+   */
+  progress?: ICourseLearningProgress | null;
+  /**
+   * ID bài học dở dang để nút hành động dẫn trực tiếp vào phòng học
+   */
+  resumeLessonId?: string | null;
+  /**
+   * Callback khi người dùng nhấp vào thông tin giảng viên (ví dụ mở dialog xem hồ sơ)
+   */
+  onInstructorClick?: (instructorId?: string) => void;
 }
 
-export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
+function formatWatchedDuration(ms?: number | null): string {
+  if (!ms || ms <= 0) return '0 giây';
+  const seconds = Math.floor(ms / 1000);
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remSec = seconds % 60;
+  if (hours > 0 && minutes > 0) return `${hours} giờ ${minutes} phút`;
+  if (hours > 0) return `${hours} giờ`;
+  if (minutes > 0) return `${minutes} phút ${remSec > 0 ? `${remSec} giây` : ''}`.trim();
+  return `${seconds} giây`;
+}
+
+export function CourseCard({
+  course,
+  isEnrolled: propIsEnrolled,
+  progress,
+  resumeLessonId,
+  onInstructorClick,
+}: CourseCardProps): React.JSX.Element {
+  const { isCourseOwned, isCheckingOwnership } = useUserCourseOwnership();
+  const isEnrolled = typeof propIsEnrolled === 'boolean' ? propIsEnrolled : isCourseOwned(course);
   // Level Dots calculation
   const renderLevelDots = (level: CourseLevelEnum): React.JSX.Element => {
     let filledCount = 1;
@@ -140,24 +178,58 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
 
         {/* Instructor */}
         <div className="mt-1.5 flex items-center gap-2">
-          {course.instructorAvatar ? (
-            <div className="relative size-5 rounded-full overflow-hidden shrink-0 border border-[#e5e7eb]">
-              <Image
-                src={course.instructorAvatar}
-                alt={course.instructorName}
-                fill
-                sizes="20px"
-                className="object-cover"
-              />
-            </div>
+          {onInstructorClick ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onInstructorClick(course.instructorId);
+              }}
+              className="group/inst flex items-center gap-2 text-left hover:opacity-85 transition-opacity cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#027D88] rounded-md py-0.5"
+              title="Xem hồ sơ & danh sách khóa học của giảng viên"
+            >
+              {course.instructorAvatar ? (
+                <div className="relative size-5 rounded-full overflow-hidden shrink-0 border border-[#e5e7eb]">
+                  <Image
+                    src={course.instructorAvatar}
+                    alt={course.instructorName}
+                    fill
+                    sizes="20px"
+                    className="object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="flex size-5 items-center justify-center rounded-full bg-muted border border-[#e5e7eb] text-[10px] font-semibold text-muted-foreground">
+                  {course.instructorName ? course.instructorName.charAt(0).toUpperCase() : 'G'}
+                </div>
+              )}
+              <span className="truncate text-xs font-medium text-[#161616] group-hover/inst:text-[#027D88] group-hover/inst:underline transition-colors">
+                {course.instructorName || 'Chuyên gia Mindly'}
+              </span>
+            </button>
           ) : (
-            <div className="flex size-5 items-center justify-center rounded-full bg-muted border border-[#e5e7eb] text-[10px] font-semibold text-muted-foreground">
-              {course.instructorName ? course.instructorName.charAt(0).toUpperCase() : 'G'}
-            </div>
+            <>
+              {course.instructorAvatar ? (
+                <div className="relative size-5 rounded-full overflow-hidden shrink-0 border border-[#e5e7eb]">
+                  <Image
+                    src={course.instructorAvatar}
+                    alt={course.instructorName}
+                    fill
+                    sizes="20px"
+                    className="object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="flex size-5 items-center justify-center rounded-full bg-muted border border-[#e5e7eb] text-[10px] font-semibold text-muted-foreground">
+                  {course.instructorName ? course.instructorName.charAt(0).toUpperCase() : 'G'}
+                </div>
+              )}
+              <span className="truncate text-xs font-medium text-[#161616]">
+                {course.instructorName || 'Chuyên gia Mindly'}
+              </span>
+            </>
           )}
-          <span className="truncate text-xs font-medium text-[#161616]">
-            {course.instructorName || 'Chuyên gia Mindly'}
-          </span>
         </div>
 
         {/* Stats: Rating + Student Count */}
@@ -181,26 +253,98 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
           </div>
         </div>
 
+        {/* Learning Progress (if progress is provided) */}
+        {progress ? (
+          <div className="mt-3 pt-2.5 border-t border-neutral-100 space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium text-[#161616]">
+                {progress.status === 'COMPLETED'
+                  ? 'Đã hoàn thành'
+                  : progress.status === 'IN_PROGRESS'
+                    ? 'Đang học'
+                    : 'Chưa bắt đầu'}
+              </span>
+              <span className="font-bold text-[#027D88] tabular-nums">
+                {progress.progressPercent !== null && progress.progressPercent !== undefined
+                  ? `${progress.progressPercent.toLocaleString('vi-VN', {
+                    minimumFractionDigits: progress.progressPercent % 1 === 0 ? 0 : 2,
+                    maximumFractionDigits: 2,
+                  })}%`
+                  : '0%'}
+              </span>
+            </div>
+            <div
+              role="progressbar"
+              aria-label="Tiến độ học tập"
+              aria-valuenow={progress.progressPercent ?? 0}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              className="h-1.5 w-full bg-neutral-100 rounded-full overflow-hidden"
+            >
+              <div
+                className="h-full bg-gradient-to-r from-[#027D88] to-[#00a3af] rounded-full transition-all duration-300"
+                style={{
+                  width: `${Math.min(100, Math.max(0, progress.progressPercent ?? 0))}%`,
+                }}
+              />
+            </div>
+            <div className="text-[11px] text-[#666666] tabular-nums">
+              <span>
+                Đã xem {formatWatchedDuration(progress.watchedMs)}
+                {progress.totalDurationMs !== null && progress.totalDurationMs !== undefined && progress.totalDurationMs > 0
+                  ? ` / ${formatWatchedDuration(progress.totalDurationMs)}`
+                  : ''}
+              </span>
+            </div>
+          </div>
+        ) : null}
+
         {/* Bottom Integrated Action Button */}
         <div data-ui="card-footer" className="mt-auto pt-3.5">
-          <Link
-            href={`/courses/${course.id}`}
-            className="w-full flex items-center justify-center gap-2 rounded-lg bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-2.5 px-3 text-xs sm:text-sm transition-colors shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#027D88]"
-          >
-            <Icon icon="lucide:shopping-cart" className="size-4 shrink-0 text-white" />
-            <span>
-              {course.price === 0 ? 'Đăng ký ngay' : 'Mua ngay'}
-            </span>
-            <span>•</span>
-            <span className="text-sm font-extrabold tracking-tight">
-              {formatVND(course.price)}
-            </span>
-            {hasDiscount && course.originalPrice && (
-              <span className="text-xs font-normal text-white/70 line-through">
-                {formatVND(course.originalPrice)}
+          {isCheckingOwnership && propIsEnrolled === undefined ? (
+            <div
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-neutral-100 border border-neutral-200 text-neutral-400 font-semibold py-2.5 px-3 text-xs sm:text-sm animate-pulse"
+              aria-label="Đang kiểm tra quyền sở hữu khóa học"
+            >
+              <Icon icon="lucide:loader-2" className="size-4 animate-spin text-[#027D88]" />
+              <span>Đang kiểm tra...</span>
+            </div>
+          ) : isEnrolled ? (
+            <Link
+              href={
+                resumeLessonId
+                  ? `/courses/${course.id}/lessons/${resumeLessonId}`
+                  : `/courses/${course.id}`
+              }
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-2.5 px-3 text-xs sm:text-sm transition-colors shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#027D88]"
+            >
+              <Icon icon="lucide:play-circle" className="size-4 shrink-0 text-white" />
+              <span>
+                {resumeLessonId || (progress && progress.status === 'IN_PROGRESS')
+                  ? 'Tiếp tục học'
+                  : 'Vào học'}
               </span>
-            )}
-          </Link>
+            </Link>
+          ) : (
+            <Link
+              href={`/courses/${course.id}`}
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-2.5 px-3 text-xs sm:text-sm transition-colors shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#027D88]"
+            >
+              <Icon icon="lucide:shopping-cart" className="size-4 shrink-0 text-white" />
+              <span>
+                {course.price === 0 ? 'Đăng ký miễn phí' : 'Mua ngay'}
+              </span>
+              <span>•</span>
+              <span className="text-sm font-extrabold tracking-tight">
+                {formatVND(course.price)}
+              </span>
+              {hasDiscount && course.originalPrice && (
+                <span className="text-xs font-normal text-white/70 line-through">
+                  {formatVND(course.originalPrice)}
+                </span>
+              )}
+            </Link>
+          )}
         </div>
       </div>
     </article>

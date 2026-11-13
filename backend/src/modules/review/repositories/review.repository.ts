@@ -593,4 +593,172 @@ export class ReviewRepository extends BaseMongoRepository<IReview, ReviewDocumen
 
     return doc ? this.toDomain(doc) : null;
   }
+
+  async calculateInstructorReviewStats(
+    instructorId: string,
+    courseId?: string,
+    session?: ClientSession,
+  ): Promise<ICourseReviewStats> {
+    const instObjectId = new Types.ObjectId(instructorId);
+    const courses = await this.model.db
+      .collection('courses')
+      .find({ instructorId: instObjectId, deletedAt: null }, { projection: { _id: 1 } })
+      .toArray();
+    const courseIds = courses.map((c) => c._id);
+
+    let matchStage: { $match: Record<string, unknown> };
+
+    if (courseId && Types.ObjectId.isValid(courseId)) {
+      const targetId = new Types.ObjectId(courseId);
+      const belongs = courseIds.some((cId) => cId.equals(targetId));
+      if (!belongs) {
+        return {
+          averageRating: 0,
+          totalReviews: 0,
+          distribution: [5, 4, 3, 2, 1].map((stars) => ({ stars, count: 0, percentage: 0 })),
+        };
+      }
+      matchStage = {
+        $match: {
+          courseId: targetId,
+          deletedAt: null,
+          status: ReviewStatusEnum.VISIBLE,
+        },
+      };
+    } else {
+      matchStage = {
+        $match: {
+          courseId: { $in: courseIds },
+          deletedAt: null,
+          status: ReviewStatusEnum.VISIBLE,
+        },
+      };
+    }
+
+    const groupStage = {
+      $group: {
+        _id: '$rating',
+        count: { $sum: 1 },
+      },
+    };
+
+    const aggregation = this.model.aggregate<{ _id: number; count: number }>([
+      matchStage,
+      groupStage,
+    ]);
+
+    if (session) {
+      aggregation.session(session);
+    }
+
+    const ratingCounts = await aggregation.exec();
+
+    const countMap = new Map<number, number>();
+    let totalReviews = 0;
+    let totalScore = 0;
+
+    for (const item of ratingCounts) {
+      const star = Number(item._id);
+      const count = Number(item.count);
+      countMap.set(star, count);
+      totalReviews += count;
+      totalScore += star * count;
+    }
+
+    const averageRating =
+      totalReviews > 0 ? Math.round((totalScore / totalReviews) * 10) / 10 : 0;
+
+    const distribution: IReviewDistributionItem[] = [5, 4, 3, 2, 1].map((stars) => {
+      const count = countMap.get(stars) || 0;
+      const percentage =
+        totalReviews > 0 ? Math.round((count / totalReviews) * 100) : 0;
+      return {
+        stars,
+        count,
+        percentage,
+      };
+    });
+
+    return {
+      averageRating,
+      totalReviews,
+      distribution,
+    };
+  }
+
+  async findInstructorReviews(
+    instructorId: string,
+    params: {
+      courseId?: string;
+      rating?: number;
+      sort?: string;
+      page?: number;
+      limit?: number;
+    },
+    session?: ClientSession,
+  ): Promise<PaginationResult<IReview>> {
+    const page = params.page || 1;
+    const limit = params.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const instObjectId = new Types.ObjectId(instructorId);
+    const courses = await this.model.db
+      .collection('courses')
+      .find({ instructorId: instObjectId, deletedAt: null }, { projection: { _id: 1 } })
+      .toArray();
+    const courseIds = courses.map((c) => c._id);
+
+    const filterQuery: Record<string, unknown> = {
+      deletedAt: null,
+      status: ReviewStatusEnum.VISIBLE,
+    };
+
+    if (params.courseId && Types.ObjectId.isValid(params.courseId)) {
+      const targetId = new Types.ObjectId(params.courseId);
+      const belongs = courseIds.some((cId) => cId.equals(targetId));
+      if (!belongs) {
+        return {
+          items: [],
+          total: 0,
+          page,
+          limit,
+          totalPages: 1,
+        };
+      }
+      filterQuery.courseId = targetId;
+    } else {
+      filterQuery.courseId = { $in: courseIds };
+    }
+
+    if (params.rating && [1, 2, 3, 4, 5].includes(Number(params.rating))) {
+      filterQuery.rating = Number(params.rating);
+    }
+
+    const sortOrder: Record<string, 1 | -1> =
+      params.sort === 'created_asc' ? { createdAt: 1 } : { createdAt: -1 };
+
+    const [total, docs] = await Promise.all([
+      this.model.countDocuments(filterQuery).session(session ?? null).exec(),
+      this.model
+        .find(filterQuery)
+        .sort(sortOrder)
+        .skip(skip)
+        .limit(limit)
+        .populate(USER_POPULATE)
+        .populate(COURSE_POPULATE)
+        .session(session ?? null)
+        .exec(),
+    ]);
+
+    const items = docs.map((doc) => this.toDomain(doc));
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
 }

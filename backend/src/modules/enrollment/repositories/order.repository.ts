@@ -850,15 +850,31 @@ export class OrderRepository extends BaseMongoRepository<IOrder, OrderEntity> {
     endDate?: Date,
     page = 1,
     limit = 10,
+    search?: string,
+    sort = 'revenue_desc',
   ): Promise<PaginationResult<IInstructorCourseRevenue>> {
     const instObjectId = new Types.ObjectId(instructorId);
 
+    const courseMatch: Record<string, unknown> = {
+      instructorId: instObjectId,
+      deletedAt: null,
+    };
+
+    if (search && search.trim()) {
+      const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      courseMatch.title = { $regex: new RegExp(escaped, 'i') };
+    }
+
+    let sortStage: Record<string, 1 | -1> = { totalRevenue: -1, instructorEarnings: -1, _id: 1 };
+    if (sort === 'earnings_desc') {
+      sortStage = { instructorEarnings: -1, totalRevenue: -1, _id: 1 };
+    } else if (sort === 'sales_desc') {
+      sortStage = { successfulSales: -1, totalRevenue: -1, _id: 1 };
+    }
+
     const pipeline: PipelineStage[] = [
       {
-        $match: {
-          instructorId: instObjectId,
-          deletedAt: null,
-        },
+        $match: courseMatch,
       },
       {
         $lookup: {
@@ -890,6 +906,37 @@ export class OrderRepository extends BaseMongoRepository<IOrder, OrderEntity> {
                 },
               },
             },
+            {
+              $project: {
+                amount: 1,
+                instructorEarnings: {
+                  $ifNull: [
+                    '$instructorEarnings',
+                    {
+                      $subtract: [
+                        '$amount',
+                        {
+                          $ifNull: [
+                            '$platformEarnings',
+                            {
+                              $round: [
+                                {
+                                  $multiply: [
+                                    '$amount',
+                                    { $divide: [{ $ifNull: ['$platformCommissionRate', 30] }, 100] },
+                                  ],
+                                },
+                                0,
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
           ],
           as: 'orders',
         },
@@ -903,9 +950,10 @@ export class OrderRepository extends BaseMongoRepository<IOrder, OrderEntity> {
           thumbnailUrl: 1,
           successfulSales: { $size: '$orders' },
           totalRevenue: { $sum: '$orders.amount' },
+          instructorEarnings: { $sum: '$orders.instructorEarnings' },
         },
       },
-      { $sort: { totalRevenue: -1, successfulSales: -1, _id: 1 } },
+      { $sort: sortStage },
     ];
 
     const skip = Math.max(0, (page - 1) * limit);
@@ -918,7 +966,7 @@ export class OrderRepository extends BaseMongoRepository<IOrder, OrderEntity> {
             { $limit: limit },
           ],
           totalFacet: [
-            { $match: { instructorId: instObjectId, deletedAt: null } },
+            { $match: courseMatch },
             { $count: 'total' },
           ],
         },

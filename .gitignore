@@ -38,3 +38,6 @@ Thumbs.db
 
 # Turborepo
 .turbo/
+
+# Downloaded and rendered demo-course assets
+backend/.cache/demo-catalog/
