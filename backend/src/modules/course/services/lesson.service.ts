@@ -150,6 +150,27 @@ export class LessonService extends BaseService<ILesson, string> {
     userRole?: RoleEnum,
     session?: ClientSession,
   ): Promise<ILesson> {
+    const lesson = await this.getAccessibleLesson(id, userId, userRole, session);
+    if (!this.storageService) return lesson;
+    const sign = async (url: string) => this.storageService!.isPrivateMedia(url)
+      ? this.storageService!.getPresignedStreamUrl(url, 1800)
+      : url;
+    return {
+      ...lesson,
+      content: lesson.content ? { ...lesson.content, url: await sign(lesson.content.url) } : lesson.content,
+      materials: await Promise.all((lesson.materials ?? []).map(async (material) => ({
+        ...material, url: await sign(material.url),
+      }))),
+    };
+  }
+
+  /** Shared authorization for video, transcript, summary, mindmap and quizzes. */
+  async getAccessibleLesson(
+    id: string,
+    userId?: string,
+    userRole?: RoleEnum,
+    session?: ClientSession,
+  ): Promise<ILesson> {
     const lesson = await this.getLessonById(id, session);
 
     // 1. Bài học xem thử cho phép truy cập công khai
@@ -191,6 +212,15 @@ export class LessonService extends BaseService<ILesson, string> {
     }
 
     throw new ForbiddenException('Bạn cần mua khóa học để xem nội dung bài học này');
+  }
+
+  async getAuthorizedStreamUrl(keyOrUrl: string, userId?: string, userRole?: RoleEnum): Promise<string> {
+    if (!this.storageService) throw new BadRequestException('Dịch vụ lưu trữ chưa sẵn sàng');
+    const reference = this.storageService.getMediaReference(keyOrUrl);
+    const lesson = await this.lessonRepository.findByMediaUrl(reference.url);
+    if (!lesson) throw new NotFoundException('Không tìm thấy nội dung bài học');
+    await this.getAccessibleLesson(lesson.id, userId, userRole);
+    return this.storageService.getPresignedStreamUrl(reference.url, 1800);
   }
 
   async addMaterial(

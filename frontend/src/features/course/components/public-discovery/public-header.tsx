@@ -166,20 +166,12 @@ export function PublicHeader({
             <div className="flex items-center gap-3">
               {/* Course shortcut for the current role */}
               {isInstructor && (
-                <>
-                  <Link
-                    href="/courses"
-                    className="hidden sm:inline-flex items-center text-[15px] font-medium text-neutral-200 transition-colors hover:text-white px-3 py-2 rounded-lg hover:bg-neutral-800/60"
-                  >
-                    Khóa học của tôi
-                  </Link>
-                  <Link
-                    href="/instructor/statistics"
-                    className="hidden lg:inline-flex items-center text-[15px] font-medium text-neutral-200 transition-colors hover:text-white px-3 py-2 rounded-lg hover:bg-neutral-800/60"
-                  >
-                    Thống kê giảng dạy
-                  </Link>
-                </>
+                <Link
+                  href="/courses"
+                  className="hidden sm:inline-flex items-center text-[15px] font-medium text-neutral-200 transition-colors hover:text-white px-3 py-2 rounded-lg hover:bg-neutral-800/60"
+                >
+                  Khóa học của tôi
+                </Link>
               )}
               {user.role === RoleEnum.STUDENT && (
                 <button

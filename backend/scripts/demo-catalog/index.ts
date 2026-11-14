@@ -160,6 +160,9 @@ async function importCatalog() {
   // AAC/container padding adds a few milliseconds; the catalog displays whole seconds.
   media.duration = Math.round(media.duration);
   const db = await connect();
+  assert.equal(await db.collection('lessons').countDocuments({
+    seedBatch: 'mindly-demo-enrolled-lesson-v1', deletedAt: null,
+  }), 0, 'The catalog has an enrolled-only extension. Use seed:catalog:locked:import to update it without resetting the base courses.');
   const { client, bucket, publicUrl } = storage();
   await client.send(new HeadBucketCommand({ Bucket: bucket }));
   const operations = new Map<string, Array<{ updateOne: { filter: Record<string, unknown>; update: Record<string, unknown>; upsert: boolean } }>>();
@@ -279,8 +282,12 @@ async function verify() {
   const ids = courses.map((course) => course._id);
   const sections = await db.collection('sections').find({ courseId: { $in: ids }, deletedAt: null }).toArray();
   const lessons = await db.collection('lessons').find({ sectionId: { $in: sections.map((section) => section._id) }, deletedAt: null }).toArray();
+  const previewLessons = lessons.filter((lesson) => lesson.seedBatch === batch);
+  const extensions = lessons.filter((lesson) => lesson.seedBatch === 'mindly-demo-enrolled-lesson-v1');
   assert.equal(sections.length, 48);
-  assert.equal(lessons.length, 48);
+  assert.equal(previewLessons.length, 48);
+  assert([0, 48].includes(extensions.length));
+  assert.equal(lessons.length, 48 + extensions.length);
   const categoryCounts = new Map<string, number>();
   const instructorCounts = new Map<string, number>();
   const instructorLevels = new Map<string, number[]>();
@@ -296,10 +303,10 @@ async function verify() {
     const ownSections = sections.filter((s) => s.courseId.equals(course._id));
     const ownLessons = lessons.filter((l) => ownSections.some((s) => s._id.equals(l.sectionId)));
     assert.equal(ownSections.length, 1);
-    assert.equal(ownLessons.length, 1);
-    assert(Math.abs(ownLessons[0].content.duration - 420) <= 1);
+    assert.equal(ownLessons.length, extensions.length ? 2 : 1);
+    assert(Math.abs(ownLessons.find((lesson) => lesson.isPreview)!.content.duration - 420) <= 1);
     assert.equal(ownLessons.filter((l) => l.isPreview && l.content.type === 'video').length, 1);
-    for (const section of ownSections) assert.deepEqual(ownLessons.filter((l) => l.sectionId.equals(section._id)).map((l) => l.order), [0]);
+    for (const section of ownSections) assert.deepEqual(ownLessons.filter((l) => l.sectionId.equals(section._id)).map((l) => l.order).sort(), extensions.length ? [0, 1] : [0]);
     const result = buildCourseApprovalChecklist(
       { ...course, id: course._id.toString(), status: CourseStatusEnum.DRAFT } as unknown as ICourse, true,
       ownSections.map((s) => ({ ...s, id: s._id.toString() })) as unknown as ISection[],
@@ -318,7 +325,7 @@ async function verify() {
   }
   const quizzes = await db.collection('lesson_quizzes').find({ seedBatch: batch, deletedAt: null }).toArray();
   assert.equal(quizzes.length, 336);
-  for (const lesson of lessons) assert.equal(quizzes.filter((q) => q.lessonId.equals(lesson._id)).length, 7);
+  for (const lesson of previewLessons) assert.equal(quizzes.filter((q) => q.lessonId.equals(lesson._id)).length, 7);
   for (const quiz of quizzes) {
     const lesson = lessons.find((lesson) => lesson._id.equals(quiz.lessonId));
     assert(lesson && quiz.timestamp > 0 && quiz.timestamp < lesson.content.duration);
@@ -327,7 +334,7 @@ async function verify() {
   const summaries = await db.collection('lesson_summaries').find({ seedBatch: batch, deletedAt: null }).toArray();
   const mindmaps = await db.collection('lesson_mindmaps').find({ seedBatch: batch, deletedAt: null }).toArray();
   const transcripts = await db.collection('lesson_transcripts').find({ seedBatch: batch, deletedAt: null }).toArray();
-  for (const lesson of lessons) {
+  for (const lesson of previewLessons) {
     const summary = summaries.find((item) => item.lessonId.equals(lesson._id));
     const mindmap = mindmaps.find((item) => item.lessonId.equals(lesson._id));
     const transcript = transcripts.find((item) => item.lessonId.equals(lesson._id));
@@ -363,7 +370,7 @@ async function verify() {
     assert.equal(result.data.course?.slug ?? result.data.slug, course.slug);
   });
   // Read the same learner-facing endpoints used by the interactive player.
-  const previewId = lessons[0]._id.toString();
+  const previewId = previewLessons[0]._id.toString();
   for (const suffix of ['', '/transcript', '/quizzes', '/analysis/mindmap', '/analysis/summary']) {
     const response = await fetch(`${api}/lessons/${previewId}${suffix}`, { signal: AbortSignal.timeout(15000) });
     assert(response.ok, `Lesson API unavailable: ${suffix || '/lesson'}`);

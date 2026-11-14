@@ -4,6 +4,7 @@ import { Reflector } from '@nestjs/core';
 import { ILessonContent, LessonContentTypeEnum, RoleEnum } from 'share-lib';
 import { LessonContentController } from '../lesson-content.controller.js';
 import { StorageService } from '../../storage/index.js';
+import { LessonService } from '../services/lesson.service.js';
 import { ROLES_KEY } from '../../auth/decorators/roles.decorator.js';
 
 describe('LessonContentController', () => {
@@ -12,6 +13,7 @@ describe('LessonContentController', () => {
     uploadLessonMedia: ReturnType<typeof vi.fn>;
     getPresignedStreamUrl: ReturnType<typeof vi.fn>;
   };
+  const mockLessonService = { getAuthorizedStreamUrl: vi.fn() };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -23,6 +25,7 @@ describe('LessonContentController', () => {
 
     controller = new LessonContentController(
       mockStorageService as unknown as StorageService,
+      mockLessonService as unknown as LessonService,
     );
   });
 
@@ -134,11 +137,12 @@ describe('LessonContentController', () => {
       const mockKey = 'courses/lessons/123-video.mp4';
       const mockSignedUrl = 'http://localhost:9000/thc-datn-media/courses/lessons/123-video.mp4?X-Amz-Signature=xyz';
 
-      mockStorageService.getPresignedStreamUrl.mockResolvedValue(mockSignedUrl);
+      mockLessonService.getAuthorizedStreamUrl.mockResolvedValue(mockSignedUrl);
 
-      const response = await controller.getStreamUrl(mockKey);
+      const response = await controller.getStreamUrl(mockKey, 'student-id', RoleEnum.STUDENT);
 
-      expect(mockStorageService.getPresignedStreamUrl).toHaveBeenCalledWith(mockKey);
+      expect(mockLessonService.getAuthorizedStreamUrl).toHaveBeenCalledWith(mockKey, 'student-id', RoleEnum.STUDENT);
+      expect(mockStorageService.getPresignedStreamUrl).not.toHaveBeenCalled();
       expect(response.success).toBe(true);
       expect(response.data?.url).toBe(mockSignedUrl);
     });

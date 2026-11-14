@@ -5,6 +5,7 @@ import { QuizQuestionTypeEnum } from 'share-lib';
 import { LessonQuizController } from '../lesson-quiz.controller.js';
 import { LessonQuizService } from '../services/lesson-quiz.service.js';
 import { LessonManagementGuard } from '../guards/lesson-management.guard.js';
+import { LessonAccessGuard } from '../guards/lesson-access.guard.js';
 import { SaveLessonQuizDto } from '../dto/save-lesson-quiz.dto.js';
 
 describe('Individual lesson quiz HTTP contracts', () => {
@@ -28,7 +29,10 @@ describe('Individual lesson quiz HTTP contracts', () => {
     const module = await Test.createTestingModule({
       controllers: [LessonQuizController],
       providers: [{ provide: LessonQuizService, useValue: service }],
-    }).overrideGuard(LessonManagementGuard).useValue(guard).compile();
+    })
+      .overrideGuard(LessonManagementGuard).useValue(guard)
+      .overrideGuard(LessonAccessGuard).useValue({ canActivate: () => true })
+      .compile();
     app = module.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }));
     await app.listen(0, '127.0.0.1');

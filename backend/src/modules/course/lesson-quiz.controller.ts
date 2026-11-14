@@ -17,6 +17,7 @@ import { LessonQuizService } from './services/lesson-quiz.service.js';
 import { SyncLessonQuizzesAtTimestampDto } from './dto/sync-lesson-quizzes.dto.js';
 import { MoveMergeLessonQuizzesDto } from './dto/move-merge-lesson-quizzes.dto.js';
 import { LessonManagementGuard } from './guards/lesson-management.guard.js';
+import { LessonAccessGuard } from './guards/lesson-access.guard.js';
 import { SaveLessonQuizDto } from './dto/save-lesson-quiz.dto.js';
 
 @Controller('lessons')
@@ -25,6 +26,7 @@ export class LessonQuizController {
 
   @Get(':id/quizzes')
   @Public()
+  @UseGuards(LessonAccessGuard)
   async getQuizzes(
     @Param('id', ParseObjectIdPipe) id: string,
   ) {

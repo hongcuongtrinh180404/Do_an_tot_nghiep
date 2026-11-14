@@ -62,6 +62,7 @@ services:
       done;
       echo 'Connected to MinIO. Ensuring default bucket exists...';
       /usr/bin/mc mb --ignore-existing myminio/thc-datn-media;
+      /usr/bin/mc mb --ignore-existing myminio/thc-datn-media-private;
       echo 'Configuring anonymous download policy for media assets...';
       /usr/bin/mc anonymous set download myminio/thc-datn-media;
       echo 'MinIO initialization complete.';

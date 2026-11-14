@@ -5,6 +5,7 @@ import { Readable } from 'stream';
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { StorageService } from '../storage.service.js';
 import { LessonContentTypeEnum } from 'share-lib';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // Mock @aws-sdk/client-s3 and @aws-sdk/s3-request-presigner
 vi.mock('@aws-sdk/s3-request-presigner', () => ({
@@ -134,6 +135,24 @@ describe('StorageService', () => {
   });
 
   describe('getPresignedStreamUrl', () => {
+    it('signs the private bucket for a private URL or bucket-qualified key', async () => {
+      for (const value of [
+        'http://localhost:9000/thc-datn-media-private/courses/locked/video.mp4',
+        'thc-datn-media-private/courses/locked/video.mp4',
+      ]) {
+        await service.getPresignedStreamUrl(value, 1800);
+        expect(getSignedUrl).toHaveBeenLastCalledWith(
+          expect.anything(),
+          expect.objectContaining({ input: { Bucket: 'thc-datn-media-private', Key: 'courses/locked/video.mp4' } }),
+          { expiresIn: 1800 },
+        );
+      }
+    });
+
+    it('rejects foreign URLs and traversal rather than signing attacker-controlled keys', async () => {
+      await expect(service.getPresignedStreamUrl('https://other.example/thc-datn-media-private/secret.mp4')).rejects.toThrow(BadRequestException);
+      await expect(service.getPresignedStreamUrl('thc-datn-media-private/courses/../secret.mp4')).rejects.toThrow(BadRequestException);
+    });
     it('should return signed URL for valid file key', async () => {
       const url = await service.getPresignedStreamUrl('courses/lessons/video.mp4');
       expect(url).toBe('http://localhost:9000/thc-datn-media/test-signed-url');
@@ -151,6 +170,12 @@ describe('StorageService', () => {
   });
 
   describe('deleteFile', () => {
+    it('deletes private lesson media from its actual bucket', async () => {
+      await service.deleteFile('http://localhost:9000/thc-datn-media-private/courses/locked/video.mp4');
+      expect(sendSpy.mock.calls[0][0]).toMatchObject({
+        input: { Bucket: 'thc-datn-media-private', Key: 'courses/locked/video.mp4' },
+      });
+    });
     it('should delete object from MinIO', async () => {
       const deleted = await service.deleteFile('courses/lessons/video.mp4');
       expect(sendSpy).toHaveBeenCalledTimes(1);

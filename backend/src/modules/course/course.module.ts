@@ -23,6 +23,7 @@ import { LessonsController } from './lessons.controller.js';
 import { LessonContentController } from './lesson-content.controller.js';
 import { LessonQuizController } from './lesson-quiz.controller.js';
 import { LessonManagementGuard } from './guards/lesson-management.guard.js';
+import { LessonAccessGuard } from './guards/lesson-access.guard.js';
 import { CourseRepository } from './repositories/course.repository.js';
 import { CourseCategoryRepository } from './repositories/course-category.repository.js';
 import { SectionRepository } from './repositories/section.repository.js';
@@ -75,6 +76,7 @@ import { EnrollmentModule } from '../enrollment/enrollment.module.js';
     LessonQuizController,
   ],
   providers: [
+    LessonAccessGuard,
     LessonManagementGuard,
     CourseApprovalService,
     CourseRepository,
@@ -96,6 +98,7 @@ import { EnrollmentModule } from '../enrollment/enrollment.module.js';
     AudioExtractorService,
   ],
   exports: [
+    LessonAccessGuard,
     LessonManagementGuard,
     CourseRepository,
     CourseCategoryRepository,

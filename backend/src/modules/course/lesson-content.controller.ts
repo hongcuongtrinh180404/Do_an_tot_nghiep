@@ -13,12 +13,17 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ILessonContent, RoleEnum } from 'share-lib';
 import { ApiResponse } from '../base/index.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { StorageService } from '../storage/index.js';
+import { LessonService } from './services/lesson.service.js';
 import { LessonFileValidationPipe } from './pipes/lesson-file-validation.pipe.js';
 
 @Controller('lesson-content')
 export class LessonContentController {
-  constructor(private readonly storageService: StorageService) {}
+  constructor(
+    private readonly storageService: StorageService,
+    private readonly lessonService: LessonService,
+  ) {}
 
   @Post('upload')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
@@ -39,13 +44,15 @@ export class LessonContentController {
   @HttpCode(HttpStatus.OK)
   async getStreamUrl(
     @Query('key') key?: string,
+    @CurrentUser('id') userId?: string,
+    @CurrentUser('role') userRole?: RoleEnum,
   ): Promise<ApiResponse<{ url: string }>> {
     const trimmedKey = typeof key === 'string' ? key.trim() : '';
     if (!trimmedKey) {
       throw new BadRequestException('Khóa file (key) không được để trống');
     }
 
-    const streamUrl = await this.storageService.getPresignedStreamUrl(trimmedKey);
+    const streamUrl = await this.lessonService.getAuthorizedStreamUrl(trimmedKey, userId, userRole);
     return ApiResponse.success(
       { url: streamUrl },
       'Tạo đường dẫn phát video thành công',

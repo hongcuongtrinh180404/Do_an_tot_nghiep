@@ -26,12 +26,15 @@ export class StorageService implements IStorageService {
   private readonly logger = new Logger(StorageService.name);
   private readonly s3Client: S3Client;
   private readonly bucketName: string;
+  private readonly privateBucketName: string;
   private readonly publicUrl: string;
+  private readonly endpointUrl: string;
 
   constructor(private readonly configService: ConfigService) {
     const endpoint = this.configService.get<string>('MINIO_ENDPOINT', 'localhost');
     const port = this.configService.get<number>('MINIO_PORT', 9000);
-    const useSSL = this.configService.get<boolean>('MINIO_USE_SSL', false);
+    const sslSetting = this.configService.get<boolean | string>('MINIO_USE_SSL', false);
+    const useSSL = sslSetting === true || sslSetting === 'true';
     const protocol = useSSL ? 'https' : 'http';
     const s3Endpoint = `${protocol}://${endpoint}:${port}`;
 
@@ -39,6 +42,8 @@ export class StorageService implements IStorageService {
       'MINIO_BUCKET_NAME',
       'thc-datn-media',
     );
+    this.privateBucketName = this.configService.get<string>('MINIO_PRIVATE_BUCKET_NAME', `${this.bucketName}-private`);
+    this.endpointUrl = s3Endpoint;
     this.publicUrl = (
       this.configService.get<string>('MINIO_PUBLIC_URL') || s3Endpoint
     ).replace(/\/+$/, '');
@@ -65,6 +70,40 @@ export class StorageService implements IStorageService {
     this.logger.log(
       `MinIO StorageService initialized (endpoint: ${s3Endpoint}, bucket: ${this.bucketName})`,
     );
+  }
+
+  /** Resolve only our two known buckets. Never sign arbitrary external URLs. */
+  getMediaReference(fileKeyOrUrl: string): { bucket: string; key: string; url: string; isPrivate: boolean } {
+    const value = fileKeyOrUrl?.trim();
+    if (!value) throw new BadRequestException('Khóa file (fileKey) không hợp lệ');
+    let bucket = this.bucketName;
+    let key = value.replace(/^\/+/, '');
+    if (/^https?:\/\//i.test(value)) {
+      const parsed = new URL(value);
+      const plainUrl = `${parsed.origin}${parsed.pathname}`;
+      const match = [this.privateBucketName, this.bucketName].flatMap((candidate) =>
+        [this.publicUrl, this.endpointUrl].map((base) => ({ candidate, prefix: `${base}/${candidate}/` })),
+      ).find(({ prefix }) => plainUrl.startsWith(prefix));
+      if (!match) throw new BadRequestException('File không thuộc kho lưu trữ của hệ thống');
+      bucket = match.candidate;
+      key = decodeURIComponent(plainUrl.slice(match.prefix.length));
+    } else {
+      for (const candidate of [this.privateBucketName, this.bucketName]) {
+        if (key.startsWith(`${candidate}/`)) {
+          bucket = candidate;
+          key = key.slice(candidate.length + 1);
+          break;
+        }
+      }
+    }
+    if (!key || key.includes('\\') || /[?#]/.test(key) || key.split('/').some((part) => part === '.' || part === '..')) {
+      throw new BadRequestException('Khóa file (fileKey) không hợp lệ');
+    }
+    return { bucket, key, url: `${this.publicUrl}/${bucket}/${key}`, isPrivate: bucket === this.privateBucketName };
+  }
+
+  isPrivateMedia(fileKeyOrUrl: string): boolean {
+    try { return this.getMediaReference(fileKeyOrUrl).isPrivate; } catch { return false; }
   }
 
   /**
@@ -195,21 +234,11 @@ export class StorageService implements IStorageService {
     fileKeyOrUrl: string,
     expiresInSeconds: number = 7200,
   ): Promise<string> {
-    if (!fileKeyOrUrl || typeof fileKeyOrUrl !== 'string') {
-      throw new BadRequestException('Khóa file (fileKey) không hợp lệ');
-    }
-
-    let key = fileKeyOrUrl.trim();
-    const publicUrlPrefix = `${this.publicUrl}/${this.bucketName}/`;
-    if (key.startsWith(publicUrlPrefix)) {
-      key = key.slice(publicUrlPrefix.length);
-    } else if (key.startsWith(`/${this.bucketName}/`)) {
-      key = key.slice(`/${this.bucketName}/`.length);
-    }
+    const { bucket, key } = this.getMediaReference(fileKeyOrUrl);
 
     try {
       const command = new GetObjectCommand({
-        Bucket: this.bucketName,
+        Bucket: bucket,
         Key: key,
       });
 
@@ -227,25 +256,11 @@ export class StorageService implements IStorageService {
    * Lấy Stream đọc file từ MinIO để xử lý ngầm (ví dụ: chuyển âm thanh sang AssemblyAI)
    */
   async getObjectStream(fileKeyOrUrl: string): Promise<Readable> {
-    if (!fileKeyOrUrl || typeof fileKeyOrUrl !== 'string') {
-      throw new BadRequestException('Khóa file (fileKey) không hợp lệ');
-    }
-
-    let key = fileKeyOrUrl.trim();
-    const publicUrlPrefix = `${this.publicUrl}/${this.bucketName}/`;
-    if (key.startsWith(publicUrlPrefix)) {
-      key = key.slice(publicUrlPrefix.length);
-    } else if (key.includes(`/${this.bucketName}/`)) {
-      key = key.slice(key.indexOf(`/${this.bucketName}/`) + `/${this.bucketName}/`.length);
-    }
-    key = key.replace(/^\/+/, '');
-    if (!key) {
-      throw new BadRequestException('Khóa file (fileKey) không được để trống');
-    }
+    const { bucket, key } = this.getMediaReference(fileKeyOrUrl);
 
     try {
       const command = new GetObjectCommand({
-        Bucket: this.bucketName,
+        Bucket: bucket,
         Key: key,
       });
       const response = await this.s3Client.send(command);
@@ -269,27 +284,14 @@ export class StorageService implements IStorageService {
   async deleteFile(fileKeyOrUrl: string): Promise<boolean> {
     if (!fileKeyOrUrl || typeof fileKeyOrUrl !== 'string') return false;
 
-    let key = fileKeyOrUrl.trim();
-    const publicUrlPrefix = `${this.publicUrl}/${this.bucketName}/`;
-    if (key.startsWith(publicUrlPrefix)) {
-      key = key.slice(publicUrlPrefix.length);
-    } else if (key.includes(`/${this.bucketName}/`)) {
-      key = key.slice(key.indexOf(`/${this.bucketName}/`) + `/${this.bucketName}/`.length);
-    }
-
-    // Bỏ qua nếu là URL bên ngoài (Google OAuth, external CDN)
-    if (/^https?:\/\//i.test(key)) {
-      this.logger.debug(`Bỏ qua xóa file do không thuộc MinIO bucket: ${fileKeyOrUrl}`);
-      return false;
-    }
-
-    key = key.replace(/^\/+/, '');
-    if (!key) return false;
+    let reference: ReturnType<StorageService['getMediaReference']>;
+    try { reference = this.getMediaReference(fileKeyOrUrl); } catch { return false; }
+    const { bucket, key } = reference;
 
     try {
       await this.s3Client.send(
         new DeleteObjectCommand({
-          Bucket: this.bucketName,
+          Bucket: bucket,
           Key: key,
         }),
       );

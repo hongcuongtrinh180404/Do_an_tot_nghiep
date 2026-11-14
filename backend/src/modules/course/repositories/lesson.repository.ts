@@ -89,6 +89,14 @@ export class LessonRepository extends BaseMongoRepository<ILesson, LessonEntity>
     return docs.map((doc) => this.toDomain(doc));
   }
 
+  async findByMediaUrl(url: string): Promise<ILesson | null> {
+    const doc = await this.model.findOne({
+      deletedAt: null,
+      $or: [{ 'content.url': url }, { 'materials.url': url }],
+    }).exec();
+    return doc ? this.toDomain(doc) : null;
+  }
+
   async getCourseVideoStats(courseIds: string[]): Promise<CourseVideoStats[]> {
     if (courseIds.length === 0) return [];
     const validDuration = { $and: [{ $isNumber: '$content.duration' }, { $gt: ['$content.duration', 0] }] };

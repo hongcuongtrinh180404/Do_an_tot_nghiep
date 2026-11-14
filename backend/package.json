@@ -32,7 +32,11 @@
     "seed:catalog:prepare": "node --env-file=.env --import tsx scripts/demo-catalog/index.ts prepare",
     "seed:catalog:render": "node --env-file=.env --import tsx scripts/demo-catalog/index.ts render",
     "seed:catalog:import": "node --env-file=.env --import tsx scripts/demo-catalog/index.ts import",
-    "seed:catalog:verify": "node --env-file=.env --import tsx scripts/demo-catalog/index.ts verify"
+    "seed:catalog:verify": "node --env-file=.env --import tsx scripts/demo-catalog/index.ts verify",
+    "seed:catalog:locked:prepare": "node --env-file=.env --import tsx scripts/demo-catalog/prepare-locked-video.ts",
+    "seed:catalog:locked:generate": "node --env-file=.env --import tsx scripts/demo-catalog/generate-locked-content.ts",
+    "seed:catalog:locked:import": "node --env-file=.env --import tsx scripts/demo-catalog/locked-lesson.ts import",
+    "seed:catalog:locked:verify": "node --env-file=.env --import tsx scripts/demo-catalog/locked-lesson.ts verify"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1143.0",

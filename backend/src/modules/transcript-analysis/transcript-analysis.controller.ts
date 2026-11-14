@@ -38,6 +38,7 @@ import { UpdateLessonMindmapDto } from './dto/update-mindmap.dto.js';
 import { GenerateQuizDto } from './dto/generate-quiz.dto.js';
 import { GenerateSummaryDto } from './dto/generate-summary.dto.js';
 import { UpdateLessonSummaryDto } from './dto/update-summary.dto.js';
+import { LessonAccessGuard } from '../course/guards/lesson-access.guard.js';
 
 @Controller('lessons')
 export class TranscriptAnalysisController {
@@ -76,6 +77,7 @@ export class TranscriptAnalysisController {
    */
   @Get(':id/analysis/mindmap')
   @Public()
+  @UseGuards(LessonAccessGuard)
   async getMindmap(
     @Param('id', ParseObjectIdPipe) id: string,
   ): Promise<ApiResponse<ILessonMindmap | null>> {
@@ -207,6 +209,7 @@ export class TranscriptAnalysisController {
    */
   @Get(':id/analysis/summary')
   @Public()
+  @UseGuards(LessonAccessGuard)
   async getSummary(
     @Param('id', ParseObjectIdPipe) id: string,
   ): Promise<ApiResponse<ILessonSummary | null>> {

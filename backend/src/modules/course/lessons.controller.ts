@@ -21,6 +21,7 @@ import { LessonService } from './services/lesson.service.js';
 import { LessonTranscriptService } from './services/lesson-transcript.service.js';
 import { LessonFileValidationPipe } from './pipes/lesson-file-validation.pipe.js';
 import { LessonManagementGuard } from './guards/lesson-management.guard.js';
+import { LessonAccessGuard } from './guards/lesson-access.guard.js';
 
 @Controller('lessons')
 export class LessonsController {
@@ -96,6 +97,7 @@ export class LessonsController {
 
   @Get(':id/transcript')
   @Public()
+  @UseGuards(LessonAccessGuard)
   async getLessonTranscript(
     @Param('id', ParseObjectIdPipe) id: string,
   ): Promise<ApiResponse<ILessonTranscript>> {

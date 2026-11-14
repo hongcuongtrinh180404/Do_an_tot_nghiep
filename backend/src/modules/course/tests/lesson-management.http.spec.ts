@@ -64,6 +64,7 @@ describe('Lesson authoring HTTP authorization (isolated, no database or AI calls
   const lessonService = {
     createLesson: vi.fn(),
     getLessonForUser: vi.fn(),
+    getAccessibleLesson: vi.fn(),
     getLessonsBySectionId: vi.fn(),
     addMaterial: vi.fn(),
     deleteMaterial: vi.fn(),

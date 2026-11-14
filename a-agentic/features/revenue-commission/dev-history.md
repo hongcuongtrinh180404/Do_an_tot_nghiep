@@ -82,7 +82,7 @@
   - `teaching-recent-reviews-section.tsx`: Thẻ nhận xét học viên, xử lý đánh giá chỉ có sao không có văn bản.
   - `teaching-stats-view.tsx`: Điều phối 4 section mượt mà trên 1 trang.
   - `page.tsx`: Route `/instructor/statistics` bọc trong `InstructorCourseAccess`.
-  - Điều hướng: Thêm nút "Thống kê giảng dạy" vào `CourseHeader`, `PublicHeader` (desktop nav, mobile drawer, user popover).
+  - Điều hướng: Nút "Thống kê giảng dạy" được đặt trong menu dropdown tài khoản của Giảng viên (và phần tài khoản mobile), ẩn khỏi thanh header chung và header khóa học để giao diện tinh gọn, tập trung.
 
 ### 3. Root Causes & Gotchas Resolved
 - **Gotcha: Mặc định lọc thời gian "Tất cả thời gian"**: Trong `revenue-date.util.ts`, trước đây `all` bị rơi vào `default` (30 ngày). Đã bổ sung `case 'all': case 'all_time':` trả về `startDate: undefined, endDate: undefined`, qua đó không áp đặt điều kiện ngày tháng lên MongoDB query, đảm bảo trả về chính xác toàn bộ lịch sử giao dịch.
