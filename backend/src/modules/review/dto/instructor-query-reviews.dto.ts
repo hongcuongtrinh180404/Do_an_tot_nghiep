@@ -34,4 +34,3 @@ export class InstructorQueryReviewsDto {
   @Max(100)
   limit: number = 10;
 }
-

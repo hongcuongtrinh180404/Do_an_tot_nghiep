@@ -193,4 +193,3 @@ export function TeachingStatsView(): React.JSX.Element {
     </div>
   );
 }
-

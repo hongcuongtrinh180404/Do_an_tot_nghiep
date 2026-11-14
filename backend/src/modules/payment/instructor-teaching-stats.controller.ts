@@ -53,4 +53,3 @@ export class InstructorTeachingStatsController {
     return ApiResponse.success(result, 'Lấy danh sách doanh thu theo khóa học thành công');
   }
 }
-

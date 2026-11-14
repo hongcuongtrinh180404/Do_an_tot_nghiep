@@ -28,4 +28,3 @@ export class InstructorCoursesRevenueQueryDto extends RevenueTimeRangeQueryDto {
   @Max(100)
   limit: number = 10;
 }
-

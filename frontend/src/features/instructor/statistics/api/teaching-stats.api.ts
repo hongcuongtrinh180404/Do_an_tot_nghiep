@@ -118,4 +118,3 @@ export function useInstructorReviewsQuery(params: IInstructorReviewsParams) {
     staleTime: 30 * 1000,
   });
 }
-

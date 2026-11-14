@@ -115,6 +115,25 @@ describe('RevenueService', () => {
       const result = await service.getOverview({ timeRange: '30days' });
       expect(result).toEqual(mockKpi);
       expect(orderRepo.getRevenueOverview).toHaveBeenCalledTimes(1);
+      expect(orderRepo.getRevenueOverview).toHaveBeenCalledWith(
+        expect.any(Date),
+        expect.any(Date),
+      );
+    });
+
+    it.each(['all', 'all_time'])('should query all-time metrics for %s', async (timeRange) => {
+      const mockKpi = {
+        totalRevenue: 5000000,
+        platformCommission: 1500000,
+        instructorEarnings: 3500000,
+        successfulOrders: 10,
+      };
+      orderRepo.getRevenueOverview.mockResolvedValue(mockKpi);
+
+      const result = await service.getOverview({ timeRange });
+
+      expect(result).toEqual(mockKpi);
+      expect(orderRepo.getRevenueOverview).toHaveBeenCalledWith(undefined, undefined);
     });
   });
 
@@ -433,4 +452,3 @@ describe('RevenueService', () => {
     });
   });
 });
-

@@ -28,7 +28,9 @@ function TeachingStatsSkeleton(): React.JSX.Element {
 export default function InstructorTeachingStatisticsPage(): React.JSX.Element {
   return (
     <div className="min-h-[100dvh] w-full max-w-full overflow-x-clip flex flex-col bg-background text-foreground">
-      <PublicHeader />
+      <Suspense fallback={<div className="h-[68px] sm:h-[72px] w-full bg-[#161616]" />}>
+        <PublicHeader />
+      </Suspense>
       <main className="flex-1 flex flex-col bg-gradient-to-b from-background via-background to-muted/20">
         <InstructorCourseAccess>
           <Suspense fallback={<TeachingStatsSkeleton />}>
@@ -40,4 +42,3 @@ export default function InstructorTeachingStatisticsPage(): React.JSX.Element {
     </div>
   );
 }
-

@@ -122,18 +122,21 @@ export class OrderRepository extends BaseMongoRepository<IOrder, OrderEntity> {
     }, { $set: { status: OrderStatusEnum.CANCELLED }, $unset: { pendingCheckoutKey: 1 } }, { session }).exec();
   }
 
-  async getRevenueOverview(startDate: Date, endDate: Date): Promise<IRevenueOverviewKpi> {
+  async getRevenueOverview(startDate?: Date, endDate?: Date): Promise<IRevenueOverviewKpi> {
+    const match: Record<string, unknown> = {
+      status: OrderStatusEnum.PAID,
+      deletedAt: null,
+    };
+
+    if (startDate && endDate) {
+      match.$or = [
+        { paidAt: { $gte: startDate, $lte: endDate } },
+        { paidAt: null, createdAt: { $gte: startDate, $lte: endDate } },
+      ];
+    }
+
     const pipeline: PipelineStage[] = [
-      {
-        $match: {
-          status: OrderStatusEnum.PAID,
-          deletedAt: null,
-          $or: [
-            { paidAt: { $gte: startDate, $lte: endDate } },
-            { paidAt: null, createdAt: { $gte: startDate, $lte: endDate } },
-          ],
-        },
-      },
+      { $match: match },
       {
         $project: {
           amount: 1,
