@@ -9,7 +9,6 @@ import { CourseLevelEnum } from 'share-lib';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
@@ -35,7 +34,6 @@ export function CreateCourseForm(): React.JSX.Element {
     resolver: zodResolver(createCourseSchema),
     defaultValues: {
       title: '',
-      shortDescription: '',
       description: '',
       price: 0,
       level: CourseLevelEnum.ALL_LEVELS,
@@ -52,7 +50,6 @@ export function CreateCourseForm(): React.JSX.Element {
   const onSubmit = (data: CreateCourseFormData) => {
     createCourseMutation.mutate({
       title: data.title,
-      shortDescription: data.shortDescription?.trim() || undefined,
       description: data.description?.trim() || undefined,
       price: data.price !== undefined ? Number(data.price) : 0,
       level: data.level,
@@ -186,29 +183,6 @@ export function CreateCourseForm(): React.JSX.Element {
                 </p>
               )}
             </div>
-          </div>
-
-          {/* Short Description */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="shortDescription">
-                Mô tả ngắn <span className="text-xs text-muted-foreground">(Tùy chọn)</span>
-              </Label>
-              <span className="text-[11px] text-muted-foreground">Tối đa 500 ký tự</span>
-            </div>
-            <Textarea
-              id="shortDescription"
-              rows={3}
-              placeholder="Tóm tắt ngắn gọn các kỹ năng và giá trị học viên sẽ đạt được sau khóa học..."
-              aria-invalid={Boolean(errors.shortDescription)}
-              disabled={isPending}
-              {...register('shortDescription')}
-            />
-            {errors.shortDescription && (
-              <p className="text-xs font-medium text-destructive mt-1">
-                {errors.shortDescription.message}
-              </p>
-            )}
           </div>
 
           {/* Detailed Description */}

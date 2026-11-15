@@ -213,7 +213,7 @@ async function importCatalog() {
     // must not break other courses under the existing storage deletion lifecycle.
     const video = await upload(course, 'lesson.mp4', 'video/mp4', true);
     const pdf = await upload(course, 'lesson.pdf', 'application/pdf', true);
-    const courseRecord = { title: course.title, slug: course.slug, shortDescription: course.topics.map((topic) => topic.title).join(' · '),
+    const courseRecord = { title: course.title, slug: course.slug,
       description: description(course, shared, media), thumbnailUrl: cover.url, trailerUrl: video.url,
       price: course.price, originalPrice: null, instructorId: oid(course.instructorId), categoryId: oid(course.categoryId),
       level: course.level, status: 'published', approvalRequestedAt: now, approvalRequestedById: oid(course.instructorId),

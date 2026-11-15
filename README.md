@@ -121,5 +121,22 @@ pnpm dev
 | `pnpm --filter frontend <cmd>` | Chạy lệnh riêng biệt cho thư mục `frontend` |
 | `pnpm --filter share-lib <cmd>` | Chạy lệnh riêng biệt cho thư mục `share-lib` |
 
+### Dọn trường mô tả ngắn của khóa học cũ
+
+Khóa học chỉ còn dùng `description` (mô tả chi tiết). Sau khi cập nhật backend,
+dọn trường `shortDescription` trong database được cấu hình ở `backend/.env`:
+
+```bash
+# Chỉ kiểm tra số khóa học bị tác động, không thay đổi dữ liệu
+pnpm --filter backend cleanup:course-short-description
+
+# Thay thc_datn bằng đúng MONGODB_DB_NAME của môi trường cần dọn
+pnpm --filter backend cleanup:course-short-description --apply --expect-db=thc_datn
+```
+
+Lệnh áp dụng sao lưu Extended JSON vào thư mục `opencode` trong thư mục tạm của
+người dùng trước khi xóa trường, bao gồm cả khóa học đã xóa mềm. Không xóa khóa học,
+không đổi mô tả chi tiết hay dữ liệu khác; chạy lại sau khi dọn sẽ không thay đổi gì.
+
 ---
 

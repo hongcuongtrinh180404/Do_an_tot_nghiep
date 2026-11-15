@@ -26,7 +26,6 @@ import {
   CoursePriceInlinePopover,
   CourseLevelInlineSelect,
   CourseCategoryInlineSelect,
-  CourseShortDescInlineCard,
   CourseDescInlineCard,
 } from './inline';
 
@@ -456,9 +455,6 @@ export function CourseDetailContent({ courseId }: CourseDetailContentProps): Rea
           </div>
         </CardContent>
       </Card>
-
-      {/* Short Description Section */}
-      <CourseShortDescInlineCard course={course} disabled={isLocked} />
 
       {/* Full Description Section */}
       <CourseDescInlineCard course={course} disabled={isLocked} />

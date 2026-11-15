@@ -301,7 +301,6 @@ describe('CourseService', () => {
         level: CourseLevelEnum.ALL_LEVELS,
         price: 0,
         description: null,
-        shortDescription: null,
         thumbnailUrl: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -329,6 +328,7 @@ describe('CourseService', () => {
         undefined,
       );
       expect(result).toEqual(createdExpected);
+      expect(mockCourseRepository.create.mock.calls[0][0]).not.toHaveProperty('shortDescription');
     });
 
     it('should auto-generate unique slug from title when slug is not provided', async () => {

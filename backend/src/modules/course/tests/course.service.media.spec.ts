@@ -46,7 +46,6 @@ describe('Course Media Upload (Thumbnail & Trailer)', () => {
     slug: 'khoa-hoc-lap-trinh-web-fullstack',
     instructorId: 'instructor_1',
     description: 'Chi tiết khóa học',
-    shortDescription: 'Mô tả ngắn',
     thumbnailUrl: 'http://localhost:9000/thc-datn-media/courses/thumbnail/old-thumb.webp',
     trailerUrl: 'http://localhost:9000/thc-datn-media/courses/trailer/old-trailer.mp4',
     price: 299000,

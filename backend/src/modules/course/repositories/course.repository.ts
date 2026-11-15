@@ -467,10 +467,7 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
 
     if (queryDto.q) {
       const escaped = queryDto.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      filterQuery.$or = [
-        { title: { $regex: escaped, $options: 'i' } },
-        { shortDescription: { $regex: escaped, $options: 'i' } },
-      ];
+      filterQuery.title = { $regex: escaped, $options: 'i' };
     }
 
     if (categoryId) {

@@ -14,7 +14,6 @@ export function CourseCardSkeleton(): React.JSX.Element {
               <div className="h-6 w-56 bg-neutral-200 dark:bg-neutral-800 rounded-md" />
               <div className="h-5 w-24 bg-neutral-100 dark:bg-neutral-800/60 rounded-md" />
             </div>
-            <div className="h-4 w-3/4 bg-neutral-100 dark:bg-neutral-800/60 rounded-md" />
           </div>
           <div className="h-4 w-72 bg-neutral-100 dark:bg-neutral-800/60 rounded-md" />
         </div>

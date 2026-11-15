@@ -304,11 +304,6 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
                   <span>{course.category?.name ?? 'Công nghệ thông tin'}</span>
                 </div>
               </div>
-
-              {/* Short Description */}
-              <p className="text-sm sm:text-[15px] text-neutral-700 dark:text-neutral-300 line-clamp-1 leading-relaxed">
-                {course.shortDescription || 'Chưa có tóm tắt nội dung bài giảng cho khóa học này.'}
-              </p>
             </div>
 
             {/* Consolidated Meta Line: Structure • Students • Rating */}

@@ -62,20 +62,6 @@ describe('Course Inline Edit - Business Logic & Utilities', () => {
     });
   });
 
-  describe('Short Description length limit', () => {
-    const MAX_CHARS = 200;
-
-    it('1. should accept descriptions within 200 characters', () => {
-      const shortDesc = 'Khóa học cung cấp kiến thức nền tảng và nâng cao về lập trình.';
-      assert.ok(shortDesc.length <= MAX_CHARS);
-    });
-
-    it('2. should detect descriptions exceeding 200 characters', () => {
-      const longDesc = 'a'.repeat(201);
-      assert.equal(longDesc.length > MAX_CHARS, true);
-    });
-  });
-
   describe('Course Level Enum Options', () => {
     it('should support all standard course level options', () => {
       const levels = [

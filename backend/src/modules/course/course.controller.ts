@@ -175,7 +175,6 @@ export class CourseController {
     const course = await this.courseService.createCourse({
       title: dto.title,
       slug: dto.slug,
-      shortDescription: dto.shortDescription,
       description: dto.description,
       thumbnailUrl: dto.thumbnailUrl,
       price: dto.price,

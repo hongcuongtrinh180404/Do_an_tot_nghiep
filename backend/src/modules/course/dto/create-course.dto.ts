@@ -37,14 +37,6 @@ export class CreateCourseDto {
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() || undefined : value,
   )
-  @IsString({ message: 'Mô tả ngắn phải là chuỗi ký tự' })
-  @MaxLength(500, { message: 'Mô tả ngắn không được vượt quá 500 ký tự' })
-  shortDescription?: string;
-
-  @IsOptional()
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim() || undefined : value,
-  )
   @IsString({ message: 'Mô tả chi tiết phải là chuỗi ký tự' })
   description?: string;
 

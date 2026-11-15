@@ -52,11 +52,10 @@ export function CourseManagementContent(): React.JSX.Element {
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase().trim();
           const matchTitle = course.title.toLowerCase().includes(q);
-          const matchDesc = course.shortDescription?.toLowerCase().includes(q) ?? false;
           const matchCategory = course.category?.name.toLowerCase().includes(q) ?? false;
           const matchSlug = course.slug.toLowerCase().includes(q);
 
-          if (!matchTitle && !matchDesc && !matchCategory && !matchSlug) {
+          if (!matchTitle && !matchCategory && !matchSlug) {
             return false;
           }
         }
@@ -279,8 +278,8 @@ export function CourseManagementContent(): React.JSX.Element {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm khóa học theo tên, mô tả hoặc danh mục..."
-                aria-label="Tìm kiếm khóa học theo tên, mô tả hoặc danh mục"
+                placeholder="Tìm khóa học theo tên, slug hoặc danh mục..."
+                aria-label="Tìm kiếm khóa học theo tên, slug hoặc danh mục"
                 className="pl-9 pr-8 h-9 text-xs sm:text-sm bg-white dark:bg-neutral-900 border-neutral-200/90 dark:border-neutral-800 rounded-lg shadow-2xs"
               />
               {searchQuery && (

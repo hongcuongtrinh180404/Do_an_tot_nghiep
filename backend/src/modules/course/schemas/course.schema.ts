@@ -16,9 +16,6 @@ export class CourseEntity extends BaseAbstractDocument {
   slug: string;
 
   @Prop({ type: String, required: false, default: null, trim: true })
-  shortDescription?: string | null;
-
-  @Prop({ type: String, required: false, default: null, trim: true })
   description?: string | null;
 
   @Prop({ type: String, required: false, default: null, trim: true })

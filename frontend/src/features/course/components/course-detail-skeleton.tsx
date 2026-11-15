@@ -49,17 +49,6 @@ export function CourseDetailSkeleton(): React.JSX.Element {
         </CardContent>
       </Card>
 
-      {/* Short Description Skeleton */}
-      <Card className="border-border/50 bg-card/60 shadow-xs">
-        <CardHeader className="pb-3">
-          <div className="h-5 w-32 bg-muted rounded" />
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="h-4 w-full bg-muted/60 rounded" />
-          <div className="h-4 w-4/5 bg-muted/60 rounded" />
-        </CardContent>
-      </Card>
-
       {/* Full Description Skeleton */}
       <Card className="border-border/50 bg-card/60 shadow-xs">
         <CardHeader className="pb-3">

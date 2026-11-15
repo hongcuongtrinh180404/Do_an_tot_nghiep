@@ -174,6 +174,32 @@ describe('CourseRepository', () => {
     });
   });
 
+  it('searches public courses by escaped title only, without the retired field', async () => {
+    const query = {
+      sort: vi.fn().mockReturnThis(),
+      skip: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      populate: vi.fn().mockReturnThis(),
+      session: vi.fn().mockReturnThis(),
+      exec: vi.fn().mockResolvedValue([]),
+    };
+    mockModel.find.mockReturnValue(query);
+    mockModel.countDocuments = vi.fn().mockReturnValue({
+      session: vi.fn().mockReturnThis(),
+      exec: vi.fn().mockResolvedValue(0),
+    });
+
+    await repository.findPublicCoursesWithPagination({ q: 'React.js', page: 1, limit: 10 });
+
+    const filter = {
+      status: CourseStatusEnum.PUBLISHED,
+      deletedAt: null,
+      title: { $regex: 'React\\.js', $options: 'i' },
+    };
+    expect(mockModel.find).toHaveBeenCalledWith(filter);
+    expect(mockModel.countDocuments).toHaveBeenCalledWith(filter);
+  });
+
   it('atomically submits only the checked, non-deleted draft and records the requesting actor', async () => {
     const course = {
       id: new Types.ObjectId().toString(), updatedAt: '2026-10-31T00:00:00.000Z',

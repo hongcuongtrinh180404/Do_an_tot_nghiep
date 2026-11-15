@@ -26,7 +26,6 @@ describe('Course Moderation & Concurrency Control', () => {
     title: 'NestJS Masterclass',
     slug: 'nestjs-masterclass',
     description: 'Detailed description',
-    shortDescription: 'Short summary',
     thumbnailUrl: 'https://minio/thumbnail.png',
     trailerUrl: 'https://minio/trailer.mp4',
     price: 199000,

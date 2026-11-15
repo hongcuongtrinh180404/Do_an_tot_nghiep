@@ -14,7 +14,6 @@ export interface ICourse {
   title: string;
   slug: string;
   description?: string | null;
-  shortDescription?: string | null;
   thumbnailUrl?: string | null;
   trailerUrl?: string | null;
   price: number;
@@ -45,7 +44,6 @@ export interface ICourse {
 export interface ICreateCoursePayload {
   title: string;
   slug?: string;
-  shortDescription?: string;
   description?: string;
   thumbnailUrl?: string;
   price?: number;
@@ -56,7 +54,6 @@ export interface ICreateCoursePayload {
 export interface IUpdateCoursePayload {
   title?: string;
   slug?: string;
-  shortDescription?: string | null;
   description?: string | null;
   thumbnailUrl?: string | null;
   trailerUrl?: string | null;

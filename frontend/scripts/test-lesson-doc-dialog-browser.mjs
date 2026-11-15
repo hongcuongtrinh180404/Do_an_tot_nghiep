@@ -23,7 +23,7 @@ const dates = { createdAt: '2026-11-15T00:00:00Z', updatedAt: '2026-11-15T00:00:
 const course = {
   id: courseId, title: 'Khóa học kiểm thử đính kèm', slug: 'attachment-check',
   description: '<p>Kiểm tra bố cục tệp đính kèm của video bài học.</p>',
-  shortDescription: 'Kiểm tra tên tệp dài.', price: 0, instructorId: user.id,
+  price: 0, instructorId: user.id,
   level: 'beginner', status: 'draft', studentsCount: 0, ...dates,
 };
 const section = { id: sectionId, courseId, title: 'Tệp bài giảng', order: 0, ...dates };

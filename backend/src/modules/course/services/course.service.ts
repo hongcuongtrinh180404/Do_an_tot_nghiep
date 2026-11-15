@@ -40,7 +40,6 @@ export interface CreateCourseInput {
   slug?: string;
   instructorId: string;
   description?: string | null;
-  shortDescription?: string | null;
   thumbnailUrl?: string | null;
   trailerUrl?: string | null;
   price?: number;
@@ -181,7 +180,6 @@ export class CourseService extends BaseService<ICourse, string> {
         slug: finalSlug,
         instructorId: input.instructorId,
         description: input.description ?? null,
-        shortDescription: input.shortDescription ?? null,
         thumbnailUrl: input.thumbnailUrl ?? null,
         price: input.price ?? 0,
         status: input.status ?? CourseStatusEnum.DRAFT,
@@ -784,7 +782,6 @@ export class CourseService extends BaseService<ICourse, string> {
     const updateData: Partial<ICourse> = {};
     if (dto.title !== undefined) updateData.title = dto.title.trim();
     if (updatedSlug !== undefined) updateData.slug = updatedSlug;
-    if (dto.shortDescription !== undefined) updateData.shortDescription = dto.shortDescription;
     if (dto.description !== undefined) updateData.description = dto.description;
     if (dto.thumbnailUrl !== undefined) updateData.thumbnailUrl = dto.thumbnailUrl;
     if (dto.trailerUrl !== undefined) updateData.trailerUrl = dto.trailerUrl;

@@ -36,7 +36,7 @@ export function CourseInfoTab({ course }: CourseInfoTabProps): React.JSX.Element
           Giới thiệu khóa học
         </h2>
         <div className="text-sm sm:text-base text-[#444444] leading-relaxed whitespace-pre-line">
-          {course.description || course.shortDescription || (
+          {course.description || (
             <p>
               Khóa học được thiết kế chuyên sâu nhằm trang bị cho học viên toàn bộ kiến thức lý thuyết
               vững chắc cùng kỹ năng thực chiến toàn diện. Từng bài giảng được cô đọng, trực quan với các
@@ -127,4 +127,3 @@ export function CourseInfoTab({ course }: CourseInfoTabProps): React.JSX.Element
     </div>
   );
 }
-

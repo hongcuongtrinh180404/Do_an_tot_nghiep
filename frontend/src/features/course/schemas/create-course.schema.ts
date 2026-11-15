@@ -21,12 +21,6 @@ export const createCourseSchema = z.object({
       'Slug chỉ được chứa chữ cái thường, số và dấu gạch ngang (ví dụ: lap-trinh-reactjs)'
     )
     .optional(),
-  shortDescription: z
-    .string()
-    .transform((val) => val.trim())
-    .pipe(z.string().max(500, 'Mô tả ngắn không được vượt quá 500 ký tự'))
-    .optional()
-    .or(z.literal('')),
   description: z
     .string()
     .transform((val) => {

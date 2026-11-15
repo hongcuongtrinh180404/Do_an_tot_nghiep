@@ -47,4 +47,19 @@ describe('createCourseSchema Unit Tests', () => {
     });
     assert.equal(result.success, false);
   });
+
+  it('5. should omit the retired field even when supplied by stale form data', () => {
+    assert.equal(Object.hasOwn(createCourseSchema.shape, 'shortDescription'), false);
+    const result = createCourseSchema.parse({
+      ...baseValidCourse,
+      shortDescription: 'Không được gửi đến API',
+    });
+    assert.equal(Object.hasOwn(result, 'shortDescription'), false);
+  });
+
+  it('6. should preserve the detailed description without the old short-description limit', () => {
+    const description = `<p>${'Nội dung chi tiết. '.repeat(50)}</p>`;
+    const result = createCourseSchema.parse({ ...baseValidCourse, description });
+    assert.equal(result.description, description);
+  });
 });
