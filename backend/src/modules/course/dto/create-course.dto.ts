@@ -23,15 +23,15 @@ export class CreateCourseDto {
   @MaxLength(200, { message: 'Tiêu đề khóa học không được vượt quá 200 ký tự' })
   title: string;
 
-  @IsNotEmpty({ message: 'Đường dẫn tĩnh (slug) không được để trống' })
+  @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.toLowerCase().trim() : value,
+    typeof value === 'string' && value.trim() ? value.toLowerCase().trim() : undefined,
   )
   @IsString({ message: 'Đường dẫn tĩnh (slug) phải là chuỗi ký tự' })
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
     message: 'Slug chỉ được chứa chữ cái thường, số và dấu gạch ngang (kebab-case)',
   })
-  slug: string;
+  slug?: string;
 
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>

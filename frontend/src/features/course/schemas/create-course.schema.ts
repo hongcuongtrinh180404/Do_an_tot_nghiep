@@ -14,16 +14,13 @@ export const createCourseSchema = z.object({
     ),
   slug: z
     .string()
-    .transform((val) => val.trim().toLowerCase())
-    .pipe(
-      z
-        .string()
-        .min(1, 'Đường dẫn tĩnh (slug) không được để trống')
-        .regex(
-          /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-          'Slug chỉ được chứa chữ cái thường, số và dấu gạch ngang (ví dụ: lap-trinh-reactjs)'
-        )
-    ),
+    .trim()
+    .toLowerCase()
+    .refine(
+      (val) => !val || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(val),
+      'Slug chỉ được chứa chữ cái thường, số và dấu gạch ngang (ví dụ: lap-trinh-reactjs)'
+    )
+    .optional(),
   shortDescription: z
     .string()
     .transform((val) => val.trim())

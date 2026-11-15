@@ -13,7 +13,39 @@
 
 ## 2. Technical Notes & Gotchas
 
-### [2026-11-12] - Milestone 53: Tối Ưu Bố Cục Full-Width Trải Đều Section "News and Highlights" (NewsHighlightsCarousel)
+### [2026-11-14] - Milestone 54: Tự Động Sinh Slug Duy Nhất & Ẩn Trường Slug Khỏi Giao Diện Tạo Khóa Học Mới
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trên màn hình tạo khóa học mới của giảng viên (`/courses/create`), trước đây bắt buộc giảng viên phải nhìn thấy và nhập/tạo lại trường "Đường dẫn tĩnh (Slug)" thủ công.
+  - Nếu slug bị trùng lặp trong hệ thống, backend trả về lỗi `409 ConflictException` và yêu cầu giảng viên phải tự sửa slug bằng tay.
+  - Trải nghiệm này gây gián đoạn và phiền hà cho giảng viên khi chỉ muốn đặt tên khóa học và tạo khóa học nhanh chóng.
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Frontend (`create-course-form.tsx` & `create-course.schema.ts`)**:
+     - Loại bỏ hoàn toàn khối nhập "Đường dẫn tĩnh (Slug)" khỏi giao diện người dùng.
+     - Dọn dẹp các hàm/refs xử lý tạo lại slug thủ công (`isSlugManuallyModified`, `handleSlugChange`, `handleRegenerateSlug`, `slugify`).
+     - Đơn giản hóa `handleTitleChange` chỉ cập nhật tiêu đề khóa học.
+     - Trong `createCourseSchema`, trường `slug` chuyển thành optional (`z.string().trim().toLowerCase().refine(...).optional()`), giúp form gửi dữ liệu sạch mà không kèm trường slug.
+  2. **Shared Library (`share-lib/src/interfaces/course.interface.ts`)**:
+     - `ICreateCoursePayload.slug` chuyển sang `slug?: string`, giữ tính tương thích ngược hoàn hảo.
+  3. **Backend (`course.service.ts`, `create-course.dto.ts`, `course.repository.ts`)**:
+     - `CreateCourseDto.slug` chuyển thành `@IsOptional()`.
+     - `CourseRepository.findConflictingSlugs` cho phép `excludeCourseId` là tham số tùy chọn (optional).
+     - Thuật toán `generateUniqueSlug(baseSlug, excludeCourseId, session)`:
+       - Chuẩn hóa base slug bằng `slugify` (nếu rỗng thì fallback `'khoa-hoc'`).
+       - Quét toàn bộ khóa học hiện hoạt (`deletedAt: null`) trùng pattern slug.
+       - Nếu slug gốc chưa tồn tại: giữ nguyên slug cơ sở.
+       - Nếu slug gốc đã tồn tại: tự động duyệt và kiểm tra tuần tự các hậu tố `-2`, `-3`, `-4`... bằng `Set.has()` cho đến khi tìm được slug chưa ai sử dụng.
+     - `CourseService.createCourse`:
+       - Tự động sinh `baseSlug = (input.slug && input.slug.trim()) || input.title`.
+       - Gọi `this.generateUniqueSlug(baseSlug)` để đảm bảo slug luôn duy nhất và không bao giờ ném lỗi xung đột 409 khi tạo mới.
+  4. **Kiểm thử & Đảm bảo Chất lượng**:
+     - Bổ sung test cases trong `backend/src/modules/course/tests/course.service.spec.ts`:
+       - Kiểm tra tự sinh slug từ title khi không truyền slug.
+       - Kiểm tra tự động gắn hậu tố `-2` khi slug cơ sở đã tồn tại.
+       - Kiểm tra tự động gắn hậu tố `-3` khi cả slug gốc và hậu tố `-2` đã tồn tại.
+     - Bổ sung test case trong `backend/src/modules/course/tests/course.controller.spec.ts`: `CreateCourseDto` chấp nhận payload hợp lệ mà không cần trường `slug`.
+     - Tạo file test `frontend/src/features/course/tests/create-course.schema.spec.ts` kiểm thử toàn diện `createCourseSchema` không cần slug, tự động trim và reject format sai.
+     - Chạy toàn bộ 142 backend unit tests và 17 frontend unit tests đều đạt 100% PASS.
 
 - **Bối cảnh & Vấn đề (Problem Statement)**:
   - Trên trang chủ (`/`), section *"News and highlights"* (`NewsHighlightsCarousel`) trước đây sử dụng chiều rộng thẻ cố định theo pixel (`w-[170px] sm:w-[200px] md:w-[218px]`) và nằm trong container giới hạn `max-w-[1440px]`.
@@ -2231,3 +2263,33 @@
 ### 3. Kiểm định chất lượng
 - **TypeScript Typecheck**: `cd frontend; npx tsc --noEmit` đạt 0 lỗi (Exit code 0).
 - **Unit Test**: `npx vitest run src/features/course/tests/smart-header-scroll.spec.ts` pass 100% (38/38 tests).
+
+
+---
+
+## 2026-11-14 - Tái Thiết Kế Hero Section (Mindly Anti-Slop Design Taste v2)
+
+### 1. Bối cảnh & Yêu cầu
+- Người dùng yêu cầu tái thiết kế phần Hero Section tại trang chủ (`frontend/src/features/course/components/public-discovery/public-hero.tsx`) áp dụng skill `/design-taste-frontend` (tasteskill v2) kết hợp bảng màu thương hiệu Mindly.
+
+### 2. Giải pháp & Triển khai (Solution & Implementation)
+- **Áp dụng triết lý "The Product Performs" (Anti-Slop House Rules)**:
+  - **Tiêu đề H1**: Chuẩn 2 dòng ở mọi kích thước màn hình (`Học video tương tác, đột phá cùng AI Mindmap`), bỏ hoàn toàn pill badge/eyebrow phía trên.
+  - **Màu sắc thương hiệu Mindly**:
+    - Nút CTA chính: Đỏ thương hiệu Mindly (`#DE2900`), chữ trắng, font-bold, phẳng, không gradient.
+    - Nút CTA phụ: Phân cấp sắc độ nền xám phẳng (`#F2F2F2`), loại bỏ viền mỏng 1px (`outlined-box`).
+    - Nền đen rạp chiếu Cinema Studio (`#161616`) cho khung trình phát.
+    - Xanh tri thức (`#027D88`) cho nhánh sơ đồ tư duy Markmap.
+    - Vàng kim (`#FFD100`) cho mốc thời gian AI.
+  - **Thanh năng lực nền tảng**: Thay thế các tag từ khóa tản mạn bằng 3 cam kết chỉ số thực tế: `3.200+ mốc dừng tương tác` • `100% video đồng bộ Mindmap` • `Kích hoạt tự động VietQR`.
+  - **One Live Thing (Cinema Learning Studio)**:
+    - Đánh dấu `data-ui="player"` và `data-ui="mindmap-sync"`.
+    - Thanh scrubber 2px với Micro-gem markers vàng kim.
+    - Modal trắc nghiệm In-video Quiz tại mốc `01:30` với tương tác chọn đáp án, nộp bài kiểm tra kết quả, hiển thị giải thích và nút thử lại.
+    - Thanh đồng bộ sơ đồ tư duy Markmap dạng visual breadcrumb ở đáy khung phát.
+  - **Loại bỏ hoàn toàn các mẫu slop**: 0 gradient, 0 đổ bóng khi tĩnh, 0 màu tím/violet, 0 hoạt ảnh nhấp nháy liên tục (`animate-pulse`).
+
+### 3. Kiểm thử & Thẩm định (Verification)
+- **TasteSkill Linter (`lint.mjs`)**: 0 FAIL, 0 WARN.
+- **TypeScript Compiler (`tsc --noEmit`)**: 0 errors (Exit code 0).
+- **ESLint**: 0 errors, 0 warnings trên `public-hero.tsx`.

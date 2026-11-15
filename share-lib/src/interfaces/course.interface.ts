@@ -44,7 +44,7 @@ export interface ICourse {
 
 export interface ICreateCoursePayload {
   title: string;
-  slug: string;
+  slug?: string;
   shortDescription?: string;
   description?: string;
   thumbnailUrl?: string;

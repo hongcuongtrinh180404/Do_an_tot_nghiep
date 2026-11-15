@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CourseLevelEnum } from 'share-lib';
-import { toast } from 'sonner';
 
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,28 +18,23 @@ import {
   createCourseSchema,
   type CreateCourseFormData,
 } from '../schemas/create-course.schema';
-import { slugify } from '../utils/slugify';
 import { useCreateCourseMutation } from '../api/course.api';
 import { CourseLevelSelect } from './course-level-select';
 import { CourseCategorySelect } from './course-category-select';
 
 export function CreateCourseForm(): React.JSX.Element {
-  const isSlugManuallyModified = useRef(false);
   const createCourseMutation = useCreateCourseMutation();
 
   const {
     register,
     handleSubmit,
     setValue,
-    getValues,
-    setError,
     control,
     formState: { errors, isSubmitting },
   } = useForm<CreateCourseFormData>({
     resolver: zodResolver(createCourseSchema),
     defaultValues: {
       title: '',
-      slug: '',
       shortDescription: '',
       description: '',
       price: 0,
@@ -51,63 +45,19 @@ export function CreateCourseForm(): React.JSX.Element {
 
   const isPending = isSubmitting || createCourseMutation.isPending;
 
-  // Handle title change and auto-slugify if not manually touched
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTitle = e.target.value;
-    setValue('title', newTitle, { shouldValidate: true });
-
-    if (!isSlugManuallyModified.current) {
-      const generatedSlug = slugify(newTitle);
-      setValue('slug', generatedSlug, { shouldValidate: Boolean(generatedSlug) });
-    }
-  };
-
-  // Handle manual slug input
-  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    isSlugManuallyModified.current = true;
-    setValue('slug', e.target.value.toLowerCase().trim(), { shouldValidate: true });
-  };
-
-  // Re-generate slug from current title
-  const handleRegenerateSlug = () => {
-    isSlugManuallyModified.current = false;
-    const currentTitle = getValues('title');
-    const generatedSlug = slugify(currentTitle || '');
-    setValue('slug', generatedSlug, { shouldValidate: true });
-    toast.info('Đã tạo lại slug từ tiêu đề');
+    setValue('title', e.target.value, { shouldValidate: true });
   };
 
   const onSubmit = (data: CreateCourseFormData) => {
-    createCourseMutation.mutate(
-      {
-        title: data.title,
-        slug: data.slug,
-        shortDescription: data.shortDescription?.trim() || undefined,
-        description: data.description?.trim() || undefined,
-        price: data.price !== undefined ? Number(data.price) : 0,
-        level: data.level,
-        categoryId: data.categoryId || undefined,
-      },
-      {
-        onError: (error: unknown) => {
-          const axiosError = error as {
-            response?: {
-              status?: number;
-              data?: {
-                message?: string | string[];
-              };
-            };
-          };
-
-          if (axiosError.response?.status === 409) {
-            setError('slug', {
-              type: 'server',
-              message: 'Đường dẫn tĩnh (slug) này đã tồn tại, vui lòng chọn slug khác.',
-            });
-          }
-        },
-      },
-    );
+    createCourseMutation.mutate({
+      title: data.title,
+      shortDescription: data.shortDescription?.trim() || undefined,
+      description: data.description?.trim() || undefined,
+      price: data.price !== undefined ? Number(data.price) : 0,
+      level: data.level,
+      categoryId: data.categoryId || undefined,
+    });
   };
 
   return (
@@ -143,47 +93,6 @@ export function CreateCourseForm(): React.JSX.Element {
             {errors.title && (
               <p className="text-xs font-medium text-destructive mt-1">
                 {errors.title.message}
-              </p>
-            )}
-          </div>
-
-          {/* Slug Field */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="slug">
-                Đường dẫn tĩnh (Slug) <span className="text-destructive">*</span>
-              </Label>
-              <button
-                type="button"
-                onClick={handleRegenerateSlug}
-                disabled={isPending}
-                className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Icon icon="lucide:refresh-cw" className="size-3" />
-                Tạo lại từ tiêu đề
-              </button>
-            </div>
-            <div className="relative">
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none pointer-events-none">
-                /courses/
-              </span>
-              <Input
-                id="slug"
-                className="pl-18 font-mono text-xs sm:text-sm"
-                placeholder="lap-trinh-full-stack-web"
-                aria-invalid={Boolean(errors.slug)}
-                disabled={isPending}
-                {...register('slug')}
-                onChange={handleSlugChange}
-              />
-            </div>
-            {errors.slug ? (
-              <p className="text-xs font-medium text-destructive mt-1">
-                {errors.slug.message}
-              </p>
-            ) : (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Đường dẫn chuẩn SEO chỉ bao gồm chữ cái thường, số và dấu gạch ngang
               </p>
             )}
           </div>

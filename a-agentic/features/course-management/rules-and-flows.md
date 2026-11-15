@@ -105,3 +105,12 @@
     - **Khóa học đã mua (`/my-courses` — `GET /enrollments/my-courses`)**: Dành riêng cho việc học tập, chỉ liệt kê các khóa học có bản ghi `Enrollment` thực tế (khi học viên hoặc giảng viên đăng ký/mua khóa học của người khác). Khi giảng viên công khai (`PUBLISHED`) khóa học do chính mình tạo, khóa học này **tuyệt đối không xuất hiện** trong mục Khóa học đã mua (`/my-courses`) của giảng viên.
     - **Khóa học của tôi (`/courses` — `GET /courses/my-courses`)**: Giao diện Studio dành riêng cho giảng viên quản lý toàn bộ các khóa học do chính mình tạo ở mọi trạng thái (`DRAFT`, `PENDING_APPROVAL`, `PUBLISHED`, `ARCHIVED`).
     - **Quyền tác giả độc lập với ghi danh (`Authorship is not Enrollment`)**: Giảng viên được phép xem và kiểm tra toàn bộ bài giảng của khóa học mình tạo dựa trên `course.instructorId === userId` mà không cần ghi danh học viên. Trên trang chi tiết công khai (`/courses/:id`), thẻ thông tin hiển thị trạng thái "Khóa học do bạn giảng dạy" và ẩn thanh tiến độ học của học viên.
+
+13. **Cơ chế Tự động Sinh Slug Duy Nhất & Ẩn Trường Slug Khỏi Giao Diện Tạo Mới (Automated Unique Slug Generation)**:
+    - **Trải nghiệm Giảng viên**: Form tạo khóa học mới của giảng viên (`/courses/create`) chỉ yêu cầu Tiêu đề khóa học cùng các thông tin nghiệp vụ; trường Đường dẫn tĩnh (Slug) được ẩn hoàn toàn để tối ưu trải nghiệm và đơn giản hóa thao tác.
+    - **Sinh Slug Tự động từ Backend**: Khi nhận yêu cầu tạo khóa học không có slug, hệ thống tự động chuẩn hóa tiêu đề sang định dạng kebab-case không dấu tiếng Việt (`slugify`).
+    - **Thuật toán giải quyết xung đột slug (`generateUniqueSlug`)**:
+      - Kiểm tra slug trên toàn bộ khóa học hiện hoạt (`deletedAt: null`) trong hệ thống.
+      - Nếu chưa tồn tại: Giữ nguyên slug cơ sở (ví dụ: `lap-trinh-python-co-ban`).
+      - Nếu đã tồn tại: Thử lần lượt các hậu tố `-2`, `-3`, `-4`... cho tới khi tìm được slug duy nhất khả dụng (ví dụ: `lap-trinh-python-co-ban-2`).
+      - Khóa học được lưu với slug duy nhất này mà không bao giờ ném lỗi xung đột 409 cho người dùng khi tạo mới.

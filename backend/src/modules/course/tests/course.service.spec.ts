@@ -111,7 +111,7 @@ describe('CourseService', () => {
       create: vi.fn(),
       findById: vi.fn(),
       update: vi.fn(),
-      findConflictingSlugs: vi.fn(),
+      findConflictingSlugs: vi.fn().mockResolvedValue([]),
       withTransaction: vi.fn(async (cb) => cb({} as ClientSession)),
       softDelete: vi.fn().mockResolvedValue(true),
       updateStatus: vi.fn(),
@@ -329,6 +329,53 @@ describe('CourseService', () => {
         undefined,
       );
       expect(result).toEqual(createdExpected);
+    });
+
+    it('should auto-generate unique slug from title when slug is not provided', async () => {
+      mockUserRepository.findById.mockResolvedValue(activeInstructor);
+      mockCourseRepository.findConflictingSlugs.mockResolvedValue([]);
+      mockCourseRepository.create.mockImplementation((payload) => Promise.resolve(payload));
+
+      const result = await service.createCourse({
+        title: 'Lập trình Python cơ bản',
+        instructorId: 'instructor_1',
+      });
+
+      expect(mockCourseRepository.findConflictingSlugs).toHaveBeenCalledWith(
+        'lap-trinh-python-co-ban',
+        undefined,
+        undefined,
+      );
+      expect(result.slug).toBe('lap-trinh-python-co-ban');
+    });
+
+    it('should auto-generate slug with suffix -2 when slug already exists', async () => {
+      mockUserRepository.findById.mockResolvedValue(activeInstructor);
+      mockCourseRepository.findConflictingSlugs.mockResolvedValue(['lap-trinh-python-co-ban']);
+      mockCourseRepository.create.mockImplementation((payload) => Promise.resolve(payload));
+
+      const result = await service.createCourse({
+        title: 'Lập trình Python cơ bản',
+        instructorId: 'instructor_1',
+      });
+
+      expect(result.slug).toBe('lap-trinh-python-co-ban-2');
+    });
+
+    it('should auto-generate slug with suffix -3 when slug and suffix -2 already exist', async () => {
+      mockUserRepository.findById.mockResolvedValue(activeInstructor);
+      mockCourseRepository.findConflictingSlugs.mockResolvedValue([
+        'lap-trinh-python-co-ban',
+        'lap-trinh-python-co-ban-2',
+      ]);
+      mockCourseRepository.create.mockImplementation((payload) => Promise.resolve(payload));
+
+      const result = await service.createCourse({
+        title: 'Lập trình Python cơ bản',
+        instructorId: 'instructor_1',
+      });
+
+      expect(result.slug).toBe('lap-trinh-python-co-ban-3');
     });
 
     it('should create course with custom values when provided', async () => {
@@ -1024,18 +1071,17 @@ describe('CourseService', () => {
       );
     });
 
-    it('should append -1 when base slug is already taken', async () => {
+    it('should append -2 when base slug is already taken', async () => {
       mockCourseRepository.findConflictingSlugs.mockResolvedValue(['lap-trinh-next-js']);
 
       const result = await service.generateUniqueSlug('lap-trinh-next-js', 'course_123');
 
-      expect(result).toBe('lap-trinh-next-js-1');
+      expect(result).toBe('lap-trinh-next-js-2');
     });
 
-    it('should append highest suffix + 1 when multiple numbered slugs exist', async () => {
+    it('should try suffix -2, -3... and return next available suffix when numbered slugs exist', async () => {
       mockCourseRepository.findConflictingSlugs.mockResolvedValue([
         'lap-trinh-next-js',
-        'lap-trinh-next-js-1',
         'lap-trinh-next-js-2',
       ]);
 

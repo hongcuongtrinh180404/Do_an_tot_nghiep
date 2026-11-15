@@ -37,7 +37,7 @@ import { StorageService } from '../../storage/index.js';
 
 export interface CreateCourseInput {
   title: string;
-  slug: string;
+  slug?: string;
   instructorId: string;
   description?: string | null;
   shortDescription?: string | null;
@@ -159,8 +159,6 @@ export class CourseService extends BaseService<ICourse, string> {
   }
 
   async createCourse(input: CreateCourseInput, session?: ClientSession): Promise<ICourse> {
-    const normalizedSlug = input.slug.toLowerCase().trim();
-
     // 1. Validate instructor status and permissions
     await this.validateInstructor(input.instructorId, session);
 
@@ -172,14 +170,15 @@ export class CourseService extends BaseService<ICourse, string> {
     // 3. Validate category assignment (if provided)
     await this.validateCategoryForAssignment(input.categoryId, session);
 
-    // 4. Ensure slug uniqueness among active courses
-    await this.ensureSlugNotTaken(normalizedSlug, session);
+    // 4. Automatically generate a unique slug (tries suffixes -2, -3... on collisions)
+    const baseSlug = (input.slug && input.slug.trim()) || input.title;
+    const finalSlug = await this.generateUniqueSlug(baseSlug, undefined, session);
 
     // 5. Create course using BaseService (inherits audit context from cls)
     return this.create(
       {
         title: input.title.trim(),
-        slug: normalizedSlug,
+        slug: finalSlug,
         instructorId: input.instructorId,
         description: input.description ?? null,
         shortDescription: input.shortDescription ?? null,
@@ -686,10 +685,10 @@ export class CourseService extends BaseService<ICourse, string> {
 
   async generateUniqueSlug(
     baseSlug: string,
-    excludeCourseId: string,
+    excludeCourseId?: string,
     session?: ClientSession,
   ): Promise<string> {
-    const normalized = slugify(baseSlug);
+    const normalized = slugify(baseSlug) || 'khoa-hoc';
     const conflictingSlugs = await this.courseRepository.findConflictingSlugs(
       normalized,
       excludeCourseId,
@@ -700,25 +699,17 @@ export class CourseService extends BaseService<ICourse, string> {
       return normalized;
     }
 
-    if (!conflictingSlugs.includes(normalized)) {
+    const conflictingSet = new Set(conflictingSlugs);
+    if (!conflictingSet.has(normalized)) {
       return normalized;
     }
 
-    let maxSuffix = 0;
-    const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const suffixRegex = new RegExp(`^${escaped}-([0-9]+)$`, 'i');
-
-    for (const slug of conflictingSlugs) {
-      const match = slug.match(suffixRegex);
-      if (match && match[1]) {
-        const num = parseInt(match[1], 10);
-        if (num > maxSuffix) {
-          maxSuffix = num;
-        }
-      }
+    let suffix = 2;
+    while (conflictingSet.has(`${normalized}-${suffix}`)) {
+      suffix++;
     }
 
-    return `${normalized}-${maxSuffix + 1}`;
+    return `${normalized}-${suffix}`;
   }
 
   async updateCourse(

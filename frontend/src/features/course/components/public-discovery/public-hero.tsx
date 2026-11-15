@@ -44,73 +44,82 @@ export function PublicHero(): React.JSX.Element {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
 
           {/* Left Column: Headlines & Call to Actions */}
-          <div className="lg:col-span-6 flex flex-col items-start space-y-6 taste-enter">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#161616] leading-[1.15]">
-              Khám phá tri thức với video tương tác và AI
+          <div className="lg:col-span-6 flex flex-col items-start space-y-6">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#161616] leading-[1.12]">
+              Học video tương tác,<br className="hidden sm:inline" />
+              đột phá cùng AI Mindmap.
             </h1>
 
             <p className="text-base sm:text-lg text-[#161616] leading-relaxed max-w-xl">
-              Học trực tuyến với video tương tác, tự động đồng bộ Mindmap và In-video Quiz thông minh.
+              Video tự động dừng tại mốc kiến thức trọng tâm, đồng bộ sơ đồ tư duy phân cấp và kiểm tra mức độ hiểu bài tức thì.
             </p>
 
-            {/* Actions */}
+            {/* Actions: Primary in Mindly Brand Red */}
             <div className="flex flex-wrap items-center gap-3 pt-2 w-full sm:w-auto">
               <Link
                 href="#featured"
                 className={buttonVariants({
                   size: 'lg',
-                  className: 'bg-[#313131] text-white hover:bg-[#202020] font-bold px-6 shadow-none text-base transition-colors',
+                  className:
+                    'bg-[#DE2900] hover:bg-[#C22400] text-white font-bold px-7 shadow-none text-base transition-colors rounded-md',
                 })}
               >
-                Khám phá khóa học ngay
+                Bắt đầu học ngay
                 <Icon icon="lucide:arrow-right" className="size-4 ml-2" />
               </Link>
               <Link
                 href="#ai-experience"
                 className={buttonVariants({
-                  variant: 'outline',
+                  variant: 'ghost',
                   size: 'lg',
-                  className: 'border-[#161616] text-[#161616] hover:bg-[#f2f2f2] font-semibold px-5 text-base',
+                  className:
+                    'bg-[#F2F2F2] hover:bg-[#E8E8E8] text-[#161616] font-semibold px-6 text-base rounded-md transition-colors',
                 })}
               >
                 Tìm hiểu công nghệ AI
               </Link>
             </div>
 
-            {/* Quick Keyword Jumps */}
-            <div className="pt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">Chủ đề tiêu biểu:</span>
-              <a href="#recent" className="hover:text-[#313131] hover:underline transition-colors">Next.js App Router</a>
-              <span>•</span>
-              <a href="#recent" className="hover:text-[#313131] hover:underline transition-colors">Gemini AI Pipeline</a>
-              <span>•</span>
-              <a href="#recent" className="hover:text-[#313131] hover:underline transition-colors">Design System</a>
-              <span>•</span>
-              <a href="#recent" className="hover:text-[#313131] hover:underline transition-colors">NestJS Clean Code</a>
+            {/* Platform Capabilities & Trust Indicators */}
+            <div className="pt-2 flex flex-wrap items-center gap-y-2 gap-x-4 text-xs font-medium text-[#454545]">
+              <div className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-[#DE2900]" />
+                <span>3.200+ mốc dừng tương tác</span>
+              </div>
+              <span className="text-[#D9D9D9] hidden sm:inline">•</span>
+              <div className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-[#027D88]" />
+                <span>100% video đồng bộ Mindmap</span>
+              </div>
+              <span className="text-[#D9D9D9] hidden sm:inline">•</span>
+              <div className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-[#FFD100]" />
+                <span>Kích hoạt tự động VietQR</span>
+              </div>
             </div>
           </div>
 
-          {/* Right Column: "One Live Thing" - Interactive Player & AI Mindmap Sandbox */}
+          {/* Right Column: "One Live Thing" - Cinema Learning Studio Stage */}
           <div className="lg:col-span-6">
-            <div data-ui="player" className="rounded-xl border border-border bg-card overflow-hidden">
+            <div data-ui="player" className="rounded-xl border border-[#161616]/15 bg-[#161616] overflow-hidden">
 
-              {/* Player Top Bar */}
-              <div className="flex items-center justify-between border-b border-border bg-[#161616] px-4 py-2.5 text-xs text-white">
+              {/* Player Top Bar: Brand Studio Header */}
+              <div className="flex items-center justify-between border-b border-white/10 bg-[#161616] px-4 py-2.5 text-xs text-white">
                 <div className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-[#027D88]" />
+                  <span className="size-2 rounded-full bg-[#DE2900]" />
                   <span className="font-semibold text-white truncate max-w-[220px] sm:max-w-xs">
                     {LIVE_PREVIEW_MOCK_DATA.lessonTitle}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 text-neutral-300 font-medium">
-                  <Icon icon="lucide:sparkles" className="size-3.5 text-[#ffd100]" />
+                  <Icon icon="lucide:sparkles" className="size-3.5 text-[#FFD100]" />
                   <span>Trải nghiệm tương tác mẫu</span>
                 </div>
               </div>
 
               {/* Video Player & Interactive Overlay */}
               <div className="relative aspect-video w-full bg-[#161616] text-white flex flex-col justify-between p-4 sm:p-5 select-none overflow-hidden">
-                {/* Real Video Footage Loop for dynamic live motion */}
+                {/* Real Video Footage Loop */}
                 <video
                   src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
                   autoPlay
@@ -123,11 +132,11 @@ export function PublicHero(): React.JSX.Element {
 
                 {/* Top Badge: Current Timestamp & Chapter */}
                 <div className="relative z-10 flex items-center justify-between text-xs">
-                  <div className="inline-flex items-center gap-2 rounded bg-[#161616]/80 px-2.5 py-1 font-medium tabular-nums text-white/90">
-                    <Icon icon="lucide:clock" className="size-3.5 text-[#ffd100]" />
+                  <div className="inline-flex items-center gap-2 rounded bg-[#161616]/85 px-2.5 py-1 font-medium tabular-nums text-white/90 border border-white/10">
+                    <Icon icon="lucide:clock" className="size-3.5 text-[#FFD100]" />
                     <span>{activeBreakpoint.timestamp} / {LIVE_PREVIEW_MOCK_DATA.durationText}</span>
                   </div>
-                  <div className="rounded bg-[#161616]/80 px-2.5 py-1 text-xs font-medium text-white/90">
+                  <div className="rounded bg-[#161616]/85 px-2.5 py-1 text-xs font-medium text-white/90 border border-white/10">
                     {activeBreakpoint.label}
                   </div>
                 </div>
@@ -136,8 +145,8 @@ export function PublicHero(): React.JSX.Element {
                 <div className="relative z-10 my-auto">
                   {activeBreakpoint.quiz ? (
                     <div data-ui="quiz-modal" className="rounded-lg border border-white/20 bg-[#161616]/95 p-3.5 sm:p-4 text-white max-w-lg mx-auto">
-                      <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-[#ffd100]">
-                        <Icon icon="lucide:help-circle" className="size-4 text-[#F02D01]" />
+                      <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-[#FFD100]">
+                        <Icon icon="lucide:help-circle" className="size-4 text-[#DE2900]" />
                         <span>Mốc dừng In-video Quiz tự động (AssemblyAI + Gemini)</span>
                       </div>
                       <p className="text-xs sm:text-sm font-medium mb-3 leading-snug">
@@ -154,10 +163,10 @@ export function PublicHero(): React.JSX.Element {
                             if (isCorrect) {
                               btnStyle = 'border-[#027D88] bg-[#027D88]/40 text-emerald-200 font-semibold';
                             } else if (isSelected && !isCorrect) {
-                              btnStyle = 'border-[#dc2626] bg-[#dc2626]/40 text-rose-200';
+                              btnStyle = 'border-[#DC2626] bg-[#DC2626]/40 text-rose-200';
                             }
                           } else if (isSelected) {
-                            btnStyle = 'border-[#F02D01] bg-[#F02D01]/30 text-white font-semibold';
+                            btnStyle = 'border-[#DE2900] bg-[#DE2900]/30 text-white font-semibold';
                           }
 
                           return (
@@ -191,7 +200,7 @@ export function PublicHero(): React.JSX.Element {
                             size="sm"
                             onClick={handleCheckAnswer}
                             disabled={selectedQuizOption === null}
-                            className="h-7 text-xs bg-[#313131] hover:bg-[#202020] text-white font-bold"
+                            className="h-7 text-xs bg-[#DE2900] hover:bg-[#C22400] text-white font-bold"
                           >
                             Kiểm tra kết quả
                           </Button>
@@ -210,17 +219,17 @@ export function PublicHero(): React.JSX.Element {
                   ) : (
                     <div className="text-center py-4">
                       <div className="inline-flex size-12 items-center justify-center rounded-full bg-white/10 mb-2">
-                        <Icon icon="lucide:sparkles" className="size-6 text-[#ffd100]" />
+                        <Icon icon="lucide:git-fork" className="size-6 text-[#027D88]" />
                       </div>
                       <p className="text-sm font-semibold">{activeBreakpoint.mindmapActiveNode}</p>
                       <p className="text-xs text-white/80 mt-1 max-w-sm mx-auto">
-                        Video đang phát tại mốc {activeBreakpoint.timestamp}. Nhánh sơ đồ tư duy song hành đang tự động mở rộng theo nội dung giảng viên.
+                        Video đang phát tại mốc {activeBreakpoint.timestamp}. Nhánh sơ đồ tư duy song hành đang tự động mở rộng theo nội dung bài học.
                       </p>
                     </div>
                   )}
                 </div>
 
-                {/* Bottom Timeline Controls (Cinema Luxury Style matching Trailer Reference) */}
+                {/* Bottom Timeline Controls */}
                 <div className="relative z-10 pt-2">
                   {/* Sleek 2px Progress Track with Interactive Checkpoints */}
                   <div className="relative w-full h-3 flex items-center cursor-pointer group/trailer mb-1">
@@ -228,7 +237,7 @@ export function PublicHero(): React.JSX.Element {
                     <div className="absolute inset-x-0 h-[2px] group-hover/trailer:h-[3px] bg-white/20 rounded-full overflow-hidden transition-[height] duration-150">
                       {/* Played Progress */}
                       <div
-                        className="h-full bg-white rounded-full transition-[width] duration-300"
+                        className="h-full bg-[#DE2900] rounded-full transition-[width] duration-300"
                         style={{
                           width: `${(activeBreakpoint.seconds / 255) * 100}%`,
                         }}
@@ -250,8 +259,8 @@ export function PublicHero(): React.JSX.Element {
                         >
                           <span
                             className={`rounded-full transition-transform duration-150 ${isActive
-                                ? 'size-2 bg-amber-400 ring-2 ring-white scale-125'
-                                : 'size-1.5 bg-white/70 hover:bg-amber-400 hover:scale-125'
+                                ? 'size-2 bg-[#FFD100] ring-2 ring-[#DE2900] scale-125'
+                                : 'size-1.5 bg-white/70 hover:bg-[#FFD100] hover:scale-125'
                               }`}
                           />
                         </button>
@@ -259,7 +268,7 @@ export function PublicHero(): React.JSX.Element {
                     })}
                   </div>
 
-                  {/* Breakpoint Selector Buttons (Minimalist Luxury) */}
+                  {/* Breakpoint Selector Buttons */}
                   <div className="flex items-center justify-between text-xs pt-1">
                     <div className="flex items-center gap-1.5 sm:gap-2">
                       <span className="text-white/70 text-[11px]">Mốc AI:</span>
@@ -288,7 +297,7 @@ export function PublicHero(): React.JSX.Element {
               </div>
 
               {/* Active Mindmap Synchronization Bar */}
-              <div data-ui="mindmap-sync" className="bg-[#f3fcfc] p-3 sm:p-3.5 flex items-center justify-between text-xs">
+              <div data-ui="mindmap-sync" className="bg-[#F3FCFC] border-t border-[#027D88]/20 p-3 sm:p-3.5 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="flex size-6 items-center justify-center rounded bg-[#027D88] text-white shrink-0">
                     <Icon icon="lucide:git-fork" className="size-3.5" />
@@ -301,7 +310,7 @@ export function PublicHero(): React.JSX.Element {
                   </div>
                 </div>
                 <div className="hidden sm:flex items-center gap-1.5 text-xs text-[#027D88] shrink-0 pl-2 font-medium">
-                  <Icon icon="lucide:check-circle-2" className="size-3.5" />
+                  <span className="size-2 rounded-full bg-[#027D88]" />
                   <span>Đồng bộ tức thì</span>
                 </div>
               </div>

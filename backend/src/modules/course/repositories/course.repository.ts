@@ -430,7 +430,7 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
 
   async findConflictingSlugs(
     baseSlug: string,
-    excludeCourseId: string,
+    excludeCourseId?: string,
     session?: ClientSession,
   ): Promise<string[]> {
     const escaped = baseSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

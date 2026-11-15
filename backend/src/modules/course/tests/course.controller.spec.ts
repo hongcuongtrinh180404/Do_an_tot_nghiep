@@ -466,6 +466,24 @@ describe('CourseController', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    it('should accept valid payload without slug and trim whitespace', async () => {
+      const payload = {
+        title: '   Khóa học Golang Cơ Bản   ',
+        price: 199000,
+        level: CourseLevelEnum.BEGINNER,
+      };
+
+      const result = (await validationPipe.transform(payload, {
+        type: 'body',
+        metatype: CreateCourseDto,
+      })) as CreateCourseDto;
+
+      expect(result.title).toBe('Khóa học Golang Cơ Bản');
+      expect(result.slug).toBeUndefined();
+      expect(result.price).toBe(199000);
+      expect(result.level).toBe(CourseLevelEnum.BEGINNER);
+    });
+
     it('should accept valid payload and trim whitespace', async () => {
       const payload = {
         title: '   Khóa học Node.js Nâng Cao   ',
