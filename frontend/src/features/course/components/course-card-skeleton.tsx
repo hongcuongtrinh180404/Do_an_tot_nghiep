@@ -1,44 +1,44 @@
 import React from 'react';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 
 export function CourseCardSkeleton(): React.JSX.Element {
   return (
-    <Card className="border-border/50 bg-card/60 shadow-xs animate-pulse flex flex-col justify-between">
-      <CardHeader className="space-y-2 pb-3">
-        {/* Badges skeleton */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="h-5 w-20 bg-muted rounded-full" />
-          <div className="h-5 w-16 bg-muted rounded-md" />
+    <div className="border border-neutral-200/80 dark:border-neutral-800 bg-white dark:bg-card rounded-xl overflow-hidden shadow-2xs animate-pulse">
+      <div className="p-4 sm:p-5 flex flex-col md:flex-row items-stretch gap-5">
+        {/* Thumbnail skeleton */}
+        <div className="w-full md:w-[240px] lg:w-[260px] aspect-video rounded-xl bg-neutral-200 dark:bg-neutral-800 shrink-0" />
+
+        {/* Center Details skeleton */}
+        <div className="flex-1 min-w-0 flex flex-col justify-between gap-3">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5">
+              <div className="h-6 w-56 bg-neutral-200 dark:bg-neutral-800 rounded-md" />
+              <div className="h-5 w-24 bg-neutral-100 dark:bg-neutral-800/60 rounded-md" />
+            </div>
+            <div className="h-4 w-3/4 bg-neutral-100 dark:bg-neutral-800/60 rounded-md" />
+          </div>
+          <div className="h-4 w-72 bg-neutral-100 dark:bg-neutral-800/60 rounded-md" />
         </div>
 
-        {/* Title skeleton */}
-        <div className="space-y-1.5 pt-1">
-          <div className="h-5 w-5/6 bg-muted rounded" />
-          <div className="h-5 w-3/5 bg-muted rounded" />
+        {/* Right price & actions skeleton */}
+        <div className="w-full md:w-auto shrink-0 flex md:flex-col items-center md:items-end justify-between gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-neutral-100 dark:border-neutral-800">
+          <div className="h-6 w-28 bg-neutral-200 dark:bg-neutral-800 rounded-md" />
+          <div className="flex items-center gap-2">
+            <div className="h-9 w-24 bg-neutral-200 dark:bg-neutral-800 rounded-lg" />
+            <div className="size-9 bg-neutral-200 dark:bg-neutral-800 rounded-lg" />
+          </div>
         </div>
-
-        {/* Slug skeleton */}
-        <div className="h-3.5 w-1/2 bg-muted/60 rounded font-mono" />
-      </CardHeader>
-
-      <CardContent className="py-2 space-y-2">
-        <div className="h-3.5 w-full bg-muted/50 rounded" />
-        <div className="h-4 w-1/3 bg-muted rounded mt-2" />
-      </CardContent>
-
-      <CardFooter className="pt-3 pb-3 border-t border-border/40 flex items-center justify-between">
-        <div className="h-3.5 w-28 bg-muted/60 rounded" />
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 }
 
 export function CourseListSkeleton(): React.JSX.Element {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="flex flex-col gap-4">
       <CourseCardSkeleton />
       <CourseCardSkeleton />
       <CourseCardSkeleton />
     </div>
   );
 }
+

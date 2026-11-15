@@ -2,9 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DeleteConfirmDialog, ActionConfirmDialog } from '@/components/shared/dialog';
 import type { ICourse } from '../types/course.types';
 import { CourseLevelEnum, CourseStatusEnum } from '../types/course.types';
@@ -12,6 +11,7 @@ import {
   useDeleteCourseMutation,
   useArchiveCourseMutation,
   useUnarchiveCourseMutation,
+  useCourseSectionsQuery,
 } from '../api/course.api';
 import { useCancelCourseApprovalMutation } from '../api/course-approval.api';
 
@@ -19,22 +19,22 @@ interface CourseCardProps {
   course: ICourse;
 }
 
-const statusMap: Record<CourseStatusEnum, { label: string; className: string }> = {
+const statusBadgeMap: Record<CourseStatusEnum, { label: string; className: string }> = {
   [CourseStatusEnum.DRAFT]: {
     label: 'Bản nháp',
-    className: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+    className: 'bg-amber-600/90 text-white',
   },
   [CourseStatusEnum.PENDING_APPROVAL]: {
     label: 'Chờ duyệt',
-    className: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20',
+    className: 'bg-sky-600/90 text-white',
   },
   [CourseStatusEnum.PUBLISHED]: {
     label: 'Đã xuất bản',
-    className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+    className: 'bg-emerald-600/90 text-white',
   },
   [CourseStatusEnum.ARCHIVED]: {
     label: 'Ngừng bán',
-    className: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20',
+    className: 'bg-neutral-600/90 text-white',
   },
 };
 
@@ -45,39 +45,124 @@ const levelMap: Record<CourseLevelEnum, string> = {
   [CourseLevelEnum.ALL_LEVELS]: 'Mọi cấp độ',
 };
 
+function getCategoryIcon(name?: string | null): string {
+  if (!name) return '💻';
+  const lower = name.toLowerCase();
+  if (lower.includes('thiết kế') || lower.includes('design') || lower.includes('figma') || lower.includes('đồ họa')) {
+    return '🎨';
+  }
+  if (lower.includes('marketing') || lower.includes('seo') || lower.includes('kinh doanh') || lower.includes('kinh tế')) {
+    return '📈';
+  }
+  if (lower.includes('ngoại ngữ') || lower.includes('tiếng') || lower.includes('language') || lower.includes('english')) {
+    return '🌐';
+  }
+  if (lower.includes('âm nhạc') || lower.includes('music')) {
+    return '🎵';
+  }
+  return '💻';
+}
+
 function formatPrice(price?: number): { text: string; isFree: boolean } {
   if (price === undefined || price === null || price === 0) {
     return { text: 'Miễn phí', isFree: true };
   }
   return {
-    text: new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-    }).format(price),
+    text: `${price.toLocaleString('vi-VN')} đ`,
     isFree: false,
   };
 }
 
-function formatDate(dateValue: Date | string): string {
-  try {
-    const date = new Date(dateValue);
-    if (isNaN(date.getTime())) return '';
-    return new Intl.DateTimeFormat('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }).format(date);
-  } catch {
-    return '';
+function formatCourseStructure(
+  sectionsCount?: number,
+  lessonsCount?: number,
+  totalDuration?: number,
+): string {
+  const parts: string[] = [];
+
+  if (typeof sectionsCount === 'number' && sectionsCount > 0) {
+    parts.push(`${sectionsCount} chương`);
   }
+
+  if (typeof lessonsCount === 'number' && lessonsCount > 0) {
+    parts.push(`${lessonsCount} bài giảng`);
+  }
+
+  if (typeof totalDuration === 'number' && totalDuration > 0) {
+    const hours = Math.floor(totalDuration / 3600);
+    const minutes = Math.floor((totalDuration % 3600) / 60);
+    if (hours > 0 && minutes > 0) {
+      parts.push(`${hours} giờ ${minutes} phút`);
+    } else if (hours > 0) {
+      parts.push(`${hours} giờ`);
+    } else if (minutes > 0) {
+      parts.push(`${minutes} phút`);
+    } else {
+      parts.push('< 1 phút');
+    }
+  }
+
+  if (parts.length === 0) {
+    return 'Đang cập nhật nội dung bài giảng';
+  }
+
+  return parts.join(' • ');
+}
+
+function getCategoryThemedBackground(categoryName?: string | null): {
+  bgClass: string;
+  badgeEmoji: string;
+  badgeLabel: string;
+} {
+  if (!categoryName) {
+    return {
+      bgClass: 'bg-gradient-to-br from-slate-900 via-neutral-900 to-slate-950',
+      badgeEmoji: '💻',
+      badgeLabel: 'Công nghệ thông tin',
+    };
+  }
+
+  const lower = categoryName.toLowerCase();
+  if (lower.includes('thiết kế') || lower.includes('design') || lower.includes('figma') || lower.includes('đồ họa')) {
+    return {
+      bgClass: 'bg-gradient-to-br from-[#121826] via-[#1e1b4b] to-[#0f172a]',
+      badgeEmoji: '🎨',
+      badgeLabel: categoryName,
+    };
+  }
+
+  if (lower.includes('marketing') || lower.includes('seo') || lower.includes('kinh doanh') || lower.includes('kinh tế')) {
+    return {
+      bgClass: 'bg-gradient-to-br from-[#0284c7] via-[#0369a1] to-[#0c4a6e]',
+      badgeEmoji: '📈',
+      badgeLabel: categoryName,
+    };
+  }
+
+  if (lower.includes('ngoại ngữ') || lower.includes('tiếng') || lower.includes('language') || lower.includes('english')) {
+    return {
+      bgClass: 'bg-gradient-to-br from-[#047857] via-[#065f46] to-[#064e3b]',
+      badgeEmoji: '🌐',
+      badgeLabel: categoryName,
+    };
+  }
+
+  return {
+    bgClass: 'bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a]',
+    badgeEmoji: '💻',
+    badgeLabel: categoryName,
+  };
 }
 
 export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
+  const [imageError, setImageError] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCancelApprovalDialogOpen, setIsCancelApprovalDialogOpen] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isUnarchiveDialogOpen, setIsUnarchiveDialogOpen] = useState(false);
 
+  const { data: sections } = useCourseSectionsQuery(course.id);
   const deleteMutation = useDeleteCourseMutation();
   const cancelApprovalMutation = useCancelCourseApprovalMutation(course.id);
   const archiveMutation = useArchiveCourseMutation(course.id);
@@ -97,13 +182,19 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
     deleteDisabledReason = `Khóa học đã có ${studentsCount} học viên đăng ký. Không thể xóa để bảo đảm quyền lợi học tập của học viên.`;
   }
 
-  const statusInfo = statusMap[course.status] ?? {
+  const statusBadge = statusBadgeMap[course.status] ?? {
     label: course.status,
-    className: 'bg-muted text-muted-foreground border-border/50',
+    className: 'bg-neutral-600 text-white',
   };
   const levelText = levelMap[course.level] ?? 'Mọi cấp độ';
   const priceInfo = formatPrice(course.price);
-  const createdDate = formatDate(course.createdAt);
+  const structureText = formatCourseStructure(
+    sections?.length,
+    course.lessonsCount,
+    course.totalDuration,
+  );
+  const hasValidThumbnail = Boolean(course.thumbnailUrl && course.thumbnailUrl.trim() && !imageError);
+  const theme = getCategoryThemedBackground(course.category?.name);
 
   const handleDelete = () => {
     deleteMutation.mutate(course.id, {
@@ -139,188 +230,244 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
 
   return (
     <>
-      <Card className="border-border/50 bg-card/60 shadow-xs hover:border-foreground/30 hover:shadow-sm transition-all flex flex-col justify-between h-full group">
-        <CardHeader className="space-y-2 pb-3">
-          {/* Status & Level Badges */}
-          <div className="flex items-center justify-between gap-2">
-            <span
-              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${statusInfo.className}`}
-            >
-              {statusInfo.label}
-            </span>
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md border border-border/40 font-medium">
-              <Icon icon="lucide:layers" className="size-3" />
-              {levelText}
-            </span>
+      <div className="border border-neutral-200/80 dark:border-neutral-800 bg-white dark:bg-card rounded-xl overflow-hidden shadow-2xs hover:shadow-sm hover:border-neutral-300 dark:hover:border-neutral-700 transition-all">
+        <div className="p-4 sm:p-5 flex flex-col md:flex-row items-stretch gap-5">
+          {/* Left: Thumbnail with badges */}
+          <div className="relative w-full md:w-[240px] lg:w-[260px] shrink-0 aspect-video rounded-xl overflow-hidden bg-neutral-900 border border-neutral-200/60 dark:border-neutral-800 group">
+            {hasValidThumbnail ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={course.thumbnailUrl!}
+                alt={course.title}
+                onError={() => setImageError(true)}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+            ) : (
+              <div className={`w-full h-full ${theme.bgClass} flex flex-col items-center justify-center p-3 text-center select-none`}>
+                <span className="text-3xl mb-1 drop-shadow-sm">{theme.badgeEmoji}</span>
+                <span className="text-white font-bold text-sm tracking-wide line-clamp-1 drop-shadow-xs">
+                  {course.title}
+                </span>
+                <span className="text-white/80 text-xs font-medium mt-0.5">
+                  {theme.badgeLabel}
+                </span>
+              </div>
+            )}
+
+            {/* Top-Left: Status Badge */}
+            <div className="absolute top-2.5 left-2.5 z-10">
+              <span
+                className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold tracking-tight shadow-xs ${statusBadge.className}`}
+              >
+                {statusBadge.label}
+              </span>
+            </div>
+
+            {/* Top-Right: Level Badge */}
+            <div className="absolute top-2.5 right-2.5 z-10">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium tracking-tight bg-black/60 text-white backdrop-blur-xs">
+                <Icon icon="lucide:layers" className="size-3.5 text-neutral-300" />
+                <span>{levelText}</span>
+              </span>
+            </div>
           </div>
 
-          {/* Title */}
-          <Link href={`/courses/${course.id}?mode=edit`} className="block group-hover:text-foreground/90">
-            <h3
-              className="text-base font-semibold text-foreground line-clamp-2 leading-snug tracking-tight hover:underline transition-colors"
-              title={course.title}
-            >
-              {course.title}
-            </h3>
-          </Link>
+          {/* Center: Course Details */}
+          <div className="flex-1 min-w-0 flex flex-col justify-between gap-3">
+            <div className="space-y-2">
+              {/* Title & Category */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Link
+                  href={`/courses/${course.id}?mode=edit`}
+                  className="group/title block min-w-0"
+                >
+                  <h3
+                    className="text-lg sm:text-xl font-bold text-neutral-950 dark:text-neutral-50 group-hover/title:text-[#027D88] dark:group-hover/title:text-[#2dd4bf] transition-colors line-clamp-1 tracking-tight"
+                    title={course.title}
+                  >
+                    {course.title}
+                  </h3>
+                </Link>
 
-          {/* Slug */}
-          <p className="flex items-center gap-1 text-xs text-muted-foreground truncate tracking-tight">
-            <Icon icon="lucide:link" className="size-3 shrink-0 text-muted-foreground/60" />
-            <span className="truncate">{course.slug}</span>
-          </p>
+                {/* Category Tag */}
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs sm:text-sm font-semibold bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-200/60 dark:border-neutral-700/60 shrink-0">
+                  {course.category?.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={course.category.imageUrl}
+                      alt=""
+                      className="size-4 object-contain rounded-xs"
+                    />
+                  ) : (
+                    <span className="text-sm">{getCategoryIcon(course.category?.name)}</span>
+                  )}
+                  <span>{course.category?.name ?? 'Công nghệ thông tin'}</span>
+                </div>
+              </div>
 
-          {/* Category Badge */}
-          {course.category ? (
-            <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border/40 bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-              {course.category.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={course.category.imageUrl}
-                  alt=""
-                  className="size-3.5 shrink-0 rounded object-contain"
-                />
-              ) : (
-                <Icon icon="lucide:folder" className="size-3 shrink-0" />
-              )}
-              <span className="truncate">{course.category.name}</span>
-            </span>
-          ) : null}
-        </CardHeader>
+              {/* Short Description */}
+              <p className="text-sm sm:text-[15px] text-neutral-700 dark:text-neutral-300 line-clamp-1 leading-relaxed">
+                {course.shortDescription || 'Chưa có tóm tắt nội dung bài giảng cho khóa học này.'}
+              </p>
+            </div>
 
-        <CardContent className="py-2">
-          {/* Short Description */}
-          {course.shortDescription ? (
-            <p className="text-xs text-muted-foreground line-clamp-2 mb-3 leading-relaxed">
-              {course.shortDescription}
-            </p>
-          ) : null}
+            {/* Consolidated Meta Line: Structure • Students • Rating */}
+            <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-xs sm:text-sm text-neutral-600 dark:text-neutral-300 font-medium">
+              <span className="inline-flex items-center gap-1.5">
+                <Icon icon="lucide:book-open" className="size-4 text-neutral-500 dark:text-neutral-400" />
+                <span className="text-neutral-700 dark:text-neutral-200">{structureText}</span>
+              </span>
+              <span className="text-neutral-400 dark:text-neutral-600">•</span>
+              <span className="inline-flex items-center gap-1.5">
+                <Icon icon="lucide:users" className="size-4 text-neutral-500 dark:text-neutral-400" />
+                <span className="text-neutral-700 dark:text-neutral-200">{studentsCount} học viên</span>
+              </span>
+              <span className="text-neutral-400 dark:text-neutral-600">•</span>
+              <span className="inline-flex items-center gap-1.5">
+                <Icon icon="lucide:star" className="size-4 text-amber-500 fill-amber-500" />
+                <span className="text-neutral-900 dark:text-neutral-100 font-bold">
+                  {course.ratingAvg && course.ratingAvg > 0 ? course.ratingAvg.toFixed(1) : '5.0'}
+                </span>
+                <span className="text-neutral-600 dark:text-neutral-400">({course.reviewCount ?? 0} đánh giá)</span>
+              </span>
+            </div>
+          </div>
 
-          {/* Price & Students Metrics */}
-          <div className="flex items-center justify-between pt-1">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-xs text-muted-foreground">Học phí:</span>
+          {/* Right: Pricing (Top) & Grouped Actions (Bottom) */}
+          <div className="w-full md:w-auto shrink-0 flex md:flex-col items-center md:items-end justify-between gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-neutral-100 dark:border-neutral-800">
+            {/* Price Area */}
+            <div className="text-left md:text-right">
+              <span className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 font-medium mr-1.5">
+                Học phí:
+              </span>
               <span
-                className={`text-sm font-semibold ${priceInfo.isFree
+                className={`text-lg sm:text-2xl font-extrabold tracking-tight ${
+                  priceInfo.isFree
                     ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-foreground'
-                  }`}
+                    : 'text-neutral-950 dark:text-neutral-50'
+                }`}
               >
                 {priceInfo.text}
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/40 px-2 py-0.5 rounded-md border border-border/30">
-              <Icon icon="lucide:users" className="size-3.5 text-muted-foreground/80" />
-              <span>{studentsCount} học viên</span>
-            </div>
-          </div>
-        </CardContent>
-
-        <CardFooter className="pt-3 pb-3 border-t border-border/40 flex flex-col gap-2.5 text-xs text-muted-foreground">
-          {/* Top row: Creation Date & Student Preview */}
-          <div className="w-full flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Icon icon="lucide:calendar" className="size-3.5 text-muted-foreground/70" />
-              <span>{createdDate}</span>
-            </div>
-
-            {isPublished && (
+            {/* Actions: Direct 'Chỉnh sửa' button and '⋯' dropdown menu */}
+            <div className="flex items-center gap-2">
               <Link
-                href={`/courses/${course.id}`}
-                className="text-xs text-muted-foreground hover:text-foreground px-2 py-0.5 rounded-md hover:bg-muted/80 transition-colors inline-flex items-center gap-1 font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-                title="Xem thử với tư cách học viên"
-                aria-label={`Xem thử khóa học "${course.title}" với tư cách học viên`}
+                href={`/courses/${course.id}?mode=edit`}
+                className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100 text-xs sm:text-sm font-semibold transition-colors shadow-2xs"
               >
-                <Icon icon="lucide:eye" className="size-3 text-muted-foreground/80" />
-                <span>Xem thử</span>
+                <Icon icon="lucide:pencil" className="size-4" />
+                <span>Chỉnh sửa</span>
               </Link>
-            )}
-          </div>
 
-          {/* Bottom row: Action Buttons */}
-          <div className="w-full flex items-center justify-between pt-1 border-t border-border/30 gap-1.5">
-            {/* Left Actions: Withdraw Approval / Archive / Unarchive */}
-            <div className="flex items-center gap-1">
-              {isPendingApproval && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsCancelApprovalDialogOpen(true)}
-                  className="h-7 text-xs px-2 gap-1 text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30"
-                  title="Rút lại yêu cầu phê duyệt để mở khóa chỉnh sửa hoặc xóa"
+              <Popover open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+                <PopoverTrigger
+                  render={
+                    <button
+                      type="button"
+                      aria-label={`Thao tác khác cho khóa học ${course.title}`}
+                      className="size-9 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center text-neutral-700 dark:text-neutral-300 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                    >
+                      <Icon icon="lucide:more-horizontal" className="size-4.5" />
+                    </button>
+                  }
+                />
+                <PopoverContent
+                  align="end"
+                  side="bottom"
+                  sideOffset={6}
+                  className="w-40 p-1.5 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-lg text-xs flex flex-col gap-0.5 z-50"
                 >
-                  <Icon icon="lucide:undo-2" className="size-3" />
-                  <span>Rút duyệt</span>
-                </Button>
-              )}
+                  {/* 1. Xem thử */}
+                  <Link
+                    href={`/courses/${course.id}`}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Icon icon="lucide:eye" className="size-4 text-neutral-500 shrink-0" />
+                    <span>Xem thử</span>
+                  </Link>
 
-              {isPublished && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsArchiveDialogOpen(true)}
-                  className="h-7 text-xs px-2 gap-1 text-zinc-700 dark:text-zinc-300 bg-zinc-500/10 hover:bg-zinc-500/20 border-zinc-500/30"
-                  title="Ngừng bán khóa học (học viên đã mua vẫn học bình thường)"
-                >
-                  <Icon icon="lucide:pause-circle" className="size-3" />
-                  <span>Ngừng bán</span>
-                </Button>
-              )}
+                  {/* 2. Ngưng bán / Mở bán lại */}
+                  {isPublished ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        setIsArchiveDialogOpen(true);
+                      }}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left cursor-pointer"
+                    >
+                      <Icon icon="lucide:pause-circle" className="size-4 text-neutral-500 shrink-0" />
+                      <span>Ngưng bán</span>
+                    </button>
+                  ) : isArchived ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        setIsUnarchiveDialogOpen(true);
+                      }}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left cursor-pointer"
+                    >
+                      <Icon icon="lucide:play-circle" className="size-4 text-neutral-500 shrink-0" />
+                      <span>Mở bán lại</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      title="Chỉ áp dụng khi khóa học đang xuất bản"
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium text-neutral-400 opacity-50 cursor-not-allowed rounded-lg text-left"
+                    >
+                      <Icon icon="lucide:pause-circle" className="size-4 text-neutral-400 shrink-0" />
+                      <span>Ngưng bán</span>
+                    </button>
+                  )}
 
-              {isArchived && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsUnarchiveDialogOpen(true)}
-                  className="h-7 text-xs px-2 gap-1 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30"
-                  title="Mở bán lại khóa học trên danh mục công khai"
-                >
-                  <Icon icon="lucide:play-circle" className="size-3" />
-                  <span>Mở bán lại</span>
-                </Button>
-              )}
+                  {/* Rút duyệt nếu đang chờ duyệt */}
+                  {isPendingApproval && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        setIsCancelApprovalDialogOpen(true);
+                      }}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors text-left cursor-pointer"
+                    >
+                      <Icon icon="lucide:undo-2" className="size-4 text-amber-600 shrink-0" />
+                      <span>Rút duyệt</span>
+                    </button>
+                  )}
 
-              {/* Delete Button */}
-              <span
-                className="inline-block"
-                title={canDelete ? 'Xóa khóa học' : deleteDisabledReason}
-              >
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={!canDelete}
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  aria-label={canDelete ? `Xóa khóa học ${course.title}` : `Không thể xóa: ${deleteDisabledReason}`}
-                  className={`h-7 text-xs px-2 gap-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden ${canDelete
-                      ? 'text-destructive hover:bg-destructive/10 border-destructive/30'
-                      : 'opacity-50 cursor-not-allowed text-muted-foreground'
+                  {/* 3. Xóa */}
+                  <button
+                    type="button"
+                    disabled={!canDelete}
+                    title={canDelete ? 'Xóa khóa học' : deleteDisabledReason}
+                    onClick={() => {
+                      if (!canDelete) return;
+                      setIsMenuOpen(false);
+                      setIsDeleteDialogOpen(true);
+                    }}
+                    className={`flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors text-left ${
+                      canDelete
+                        ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer'
+                        : 'text-neutral-400 opacity-50 cursor-not-allowed'
                     }`}
-                >
-                  <Icon icon="lucide:trash-2" className="size-3" />
-                  <span>Xóa</span>
-                </Button>
-              </span>
+                  >
+                    <Icon icon="lucide:trash-2" className="size-4 text-red-600 shrink-0" />
+                    <span>Xóa</span>
+                  </button>
+                </PopoverContent>
+              </Popover>
             </div>
-
-            {/* Right Action: Edit Link */}
-            <Link
-              href={`/courses/${course.id}?mode=edit`}
-              className="inline-flex items-center gap-1 text-xs text-foreground/80 hover:text-foreground font-semibold px-2 py-1 rounded-md hover:bg-muted/60 transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <Icon icon="lucide:pencil" className="size-3" />
-              <span>Chỉnh sửa</span>
-              <Icon icon="lucide:chevron-right" className="size-3" />
-            </Link>
           </div>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
 
-      {/* 1. Delete Confirm Dialog */}
+      {/* Confirmation Dialogs */}
       <DeleteConfirmDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
@@ -332,7 +479,6 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
         confirmText="Xác nhận xóa"
       />
 
-      {/* 2. Cancel Approval Dialog */}
       <ActionConfirmDialog
         open={isCancelApprovalDialogOpen}
         onOpenChange={setIsCancelApprovalDialogOpen}
@@ -347,7 +493,6 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
         confirmText="Xác nhận rút duyệt"
       />
 
-      {/* 3. Archive (Ngừng bán) Dialog */}
       <ActionConfirmDialog
         open={isArchiveDialogOpen}
         onOpenChange={setIsArchiveDialogOpen}
@@ -362,7 +507,6 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
         confirmText="Xác nhận ngừng bán"
       />
 
-      {/* 4. Unarchive (Mở bán lại) Dialog */}
       <ActionConfirmDialog
         open={isUnarchiveDialogOpen}
         onOpenChange={setIsUnarchiveDialogOpen}

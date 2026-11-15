@@ -134,7 +134,7 @@ export function UploadLessonDocDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md w-full gap-5">
+      <DialogContent className="sm:max-w-md w-full grid-cols-1 gap-5">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold text-foreground">
             Thêm tài liệu đính kèm
@@ -144,7 +144,7 @@ export function UploadLessonDocDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="min-w-0 space-y-4">
           {/* TRƯỜNG 1: Tên tài liệu */}
           <div className="space-y-1.5">
             <Label htmlFor="doc-title" className="text-xs font-medium text-foreground">

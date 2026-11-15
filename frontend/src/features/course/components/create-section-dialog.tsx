@@ -15,7 +15,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Icon } from '@/components/ui/icon';
 
 import {
@@ -48,7 +47,6 @@ export function CreateSectionDialog({
     resolver: zodResolver(createSectionSchema),
     defaultValues: {
       title: '',
-      description: '',
     },
   });
 
@@ -57,7 +55,6 @@ export function CreateSectionDialog({
     if (open) {
       reset({
         title: '',
-        description: '',
       });
     }
   }, [open, reset]);
@@ -68,7 +65,6 @@ export function CreateSectionDialog({
     try {
       await createSectionMutation.mutateAsync({
         title: data.title,
-        description: data.description?.trim() ? data.description.trim() : undefined,
         order: defaultOrder,
       });
       onOpenChange(false);
@@ -114,30 +110,6 @@ export function CreateSectionDialog({
               <p className="text-xs text-destructive mt-1 flex items-center gap-1">
                 <Icon icon="lucide:alert-circle" className="size-3.5 shrink-0" />
                 <span>{errors.title.message}</span>
-              </p>
-            )}
-          </div>
-
-          {/* Mô tả chương học */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="section-description" className="text-xs font-medium text-foreground">
-                Mô tả chương học
-              </Label>
-              <span className="text-[11px] text-muted-foreground">Không bắt buộc</span>
-            </div>
-            <Textarea
-              id="section-description"
-              rows={3}
-              placeholder="Mô tả tóm tắt nội dung kiến thức sẽ học trong chương này..."
-              disabled={isPending}
-              aria-invalid={Boolean(errors.description)}
-              {...register('description')}
-            />
-            {errors.description && (
-              <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                <Icon icon="lucide:alert-circle" className="size-3.5 shrink-0" />
-                <span>{errors.description.message}</span>
               </p>
             )}
           </div>

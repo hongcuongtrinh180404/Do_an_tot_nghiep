@@ -667,17 +667,17 @@ export class OrderRepository extends BaseMongoRepository<IOrder, OrderEntity> {
                     },
                     ...(startDate && endDate
                       ? [
-                          {
-                            $or: [
-                              {
-                                $and: [
-                                  { $gte: [{ $ifNull: ['$paidAt', '$createdAt'] }, startDate] },
-                                  { $lte: [{ $ifNull: ['$paidAt', '$createdAt'] }, endDate] },
-                                ],
-                              },
-                            ],
-                          },
-                        ]
+                        {
+                          $or: [
+                            {
+                              $and: [
+                                { $gte: [{ $ifNull: ['$paidAt', '$createdAt'] }, startDate] },
+                                { $lte: [{ $ifNull: ['$paidAt', '$createdAt'] }, endDate] },
+                              ],
+                            },
+                          ],
+                        },
+                      ]
                       : []),
                   ],
                 },
@@ -893,17 +893,17 @@ export class OrderRepository extends BaseMongoRepository<IOrder, OrderEntity> {
                     { $eq: ['$courseId', '$$cId'] },
                     ...(startDate && endDate
                       ? [
-                          {
-                            $or: [
-                              {
-                                $and: [
-                                  { $gte: [{ $ifNull: ['$paidAt', '$createdAt'] }, startDate] },
-                                  { $lte: [{ $ifNull: ['$paidAt', '$createdAt'] }, endDate] },
-                                ],
-                              },
-                            ],
-                          },
-                        ]
+                        {
+                          $or: [
+                            {
+                              $and: [
+                                { $gte: [{ $ifNull: ['$paidAt', '$createdAt'] }, startDate] },
+                                { $lte: [{ $ifNull: ['$paidAt', '$createdAt'] }, endDate] },
+                              ],
+                            },
+                          ],
+                        },
+                      ]
                       : []),
                   ],
                 },

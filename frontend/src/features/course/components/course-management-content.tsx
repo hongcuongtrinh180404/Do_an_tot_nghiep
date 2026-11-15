@@ -122,9 +122,9 @@ export function CourseManagementContent(): React.JSX.Element {
       ) : (
         <>
           {/* 1. Metric Stats Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {/* Total Courses */}
-            <Card
+            <div
               role="button"
               tabIndex={0}
               aria-label={`Lọc tất cả khóa học, hiện có ${stats.total} khóa học`}
@@ -136,22 +136,22 @@ export function CourseManagementContent(): React.JSX.Element {
                 }
               }}
               onClick={() => setSelectedStatus('ALL')}
-              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary ${selectedStatus === 'ALL'
-                  ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                  : 'border-border/40 bg-card/60 hover:border-border'
+              className={`cursor-pointer p-4 rounded-xl border transition-all select-none bg-white dark:bg-card flex flex-col justify-between ${selectedStatus === 'ALL'
+                  ? 'border-neutral-900 dark:border-white ring-1 ring-neutral-900/10'
+                  : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
                 }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground font-medium">Tổng khóa học</span>
-                <div className="size-6 rounded-md bg-muted flex items-center justify-center text-muted-foreground">
+                <span className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Tổng khóa học</span>
+                <div className="size-6 rounded-md bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-400">
                   <Icon icon="lucide:book-open" className="size-3.5" />
                 </div>
               </div>
-              <div className="mt-2 text-xl font-bold text-foreground">{stats.total}</div>
-            </Card>
+              <div className="mt-3 text-2xl font-bold text-neutral-900 dark:text-neutral-100">{stats.total}</div>
+            </div>
 
             {/* Published */}
-            <Card
+            <div
               role="button"
               tabIndex={0}
               aria-label={`Lọc khóa học đang xuất bản, hiện có ${stats.published} khóa học`}
@@ -163,24 +163,24 @@ export function CourseManagementContent(): React.JSX.Element {
                 }
               }}
               onClick={() => setSelectedStatus(CourseStatusEnum.PUBLISHED)}
-              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500 ${selectedStatus === CourseStatusEnum.PUBLISHED
-                  ? 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/20'
-                  : 'border-border/40 bg-card/60 hover:border-border'
+              className={`cursor-pointer p-4 rounded-xl border transition-all select-none bg-white dark:bg-card flex flex-col justify-between ${selectedStatus === CourseStatusEnum.PUBLISHED
+                  ? 'border-emerald-500 ring-1 ring-emerald-500/20'
+                  : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
                 }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground font-medium">Đang xuất bản</span>
-                <div className="size-6 rounded-md bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <span className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Đang xuất bản</span>
+                <div className="size-6 rounded-md bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                   <Icon icon="lucide:check-circle-2" className="size-3.5" />
                 </div>
               </div>
-              <div className="mt-2 text-xl font-bold text-emerald-600 dark:text-emerald-400">
+              <div className="mt-3 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                 {stats.published}
               </div>
-            </Card>
+            </div>
 
             {/* Pending Approval */}
-            <Card
+            <div
               role="button"
               tabIndex={0}
               aria-label={`Lọc khóa học chờ duyệt, hiện có ${stats.pending} khóa học`}
@@ -192,24 +192,24 @@ export function CourseManagementContent(): React.JSX.Element {
                 }
               }}
               onClick={() => setSelectedStatus(CourseStatusEnum.PENDING_APPROVAL)}
-              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sky-500 ${selectedStatus === CourseStatusEnum.PENDING_APPROVAL
-                  ? 'border-sky-500 bg-sky-500/10 ring-1 ring-sky-500/20'
-                  : 'border-border/40 bg-card/60 hover:border-border'
+              className={`cursor-pointer p-4 rounded-xl border transition-all select-none bg-white dark:bg-card flex flex-col justify-between ${selectedStatus === CourseStatusEnum.PENDING_APPROVAL
+                  ? 'border-sky-500 ring-1 ring-sky-500/20'
+                  : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
                 }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground font-medium">Chờ duyệt</span>
-                <div className="size-6 rounded-md bg-sky-500/15 flex items-center justify-center text-sky-600 dark:text-sky-400">
+                <span className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Chờ duyệt</span>
+                <div className="size-6 rounded-md bg-sky-50 dark:bg-sky-950/50 flex items-center justify-center text-sky-600 dark:text-sky-400">
                   <Icon icon="lucide:clock" className="size-3.5" />
                 </div>
               </div>
-              <div className="mt-2 text-xl font-bold text-sky-600 dark:text-sky-400">
+              <div className="mt-3 text-2xl font-bold text-sky-600 dark:text-sky-400">
                 {stats.pending}
               </div>
-            </Card>
+            </div>
 
             {/* Draft */}
-            <Card
+            <div
               role="button"
               tabIndex={0}
               aria-label={`Lọc khóa học bản nháp, hiện có ${stats.draft} khóa học`}
@@ -221,24 +221,24 @@ export function CourseManagementContent(): React.JSX.Element {
                 }
               }}
               onClick={() => setSelectedStatus(CourseStatusEnum.DRAFT)}
-              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500 ${selectedStatus === CourseStatusEnum.DRAFT
-                  ? 'border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/20'
-                  : 'border-border/40 bg-card/60 hover:border-border'
+              className={`cursor-pointer p-4 rounded-xl border transition-all select-none bg-white dark:bg-card flex flex-col justify-between ${selectedStatus === CourseStatusEnum.DRAFT
+                  ? 'border-amber-500 ring-1 ring-amber-500/20'
+                  : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
                 }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground font-medium">Bản nháp</span>
-                <div className="size-6 rounded-md bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <span className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Bản nháp</span>
+                <div className="size-6 rounded-md bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
                   <Icon icon="lucide:file-edit" className="size-3.5" />
                 </div>
               </div>
-              <div className="mt-2 text-xl font-bold text-amber-600 dark:text-amber-400">
+              <div className="mt-3 text-2xl font-bold text-amber-600 dark:text-amber-400">
                 {stats.draft}
               </div>
-            </Card>
+            </div>
 
             {/* Archived / Ngừng bán */}
-            <Card
+            <div
               role="button"
               tabIndex={0}
               aria-label={`Lọc khóa học ngừng bán, hiện có ${stats.archived} khóa học`}
@@ -250,44 +250,30 @@ export function CourseManagementContent(): React.JSX.Element {
                 }
               }}
               onClick={() => setSelectedStatus(CourseStatusEnum.ARCHIVED)}
-              className={`cursor-pointer p-3.5 rounded-xl border transition-all select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-zinc-500 ${selectedStatus === CourseStatusEnum.ARCHIVED
-                  ? 'border-zinc-500 bg-zinc-500/10 ring-1 ring-zinc-500/20'
-                  : 'border-border/40 bg-card/60 hover:border-border'
+              className={`cursor-pointer p-4 rounded-xl border transition-all select-none bg-white dark:bg-card flex flex-col justify-between ${selectedStatus === CourseStatusEnum.ARCHIVED
+                  ? 'border-neutral-600 ring-1 ring-neutral-600/20'
+                  : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
                 }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground font-medium">Ngừng bán</span>
-                <div className="size-6 rounded-md bg-zinc-500/15 flex items-center justify-center text-zinc-600 dark:text-zinc-400">
+                <span className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Ngừng bán</span>
+                <div className="size-6 rounded-md bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-400">
                   <Icon icon="lucide:pause-circle" className="size-3.5" />
                 </div>
               </div>
-              <div className="mt-2 text-xl font-bold text-zinc-600 dark:text-zinc-400">
+              <div className="mt-3 text-2xl font-bold text-neutral-700 dark:text-neutral-300">
                 {stats.archived}
               </div>
-            </Card>
-
-            {/* Total Students */}
-            <Card
-              className="p-3.5 rounded-xl border border-border/40 bg-card/60"
-              aria-label={`Tổng số học viên đã ghi danh: ${stats.students}`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground font-medium">Tổng học viên</span>
-                <div className="size-6 rounded-md bg-primary/15 flex items-center justify-center text-primary">
-                  <Icon icon="lucide:users" className="size-3.5" />
-                </div>
-              </div>
-              <div className="mt-2 text-xl font-bold text-primary">{stats.students}</div>
-            </Card>
+            </div>
           </div>
 
           {/* 2. Filter & Search Toolbar */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3.5 rounded-xl bg-card/60 border border-border/40">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 py-1">
             {/* Search Input */}
             <div className="relative flex-1 max-w-md">
               <Icon
                 icon="lucide:search"
-                className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/70"
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-neutral-400"
               />
               <Input
                 type="text"
@@ -295,7 +281,7 @@ export function CourseManagementContent(): React.JSX.Element {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm khóa học theo tên, mô tả hoặc danh mục..."
                 aria-label="Tìm kiếm khóa học theo tên, mô tả hoặc danh mục"
-                className="pl-9 pr-8 h-9 text-xs sm:text-sm bg-background/80"
+                className="pl-9 pr-8 h-9 text-xs sm:text-sm bg-white dark:bg-neutral-900 border-neutral-200/90 dark:border-neutral-800 rounded-lg shadow-2xs"
               />
               {searchQuery && (
                 <button
@@ -303,29 +289,29 @@ export function CourseManagementContent(): React.JSX.Element {
                   onClick={() => setSearchQuery('')}
                   aria-label="Xóa nội dung tìm kiếm"
                   title="Xóa tìm kiếm"
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring rounded-xs"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 cursor-pointer"
                 >
                   <Icon icon="lucide:x" className="size-3.5" />
                 </button>
               )}
             </div>
 
-            {/* Status Pills & Sort Dropdown */}
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Status Filter Tabs & Sort Dropdown */}
+            <div className="flex flex-wrap items-center gap-3">
               {/* Status Filter Tabs */}
               <div
                 role="tablist"
                 aria-label="Bộ lọc trạng thái khóa học"
-                className="inline-flex max-w-full overflow-x-auto no-scrollbar items-center rounded-lg bg-muted/60 p-1 border border-border/40 text-xs"
+                className="flex flex-wrap items-center gap-1 sm:gap-1.5 text-xs"
               >
                 <button
                   type="button"
                   role="tab"
                   aria-selected={selectedStatus === 'ALL'}
                   onClick={() => setSelectedStatus('ALL')}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${selectedStatus === 'ALL'
-                      ? 'bg-background text-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
+                  className={`px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${selectedStatus === 'ALL'
+                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
+                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
                     }`}
                 >
                   Tất cả ({stats.total})
@@ -335,9 +321,9 @@ export function CourseManagementContent(): React.JSX.Element {
                   role="tab"
                   aria-selected={selectedStatus === CourseStatusEnum.PUBLISHED}
                   onClick={() => setSelectedStatus(CourseStatusEnum.PUBLISHED)}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${selectedStatus === CourseStatusEnum.PUBLISHED
-                      ? 'bg-background text-emerald-600 dark:text-emerald-400 shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
+                  className={`px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${selectedStatus === CourseStatusEnum.PUBLISHED
+                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
+                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
                     }`}
                 >
                   Đã xuất bản ({stats.published})
@@ -347,9 +333,9 @@ export function CourseManagementContent(): React.JSX.Element {
                   role="tab"
                   aria-selected={selectedStatus === CourseStatusEnum.PENDING_APPROVAL}
                   onClick={() => setSelectedStatus(CourseStatusEnum.PENDING_APPROVAL)}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${selectedStatus === CourseStatusEnum.PENDING_APPROVAL
-                      ? 'bg-background text-sky-600 dark:text-sky-400 shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
+                  className={`px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${selectedStatus === CourseStatusEnum.PENDING_APPROVAL
+                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
+                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
                     }`}
                 >
                   Chờ duyệt ({stats.pending})
@@ -359,9 +345,9 @@ export function CourseManagementContent(): React.JSX.Element {
                   role="tab"
                   aria-selected={selectedStatus === CourseStatusEnum.DRAFT}
                   onClick={() => setSelectedStatus(CourseStatusEnum.DRAFT)}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${selectedStatus === CourseStatusEnum.DRAFT
-                      ? 'bg-background text-amber-600 dark:text-amber-400 shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
+                  className={`px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${selectedStatus === CourseStatusEnum.DRAFT
+                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
+                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
                     }`}
                 >
                   Bản nháp ({stats.draft})
@@ -371,9 +357,9 @@ export function CourseManagementContent(): React.JSX.Element {
                   role="tab"
                   aria-selected={selectedStatus === CourseStatusEnum.ARCHIVED}
                   onClick={() => setSelectedStatus(CourseStatusEnum.ARCHIVED)}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${selectedStatus === CourseStatusEnum.ARCHIVED
-                      ? 'bg-background text-zinc-600 dark:text-zinc-400 shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
+                  className={`px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${selectedStatus === CourseStatusEnum.ARCHIVED
+                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
+                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
                     }`}
                 >
                   Ngừng bán ({stats.archived})
@@ -386,7 +372,7 @@ export function CourseManagementContent(): React.JSX.Element {
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortOption)}
                   aria-label="Sắp xếp danh sách khóa học"
-                  className="h-9 px-3 pr-8 rounded-lg border border-border/40 bg-background/80 text-xs text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary cursor-pointer appearance-none"
+                  className="h-8 px-3 pr-8 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-xs font-medium text-neutral-800 dark:text-neutral-200 cursor-pointer appearance-none shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <option value="created-desc">Mới nhất trước</option>
                   <option value="created-asc">Cũ nhất trước</option>
@@ -395,7 +381,7 @@ export function CourseManagementContent(): React.JSX.Element {
                 </select>
                 <Icon
                   icon="lucide:chevron-down"
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-neutral-400 pointer-events-none"
                 />
               </div>
 
@@ -405,7 +391,7 @@ export function CourseManagementContent(): React.JSX.Element {
                   type="button"
                   onClick={resetFilters}
                   aria-label="Đặt lại tất cả bộ lọc về mặc định"
-                  className="h-9 px-2.5 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border/60 hover:border-border rounded-lg transition-colors flex items-center gap-1 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-8 px-2.5 text-xs text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-neutral-400 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
                   title="Đặt lại tất cả bộ lọc"
                 >
                   <Icon icon="lucide:rotate-ccw" className="size-3" />
@@ -415,16 +401,16 @@ export function CourseManagementContent(): React.JSX.Element {
             </div>
           </div>
 
-          {/* 3. Courses Grid or Empty Filter State */}
+          {/* 3. Courses List or Empty Filter State */}
           {filteredCourses.length === 0 ? (
-            <Card className="p-12 text-center border-dashed rounded-xl bg-muted/10">
-              <div className="size-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3 text-muted-foreground">
+            <Card className="p-12 text-center border-dashed rounded-xl bg-white dark:bg-card">
+              <div className="size-12 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mx-auto mb-3 text-neutral-500">
                 <Icon icon="lucide:search-x" className="size-6" />
               </div>
-              <h4 className="text-base font-semibold text-foreground">
+              <h4 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
                 Không tìm thấy khóa học nào phù hợp
               </h4>
-              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 max-w-sm mx-auto">
                 Không có khóa học nào khớp với từ khóa tìm kiếm hoặc bộ lọc trạng thái hiện tại.
               </p>
               <div className="mt-4">
@@ -439,7 +425,7 @@ export function CourseManagementContent(): React.JSX.Element {
               </div>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex flex-col gap-4">
               {filteredCourses.map((course) => (
                 <CourseCard key={course.id} course={course} />
               ))}

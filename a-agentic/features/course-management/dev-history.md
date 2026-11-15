@@ -13,6 +13,55 @@
 
 ## 2. Technical Notes & Gotchas
 
+### [2026-11-15] - Milestone 56: Tinh Gọn Thẻ Khóa Học Giảng Viên (CourseCard) - Loại Bỏ Footer Ngăn Cách & Tích Hợp Thông Tin Thống Nhất
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Thẻ khóa học của giảng viên trước đây có đường gạch ngang footer riêng biệt (`border-t`) với nền xám phụ để chứa số lượng học viên, điểm đánh giá và nút hành động.
+  - Thiết kế này khiến thẻ bị kéo dài theo chiều dọc (~220px), lãng phí diện tích hiển thị và phân mảnh luồng mắt của giảng viên.
+  - Người dùng yêu cầu: loại bỏ dòng footer phân cách gạch đỏ, đưa số học viên, điểm đánh giá và các nút hành động lên trên thành 1 dòng thống nhất, tái cấu trúc lại card gọn gàng, tinh tế và hiện đại.
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Tái cấu trúc `CourseCard` (`frontend/src/features/course/components/course-card.tsx`)**:
+     - Loại bỏ hoàn toàn khối `div` footer tách rời (`border-t ... bg-neutral-50/50`).
+     - Tích hợp **Cấu trúc bài giảng**, **Số học viên** và **Điểm đánh giá sao** vào chung 1 dòng metadata thống nhất (`flex items-center gap-x-3 gap-y-1 text-xs text-neutral-500`) nằm ngay dưới phần mô tả ngắn.
+     - Quy hoạch cụm **Giá & Thao tác** sang góc phải của thẻ: Học phí căn góc trên bên phải (thẳng hàng với tiêu đề), cụm nút `Chỉnh sửa` và nút menu tùy chọn `...` được đẩy xuống sát góc dưới bên phải (`justify-between`), thẳng hàng hoàn hảo với dòng metadata ở giữa theo đúng vị trí người dùng chỉ định.
+     - Thu gọn kích thước thumbnail về chuẩn `220px - 240px` (aspect-video), loại bỏ nhãn kỹ thuật "16:9".
+     - Giảm ~45% chiều cao của thẻ (từ ~220px xuống còn ~120px trên màn hình desktop), mang lại trải nghiệm hiển thị dày dặn, tập trung và đẳng cấp.
+     - Tăng kích thước chữ và độ tương phản: Tiêu đề lên `text-lg sm:text-xl font-bold text-neutral-950`, mô tả ngắn lên `text-sm sm:text-[15px] text-neutral-700`, metadata lên `text-xs sm:text-sm` với icon `size-4`, giá tiền lên `text-lg sm:text-2xl font-extrabold`, nút `Chỉnh sửa` lên `h-9 px-4`, đảm bảo độ sắc nét và dễ đọc tuyệt đối.
+  2. **Đồng bộ `CourseCardSkeleton` & `CourseManagementContent`**:
+     - Cập nhật skeleton loading tương ứng loại bỏ footer, thu nhỏ thumbnail và đặt cụm thao tác cạnh giá tiền.
+     - Tinh chỉnh khoảng cách danh sách card từ `gap-5` thành `gap-4`.
+     - Loại bỏ thẻ metric "Tổng học viên" theo yêu cầu người dùng, chuyển bố cục 5 thẻ trạng thái sang `grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3`, tương ứng trực quan 1-1 với 5 tab lọc trạng thái ngay bên dưới.
+  3. **Kiểm thử**:
+     - Bộ 20 unit tests trong `frontend/src/features/course/tests/course-management-card.spec.ts` tiếp tục đạt 100% PASS.
+     - TypeScript compiler (`tsc --project frontend/tsconfig.json --noEmit`) đạt 0 lỗi.
+
+### [2026-11-15] - Milestone 55: Tái Cấu Trúc Giao Diện Quản Lý Khóa Học Giảng Viên (/courses) Chuẩn Thiết Kế & Nhóm Nút Thao Tác (⋯ Popover Menu)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trang quản lý khóa học của giảng viên (`/courses`) trước đây sử dụng giao diện dạng grid 3 cột với nhiều nút bấm thao tác trực tiếp trên card làm phân mảnh thị giác và thiếu tính chuyên nghiệp.
+  - Người dùng yêu cầu làm lại giao diện theo mẫu thiết kế dạng danh sách hàng ngang thanh lịch, tinh tế (`/design-taste-frontend`):
+    1. Header tinh gọn với breadcrumb `Trang Chủ / Khóa Học Của Tôi`, tiêu đề, mô tả và nút điều hướng `<- Về Trang Chủ`, `+ Tạo khóa học`.
+    2. Thanh 6 metric thống kê chuẩn: `Tổng khóa học`, `Đang xuất bản`, `Chờ duyệt`, `Bản nháp`, `Ngừng bán`, `Tổng học viên`.
+    3. Thanh tìm kiếm, tabs phân loại trạng thái có đếm số lượng và dropdown sắp xếp.
+    4. Thẻ khóa học hiển thị theo layout ngang (`flex-row`): bên trái là Thumbnail tỉ lệ 16:9 với badge trạng thái, badge cấp độ và tag 16:9; ở giữa là Tiêu đề, Tag danh mục kèm icon/emoji, Mô tả ngắn và Thông tin kết cấu (`X chương • Y bài giảng • Z giờ T phút`); bên phải là Khối học phí (`Học phí: Miễn phí` hoặc số tiền VND lớn rõ nét).
+    5. Footer mỗi thẻ hiển thị số lượng học viên, điểm đánh giá sao, và **Gom nhóm nút thao tác**: chỉ hiển thị trực tiếp nút `Chỉnh sửa` cùng biểu tượng `⋯`; khi nhấn `⋯` sẽ mở menu popover gồm `Xem thử`, `Ngưng bán` (hoặc `Mở bán lại`) và `Xóa`.
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Tái cấu trúc `CourseCard` (`frontend/src/features/course/components/course-card.tsx`)**:
+     - Thiết kế lại layout card dạng ngang (`flex-col md:flex-row items-stretch gap-6`).
+     - Tích hợp hàm `getCategoryThemedBackground` và xử lý `imageError` giúp fallback sang nền gradient chủ đề sang trọng (Python/Tech, Figma/Design, Marketing, Languages) khi ảnh lỗi hoặc trống.
+     - Tích hợp Popover menu cho nút `⋯`: hiển thị đúng 3 mục hành động `Xem thử` (`Icon lucide:eye`), `Ngưng bán` (`Icon lucide:pause-circle` với trạng thái disabled rõ ràng cho bản nháp hoặc chuyển sang `Mở bán lại` khi đã lưu trữ), và `Xóa` (`Icon lucide:trash-2` chữ đỏ có modal xác nhận `DeleteConfirmDialog`).
+     - Chuẩn hóa hiển thị học phí với typography lớn, rõ ràng.
+     - Tối ưu hóa hàm `formatCourseStructure` xử lý chính xác cả thời lượng dưới 1 phút (`< 1 phút`).
+  2. **Cập nhật `CourseManagementContent` & `CourseHeader`**:
+     - Thiết kế lại Header và 6 metric card tương ứng với ảnh mẫu.
+     - Đồng bộ thanh tìm kiếm, tabs filter trạng thái và sort dropdown với chiều cao `h-8` chuẩn xác.
+     - Chuyển container danh sách từ lưới sang danh sách thẻ ngang `flex flex-col gap-5`.
+  3. **Cập nhật `CourseCardSkeleton`**:
+     - Đồng bộ kích thước thumbnail `md:w-[280px] lg:w-[300px]` và vùng giá `md:w-60 lg:w-64` để tránh layout shift khi loading.
+  4. **Kiểm thử & Đảm bảo Chất lượng**:
+     - Bổ sung bộ 20 unit tests trong `frontend/src/features/course/tests/course-management-card.spec.ts` kiểm thử toàn diện category theme backgrounds, formatting cấu trúc thời lượng, và ma trận thao tác của các trạng thái PUBLISHED, DRAFT, ARCHIVED, PENDING_APPROVAL. 100% PASS.
+     - Kiểm tra TypeScript (`tsc --noEmit`) và ESLint đạt 0 lỗi.
+
 ### [2026-11-14] - Milestone 54: Tự Động Sinh Slug Duy Nhất & Ẩn Trường Slug Khỏi Giao Diện Tạo Khóa Học Mới
 
 - **Bối cảnh & Vấn đề (Problem Statement)**:
