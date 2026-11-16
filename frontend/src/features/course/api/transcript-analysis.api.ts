@@ -275,9 +275,11 @@ export function useGenerateQuizMutation(lessonId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalLessonId: lessonId },
     mutationFn: (payload?: { count?: number; saveAsDraft?: boolean }) =>
       transcriptAnalysisApi.generateQuiz(lessonId, payload),
     onSuccess: (res) => {
+      void queryClient.invalidateQueries({ predicate: (query) => query.queryKey.includes('approval-checklist') });
       void queryClient.invalidateQueries({
         queryKey: transcriptAnalysisKeys.quizDraft(lessonId),
       });
@@ -291,7 +293,7 @@ export function useGenerateQuizMutation(lessonId: string) {
         });
       } else {
         toast.success('Sinh bộ câu hỏi trắc nghiệm thành công!', {
-          description: `Đã tạo và cập nhật ${res.quizzes.length} câu hỏi trắc nghiệm chính thức cho bài học! (${(res.metadata.executionTimeMs / 1000).toFixed(1)}s)`,
+          description: `Đã tạo ${res.quizzes.length} câu hỏi. Hãy nghe lại phần giải thích và điền thời điểm xuất hiện trước khi gửi duyệt.`,
         });
       }
     },
@@ -307,8 +309,10 @@ export function useApplyQuizDraftMutation(lessonId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalLessonId: lessonId },
     mutationFn: () => transcriptAnalysisApi.applyQuizDraft(lessonId),
     onSuccess: (quizzes) => {
+      void queryClient.invalidateQueries({ predicate: (query) => query.queryKey.includes('approval-checklist') });
       void queryClient.invalidateQueries({
         queryKey: transcriptAnalysisKeys.quizDraft(lessonId),
       });

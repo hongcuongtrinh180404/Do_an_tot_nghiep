@@ -3,12 +3,13 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Param,
   Body,
   UseGuards,
 } from '@nestjs/common';
-import { ILessonQuiz, RoleEnum } from 'share-lib';
+import { ILessonQuiz, RoleEnum, hasQuizTimestamp } from 'share-lib';
 import { studentQuiz } from './utils/lesson-quiz-version.util.js';
 import { ApiResponse, ParseObjectIdPipe } from '../base/index.js';
 import { Public } from '../auth/decorators/public.decorator.js';
@@ -18,7 +19,7 @@ import { SyncLessonQuizzesAtTimestampDto } from './dto/sync-lesson-quizzes.dto.j
 import { MoveMergeLessonQuizzesDto } from './dto/move-merge-lesson-quizzes.dto.js';
 import { LessonManagementGuard } from './guards/lesson-management.guard.js';
 import { LessonAccessGuard } from './guards/lesson-access.guard.js';
-import { SaveLessonQuizDto } from './dto/save-lesson-quiz.dto.js';
+import { SaveLessonQuizDto, UpdateQuizTimestampDto } from './dto/save-lesson-quiz.dto.js';
 
 @Controller('lessons')
 export class LessonQuizController {
@@ -31,7 +32,7 @@ export class LessonQuizController {
     @Param('id', ParseObjectIdPipe) id: string,
   ) {
     const quizzes = await this.lessonQuizService.getQuizzesByLessonId(id);
-    return ApiResponse.success(quizzes.map((quiz) => studentQuiz(quiz)), 'Lấy danh sách câu hỏi video thành công');
+    return ApiResponse.success(quizzes.filter(hasQuizTimestamp).map((quiz) => studentQuiz(quiz)), 'Lấy danh sách câu hỏi video thành công');
   }
 
   @Get(':id/quizzes/manage')
@@ -72,6 +73,16 @@ export class LessonQuizController {
   ): Promise<ApiResponse<ILessonQuiz[]>> {
     const synced = await this.lessonQuizService.syncQuizzesAtTimestamp(id, dto);
     return ApiResponse.success(synced, 'Đồng bộ câu hỏi video thành công');
+  }
+
+  @Patch('quizzes/:quizId/timestamp')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
+  async updateTimestamp(
+    @Param('quizId', ParseObjectIdPipe) quizId: string,
+    @Body() dto: UpdateQuizTimestampDto,
+  ): Promise<ApiResponse<ILessonQuiz>> {
+    return ApiResponse.success(await this.lessonQuizService.updateTimestamp(quizId, dto.timestamp));
   }
 
   @Put(':id/quizzes/move-merge')

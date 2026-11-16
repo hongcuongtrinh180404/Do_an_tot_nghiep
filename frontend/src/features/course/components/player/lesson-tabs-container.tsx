@@ -48,6 +48,8 @@ const TABS: TabConfig[] = [
 ];
 
 export interface LessonTabsContainerProps {
+  courseId: string;
+  reviewQuizId?: string;
   lessonId: string;
   isInstructor?: boolean;
   currentTime?: number;
@@ -60,6 +62,8 @@ export interface LessonTabsContainerProps {
 }
 
 export function LessonTabsContainer({
+  courseId,
+  reviewQuizId,
   lessonId,
   isInstructor = false,
   currentTime = 0,
@@ -70,7 +74,7 @@ export function LessonTabsContainer({
   studentQuizzes,
   onOpenQuiz,
 }: LessonTabsContainerProps): React.JSX.Element {
-  const [activeTabId, setActiveTabId] = useState<TabConfig['id']>('summary');
+  const [activeTabId, setActiveTabId] = useState<TabConfig['id']>(reviewQuizId ? 'quiz' : 'summary');
   const [isQuizRegenerateOpen, setIsQuizRegenerateOpen] = useState(false);
   const { data: quizzes = [], isLoading: isQuizzesLoading, isError: isQuizzesError } = useLessonQuizzesQuery(lessonId, isInstructor);
 
@@ -211,6 +215,8 @@ export function LessonTabsContainer({
 
         {activeTabId === 'quiz' && (
           <LessonQuizTab
+            courseId={courseId}
+            reviewQuizId={reviewQuizId}
             lessonId={lessonId}
             isInstructor={isInstructor}
             currentTime={currentTime}

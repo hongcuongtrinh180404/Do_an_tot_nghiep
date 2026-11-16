@@ -3,7 +3,7 @@
 import { isAxiosError } from 'axios';
 import { toast } from 'sonner';
 import { queryOptions, useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { IApiResponse, ICourse, ICourseApprovalChecklist, ISection } from 'share-lib';
+import type { IApiResponse, ICourse, ICourseApprovalChecklist, ISection, ILesson } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 import { courseKeys } from './course.api';
 
@@ -53,6 +53,10 @@ export function useCourseApprovalWritesPending(courseId: string): boolean {
       const meta = mutation.options.meta;
       if (meta?.approvalCourseId === courseId) return true;
       const sections = queryClient.getQueryData<ISection[]>(courseKeys.sections(courseId));
+      if (typeof meta?.approvalLessonId === 'string') {
+        const lesson = queryClient.getQueryData<ILesson>(courseKeys.lessonDetail(meta.approvalLessonId));
+        if (lesson && sections?.some((section) => section.id === lesson.sectionId)) return true;
+      }
       return Boolean(sections?.some((section) => section.id === meta?.approvalSectionId));
     },
   }) > 0;

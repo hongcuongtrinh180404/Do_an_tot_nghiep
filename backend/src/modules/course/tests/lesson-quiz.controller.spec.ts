@@ -11,7 +11,7 @@ import { SaveLessonQuizDto } from '../dto/save-lesson-quiz.dto.js';
 describe('Individual lesson quiz HTTP contracts', () => {
   const lessonId = '607f1f77bcf86cd799439011';
   const quizId = '607f1f77bcf86cd799439022';
-  const service = { createQuiz: vi.fn(), updateQuiz: vi.fn(), getQuizzesByLessonId: vi.fn() };
+  const service = { createQuiz: vi.fn(), updateQuiz: vi.fn(), updateTimestamp: vi.fn(), getQuizzesByLessonId: vi.fn() };
   const guard = { canActivate: vi.fn() };
   const payload = {
     timestamp: 30,
@@ -78,6 +78,31 @@ describe('Individual lesson quiz HTTP contracts', () => {
     expect(result.data[0].answer).toBeNull();
     expect(result.data[0].explanation).toBeNull();
     expect(result.data[0].options.every((option: object) => !('isCorrect' in option))).toBe(true);
+  });
+
+  it.each([null, 0, 120])('accepts a timestamp-only update including empty and zero: %s', async (timestamp) => {
+    service.updateTimestamp.mockResolvedValue({ id: quizId, lessonId, timestamp, explanationTimestamp: 15 });
+    const response = await request(`/lessons/quizzes/${quizId}/timestamp`, 'PATCH', { timestamp });
+    expect(response.status).toBe(200);
+    expect(service.updateTimestamp).toHaveBeenCalledWith(quizId, timestamp);
+  });
+
+  it.each([{}, { timestamp: '' }, { timestamp: -1 }, { timestamp: 0.5 }, { timestamp: null, question: 'overwrite' }])
+  ('rejects invalid timing-only requests: %o', async (body) => {
+    expect((await request(`/lessons/quizzes/${quizId}/timestamp`, 'PATCH', body)).status).toBe(400);
+    expect(service.updateTimestamp).not.toHaveBeenCalled();
+  });
+
+  it('does not expose unscheduled questions or explanation cues to learners', async () => {
+    service.getQuizzesByLessonId.mockResolvedValue([
+      { ...payload, id: quizId, lessonId, order: 1, timestamp: null, explanationTimestamp: 15 },
+      { ...payload, id: 'scheduled', lessonId, order: 2, timestamp: 0, explanationTimestamp: 0 },
+    ]);
+    const response = await fetch(`${baseUrl}/lessons/${lessonId}/quizzes`);
+    const { data } = await response.json();
+    expect(data).toHaveLength(1);
+    expect(data[0].timestamp).toBe(0);
+    expect(data[0]).not.toHaveProperty('explanationTimestamp');
   });
 
   it.each([

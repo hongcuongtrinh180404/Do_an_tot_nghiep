@@ -7,7 +7,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
-import { ILessonQuiz, CourseStatusEnum, QuizQuestionTypeEnum } from 'share-lib';
+import { ILessonQuiz, CourseStatusEnum, QuizQuestionTypeEnum, isQuizTimestamp } from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { LessonQuizRepository } from '../repositories/lesson-quiz.repository.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
@@ -66,11 +66,9 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
   }
 
   private normalizeQuiz(dto: SaveLessonQuizDto, duration?: number): SaveLessonQuizDto {
-    if (!Number.isSafeInteger(dto.timestamp) || dto.timestamp < 0) {
-      throw new BadRequestException('Mốc thời gian phải là số giây nguyên không âm');
-    }
-    if (duration && Number.isFinite(duration) && dto.timestamp > duration) {
-      throw new BadRequestException('Mốc thời gian không được vượt quá thời lượng video');
+    this.validateTimestamp(dto.timestamp, duration);
+    if (dto.explanationTimestamp != null && !isQuizTimestamp(dto.explanationTimestamp, duration)) {
+      throw new BadRequestException('Mốc giải thích phải là số giây nguyên trong thời lượng video');
     }
     if (!dto.question.trim()) {
       throw new BadRequestException('Nội dung câu hỏi không được để trống');
@@ -110,10 +108,21 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
       questionType: dto.questionType,
       options,
       explanation: dto.explanation?.trim() || null,
+      ...(dto.explanationTimestamp !== undefined ? { explanationTimestamp: dto.explanationTimestamp } : {}),
     };
   }
 
-  private async getNextQuizOrder(lessonId: string, timestamp: number): Promise<number> {
+  private validateTimestamp(timestamp: number | null, duration?: number): void {
+    if (timestamp === null) return;
+    if (!isQuizTimestamp(timestamp)) {
+      throw new BadRequestException('Mốc thời gian phải là số giây nguyên không âm hoặc null');
+    }
+    if (!isQuizTimestamp(timestamp, duration)) {
+      throw new BadRequestException('Mốc thời gian không được vượt quá thời lượng video');
+    }
+  }
+
+  private async getNextQuizOrder(lessonId: string, timestamp: number | null): Promise<number> {
     const quizzes = await this.lessonQuizRepo.findByLessonIdAndTimestamp(lessonId, timestamp);
     return quizzes.reduce((max, quiz) => Math.max(max, quiz.order), 0) + 1;
   }
@@ -155,6 +164,21 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
     if (!updated) {
       throw new NotFoundException('Câu hỏi đã bị xóa hoặc không còn tồn tại');
     }
+    return updated;
+  }
+
+  /** Inline scheduling updates only timing, never stale question/answer content. */
+  async updateTimestamp(quizId: string, timestamp: number | null): Promise<ILessonQuiz> {
+    const existing = await this.lessonQuizRepo.findById(quizId);
+    if (!existing) throw new NotFoundException('Không tìm thấy câu hỏi');
+    const lesson = await this.lessonRepo.findById(existing.lessonId);
+    if (!lesson) throw new NotFoundException('Không tìm thấy bài học');
+    await this.assertNotPendingApproval(existing.lessonId);
+    this.validateTimestamp(timestamp, lesson.content?.duration);
+    const order = timestamp === existing.timestamp ? existing.order
+      : await this.getNextQuizOrder(existing.lessonId, timestamp);
+    const updated = await super.update(quizId, { timestamp, order });
+    if (!updated) throw new NotFoundException('Câu hỏi đã bị xóa hoặc không còn tồn tại');
     return updated;
   }
 
@@ -205,6 +229,7 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
           isCorrect: opt.isCorrect,
         })),
         explanation: q.explanation?.trim() || null,
+        ...(q.explanationTimestamp !== undefined ? { explanationTimestamp: q.explanationTimestamp } : {}),
       })),
     );
   }

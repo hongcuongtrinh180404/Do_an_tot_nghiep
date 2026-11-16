@@ -71,6 +71,16 @@ describe('Lesson completion', () => {
     expect(result.quizzes[0].answer?.correctOptionIds).toEqual(['a']);
   });
 
+  it('excludes unscheduled questions from learner checkpoints and rejects direct submissions', async () => {
+    h.official.push({ ...question('unscheduled'), timestamp: null, explanationTimestamp: 15 });
+    const state = await h.service.getLesson(userId, courseId, lessonId);
+    expect(state.totalQuestions).toBe(1);
+    expect(state.quizzes.map((quiz) => quiz.id)).toEqual([quizId]);
+    await expect(h.submit(['a'], h.official[1])).rejects.toThrow(ConflictException);
+    expect(h.repo.saveAnswer).not.toHaveBeenCalled();
+    expect((await h.submit()).status).toBe(LearningStatusEnum.COMPLETED);
+  });
+
   it('does not expose correct options or explanations before a saved answer', async () => {
     const state = await h.service.getLesson(userId, courseId, lessonId);
     expect(state.quizzes[0].answer).toBeNull();

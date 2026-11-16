@@ -1,5 +1,11 @@
 # Payment SePay — Development History & Gotchas
 
+## 2026-11-16 — Hỗ trợ Test send của Dashboard SePay
+
+- DTO webhook chấp nhận `id=0` (payload mẫu của nút **Test send**); ID giao dịch thật vẫn bắt buộc số nguyên dương.
+- Sau khi xác thực HMAC/timestamp, webhook test được ACK `{ "success": true }` ngay và bỏ qua: không lưu receipt, không đối soát, không kích hoạt đơn.
+- Bổ sung unit test và HTTP integration test bảo đảm test send không tạo dữ liệu thanh toán.
+
 ## 2026-11-09 — Payment integrity hardening
 
 - Loại bỏ luồng mua trực tiếp tự cấp quyền cho khóa có phí, API cũ và hook frontend tương ứng. Đăng ký khóa miễn phí chuyển sang `register-free`, backend bắt buộc kiểm tra giá 0 và không tạo đơn thanh toán.

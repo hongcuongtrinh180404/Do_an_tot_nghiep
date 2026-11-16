@@ -34,6 +34,8 @@ import { UpdateCourseDto } from '../dto/update-course.dto.js';
 import { QueryCoursesAdminDto } from '../dto/query-courses-admin.dto.js';
 import { QueryPublicCoursesDto } from '../dto/query-public-courses.dto.js';
 import { StorageService } from '../../storage/index.js';
+import { LessonQuizRepository } from '../repositories/lesson-quiz.repository.js';
+import { buildQuizTimingRequirement } from '../utils/course-approval.util.js';
 
 export interface CreateCourseInput {
   title: string;
@@ -61,6 +63,7 @@ export class CourseService extends BaseService<ICourse, string> {
     protected readonly userRepository: UserRepository,
     protected readonly storageService: StorageService,
     cls: ClsService,
+    private readonly lessonQuizRepository: LessonQuizRepository,
   ) {
     super(courseRepository, cls, CourseService.name);
   }
@@ -575,6 +578,7 @@ export class CourseService extends BaseService<ICourse, string> {
       );
     }
 
+    await this.assertQuizTimings(courseId);
     const updated = await this.courseRepository.updateStatus(
       courseId,
       CourseStatusEnum.ARCHIVED,
@@ -736,6 +740,9 @@ export class CourseService extends BaseService<ICourse, string> {
       if (dto.status === CourseStatusEnum.PENDING_APPROVAL) {
         throw new BadRequestException('Cần kiểm tra điều kiện qua chức năng yêu cầu phê duyệt.');
       }
+      if (dto.status === CourseStatusEnum.PUBLISHED && course.status !== CourseStatusEnum.PUBLISHED) {
+        await this.assertQuizTimings(courseId);
+      }
     }
 
     // 2. Validate price constraint
@@ -815,6 +822,7 @@ export class CourseService extends BaseService<ICourse, string> {
     adminId: string,
     session?: ClientSession,
   ): Promise<ICourse> {
+    await this.assertQuizTimings(courseId);
     const updated = await this.courseRepository.approveCourse(courseId, adminId, session);
     if (!updated) {
       const existing = await this.courseRepository.findById(courseId, session);
@@ -826,6 +834,19 @@ export class CourseService extends BaseService<ICourse, string> {
       );
     }
     return updated;
+  }
+
+  private async assertQuizTimings(courseId: string): Promise<void> {
+    const sections = await this.sectionRepository.findByCourseId(courseId);
+    const lessons = await this.lessonRepository.findBySectionIds(sections.map((section) => section.id));
+    const quizzes = await this.lessonQuizRepository.findByLessonIds(lessons.map((lesson) => lesson.id));
+    const requirement = buildQuizTimingRequirement(sections, lessons, quizzes);
+    if (!requirement.complete) {
+      throw new BadRequestException({
+        message: `Còn ${requirement.issues.length} câu hỏi tương tác video chưa có thời điểm xuất hiện hợp lệ.`,
+        requirement,
+      });
+    }
   }
 
   async rejectCourse(

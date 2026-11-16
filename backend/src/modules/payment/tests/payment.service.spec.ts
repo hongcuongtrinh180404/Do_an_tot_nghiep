@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
@@ -202,6 +202,27 @@ describe('PaymentService', () => {
   it('rejects a modified receipt with the same transaction ID', async () => {
     await webhook();
     await expect(webhook({ transferAmount: 600000 })).rejects.toThrow(ConflictException);
+  });
+
+  it('ACKs the SePay dashboard test send without recording a receipt', async () => {
+    const result = await webhook({
+      id: 0, gateway: 'SePay', transactionDate: new Date().toISOString(), accountNumber: '0000000000',
+      code: 'SEPAYTEST', content: 'SEPAY TEST WEBHOOK', transferType: 'in', transferAmount: 10000,
+      accumulated: 10000, referenceCode: 'TEST1794818121', description: 'SePay test webhook delivery',
+    });
+    expect(result).toEqual({ success: true, message: 'Đã nhận webhook thử nghiệm SePay' });
+    expect(payments.create).not.toHaveBeenCalled();
+    expect(receipts.size).toBe(0);
+    expect(order.status).toBe(OrderStatusEnum.PENDING);
+  });
+
+  it('still verifies the signature of the SePay test send', async () => {
+    const payload: SepayWebhookDto = {
+      id: 0, gateway: 'SePay', transactionDate: new Date().toISOString(), accountNumber: '0000000000',
+      code: 'SEPAYTEST', content: 'SEPAY TEST WEBHOOK', transferType: 'in', transferAmount: 10000,
+    };
+    const raw = Buffer.from(JSON.stringify(payload));
+    await expect(service.processSepayWebhook({}, raw, payload)).rejects.toThrow(UnauthorizedException);
   });
 
   it('accumulates distinct partial transfers without spending a replay twice', async () => {

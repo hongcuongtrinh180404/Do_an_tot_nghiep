@@ -7,7 +7,8 @@ export class SepayWebhookDto {
     typeof value === 'number' && Number.isSafeInteger(value) ? String(value) : value,
   )
   @IsString()
-  @Matches(/^[1-9]\d{0,19}$/)
+  // "Test send" trên Dashboard SePay dùng id giả (thường là 0); giao dịch thật luôn là số dương.
+  @Matches(/^(0|[1-9]\d{0,19})$/)
   id: number | string;
 
   @IsOptional()

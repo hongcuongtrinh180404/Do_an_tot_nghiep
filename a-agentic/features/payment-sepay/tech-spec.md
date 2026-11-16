@@ -52,6 +52,8 @@ Payment transaction dùng snapshot read concern, majority write concern, max com
 
 Webhook trả đúng `{ "success": true }`, không bị bọc bởi `ApiResponse`. Lỗi storage/commit/cấp quyền được truyền lên HTTP lỗi để SePay retry. Ngoại lệ nghiệp vụ chỉ ACK sau khi receipt đối soát đã commit.
 
+Test send trên Dashboard SePay dùng `id` giả (thường là `0`). Endpoint vẫn xác thực HMAC/timestamp, sau đó ACK `{ "success": true }` và bỏ qua: không tạo receipt, không đụng hàng đợi đối soát. ID giao dịch thật vẫn bắt buộc là số nguyên dương.
+
 ## Frontend
 
 - Tải checkout qua endpoint chi tiết; polling endpoint trạng thái mỗi 3 giây khi còn PENDING.

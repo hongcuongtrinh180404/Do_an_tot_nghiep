@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CourseLevelEnum, CourseStatusEnum, LessonContentTypeEnum,
-  type ICourse, type ILesson, type ISection,
+  type ICourse, type ILesson, type ISection, type ILessonQuiz, QuizQuestionTypeEnum,
 } from 'share-lib';
 import { buildCourseApprovalChecklist } from '../utils/course-approval.util.js';
 
@@ -33,7 +33,7 @@ describe('Course approval conditions', () => {
   it('accepts all levels, free courses and saved content without duration/transcript', () => {
     const result = check();
     expect(result.canSubmit).toBe(true);
-    expect(result.items).toHaveLength(6);
+    expect(result.items).toHaveLength(7);
     expect(result.items.every((item) => item.complete)).toBe(true);
   });
 
@@ -71,8 +71,8 @@ describe('Course approval conditions', () => {
     const second = { ...section, id: 'empty-section', title: 'Nâng cao', order: 1 };
     const result = check({}, [second, section]);
     expect(result.canSubmit).toBe(false);
-    expect(result.items.at(-1)?.issues[0].target).toEqual({ field: 'curriculum', sectionId: second.id });
-    expect(result.items.at(-1)?.issues[0].message).toContain('Chương 2');
+    expect(result.items.find((item) => item.id === 'curriculum')?.issues[0].target).toEqual({ field: 'curriculum', sectionId: second.id });
+    expect(result.items.find((item) => item.id === 'curriculum')?.issues[0].message).toContain('Chương 2');
   });
 
   it('does not count deleted lessons or lessons from another chapter', () => {
@@ -84,8 +84,8 @@ describe('Course approval conditions', () => {
     const incomplete = { ...lesson, id: 'incomplete', title: '', order: 1, content: null };
     const result = check({}, [section], [incomplete, lesson]);
     expect(result.canSubmit).toBe(false);
-    expect(result.items.at(-1)?.issues).toHaveLength(2);
-    expect(result.items.at(-1)?.issues[0].target).toEqual({
+    expect(result.items.find((item) => item.id === 'curriculum')?.issues).toHaveLength(2);
+    expect(result.items.find((item) => item.id === 'curriculum')?.issues[0].target).toEqual({
       field: 'curriculum', sectionId: section.id, lessonId: incomplete.id,
     });
   });
@@ -102,5 +102,28 @@ describe('Course approval conditions', () => {
     const result = check({ status: CourseStatusEnum.PENDING_APPROVAL });
     expect(result.items.every((item) => item.complete)).toBe(true);
     expect(result.canSubmit).toBe(false);
+  });
+
+  it('checks every video lesson and distinguishes empty timing from 00:00', () => {
+    const second = { ...lesson, id: 'second-lesson', content: { ...lesson.content!, duration: 120 } };
+    const question: ILessonQuiz = {
+      id: 'quiz', lessonId: lesson.id, timestamp: 0, explanationTimestamp: 15,
+      order: 1, question: 'Kiến thức nào?', questionType: QuizQuestionTypeEnum.SINGLE, options: [],
+    };
+    for (const invalid of [null, -1, 121, NaN]) {
+      const result = buildCourseApprovalChecklist(course, true, [section], [lesson, second], [
+        question, { ...question, id: 'missing-quiz', lessonId: second.id, timestamp: invalid },
+      ]);
+      expect(result.canSubmit).toBe(false);
+      expect(result.items.find((item) => item.id === 'quiz-timestamps')?.issues.map((issue) => issue.target))
+        .toEqual([{ field: 'quiz-timestamps', sectionId: section.id, lessonId: second.id, quizId: 'missing-quiz' }]);
+    }
+    expect(buildCourseApprovalChecklist(course, true, [section], [lesson], [question]).canSubmit).toBe(true);
+  });
+
+  it('ignores quizzes attached to removed lessons and chapters', () => {
+    const removed = { ...lesson, id: 'removed', deletedAt: date };
+    const quiz = { id: 'quiz', lessonId: removed.id, timestamp: null } as ILessonQuiz;
+    expect(buildCourseApprovalChecklist(course, true, [section], [lesson, removed], [quiz]).canSubmit).toBe(true);
   });
 });

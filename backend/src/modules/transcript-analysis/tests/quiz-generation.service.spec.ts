@@ -26,7 +26,8 @@ describe('QuizGenerationService', () => {
 
   const sampleQuizzes: IGeneratedQuizItem[] = Array.from({ length: 10 }, (_, i) => ({
     order: i + 1,
-    timestamp: (i + 1) * 15,
+    timestamp: null,
+    explanationTimestamp: (i + 1) * 15,
     question: `Câu hỏi số ${i + 1}?`,
     questionType: QuizQuestionTypeEnum.SINGLE,
     options: [
@@ -198,7 +199,7 @@ describe('QuizGenerationService', () => {
       expect(response.quizzes).toHaveLength(10);
       expect(mockLessonQuizRepo.replaceAllQuizzesForLesson).toHaveBeenCalledWith(
         'lesson-123',
-        expect.any(Array),
+        expect.arrayContaining([expect.objectContaining({ timestamp: null, explanationTimestamp: 15 })]),
       );
       expect(mockLessonQuizDraftRepo.clearDraftByLessonId).toHaveBeenCalledWith('lesson-123');
     });
@@ -264,7 +265,8 @@ describe('QuizGenerationService', () => {
       const normalized = service.sanitizeAndNormalizeQuizzes(rawInput, 300, 1);
       expect(normalized).toHaveLength(1);
       expect(normalized[0].questionType).toBe(QuizQuestionTypeEnum.SINGLE);
-      expect(normalized[0].timestamp).toBe(46);
+      expect(normalized[0].timestamp).toBeNull();
+      expect(normalized[0].explanationTimestamp).toBe(46);
       expect(normalized[0].options[0].id).toBe('opt-1-A');
       expect(normalized[0].options[0].isCorrect).toBe(true);
       expect(normalized[0].options[1].isCorrect).toBe(false);
@@ -281,7 +283,18 @@ describe('QuizGenerationService', () => {
       ];
 
       const normalized = service.sanitizeAndNormalizeQuizzes(rawInput, 300, 1);
-      expect(normalized[0].timestamp).toBe(300);
+      expect(normalized[0].timestamp).toBeNull();
+      expect(normalized[0].explanationTimestamp).toBe(300);
+    });
+
+    it('ignores AI scheduling and gives the explicit explanation cue precedence', () => {
+      const result = service.sanitizeAndNormalizeQuizzes([{ ...sampleQuizzes[0], timestamp: 200, explanationTimestamp: 0 }], 300);
+      expect(result[0]).toMatchObject({ timestamp: null, explanationTimestamp: 0 });
+    });
+
+    it.each([undefined, null, '', ' ', Infinity])('does not invent a cue for missing or invalid AI timing %s', (time) => {
+      const result = service.sanitizeAndNormalizeQuizzes([{ ...sampleQuizzes[0], explanationTimestamp: time, timestamp: null }], 300);
+      expect(Number.isNaN(result[0].explanationTimestamp)).toBe(true);
     });
   });
 });

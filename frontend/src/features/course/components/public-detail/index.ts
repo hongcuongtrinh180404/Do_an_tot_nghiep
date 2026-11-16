@@ -7,5 +7,6 @@ export * from './course-mindmap-tab';
 export * from './course-curriculum-tab';
 export * from './course-reviews-tab';
 export * from './course-instructor-tab';
+export * from './teacher-course-row';
 export * from './course-purchase-card';
 

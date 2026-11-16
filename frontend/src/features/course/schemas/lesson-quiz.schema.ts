@@ -31,7 +31,7 @@ export function createLessonQuizSchema(duration?: number) {
     timestamp: z.number().int('Thời gian phải là số giây nguyên.').min(0, 'Thời gian không được âm.')
       .refine((timestamp) => !duration || !Number.isFinite(duration) || timestamp <= duration, {
         message: 'Thời điểm xuất hiện không được vượt quá thời lượng video.',
-      }),
+      }).nullable(),
     questionData: quizQuestionFieldsSchema,
   });
 }

@@ -13,6 +13,34 @@
 
 ## 2. Technical Notes & Gotchas
 
+### [2026-11-16] - Milestone 60: Thiết Kế & Nâng Cấp Tab Giảng Viên Chuẩn Editorial Đi Kèm Danh Sách "Khóa Học Khác Của Giảng Viên" (Teacher Profile & Other Courses Row List)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trên giao diện chi tiết khóa học công khai (`/courses/:id`), khi người học bấm vào tab **Giảng viên**, tab này trước đây chỉ có một thẻ tĩnh chứa dữ liệu mock cố định, chưa liên kết với các khóa học thực tế của giảng viên và hoàn toàn thiếu danh sách các khóa học khác cùng tác giả.
+  - Người dùng yêu cầu thiết kế lại tab này chuẩn theo ảnh mẫu và phong cách `design-taste-frontend` (anti-slop, cấm màu tím, typography tương phản chuẩn mực, thẻ ngang có ảnh thumbnail tỉ lệ chuẩn, huy hiệu `BEST SELLER` màu vàng `#ffd100`, dòng tác giả, lượt học viên rút gọn `179K`, đánh giá `4.8 ★★★★★ (5.1K)` và giá bán).
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Component Thẻ Khóa Học Dạng Ngang (`teacher-course-row.tsx`)**:
+     - Tạo mới `TeacherCourseRow` tái hiện trực quan chính xác ảnh tham chiếu của người dùng.
+     - Tích hợp thumbnail với `next/image`, hiệu ứng hover scale vi mô, bo góc `rounded-lg/xl`.
+     - Huy hiệu `BEST SELLER` vàng tươi `#ffd100` chữ đen đậm `#161616` (tự động kích hoạt khi khóa học có `isFeatured`, số học viên cao hoặc rating $\ge 4.5$).
+     - Dòng tác giả: `Khóa học bởi [Tên giảng viên]`.
+     - Hàng chỉ số xã hội (Social Proof): Helper `formatCompactNumber` (`179K`, `26K`, `5.1K`), cụm 5 sao vàng SVG, và tag học phí VNĐ/Miễn phí.
+  2. **Nâng cấp Tab Giảng Viên (`course-instructor-tab.tsx`)**:
+     - Bổ sung props `currentCourseId`, `instructorId`, `instructor`.
+     - Tích hợp hook `useInstructorPublicCoursesQuery(instructorId)` truy vấn API backend `/courses?instructorId=...`.
+     - Tự động lọc bỏ khóa học hiện tại (`item.id !== currentCourseId`) để không hiển thị trùng lặp.
+     - Tính toán tổng hợp các chỉ số thực tế từ danh sách khóa học: Tổng học viên, số khóa học đã giảng dạy, điểm đánh giá trung bình.
+     - Bổ sung section **"Khóa học khác của giảng viên này"**: Header có badge đếm số lượng, danh sách thẻ `TeacherCourseRow`, skeleton loaders khi đang tải, và empty state trang nhã khi chưa có khóa học phụ.
+  3. **Kết nối View Tổng Thể (`public-course-detail-view.tsx`)**:
+     - Truyền `currentCourseId={course.id}`, `instructor={course.instructor}`, `instructorId={course.instructorId || course.instructor?.id}` vào `CourseInstructorTab`.
+  4. **Kiểm thử Toàn diện (`course-instructor-tab.spec.ts`)**:
+     - Viết 9 unit test cases với Vitest covering:
+       - `formatCompactNumber`: Xử lý đúng các dải số (0, 42, 1.5K, 26K, 179K, 1M).
+       - `formatCoursePrice`: Xử lý đúng Miễn phí vs VNĐ.
+       - `TeacherCourseRow`: Render đầy đủ title, badge BEST SELLER, teacher credit, student count, stars, price.
+       - `CourseInstructorTab`: Lọc bỏ `currentCourseId`, render hồ sơ giảng viên, và hiển thị empty state khi không có khóa học khác.
+     - Toàn bộ 9/9 tests PASS 100%, TypeScript compile `tsc --noEmit` đạt 0 lỗi.
+
 ### [2026-11-16] - Milestone 59: Nút Chuyển Đổi Trạng Thái Bài Học (Có Phí ↔ Miễn Phí Học Thử) Trực Tiếp Trên Inspector Panel (Toggle Lesson Preview Status)
 
 - **Bối cảnh & Vấn đề (Problem Statement)**:

@@ -349,6 +349,20 @@ describe('SePay payment integrity (MongoDB replica set + HTTP)', () => {
     expect(await payments.countDocuments()).toBe(1);
   });
 
+  it('ACKs the SePay Dashboard test send (id=0) without storing a payment', async () => {
+    const event = signed('', {
+      id: 0, gateway: 'SePay', accountNumber: '0000000000', code: 'SEPAYTEST',
+      content: 'SEPAY TEST WEBHOOK', transferAmount: 10000, accumulated: 10000,
+      referenceCode: 'TEST1794818121', description: 'SePay test webhook delivery',
+    });
+    const response = await request(app.getHttpServer())
+      .post('/payments/sepay/webhook').set(event.headers).set('Content-Type', 'application/json')
+      .send(event.raw.toString()).expect(200);
+    expect(response.body).toEqual({ success: true });
+    expect(await payments.countDocuments()).toBe(0);
+    expect(await orders.countDocuments()).toBe(0);
+  });
+
   it('rejects tampered bytes, invalid amounts, and malformed transaction IDs before any writes', async () => {
     const checkout = await service.createOrder(userId, courseId);
     const event = signed(checkout.order.orderCode);

@@ -1,14 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { ILessonQuiz, IStudentLessonQuiz } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { useDeleteLessonQuizMutation, useLessonQuizzesQuery } from '@/features/course/api/lesson-quiz.api';
 import { DeleteConfirmDialog } from '@/components/shared/dialog/delete-confirm-dialog';
 import { LessonQuizQuestionDialog } from '../lesson-quiz-question-dialog';
+import { QuizTimestampField } from '../quiz-timestamp-field';
+import { useQuizTimingValidation } from '../../../hooks/use-quiz-timing-validation';
+import { isQuizTimestamp } from 'share-lib';
 
 interface LessonQuizTabProps {
+  courseId: string;
+  reviewQuizId?: string;
   lessonId: string;
   isInstructor?: boolean;
   currentTime?: number;
@@ -29,6 +34,8 @@ function formatTime(seconds: number): string {
 }
 
 export function LessonQuizTab({
+  courseId,
+  reviewQuizId,
   lessonId,
   isInstructor = false,
   currentTime = 0,
@@ -46,6 +53,21 @@ export function LessonQuizTab({
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<ILessonQuiz | undefined>();
   const [quizToDelete, setQuizToDelete] = useState<ILessonQuiz | null>(null);
+  const showTimingErrors = useQuizTimingValidation(courseId);
+  const focused = useRef(false);
+  const missingCount = officialQuizzes.filter((quiz) => !isQuizTimestamp(quiz.timestamp, duration)).length;
+
+  useEffect(() => {
+    if (!isInstructor || !reviewQuizId || focused.current || isLoading) return;
+    const frame = requestAnimationFrame(() => {
+      const input = document.querySelector<HTMLInputElement>(`[data-quiz-timestamp="${CSS.escape(reviewQuizId)}"]`);
+      if (!input) return;
+      input.scrollIntoView({ block: 'center' });
+      input.focus({ preventScroll: true });
+      focused.current = true;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isInstructor, reviewQuizId, isLoading]);
 
   const openEditor = (quiz?: ILessonQuiz) => {
     if (!isInstructor || isGenerating) return;
@@ -81,7 +103,7 @@ export function LessonQuizTab({
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-foreground">Câu hỏi trắc nghiệm</h2>
           <p className="text-sm text-muted-foreground">
-            {isLoading ? 'Đang tải câu hỏi…' : isError ? 'Chưa tải được danh sách câu hỏi' : `${officialQuizzes.length} câu hỏi · Sắp xếp theo thời điểm xuất hiện`}
+            {isLoading ? 'Đang tải câu hỏi…' : isError ? 'Chưa tải được danh sách câu hỏi' : `${officialQuizzes.length} câu hỏi · ${missingCount} câu chưa có thời điểm xuất hiện hợp lệ`}
           </p>
         </div>
         {isInstructor && (
@@ -91,6 +113,11 @@ export function LessonQuizTab({
           </Button>
         )}
       </div>
+      {showTimingErrors && missingCount > 0 && (
+        <p role="alert" className="mx-auto w-full max-w-4xl rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+          Cần điền thời điểm xuất hiện cho {missingCount} câu hỏi trước khi gửi duyệt khóa học.
+        </p>
+      )}
       {/* Quiz List Display */}
       {isLoading ? (
         <div className="py-16 flex flex-col items-center justify-center space-y-3">
@@ -105,7 +132,7 @@ export function LessonQuizTab({
       ) : officialQuizzes.length > 0 ? (
         <div className="space-y-4 max-w-4xl mx-auto w-full">
           {officialQuizzes.map((quiz: ILessonQuiz, index: number) => {
-            const isNearCurrentTime = Math.abs(currentTime - quiz.timestamp) < 5;
+            const isNearCurrentTime = quiz.timestamp !== null && Math.abs(currentTime - quiz.timestamp) < 5;
             const quizKey = ('id' in quiz && quiz.id) ? quiz.id : `quiz-${index}`;
 
             return (
@@ -118,45 +145,42 @@ export function LessonQuizTab({
                 }`}
               >
                 {/* Header question */}
-                <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-                  <div className="flex shrink-0 items-center gap-2">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 self-stretch sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-xs font-semibold text-muted-foreground">
                       Câu hỏi {index + 1}
                     </span>
-                  </div>
 
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    {isInstructor && (
-                      <>
-                        <Button type="button" size="sm" variant="outline" onClick={() => openEditor(quiz)} disabled={isGenerating || deleteMutation.isPending}>
-                          <Icon icon="lucide:pencil" className="size-3.5" aria-hidden="true" />
-                          Sửa
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive hover:text-destructive"
-                          disabled={isGenerating || deleteMutation.isPending}
-                          onClick={() => { onPauseVideo?.(); setQuizToDelete(quiz); }}
-                          aria-label={`Xóa câu hỏi ${index + 1}`}
-                        >
-                          <Icon icon="lucide:trash-2" className="size-3.5" aria-hidden="true" />
-                          Xóa
-                        </Button>
-                      </>
-                    )}
-                    {/* Timestamp tag button to seek */}
-                    <button
-                      type="button"
-                      onClick={() => onSeek?.(quiz.timestamp)}
-                      title={`Tua video tới mốc câu hỏi ${formatTime(quiz.timestamp)}`}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tabular-nums bg-muted hover:bg-sky-500/15 hover:text-sky-600 transition-colors text-foreground cursor-pointer"
-                    >
-                      <Icon icon="lucide:play-circle" className="size-3.5 text-sky-500" aria-hidden="true" />
-                      <span>{formatTime(quiz.timestamp)}</span>
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      {isInstructor && (
+                        <>
+                          <Button type="button" size="sm" variant="outline" className="h-11 sm:h-7" onClick={() => openEditor(quiz)} disabled={isGenerating || deleteMutation.isPending}>
+                            <Icon icon="lucide:pencil" className="size-3.5" aria-hidden="true" />
+                            Sửa
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-11 text-destructive hover:text-destructive sm:h-7"
+                            disabled={isGenerating || deleteMutation.isPending}
+                            onClick={() => { onPauseVideo?.(); setQuizToDelete(quiz); }}
+                            aria-label={`Xóa câu hỏi ${index + 1}`}
+                          >
+                            <Icon icon="lucide:trash-2" className="size-3.5" aria-hidden="true" />
+                            Xóa
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
+                  <QuizTimestampField
+                    quiz={quiz}
+                    courseId={courseId}
+                    duration={duration}
+                    showRequiredError={showTimingErrors}
+                    disabled={isGenerating || deleteMutation.isPending}
+                  />
                 </div>
 
                 {/* Question Text */}
@@ -180,7 +204,7 @@ export function LessonQuizTab({
                         <span
                           className={`inline-flex items-center justify-center size-6 rounded-lg text-xs font-bold shrink-0 mt-0.5 ${
                             isCorrect
-                              ? 'bg-emerald-500 text-white shadow-2xs'
+                               ? 'bg-emerald-700 text-white shadow-2xs'
                               : 'bg-muted text-foreground'
                           }`}
                         >
@@ -189,7 +213,7 @@ export function LessonQuizTab({
                         <div className="flex-1 space-y-0.5">
                           <p className="break-words leading-snug">{opt.text}</p>
                           {isCorrect && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
                               <Icon icon="lucide:check" className="size-3" />
                               Đáp án chính xác
                             </span>
@@ -201,10 +225,22 @@ export function LessonQuizTab({
                 </div>
 
                 {/* Explanation Box */}
-                {quiz.explanation && (
+                {(quiz.explanation || quiz.explanationTimestamp != null) && (
                   <div className="p-3 rounded-xl bg-muted/40 border border-border/60 text-xs text-muted-foreground flex items-start gap-2.5">
                     <Icon icon="lucide:lightbulb" className="size-4 text-amber-500 shrink-0 mt-0.5" />
                     <div className="space-y-0.5">
+                      {quiz.explanationTimestamp != null && (
+                        <button
+                          type="button"
+                          onClick={() => onSeek?.(quiz.explanationTimestamp!)}
+                          title={`Nghe lại phần giải thích tại ${formatTime(quiz.explanationTimestamp)}`}
+                          aria-label={`Nghe lại phần giải thích tại ${formatTime(quiz.explanationTimestamp)}`}
+                          className="mr-2 inline-flex min-h-11 items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-9"
+                        >
+                          <Icon icon="lucide:play-circle" className="size-3.5" aria-hidden="true" />
+                          {formatTime(quiz.explanationTimestamp)}
+                        </button>
+                      )}
                       <span className="font-semibold text-foreground">Giải thích: </span>
                       <span className="break-words leading-relaxed">{quiz.explanation}</span>
                     </div>
@@ -265,7 +301,7 @@ export function LessonQuizTab({
         open={isInstructor && quizToDelete !== null}
         onOpenChange={(open) => { if (!open && !deleteMutation.isPending) setQuizToDelete(null); }}
         title="Xóa câu hỏi trắc nghiệm?"
-        description={`Chỉ xóa câu hỏi “${quizToDelete?.question ?? ''}” tại ${formatTime(quizToDelete?.timestamp ?? 0)}. Các câu hỏi khác được giữ nguyên.`}
+        description={`Xóa câu hỏi “${quizToDelete?.question ?? ''}”${quizToDelete?.timestamp != null ? ` tại ${formatTime(quizToDelete.timestamp)}` : ' chưa đặt thời điểm xuất hiện'}?`}
         isLoading={deleteMutation.isPending}
         onConfirm={handleDeleteQuiz}
       />

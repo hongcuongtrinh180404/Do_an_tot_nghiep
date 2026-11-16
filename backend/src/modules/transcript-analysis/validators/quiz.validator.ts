@@ -1,5 +1,5 @@
 import { UnprocessableEntityException } from '@nestjs/common';
-import { IGeneratedQuizItem, QuizQuestionTypeEnum } from 'share-lib';
+import { IGeneratedQuizItem, QuizQuestionTypeEnum, isQuizTimestamp } from 'share-lib';
 
 export interface QuizValidationResult {
   isValid: boolean;
@@ -39,18 +39,12 @@ export class QuizValidator {
         errors.push(`Câu hỏi số ${qIndex} thiếu nội dung "question" hoặc bị rỗng.`);
       }
 
-      // 2. Kiểm tra timestamp
-      if (typeof item.timestamp !== 'number' || isNaN(item.timestamp)) {
-        errors.push(`Câu hỏi số ${qIndex} có "timestamp" không phải là số hợp lệ.`);
-      } else {
-        if (item.timestamp < 0) {
-          errors.push(`Câu hỏi số ${qIndex} có timestamp âm (${item.timestamp}s).`);
-        }
-        if (maxDurationSeconds > 0 && item.timestamp > maxDurationSeconds + 5) {
-          errors.push(
-            `Câu hỏi số ${qIndex} có timestamp (${item.timestamp}s) vượt quá thời lượng video (${maxDurationSeconds}s).`,
-          );
-        }
+      // AI supplies an explanation cue; scheduling belongs to the instructor.
+      if (item.timestamp !== null) {
+        errors.push(`Câu hỏi số ${qIndex} phải để trống thời điểm xuất hiện (timestamp = null).`);
+      }
+      if (!isQuizTimestamp(item.explanationTimestamp, maxDurationSeconds)) {
+        errors.push(`Câu hỏi số ${qIndex} có explanationTimestamp không hợp lệ hoặc vượt quá thời lượng video.`);
       }
 
       // 3. Kiểm tra questionType (chấp nhận cả 'single' và 'SINGLE')

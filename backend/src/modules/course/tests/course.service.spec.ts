@@ -20,6 +20,7 @@ import {
   AuthProviderEnum,
 } from 'share-lib';
 import { CourseService } from '../services/course.service.js';
+import type { LessonQuizRepository } from '../repositories/lesson-quiz.repository.js';
 import { CourseRepository } from '../repositories/course.repository.js';
 import { CourseCategoryRepository } from '../repositories/course-category.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
@@ -119,7 +120,7 @@ describe('CourseService', () => {
 
     mockSectionRepository = {
       create: vi.fn(),
-      findByCourseId: vi.fn(),
+      findByCourseId: vi.fn().mockResolvedValue([]),
       reorderSections: vi.fn(),
       findById: vi.fn(),
       update: vi.fn(),
@@ -172,6 +173,7 @@ describe('CourseService', () => {
       mockUserRepository as unknown as UserRepository,
       mockStorageService as unknown as StorageService,
       mockCls as unknown as ClsService,
+      { findByLessonIds: vi.fn().mockResolvedValue([]) } as unknown as LessonQuizRepository,
     );
   });
 

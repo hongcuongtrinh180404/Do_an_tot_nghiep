@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { ILessonQuiz, IStudentLessonQuiz, ILessonQuizAnswer } from 'share-lib';
+import { isQuizTimestamp } from 'share-lib';
 
 export function contentVersion(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -17,6 +18,7 @@ export function quizRevision(quiz: Pick<ILessonQuiz, 'question' | 'questionType'
 }
 
 export function studentQuiz(quiz: ILessonQuiz, answer: ILessonQuizAnswer | null = null): IStudentLessonQuiz {
+  if (!isQuizTimestamp(quiz.timestamp)) throw new Error('Cannot expose an unscheduled quiz to learners');
   return {
     id: quiz.id, lessonId: quiz.lessonId, timestamp: quiz.timestamp, order: quiz.order,
     question: quiz.question, questionType: quiz.questionType, revision: quizRevision(quiz),

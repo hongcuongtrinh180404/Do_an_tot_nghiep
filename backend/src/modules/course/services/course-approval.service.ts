@@ -6,6 +6,7 @@ import { SectionRepository } from '../repositories/section.repository.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
 import { buildCourseApprovalChecklist } from '../utils/course-approval.util.js';
 import { CourseService } from './course.service.js';
+import { LessonQuizRepository } from '../repositories/lesson-quiz.repository.js';
 
 @Injectable()
 export class CourseApprovalService {
@@ -15,6 +16,7 @@ export class CourseApprovalService {
     private readonly categoryRepository: CourseCategoryRepository,
     private readonly sectionRepository: SectionRepository,
     private readonly lessonRepository: LessonRepository,
+    private readonly lessonQuizRepository: LessonQuizRepository,
   ) {}
 
   private async checkCourse(course: ICourse): Promise<ICourseApprovalChecklist> {
@@ -23,11 +25,13 @@ export class CourseApprovalService {
       this.sectionRepository.findByCourseId(course.id),
     ]);
     const lessons = await this.lessonRepository.findBySectionIds(sections.map((section) => section.id));
+    const quizzes = await this.lessonQuizRepository.findByLessonIds(lessons.map((lesson) => lesson.id));
     return buildCourseApprovalChecklist(
       course,
       Boolean(category && !category.deletedAt && category.isActive),
       sections,
       lessons,
+      quizzes,
     );
   }
 

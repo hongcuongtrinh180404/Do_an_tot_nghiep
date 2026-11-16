@@ -8,6 +8,7 @@ import { LessonQuizRepository } from '../../course/repositories/lesson-quiz.repo
 import { contentVersion, quizRevision, studentQuiz } from '../../course/utils/lesson-quiz-version.util.js';
 import { LessonCompletionRepository } from '../repositories/lesson-completion.repository.js';
 import { CompleteLessonVideoDto, SubmitLessonQuizAnswerDto } from '../dto/lesson-completion.dto.js';
+import { isQuizTimestamp } from 'share-lib';
 
 @Injectable()
 export class LessonCompletionService {
@@ -55,6 +56,7 @@ export class LessonCompletionService {
   }
 
   private buildState(courseId: string, lesson: ILesson, quizzes: ILessonQuiz[], answers: ILessonQuizAnswer[], videoEnded: boolean): ILessonCompletion {
+    quizzes = quizzes.filter((quiz) => isQuizTimestamp(quiz.timestamp, lesson.content?.duration));
     const mediaVersion = this.mediaVersion(lesson);
     const answerMap = new Map(answers.map((answer) => [`${answer.quizId}:${answer.quizRevision}`, answer]));
     const studentQuizzes = quizzes.map((quiz) => studentQuiz(quiz, answerMap.get(`${quiz.id}:${quizRevision(quiz)}`) ?? null));
@@ -97,9 +99,12 @@ export class LessonCompletionService {
 
   async submitAnswer(userId: string, courseId: string, lessonId: string, dto: SubmitLessonQuizAnswerDto): Promise<ILessonCompletion> {
     await this.requireEnrollment(userId, courseId);
-    await this.requireLesson(courseId, lessonId);
+    const lesson = await this.requireLesson(courseId, lessonId);
     const quiz = await this.quizzes.findById(dto.quizId);
     if (!quiz || quiz.lessonId !== lessonId) throw new NotFoundException('Không tìm thấy câu hỏi trong bài học');
+    if (!isQuizTimestamp(quiz.timestamp, lesson.content?.duration)) {
+      throw new ConflictException('Câu hỏi chưa có thời điểm xuất hiện hợp lệ. Vui lòng tải lại bài học.');
+    }
     const revision = quizRevision(quiz);
     if (revision !== dto.quizRevision) throw new ConflictException('Câu hỏi đã được cập nhật. Vui lòng trả lời phiên bản mới.');
     const selected = dto.selectedOptionIds;

@@ -15,6 +15,7 @@ interface LessonDetailContentProps {
   lessonId: string;
   backUrl?: string;
   mode?: CourseViewMode;
+  reviewQuizId?: string;
 }
 
 export function LessonDetailContent({
@@ -22,6 +23,7 @@ export function LessonDetailContent({
   lessonId,
   backUrl,
   mode = 'learn',
+  reviewQuizId,
 }: LessonDetailContentProps): React.JSX.Element {
   const defaultBackUrl = backUrl || getCourseUrl(courseId, mode);
   const { data: lesson, isLoading, isError, error, refetch } = useLessonDetailQuery(lessonId);
@@ -135,6 +137,7 @@ export function LessonDetailContent({
       lesson={lesson}
       backUrl={defaultBackUrl}
       mode={mode}
+      reviewQuizId={reviewQuizId}
     />
   );
 }

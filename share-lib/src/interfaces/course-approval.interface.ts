@@ -7,12 +7,14 @@ export type CourseApprovalField =
   | 'level'
   | 'thumbnail'
   | 'trailer'
-  | 'curriculum';
+  | 'curriculum'
+  | 'quiz-timestamps';
 
 export interface ICourseApprovalTarget {
   field: CourseApprovalField;
   sectionId?: string;
   lessonId?: string;
+  quizId?: string;
 }
 
 export interface ICourseApprovalIssue {
@@ -21,7 +23,7 @@ export interface ICourseApprovalIssue {
 }
 
 export interface ICourseApprovalRequirement {
-  id: 'title' | 'description' | 'category-level' | 'thumbnail' | 'trailer' | 'curriculum';
+  id: 'title' | 'description' | 'category-level' | 'thumbnail' | 'trailer' | 'curriculum' | 'quiz-timestamps';
   label: string;
   complete: boolean;
   issues: ICourseApprovalIssue[];

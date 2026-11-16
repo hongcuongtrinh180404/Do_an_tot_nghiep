@@ -101,7 +101,8 @@ QUY TẮC SỐ LƯỢNG VÀ CHỌN LỌC KIẾN THỨC (NGUYÊN TẮC: CHẤT L�
 
 2. THUỘC TÍNH BẮT BUỘC CỦA MỖI CÂU HỎI:
    - "order": Số nguyên tuần tự từ 1 đến N (với N <= ${maxCount}).
-   - "timestamp": Mốc thời gian (tính bằng GIÂY, số nguyên từ 0 đến ${durationSeconds}) trong video xuất hiện kiến thức của câu hỏi đó để người học có thể dừng lại kiểm tra hoặc xem lại.
+   - "explanationTimestamp": Mốc BẮT ĐẦU đoạn giảng giải thích kiến thức làm căn cứ cho đáp án đúng, tính bằng GIÂY nguyên từ 0 đến ${Math.floor(durationSeconds)}. Tham chiếu chính xác transcript để giảng viên có thể nghe lại. Đây là mốc GIẢI THÍCH, không phải thời điểm xuất hiện câu hỏi.
+   - Không tự đặt thời điểm xuất hiện câu hỏi ("timestamp"). Hệ thống sẽ để null chờ giảng viên nhập thủ công.
    - "question": Câu hỏi rõ ràng, bám sát nội dung bài giảng bằng tiếng Việt.
    - "questionType": "single" (viết thường, chỉ có 1 đáp án đúng).
    - "options": Mảng đúng 4 lựa chọn (A, B, C, D).
@@ -118,7 +119,7 @@ QUY TẮC SỐ LƯỢNG VÀ CHỌN LỌC KIẾN THỨC (NGUYÊN TẮC: CHẤT L�
   "quizzes": [
     {
       "order": 1,
-      "timestamp": 25,
+      "explanationTimestamp": 25,
       "question": "Nội dung câu hỏi trắc nghiệm trọng tâm số 1?",
       "questionType": "single",
       "options": [
@@ -165,16 +166,13 @@ ${formattedTranscript}`;
 
     return list.map((item, index) => {
       const order = Number(item.order) || index + 1;
-      let timestamp = Number(item.timestamp);
-      if (isNaN(timestamp)) {
-        timestamp = Math.floor((durationSeconds / (list.length + 1)) * (index + 1));
-      } else {
-        timestamp = Math.round(timestamp);
-        if (durationSeconds > 0 && timestamp > durationSeconds) {
-          timestamp = Math.min(durationSeconds, timestamp);
-        }
-        if (timestamp < 0) timestamp = 0;
-      }
+      // Legacy AI JSON called this field "timestamp". It is ONLY an explanation cue.
+      const rawTime = item.explanationTimestamp ?? item.timestamp;
+      const parsedTime = typeof rawTime === 'number' || (typeof rawTime === 'string' && rawTime.trim())
+        ? Number(rawTime) : NaN;
+      const explanationTimestamp = Number.isFinite(parsedTime)
+        ? Math.max(0, Math.min(Math.round(parsedTime), Math.floor(durationSeconds)))
+        : NaN; // Reject missing cues instead of inventing a point in the video.
 
       const rawQType = (item.questionType || '').toString().toLowerCase();
       const questionType =
@@ -207,7 +205,8 @@ ${formattedTranscript}`;
 
       return {
         order,
-        timestamp,
+        timestamp: null,
+        explanationTimestamp,
         question: (item.question || '').toString().trim(),
         questionType,
         options,
@@ -307,7 +306,8 @@ ${formattedTranscript}`;
       if (quizzes.length > 0) {
         // Chuyển đổi format sang LessonQuiz Entity và lưu trực tiếp thành chính thức
         const quizzesToInsert = quizzes.map((q) => ({
-          timestamp: q.timestamp,
+          timestamp: null,
+          explanationTimestamp: q.explanationTimestamp,
           order: q.order,
           question: q.question,
           questionType: q.questionType || QuizQuestionTypeEnum.SINGLE,
@@ -381,7 +381,8 @@ ${formattedTranscript}`;
 
     // Chuyển đổi format sang LessonQuiz Entity
     const quizzesToInsert = draft.quizzes.map((q) => ({
-      timestamp: q.timestamp,
+      timestamp: null,
+      explanationTimestamp: q.explanationTimestamp,
       order: q.order,
       question: q.question,
       questionType: q.questionType || QuizQuestionTypeEnum.SINGLE,

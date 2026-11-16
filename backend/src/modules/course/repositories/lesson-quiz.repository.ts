@@ -32,7 +32,8 @@ export class LessonQuizRepository extends BaseMongoRepository<
         ...plain,
         id: (id ?? '') as string,
         lessonId: (lessonId ?? '') as string,
-        timestamp: (plain.timestamp ?? 0) as number,
+        timestamp: (plain.timestamp ?? null) as number | null,
+        explanationTimestamp: (plain.explanationTimestamp ?? null) as number | null,
         order: (plain.order ?? 1) as number,
         question: (plain.question ?? '') as string,
         questionType: (plain.questionType ?? QuizQuestionTypeEnum.SINGLE) as QuizQuestionTypeEnum,
@@ -66,7 +67,7 @@ export class LessonQuizRepository extends BaseMongoRepository<
 
   async findByLessonIdAndTimestamp(
     lessonId: string,
-    timestamp: number,
+    timestamp: number | null,
     session?: ClientSession,
   ): Promise<ILessonQuiz[]> {
     const lessonObjectId = Types.ObjectId.isValid(lessonId)
@@ -107,6 +108,7 @@ export class LessonQuizRepository extends BaseMongoRepository<
       questionType: QuizQuestionTypeEnum;
       options: ILessonQuiz['options'];
       explanation?: string | null;
+      explanationTimestamp?: number | null;
     }>,
     session?: ClientSession,
   ): Promise<ILessonQuiz[]> {
@@ -158,6 +160,7 @@ export class LessonQuizRepository extends BaseMongoRepository<
       questionType: q.questionType,
       options: q.options,
       explanation: q.explanation || null,
+      explanationTimestamp: q.explanationTimestamp ?? null,
       deletedAt: null,
     }));
 
@@ -204,12 +207,13 @@ export class LessonQuizRepository extends BaseMongoRepository<
   async replaceAllQuizzesForLesson(
     lessonId: string,
     quizzes: Array<{
-      timestamp: number;
+      timestamp: number | null;
       order: number;
       question: string;
       questionType: QuizQuestionTypeEnum;
       options: ILessonQuiz['options'];
       explanation?: string | null;
+      explanationTimestamp?: number | null;
     }>,
     session?: ClientSession,
   ): Promise<ILessonQuiz[]> {
@@ -247,6 +251,7 @@ export class LessonQuizRepository extends BaseMongoRepository<
       questionType: q.questionType,
       options: q.options,
       explanation: q.explanation || null,
+      explanationTimestamp: q.explanationTimestamp ?? null,
       deletedAt: null,
     }));
 

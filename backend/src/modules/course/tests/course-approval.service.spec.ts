@@ -15,6 +15,7 @@ import type { CourseMindmapRepository } from '../repositories/course-mindmap.rep
 import type { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
 import type { UserRepository } from '../../user/repositories/user.repository.js';
 import type { StorageService } from '../../storage/index.js';
+import type { LessonQuizRepository } from '../repositories/lesson-quiz.repository.js';
 
 describe('CourseApprovalService', () => {
   const courseId = '507f1f77bcf86cd799439011';
@@ -25,10 +26,12 @@ describe('CourseApprovalService', () => {
   const categoryRepository = { findById: vi.fn() };
   const sectionRepository = { findByCourseId: vi.fn() };
   const lessonRepository = { findBySectionIds: vi.fn() };
+  const quizRepository = { findByLessonIds: vi.fn() };
   let service: CourseApprovalService;
 
   beforeEach(() => {
     vi.resetAllMocks();
+    quizRepository.findByLessonIds.mockResolvedValue([]);
     course = {
       id: courseId, title: 'TypeScript thực hành', slug: 'typescript-thuc-hanh',
       instructorId, categoryId: '507f1f77bcf86cd799439014', level: CourseLevelEnum.ALL_LEVELS,
@@ -42,7 +45,7 @@ describe('CourseApprovalService', () => {
     sectionRepository.findByCourseId.mockResolvedValue([{ id: sectionId, title: 'Nhập môn', order: 0 }]);
     lessonRepository.findBySectionIds.mockResolvedValue([{
       id: 'lesson', sectionId, title: 'Giới thiệu', order: 0,
-      content: { type: LessonContentTypeEnum.VIDEO, url: 'https://media.example.com/lesson.mp4' },
+      content: { type: LessonContentTypeEnum.VIDEO, url: 'https://media.example.com/lesson.mp4', duration: 120 },
     }]);
     const courseService = new CourseService(
       courseRepository as unknown as CourseRepository,
@@ -52,6 +55,7 @@ describe('CourseApprovalService', () => {
       {} as CourseMindmapRepository,
       { countByCourseId: vi.fn().mockResolvedValue(0), countByCourseIds: vi.fn().mockResolvedValue(new Map()) } as unknown as EnrollmentRepository,
       {} as UserRepository, {} as StorageService, { get: vi.fn() } as unknown as ClsService,
+      quizRepository as unknown as LessonQuizRepository,
     );
     service = new CourseApprovalService(
       courseService,
@@ -59,6 +63,7 @@ describe('CourseApprovalService', () => {
       categoryRepository as unknown as CourseCategoryRepository,
       sectionRepository as unknown as SectionRepository,
       lessonRepository as unknown as LessonRepository,
+      quizRepository as unknown as LessonQuizRepository,
     );
   });
 
@@ -87,7 +92,7 @@ describe('CourseApprovalService', () => {
     expect(error).toBeInstanceOf(BadRequestException);
     const response = (error as BadRequestException).getResponse() as { checklist: ICourseApprovalChecklist };
     expect(response.checklist.canSubmit).toBe(false);
-    expect(response.checklist.items.at(-1)?.issues[0].target.sectionId).toBe(sectionId);
+    expect(response.checklist.items.find((item) => item.id === 'curriculum')?.issues[0].target.sectionId).toBe(sectionId);
     expect(courseRepository.requestApproval).not.toHaveBeenCalled();
   });
 
@@ -120,6 +125,38 @@ describe('CourseApprovalService', () => {
     lessonRepository.findBySectionIds.mockRejectedValue(new Error('database unavailable'));
     await expect(service.requestApproval(courseId, instructorId, RoleEnum.INSTRUCTOR)).rejects.toThrow('database unavailable');
     expect(courseRepository.requestApproval).not.toHaveBeenCalled();
+  });
+
+  it.each([null, undefined, -1, 0.5, 121, NaN, Infinity])
+  ('rechecks invalid quiz timing from storage when directly requesting approval: %s', async (timestamp) => {
+    expect((await service.getChecklist(courseId, instructorId, RoleEnum.INSTRUCTOR)).canSubmit).toBe(true);
+    quizRepository.findByLessonIds.mockResolvedValue([{ id: 'quiz', lessonId: 'lesson', question: 'Câu hỏi mới', timestamp }]);
+    const failure = await service.requestApproval(courseId, instructorId, RoleEnum.INSTRUCTOR).catch((error) => error);
+    expect(failure).toBeInstanceOf(BadRequestException);
+    expect(failure.getResponse().checklist.items.find((item: { id: string }) => item.id === 'quiz-timestamps').complete).toBe(false);
+    expect(courseRepository.requestApproval).not.toHaveBeenCalled();
+  });
+
+  it('allows approval only after timing in every lesson is corrected, including zero and video end', async () => {
+    lessonRepository.findBySectionIds.mockResolvedValue(['lesson', 'second-lesson'].map((id) => ({
+      id, sectionId, title: id, order: 0,
+      content: { type: LessonContentTypeEnum.VIDEO, url: 'https://media.example.com/lesson.mp4', duration: 120 },
+    })));
+    quizRepository.findByLessonIds.mockResolvedValue([
+      { id: 'first', lessonId: 'lesson', question: 'Câu đầu', timestamp: 0 },
+      { id: 'second', lessonId: 'second-lesson', question: 'Câu cuối', timestamp: null },
+    ]);
+    const invalid = await service.getChecklist(courseId, instructorId, RoleEnum.INSTRUCTOR);
+    expect(invalid.canSubmit).toBe(false);
+    expect(invalid.items.find((item) => item.id === 'quiz-timestamps')?.issues[0].target)
+      .toMatchObject({ lessonId: 'second-lesson', quizId: 'second' });
+    quizRepository.findByLessonIds.mockResolvedValue([
+      { id: 'first', lessonId: 'lesson', question: 'Câu đầu', timestamp: 0 },
+      { id: 'second', lessonId: 'second-lesson', question: 'Câu cuối', timestamp: 120 },
+    ]);
+    expect((await service.requestApproval(courseId, instructorId, RoleEnum.INSTRUCTOR)).status)
+      .toBe(CourseStatusEnum.PENDING_APPROVAL);
+    expect(quizRepository.findByLessonIds).toHaveBeenLastCalledWith(['lesson', 'second-lesson']);
   });
 
   describe('withdrawApproval', () => {

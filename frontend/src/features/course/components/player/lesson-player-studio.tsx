@@ -29,6 +29,7 @@ interface LessonPlayerStudioProps {
   lesson: ILesson;
   backUrl?: string;
   mode?: CourseViewMode;
+  reviewQuizId?: string;
 }
 
 export function LessonPlayerStudio({
@@ -36,6 +37,7 @@ export function LessonPlayerStudio({
   lesson,
   backUrl,
   mode = 'learn',
+  reviewQuizId,
 }: LessonPlayerStudioProps): React.JSX.Element {
   const { data: user, isError: isUserError } = useCurrentUserQuery();
   const hasManagementRole = user?.role === RoleEnum.INSTRUCTOR || user?.role === RoleEnum.ADMIN;
@@ -62,6 +64,7 @@ export function LessonPlayerStudio({
       lesson={lesson}
       backUrl={backUrl}
       mode={mode}
+      reviewQuizId={reviewQuizId}
       canEdit={canEdit}
       courseTitle={activeCourse?.title}
       sections={sections}
@@ -89,6 +92,7 @@ function LessonPlayerStudioContent({
   courseTitle,
   sections,
   userId,
+  reviewQuizId,
 }: LessonPlayerStudioContentProps): React.JSX.Element {
   const queryClient = useQueryClient();
   const defaultBackUrl = backUrl || getCourseUrl(courseId, mode);
@@ -273,6 +277,8 @@ function LessonPlayerStudioContent({
           className="w-full bg-card border border-border rounded-2xl shadow-xs overflow-hidden flex flex-col min-h-[360px]"
         >
           <LessonTabsContainer
+            courseId={courseId}
+            reviewQuizId={reviewQuizId}
             lessonId={lesson.id}
             isInstructor={canEdit}
             currentTime={player.currentTime}

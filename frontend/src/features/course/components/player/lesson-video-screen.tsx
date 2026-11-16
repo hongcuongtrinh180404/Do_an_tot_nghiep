@@ -1,5 +1,7 @@
 'use client';
 
+import { hasQuizTimestamp } from 'share-lib';
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Icon } from '@/components/ui/icon';
@@ -142,7 +144,7 @@ export function LessonVideoScreen({
   // Grouped unique quiz checkpoints: cluster checkpoints within 2 seconds into a single marker!
   const quizCheckpoints = useMemo(() => {
     const map = new Map<number, typeof dbQuizzes>();
-    const sorted = [...dbQuizzes].sort((a, b) => a.timestamp - b.timestamp);
+    const sorted = dbQuizzes.filter(hasQuizTimestamp).sort((a, b) => a.timestamp - b.timestamp);
     for (const q of sorted) {
       const rounded = Math.round(q.timestamp);
       let clusterKey: number | null = null;

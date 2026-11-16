@@ -51,6 +51,11 @@ export class QuizQuestionContentDto {
   @IsString()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   explanation?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  explanationTimestamp?: number | null;
 }
 
 export class QuizQuestionItemDto extends QuizQuestionContentDto {

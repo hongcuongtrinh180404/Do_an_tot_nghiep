@@ -34,8 +34,11 @@ export class LessonQuizEntity extends BaseAbstractDocument {
   })
   lessonId: string;
 
-  @Prop({ type: Number, required: true, min: 0 })
-  timestamp: number;
+  @Prop({ type: Number, default: null, min: 0 })
+  timestamp: number | null;
+
+  @Prop({ type: Number, default: null, min: 0 })
+  explanationTimestamp?: number | null;
 
   @Prop({ type: Number, required: true, min: 1, default: 1 })
   order: number;

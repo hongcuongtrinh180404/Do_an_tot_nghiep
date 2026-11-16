@@ -29,7 +29,7 @@ const quizId = '607f1f77bcf86cd799439044';
 const materialId = '607f1f77bcf86cd799439055';
 
 interface ProtectedRoute {
-  method: 'get' | 'post' | 'put' | 'delete';
+  method: 'get' | 'post' | 'put' | 'patch' | 'delete';
   path: string;
   upload?: boolean;
 }
@@ -43,6 +43,7 @@ const protectedRoutes: ProtectedRoute[] = [
   { method: 'post', path: `/lessons/${lessonId}/transcript/retry` },
   { method: 'put', path: `/lessons/${lessonId}/quizzes/sync` },
   { method: 'put', path: `/lessons/${lessonId}/quizzes/move-merge` },
+  { method: 'patch', path: `/lessons/quizzes/${quizId}/timestamp` },
   { method: 'delete', path: `/lessons/quizzes/${quizId}` },
   { method: 'delete', path: `/lessons/${lessonId}/quizzes/timestamp/10` },
   { method: 'post', path: `/lessons/${lessonId}/analysis/mindmap` },
@@ -74,6 +75,7 @@ describe('Lesson authoring HTTP authorization (isolated, no database or AI calls
     getQuizzesByLessonId: vi.fn(),
     syncQuizzesAtTimestamp: vi.fn(),
     moveOrMergeQuizCluster: vi.fn(),
+    updateTimestamp: vi.fn(),
     deleteQuiz: vi.fn(),
     deleteQuizzesAtTimestamp: vi.fn(),
   };

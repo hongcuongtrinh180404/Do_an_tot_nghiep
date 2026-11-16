@@ -41,6 +41,7 @@
 - Trên SePay: bật nhận diện mã, tiền tố `MD`, hậu tố min=max=**10**, loại **Số và chữ**. Đặt mẫu mới trước mẫu cũ nếu còn giữ mẫu cũ. Backend chỉ đọc mã MD+5 số cho đơn lịch sử, không sinh mã dạng đó nữa.
 - Cân nhắc tắt bộ lọc “Chỉ gửi khi có mã thanh toán” để các khoản chuyển sai nội dung vẫn đến hàng đợi đối soát; trong giai đoạn chuyển mẫu mã cần bảo đảm webhook của mã cũ vẫn được gửi.
 - Test mode và Live dùng cùng payload/cơ chế ký. **Dùng endpoint, secret và database riêng cho Test mode; không trỏ webhook Test mode vào production hoặc dùng chung secret với Live.** Cấu hình mã ở Test mode và Live là độc lập.
+- **Test send** trên Dashboard gửi payload mẫu với `id` giả (thường `0`): vẫn phải qua HMAC/timestamp, backend chỉ ACK `{ "success": true }` và bỏ qua — không lưu receipt, không tạo đơn, không kích hoạt khóa học.
 - Kiểm thử thực tế bằng Dashboard SePay Test mode và xem Delivery logs/Replay. Test tự động trong repository chỉ dùng fixture trong database test riêng, không phải tính năng thanh toán thay thế trong ứng dụng.
 
 Tài liệu SePay: [mã thanh toán](https://developer.sepay.vn/en/sepay-webhooks/cau-hinh-ma-thanh-toan), [Test mode và Live](https://developer.sepay.vn/en/sepay-webhooks/test-mode/so-sanh-voi-live).

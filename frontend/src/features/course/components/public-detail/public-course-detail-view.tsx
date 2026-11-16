@@ -45,7 +45,7 @@ export function PublicCourseDetailView({
   const { data: user } = useCurrentUserQuery();
   const isLoggedIn = Boolean(user);
 
-  const [activeTab, setActiveTab] = useState<CourseDetailTabId>('curriculum');
+  const [activeTab, setActiveTab] = useState<CourseDetailTabId>('info');
 
   const {
     data: course,
@@ -236,7 +236,11 @@ export function PublicCourseDetailView({
               )}
 
               {activeTab === 'instructor' && (
-                <CourseInstructorTab instructor={course.instructor} />
+                <CourseInstructorTab
+                  currentCourseId={course.id}
+                  instructor={course.instructor}
+                  instructorId={course.instructorId || course.instructor?.id}
+                />
               )}
             </div>
           </div>

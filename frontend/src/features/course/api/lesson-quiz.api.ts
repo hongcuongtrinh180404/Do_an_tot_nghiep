@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { IApiResponse, ILessonQuiz, IQuizOption, ISaveLessonQuizPayload, QuizQuestionTypeEnum } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
+import { compareQuizTiming } from 'share-lib';
+import { courseKeys } from './course.api';
 
 export interface IQuizQuestionPayloadItem {
   id?: string;
@@ -12,6 +14,7 @@ export interface IQuizQuestionPayloadItem {
   questionType: QuizQuestionTypeEnum;
   options: IQuizOption[];
   explanation?: string | null;
+  explanationTimestamp?: number | null;
 }
 
 export interface ISyncLessonQuizzesPayload {
@@ -56,6 +59,11 @@ export const lessonQuizApi = {
     return res.data.data;
   },
 
+  async updateTimestamp(quizId: string, timestamp: number | null): Promise<ILessonQuiz> {
+    const res = await apiClient.patch<IApiResponse<ILessonQuiz>>(`/lessons/quizzes/${quizId}/timestamp`, { timestamp });
+    return res.data.data;
+  },
+
   async syncQuizzes(
     lessonId: string,
     payload: ISyncLessonQuizzesPayload,
@@ -97,6 +105,7 @@ export function useLessonQuizzesQuery(lessonId: string | undefined, enabled = tr
   return useQuery({
     queryKey: lessonId ? lessonQuizKeys.byLesson(lessonId) : ['lesson-quizzes', 'disabled'],
     queryFn: () => lessonQuizApi.getQuizzes(lessonId!),
+    select: (quizzes) => [...quizzes].sort(compareQuizTiming),
     enabled: Boolean(lessonId) && enabled,
     staleTime: 1000 * 60 * 5, // 5 minutes cache
   });
@@ -106,14 +115,16 @@ export function useSaveLessonQuizMutation(lessonId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalLessonId: lessonId },
     mutationFn: ({ quizId, payload }: { quizId?: string; payload: ISaveLessonQuizPayload }) =>
       quizId ? lessonQuizApi.updateQuiz(quizId, payload) : lessonQuizApi.createQuiz(lessonId, payload),
     onSuccess: async (quiz, { quizId }) => {
       queryClient.setQueryData<ILessonQuiz[]>(lessonQuizKeys.byLesson(lessonId), (previous) =>
         [...(previous ?? []).filter((item) => item.id !== quiz.id), quiz]
-          .sort((a, b) => a.timestamp - b.timestamp || a.order - b.order || a.id.localeCompare(b.id)),
+          .sort(compareQuizTiming),
       );
       await queryClient.invalidateQueries({ queryKey: lessonQuizKeys.byLesson(lessonId) });
+      await queryClient.invalidateQueries({ predicate: (query) => query.queryKey.includes('approval-checklist') });
       toast.success(quizId ? 'Đã cập nhật câu hỏi' : 'Đã thêm câu hỏi');
     },
     onError: (error: unknown) => {
@@ -126,6 +137,7 @@ export function useSyncLessonQuizzesMutation(lessonId: string | undefined) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalLessonId: lessonId },
     mutationFn: (payload: ISyncLessonQuizzesPayload) => {
       if (!lessonId) throw new Error('lessonId is required to sync quizzes');
       return lessonQuizApi.syncQuizzes(lessonId, payload);
@@ -137,6 +149,7 @@ export function useSyncLessonQuizzesMutation(lessonId: string | undefined) {
       toast.success('Lưu câu hỏi tương tác thành công!', {
         description: 'Các câu hỏi tại mốc thời gian này đã được đồng bộ vào hệ thống.',
       });
+      void queryClient.invalidateQueries({ predicate: (query) => query.queryKey.includes('approval-checklist') });
     },
     onError: (error: unknown) => {
       const responseData = (error as { response?: { data?: { message?: string | string[] } } })?.response?.data;
@@ -157,11 +170,13 @@ export function useMoveMergeLessonQuizClusterMutation(lessonId: string | undefin
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalLessonId: lessonId },
     mutationFn: (payload: IMoveMergeLessonQuizzesPayload) => {
       if (!lessonId) throw new Error('lessonId is required to move or merge quizzes');
       return lessonQuizApi.moveOrMergeQuizzes(lessonId, payload);
     },
     onSuccess: () => {
+      void queryClient.invalidateQueries({ predicate: (query) => query.queryKey.includes('approval-checklist') });
       if (lessonId) {
         queryClient.invalidateQueries({ queryKey: lessonQuizKeys.byLesson(lessonId) });
       }
@@ -185,6 +200,7 @@ export function useDeleteLessonQuizMutation(lessonId: string | undefined) {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalLessonId: lessonId },
     mutationFn: (quizId: string) => lessonQuizApi.deleteQuiz(quizId),
     onSuccess: async (_, quizId) => {
       if (lessonId) {
@@ -194,6 +210,7 @@ export function useDeleteLessonQuizMutation(lessonId: string | undefined) {
         await queryClient.invalidateQueries({ queryKey: lessonQuizKeys.byLesson(lessonId) });
       }
       toast.success('Đã xóa câu hỏi tương tác');
+      void queryClient.invalidateQueries({ predicate: (query) => query.queryKey.includes('approval-checklist') });
     },
     onError: (error: unknown) => {
       const message =
@@ -211,6 +228,7 @@ export function useDeleteLessonQuizClusterMutation(lessonId: string | undefined)
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { approvalLessonId: lessonId },
     mutationFn: (timestamp: number) => {
       if (!lessonId) throw new Error('lessonId is required to delete quiz cluster');
       return lessonQuizApi.deleteQuizCluster(lessonId, timestamp);
@@ -220,6 +238,7 @@ export function useDeleteLessonQuizClusterMutation(lessonId: string | undefined)
         queryClient.invalidateQueries({ queryKey: lessonQuizKeys.byLesson(lessonId) });
       }
       toast.success('Đã xóa toàn bộ câu hỏi tại mốc này thành công!');
+      void queryClient.invalidateQueries({ predicate: (query) => query.queryKey.includes('approval-checklist') });
     },
     onError: (error: unknown) => {
       const message =
@@ -229,6 +248,23 @@ export function useDeleteLessonQuizClusterMutation(lessonId: string | undefined)
       toast.error('Lỗi xóa câu hỏi', {
         description: message,
       });
+    },
+  });
+}
+
+export function useUpdateQuizTimestampMutation(lessonId: string, courseId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    meta: { approvalCourseId: courseId, approvalLessonId: lessonId },
+    mutationFn: ({ quizId, timestamp }: { quizId: string; timestamp: number | null }) =>
+      lessonQuizApi.updateTimestamp(quizId, timestamp),
+    onSuccess: async (quiz) => {
+      queryClient.setQueryData<ILessonQuiz[]>(lessonQuizKeys.byLesson(lessonId), (previous) =>
+        [...(previous ?? []).filter((item) => item.id !== quiz.id), quiz].sort(compareQuizTiming));
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: lessonQuizKeys.byLesson(lessonId) }),
+        queryClient.invalidateQueries({ queryKey: courseKeys.approvalChecklist(courseId) }),
+      ]);
     },
   });
 }

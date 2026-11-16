@@ -7,7 +7,8 @@ describe('QuizValidator', () => {
   const generateValidQuizzes = (count = 10): IGeneratedQuizItem[] => {
     return Array.from({ length: count }, (_, i) => ({
       order: i + 1,
-      timestamp: (i + 1) * 20,
+      timestamp: null,
+      explanationTimestamp: (i + 1) * 20,
       question: `Câu hỏi kiểm tra kiến thức số ${i + 1}?`,
       questionType: QuizQuestionTypeEnum.SINGLE,
       options: [
@@ -66,15 +67,15 @@ describe('QuizValidator', () => {
 
   it('should fail if a question has invalid or negative timestamp', () => {
     const quizzes = generateValidQuizzes(10);
-    quizzes[1].timestamp = -5;
+    quizzes[1].explanationTimestamp = -5;
     const result = QuizValidator.validate(quizzes, 300, 10);
     expect(result.isValid).toBe(false);
-    expect(result.errors.some((e) => e.includes('timestamp âm'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('explanationTimestamp'))).toBe(true);
   });
 
   it('should fail if timestamp exceeds video duration', () => {
     const quizzes = generateValidQuizzes(10);
-    quizzes[2].timestamp = 500; // Duration is 300
+    quizzes[2].explanationTimestamp = 500; // Duration is 300
     const result = QuizValidator.validate(quizzes, 300, 10);
     expect(result.isValid).toBe(false);
     expect(result.errors.some((e) => e.includes('vượt quá thời lượng video'))).toBe(true);
@@ -109,5 +110,11 @@ describe('QuizValidator', () => {
     expect(() => QuizValidator.validateOrFail(invalid, 300, 10)).toThrow(
       UnprocessableEntityException,
     );
+  });
+
+  it('rejects AI-assigned appearance times, including zero', () => {
+    const quizzes = generateValidQuizzes(1);
+    quizzes[0].timestamp = 0;
+    expect(QuizValidator.validate(quizzes, 300).isValid).toBe(false);
   });
 });

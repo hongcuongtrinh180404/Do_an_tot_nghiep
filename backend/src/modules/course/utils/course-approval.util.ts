@@ -7,7 +7,9 @@ import {
   type ICourseApprovalIssue,
   type ICourseApprovalRequirement,
   type ILesson,
+  type ILessonQuiz,
   type ISection,
+  isQuizTimestamp,
 } from 'share-lib';
 
 function isValidTitle(value: string | null | undefined, minimum = 1): boolean {
@@ -51,11 +53,33 @@ function requirement(
   return { id, label, complete: issues.length === 0, issues };
 }
 
+export function buildQuizTimingRequirement(
+  sections: readonly ISection[],
+  lessons: readonly ILesson[],
+  quizzes: readonly ILessonQuiz[],
+): ICourseApprovalRequirement {
+  const sectionIds = new Set(sections.filter((section) => !section.deletedAt).map((section) => section.id));
+  const issues: ICourseApprovalIssue[] = [];
+  for (const lesson of lessons) {
+    if (lesson.deletedAt || !sectionIds.has(lesson.sectionId) || lesson.content?.type !== LessonContentTypeEnum.VIDEO) continue;
+    for (const quiz of quizzes.filter((quiz) => quiz.lessonId === lesson.id)) {
+      if (isQuizTimestamp(quiz.timestamp, lesson.content.duration)) continue;
+      issues.push({
+        message: `Bài “${lesson.title}”, câu “${quiz.question}”: ${quiz.timestamp == null
+          ? 'chưa điền thời điểm xuất hiện.' : 'thời điểm xuất hiện không hợp lệ hoặc vượt quá thời lượng video.'}`,
+        target: { field: 'quiz-timestamps', sectionId: lesson.sectionId, lessonId: lesson.id, quizId: quiz.id },
+      });
+    }
+  }
+  return requirement('quiz-timestamps', 'Tất cả câu hỏi tương tác video đã có thời điểm xuất hiện hợp lệ', issues);
+}
+
 export function buildCourseApprovalChecklist(
   course: ICourse,
   categoryIsActive: boolean,
   sections: readonly ISection[],
   lessons: readonly ILesson[],
+  quizzes: readonly ILessonQuiz[] = [],
 ): ICourseApprovalChecklist {
   const classificationIssues: ICourseApprovalIssue[] = [];
   if (!categoryIsActive) {
@@ -137,6 +161,7 @@ export function buildCourseApprovalChecklist(
       target: { field: 'trailer' },
     }]),
     requirement('curriculum', 'Chương và bài học hợp lệ', curriculumIssues),
+    buildQuizTimingRequirement(sections, lessons, quizzes),
   ];
 
   return {

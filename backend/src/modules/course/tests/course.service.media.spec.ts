@@ -10,6 +10,9 @@ import {
   LessonContentTypeEnum,
 } from 'share-lib';
 import { CourseService } from '../services/course.service.js';
+import type { LessonQuizRepository } from '../repositories/lesson-quiz.repository.js';
+import type { CourseMindmapRepository } from '../repositories/course-mindmap.repository.js';
+import type { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
 import { CourseRepository } from '../repositories/course.repository.js';
 import { CourseCategoryRepository } from '../repositories/course-category.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
@@ -106,9 +109,12 @@ describe('Course Media Upload (Thumbnail & Trailer)', () => {
       mockCourseCategoryRepository as unknown as CourseCategoryRepository,
       mockSectionRepository as unknown as SectionRepository,
       mockLessonRepository as unknown as LessonRepository,
+      {} as CourseMindmapRepository,
+      { countByCourseId: vi.fn().mockResolvedValue(0), countByCourseIds: vi.fn().mockResolvedValue(new Map()) } as unknown as EnrollmentRepository,
       mockUserRepository as unknown as UserRepository,
       mockStorageService as unknown as StorageService,
       mockCls as unknown as ClsService,
+      { findByLessonIds: vi.fn().mockResolvedValue([]) } as unknown as LessonQuizRepository,
     );
   });
 

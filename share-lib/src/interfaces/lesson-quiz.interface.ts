@@ -10,7 +10,8 @@ export interface IQuizOption {
 export interface ILessonQuiz {
   id: string;
   lessonId: string;
-  timestamp: number;
+  timestamp: number | null;
+  explanationTimestamp?: number | null;
   order: number;
   question: string;
   questionType: QuizQuestionTypeEnum;
@@ -21,7 +22,8 @@ export interface ILessonQuiz {
 }
 
 export interface ISaveLessonQuizPayload {
-  timestamp: number;
+  timestamp: number | null;
+  explanationTimestamp?: number | null;
   question: string;
   questionType: QuizQuestionTypeEnum;
   options: IQuizOption[];
@@ -37,7 +39,8 @@ export interface IGeneratedQuizOption {
 
 export interface IGeneratedQuizItem {
   order: number;
-  timestamp: number;
+  timestamp: number | null;
+  explanationTimestamp: number;
   question: string;
   questionType: QuizQuestionTypeEnum;
   options: IGeneratedQuizOption[];

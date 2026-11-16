@@ -11,6 +11,7 @@ import {
   IEnrollment,
 } from 'share-lib';
 import { CourseService } from '../services/course.service.js';
+import type { LessonQuizRepository } from '../repositories/lesson-quiz.repository.js';
 import { CourseRepository } from '../repositories/course.repository.js';
 import { CourseCategoryRepository } from '../repositories/course-category.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
@@ -140,6 +141,7 @@ describe('Public Courses and Access Control', () => {
       mockUserRepository as unknown as UserRepository,
       mockStorageService as StorageService,
       mockClsService as ClsService,
+      { findByLessonIds: vi.fn().mockResolvedValue([]) } as unknown as LessonQuizRepository,
     );
 
     lessonService = new LessonService(

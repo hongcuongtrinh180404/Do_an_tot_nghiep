@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CourseStatusEnum, type ICourse, type ICourseApprovalChecklist } from 'share-lib';
 import { toast } from 'sonner';
@@ -13,6 +14,8 @@ import {
   approvalChecklistOptions, approvalErrorMessage,
   useCourseApprovalWritesPending, useRequestCourseApprovalMutation,
 } from '../api/course-approval.api';
+import { markQuizTimingValidation } from '../hooks/use-quiz-timing-validation';
+import { getLessonUrl } from '../utils/course-view-mode.util';
 
 interface CourseApprovalDialogProps {
   course: ICourse;
@@ -27,6 +30,8 @@ export function CourseApprovalDialog({
   const openRef = useRef(false);
   const closeGeneration = useRef(0);
   const submitted = useRef(false);
+  const navigating = useRef(false);
+  const notified = useRef(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const queryClient = useQueryClient();
@@ -43,12 +48,25 @@ export function CourseApprovalDialog({
 
   useEffect(() => () => { closeGeneration.current += 1; }, []);
 
+  useEffect(() => {
+    const missing = checklist?.items.find((item) => item.id === 'quiz-timestamps' && !item.complete);
+    if (open && !isChecking && missing && !notified.current) {
+      notified.current = true;
+      toast.error(`Còn ${missing.issues.length} câu hỏi chưa có thời điểm xuất hiện hợp lệ.`, {
+        description: 'Điền đầy đủ các ô thời gian được đánh dấu đỏ trước khi gửi duyệt.',
+      });
+    }
+  }, [open, isChecking, checklist]);
+
   const handleOpenChange = (nextOpen: boolean) => {
     if (requestMutation.isPending) return;
     closeGeneration.current += 1;
     openRef.current = nextOpen;
     setOpen(nextOpen);
     if (nextOpen) {
+      markQuizTimingValidation(course.id);
+      notified.current = false;
+      navigating.current = false;
       submitted.current = false;
       requestMutation.reset();
       onOpenChecklist();
@@ -56,6 +74,7 @@ export function CourseApprovalDialog({
   };
 
   const afterClose = async () => {
+    if (navigating.current) return;
     const generation = closeGeneration.current;
     if (submitted.current) {
       document.querySelector<HTMLElement>('[data-course-status]')?.focus({ preventScroll: true });
@@ -77,6 +96,12 @@ export function CourseApprovalDialog({
   const submit = async () => {
     if (!checklist?.canSubmit || isChecking || requestMutation.isPending || !isDraft) return;
     try {
+      const latest = await queryClient.fetchQuery(approvalChecklistOptions(course.id));
+      if (!latest.canSubmit || latest.items.some((item) => !item.complete)) {
+        markQuizTimingValidation(course.id);
+        toast.error('Khóa học chưa đủ điều kiện. Vui lòng hoàn thành các mục còn thiếu.');
+        return;
+      }
       await requestMutation.mutateAsync();
       submitted.current = true;
       openRef.current = false;
@@ -152,7 +177,17 @@ export function CourseApprovalDialog({
                     </p>
                     {!item.complete && (
                       <ul className="space-y-1 text-sm text-muted-foreground break-words">
-                        {item.issues.map((issue, index) => <li key={index}>{issue.message}</li>)}
+                        {item.issues.map((issue, index) => (
+                          <li key={index}>
+                            {issue.target.field === 'quiz-timestamps' && issue.target.lessonId && issue.target.quizId ? (
+                              <Link
+                                href={`${getLessonUrl(course.id, issue.target.lessonId, 'edit')}&quizId=${encodeURIComponent(issue.target.quizId)}`}
+                                className="underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                onClick={() => { navigating.current = true; setOpen(false); }}
+                              >{issue.message}</Link>
+                            ) : issue.message}
+                          </li>
+                        ))}
                       </ul>
                     )}
                   </div>

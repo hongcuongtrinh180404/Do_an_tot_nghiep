@@ -43,3 +43,4 @@ export * from './constants/payment.constants.js';
 // Utils
 export * from './utils/file.util.js';
 export * from './utils/slug.util.js';
+export * from './utils/quiz-timing.util.js';

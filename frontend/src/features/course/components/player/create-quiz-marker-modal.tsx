@@ -78,7 +78,7 @@ export function CreateQuizMarkerModal({
   const handleDeleteAllQuestions = async () => {
     if (!canEdit) return;
     const hasDbQuizzes = (existingQuizzes || []).some(
-      (q) => Math.abs(q.timestamp - timestamp) <= 2,
+      (q) => q.timestamp !== null && Math.abs(q.timestamp - timestamp) <= 2,
     );
 
     if (hasDbQuizzes && lessonId) {
@@ -100,7 +100,7 @@ export function CreateQuizMarkerModal({
   // Load existing quizzes for this timestamp if present, otherwise initial clean template
   useEffect(() => {
     if (!canEdit || !open) return;
-    const matched = (existingQuizzes || []).filter((q) => Math.abs(q.timestamp - timestamp) <= 2);
+    const matched = (existingQuizzes || []).filter((q) => q.timestamp !== null && Math.abs(q.timestamp - timestamp) <= 2);
     if (matched.length > 0) {
       const existingItems: QuizQuestionItem[] = matched.map((q, idx) => ({
         id: q.id || `q-${idx + 1}`,

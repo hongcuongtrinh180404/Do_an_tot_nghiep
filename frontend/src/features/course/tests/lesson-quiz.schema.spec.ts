@@ -28,7 +28,7 @@ describe('Lesson quiz form validation', () => {
 
   it('accepts zero and the end of the video but rejects invalid timestamps', () => {
     const schema = createLessonQuizSchema(120);
-    for (const timestamp of [0, 120]) assert.equal(schema.safeParse({ ...validForm(), timestamp }).success, true);
+    for (const timestamp of [null, 0, 120]) assert.equal(schema.safeParse({ ...validForm(), timestamp }).success, true);
     for (const timestamp of [-1, 1.5, 121, NaN, Infinity]) assert.equal(schema.safeParse({ ...validForm(), timestamp }).success, false);
     assert.equal(createLessonQuizSchema().safeParse({ ...validForm(), timestamp: 300 }).success, true);
     assert.equal(createLessonQuizSchema(0).safeParse(validForm()).success, true);

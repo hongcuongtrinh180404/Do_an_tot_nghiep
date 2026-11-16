@@ -208,6 +208,11 @@ export class PaymentService extends BaseService<IPayment, string> {
     headers: Record<string, string | string[] | undefined>, rawBody: Buffer | string | undefined, payload: SepayWebhookDto,
   ): Promise<WebhookProcessResult> {
     this.sepayService.verifyWebhookSignature(headers, rawBody);
+    // "Test send" của Dashboard SePay dùng id=0 và không đại diện cho giao dịch thật:
+    // ACK đúng contract nhưng không lưu receipt để không làm bẩn hàng đợi đối soát.
+    if (this.isTestDelivery(payload)) {
+      return { success: true, message: 'Đã nhận webhook thử nghiệm SePay' };
+    }
     this.validateTransfer(payload);
     if (payload.transferType === 'out') return { success: true, message: 'Bỏ qua giao dịch tiền ra' };
     this.sepayService.getPaymentConfiguration();
@@ -239,6 +244,10 @@ export class PaymentService extends BaseService<IPayment, string> {
       }, session);
       return this.reconcileReceipt(receipt, session);
     });
+  }
+
+  private isTestDelivery(payload: SepayWebhookDto): boolean {
+    return String(payload.id) === '0';
   }
 
   private validateTransfer(payload: SepayWebhookDto): void {

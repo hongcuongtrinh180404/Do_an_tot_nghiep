@@ -11,7 +11,8 @@ export interface ILessonQuizAnswer {
 }
 
 /** Learners must not receive the answer key before a successful submission. */
-export interface IStudentLessonQuiz extends Omit<ILessonQuiz, 'options' | 'explanation'> {
+export interface IStudentLessonQuiz extends Omit<ILessonQuiz, 'options' | 'explanation' | 'timestamp' | 'explanationTimestamp'> {
+  timestamp: number;
   revision: string;
   options: Omit<IQuizOption, 'isCorrect'>[];
   answer: ILessonQuizAnswer | null;

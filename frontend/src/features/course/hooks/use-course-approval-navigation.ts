@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import type { CourseApprovalField, ICourseApprovalChecklist, ICourseApprovalTarget } from 'share-lib';
+import { useRouter } from 'next/navigation';
+import { getLessonUrl } from '../utils/course-view-mode.util';
 
 // Follows the editor's reading order, including the level/category controls above description.
 const fieldOrder: CourseApprovalField[] = [
-  'title', 'level', 'category', 'description', 'thumbnail', 'trailer', 'curriculum',
+  'title', 'level', 'category', 'description', 'thumbnail', 'trailer', 'curriculum', 'quiz-timestamps',
 ];
 
 export interface CourseCurriculumHandle {
@@ -16,6 +18,7 @@ export function useCourseApprovalNavigation(
   rootRef: RefObject<HTMLDivElement | null>,
   curriculumRef: RefObject<CourseCurriculumHandle | null>,
 ) {
+  const router = useRouter();
   const cleanupRef = useRef<(() => void) | null>(null);
   const cancel = useCallback(() => {
     cleanupRef.current?.();
@@ -32,6 +35,11 @@ export function useCourseApprovalNavigation(
     )[0]?.target;
     const root = rootRef.current;
     if (!target || !root) return;
+
+    if (target.field === 'quiz-timestamps' && target.lessonId && target.quizId) {
+      router.push(`${getLessonUrl(checklist.courseId, target.lessonId, 'edit')}&quizId=${encodeURIComponent(target.quizId)}`);
+      return;
+    }
 
     if (target.field === 'curriculum') curriculumRef.current?.revealApprovalTarget(target);
 
@@ -94,7 +102,7 @@ export function useCourseApprovalNavigation(
       element?.removeAttribute('data-approval-highlight');
     };
     frame = requestAnimationFrame(waitForTarget);
-  }, [cancel, rootRef, curriculumRef]);
+  }, [cancel, rootRef, curriculumRef, router]);
 
   return { navigate, cancel };
 }

@@ -109,6 +109,42 @@ describe('LessonQuizService (Unit Tests - AAA Pattern)', () => {
       expect(mockLessonQuizRepo.create).toHaveBeenNthCalledWith(1, expect.objectContaining({ timestamp: 0, explanation: null }), undefined);
     });
 
+    it('saves an unscheduled question without converting null to zero', async () => {
+      await service.createQuiz(lessonId, { ...payload, timestamp: null, explanationTimestamp: 15 });
+      expect(mockLessonQuizRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+        timestamp: null, explanationTimestamp: 15,
+      }), undefined);
+    });
+
+    it('updates only the checkpoint time and preserves the explanation cue and content', async () => {
+      mockLessonQuizRepo.update!.mockResolvedValue({ id: quizId, lessonId, timestamp: 0 });
+      await service.updateTimestamp(quizId, 0);
+      const update = mockLessonQuizRepo.update!.mock.calls[0][1];
+      expect(update.timestamp).toBe(0);
+      expect(update).not.toHaveProperty('explanationTimestamp');
+      expect(update).not.toHaveProperty('question');
+      await expect(service.updateTimestamp(quizId, 121)).rejects.toThrow(BadRequestException);
+      expect(mockLessonQuizRepo.update).toHaveBeenCalledTimes(1);
+    });
+
+    it('can clear a checkpoint back to null for instructor review', async () => {
+      mockLessonQuizRepo.update!.mockResolvedValue({ id: quizId, lessonId, timestamp: null });
+      await service.updateTimestamp(quizId, null);
+      expect(mockLessonQuizRepo.update).toHaveBeenCalledWith(quizId, expect.objectContaining({ timestamp: null }), undefined);
+    });
+
+    it.each([-1, 0.5, 121, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])
+    ('rejects invalid timestamp-only updates before persistence: %s', async (timestamp) => {
+      await expect(service.updateTimestamp(quizId, timestamp)).rejects.toThrow(BadRequestException);
+      expect(mockLessonQuizRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('locks timestamp-only edits while a course is awaiting approval', async () => {
+      mockCourseRepo.findById.mockResolvedValue({ status: CourseStatusEnum.PENDING_APPROVAL });
+      await expect(service.updateTimestamp(quizId, 37)).rejects.toThrow(ConflictException);
+      expect(mockLessonQuizRepo.update).not.toHaveBeenCalled();
+    });
+
     it('accepts multiple correct answers for a multiple-choice question', async () => {
       await service.createQuiz(lessonId, {
         ...payload,

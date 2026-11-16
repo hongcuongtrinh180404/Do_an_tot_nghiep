@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ConflictException, NotFoundException } from '@nestjs/common';
-import { CourseStatusEnum, CourseLevelEnum, RoleEnum, type ICourse } from 'share-lib';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { CourseStatusEnum, CourseLevelEnum, LessonContentTypeEnum, RoleEnum, type ICourse } from 'share-lib';
 import { CourseService } from '../services/course.service.js';
+import type { LessonQuizRepository } from '../repositories/lesson-quiz.repository.js';
+import type { CourseMindmapRepository } from '../repositories/course-mindmap.repository.js';
+import type { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
 import type { CourseRepository } from '../repositories/course.repository.js';
 import type { QueryCoursesAdminDto } from '../dto/query-courses-admin.dto.js';
 import type { CourseCategoryRepository } from '../repositories/course-category.repository.js';
@@ -20,6 +23,7 @@ describe('Course Moderation & Concurrency Control', () => {
   let mockUserRepo: Partial<UserRepository>;
   let mockStorageService: Partial<StorageService>;
   let mockCls: Partial<ClsService>;
+  const quizzes = { findByLessonIds: vi.fn() };
 
   const baseCourse: ICourse = {
     id: 'course_123',
@@ -39,6 +43,7 @@ describe('Course Moderation & Concurrency Control', () => {
   };
 
   beforeEach(() => {
+    quizzes.findByLessonIds.mockReset().mockResolvedValue([]);
     mockCourseRepo = {
       findById: vi.fn(),
       approveCourse: vi.fn(),
@@ -46,13 +51,14 @@ describe('Course Moderation & Concurrency Control', () => {
       findAdminCoursesWithPagination: vi.fn(),
       requestApproval: vi.fn(),
       update: vi.fn(),
+      updateStatus: vi.fn(),
     };
     mockCategoryRepo = {
       findById: vi.fn(),
     };
     mockSectionRepo = {
       findById: vi.fn(),
-      findByCourseId: vi.fn(),
+      findByCourseId: vi.fn().mockResolvedValue([]),
       create: vi.fn(),
       update: vi.fn(),
       softDelete: vi.fn(),
@@ -60,7 +66,7 @@ describe('Course Moderation & Concurrency Control', () => {
     };
     mockLessonRepo = {
       findBySectionId: vi.fn(),
-      findBySectionIds: vi.fn(),
+      findBySectionIds: vi.fn().mockResolvedValue([]),
     };
     mockUserRepo = {
       findById: vi.fn(),
@@ -79,13 +85,63 @@ describe('Course Moderation & Concurrency Control', () => {
       mockCategoryRepo as CourseCategoryRepository,
       mockSectionRepo as SectionRepository,
       mockLessonRepo as LessonRepository,
+      {} as CourseMindmapRepository,
+      { countByCourseId: vi.fn().mockResolvedValue(0), countByCourseIds: vi.fn().mockResolvedValue(new Map()) } as unknown as EnrollmentRepository,
       mockUserRepo as UserRepository,
       mockStorageService as StorageService,
       mockCls as ClsService,
+      quizzes as unknown as LessonQuizRepository,
     );
   });
 
+  describe('Quiz timing on every publishing path', () => {
+    beforeEach(() => {
+      vi.mocked(mockSectionRepo.findByCourseId!).mockResolvedValue([{ id: 'section' }] as never);
+      vi.mocked(mockLessonRepo.findBySectionIds!).mockResolvedValue([{
+        id: 'lesson', sectionId: 'section', title: 'Bài học',
+        content: { type: LessonContentTypeEnum.VIDEO, duration: 120 },
+      }] as never);
+    });
+
+    it.each([null, undefined, -1, 0.5, 121, NaN, Infinity])
+    ('blocks admin approval, direct publishing and unarchiving for invalid timing: %s', async (timestamp) => {
+      quizzes.findByLessonIds.mockResolvedValue([{ id: 'quiz', lessonId: 'lesson', timestamp, question: 'Kiến thức nào?' }]);
+      vi.mocked(mockCourseRepo.findById!).mockResolvedValue({ ...baseCourse, status: CourseStatusEnum.ARCHIVED });
+      await expect(courseService.approveCourse(baseCourse.id, 'admin')).rejects.toThrow(BadRequestException);
+      await expect(courseService.updateCourse(baseCourse.id, { status: CourseStatusEnum.PUBLISHED }, 'admin', RoleEnum.ADMIN))
+        .rejects.toThrow(BadRequestException);
+      await expect(courseService.unarchiveCourse(baseCourse.id, baseCourse.instructorId, RoleEnum.INSTRUCTOR))
+        .rejects.toThrow(BadRequestException);
+      expect(mockCourseRepo.approveCourse).not.toHaveBeenCalled();
+      expect(mockCourseRepo.update).not.toHaveBeenCalled();
+      expect(mockCourseRepo.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it.each([0, 120])('accepts valid boundary timing on each publishing path: %s', async (timestamp) => {
+      const published = { ...baseCourse, status: CourseStatusEnum.PUBLISHED };
+      quizzes.findByLessonIds.mockResolvedValue([{ id: 'quiz', lessonId: 'lesson', timestamp }]);
+      vi.mocked(mockCourseRepo.findById!).mockResolvedValue({ ...baseCourse, status: CourseStatusEnum.ARCHIVED });
+      vi.mocked(mockCourseRepo.approveCourse!).mockResolvedValue(published);
+      vi.mocked(mockCourseRepo.update!).mockResolvedValue(published);
+      vi.mocked(mockCourseRepo.updateStatus!).mockResolvedValue(published);
+      expect((await courseService.approveCourse(baseCourse.id, 'admin')).status).toBe(CourseStatusEnum.PUBLISHED);
+      expect((await courseService.updateCourse(baseCourse.id, { status: CourseStatusEnum.PUBLISHED }, 'admin', RoleEnum.ADMIN)).status)
+        .toBe(CourseStatusEnum.PUBLISHED);
+      expect((await courseService.unarchiveCourse(baseCourse.id, baseCourse.instructorId, RoleEnum.INSTRUCTOR)).status)
+        .toBe(CourseStatusEnum.PUBLISHED);
+    });
+  });
+
   describe('Concurrency & Race Condition Handling (Hai Admin cùng bấm duyệt)', () => {
+    it('rejects admin approval when any persisted quiz is unscheduled', async () => {
+      vi.mocked(mockSectionRepo.findByCourseId!).mockResolvedValue([{ id: 'section' }] as never);
+      vi.mocked(mockLessonRepo.findBySectionIds!).mockResolvedValue([{
+        id: 'lesson', sectionId: 'section', title: 'Bài học', content: { type: LessonContentTypeEnum.VIDEO, duration: 120 },
+      }] as never);
+      quizzes.findByLessonIds.mockResolvedValue([{ id: 'quiz', lessonId: 'lesson', timestamp: null, question: 'Kiến thức nào?' }]);
+      await expect(courseService.approveCourse(baseCourse.id, 'admin')).rejects.toThrow(BadRequestException);
+      expect(mockCourseRepo.approveCourse).not.toHaveBeenCalled();
+    });
     it('chỉ một Admin duyệt thành công khi hai Admin cùng bấm duyệt đồng thời', async () => {
       const admin1 = 'admin_001';
       const admin2 = 'admin_002';

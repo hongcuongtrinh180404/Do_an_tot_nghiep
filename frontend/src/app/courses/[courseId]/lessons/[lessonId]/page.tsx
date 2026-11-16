@@ -13,7 +13,7 @@ interface CourseLessonDetailPageProps {
     courseId: string;
     lessonId: string;
   }>;
-  searchParams?: Promise<{ mode?: string | string[] }>;
+  searchParams?: Promise<{ mode?: string | string[]; quizId?: string | string[] }>;
 }
 
 export default async function CourseLessonDetailPage({
@@ -21,15 +21,18 @@ export default async function CourseLessonDetailPage({
   searchParams,
 }: CourseLessonDetailPageProps): Promise<React.JSX.Element> {
   const { courseId, lessonId } = await params;
-  const mode = parseCourseViewMode((await searchParams)?.mode);
+  const search = await searchParams;
+  const mode = parseCourseViewMode(search?.mode);
+  const reviewQuizId = mode === 'edit' && typeof search?.quizId === 'string' ? search.quizId : undefined;
 
   return (
     <main className="min-h-[100dvh] w-full bg-background text-foreground overflow-y-auto">
       <LessonDetailContent
-        key={`${lessonId}:${mode}`}
+        key={`${lessonId}:${mode}:${reviewQuizId ?? ''}`}
         courseId={courseId}
         lessonId={lessonId}
         mode={mode}
+        reviewQuizId={reviewQuizId}
         backUrl={getCourseUrl(courseId, mode)}
       />
     </main>

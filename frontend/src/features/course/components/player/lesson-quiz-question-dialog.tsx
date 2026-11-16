@@ -15,7 +15,8 @@ import {
   type LessonQuizFormValues,
 } from '../../schemas/lesson-quiz.schema';
 import { QuizQuestionFields } from './quiz-question-fields';
-import { TimestampPickerInput } from './timestamp-picker-input';
+import { Input } from '@/components/ui/input';
+import { formatQuizTime, parseQuizTime } from '../../utils/quiz-time-input.util';
 
 interface LessonQuizQuestionDialogProps {
   lessonId: string;
@@ -30,11 +31,11 @@ export function LessonQuizQuestionDialog({
   lessonId,
   quiz,
   canEdit,
-  currentTime,
   duration,
   onOpenChange,
 }: LessonQuizQuestionDialogProps): React.JSX.Element {
   const formId = useId();
+  const [timestampText, setTimestampText] = useState(formatQuizTime(quiz?.timestamp ?? null));
   const [isDiscardOpen, setIsDiscardOpen] = useState(false);
   const saveMutation = useSaveLessonQuizMutation(lessonId);
   const {
@@ -46,7 +47,7 @@ export function LessonQuizQuestionDialog({
   } = useForm<LessonQuizFormValues>({
     resolver: zodResolver(createLessonQuizSchema(duration)),
     defaultValues: {
-      timestamp: quiz?.timestamp ?? Math.floor(Math.max(0, currentTime)),
+      timestamp: quiz?.timestamp ?? null,
       questionData: createQuizQuestionValues(quiz),
     },
   });
@@ -74,7 +75,7 @@ export function LessonQuizQuestionDialog({
     try {
       await saveMutation.mutateAsync({
         quizId: quiz?.id,
-        payload: { timestamp, ...questionData, explanation: questionData.explanation || null },
+        payload: { timestamp, ...questionData, explanation: questionData.explanation || null, explanationTimestamp: quiz?.explanationTimestamp },
       });
       onOpenChange(false);
     } catch (error: unknown) {
@@ -108,17 +109,21 @@ export function LessonQuizQuestionDialog({
             render={({ field, fieldState }) => (
               <fieldset disabled={isPending} className="space-y-2">
                 <legend className="mb-2 text-sm font-medium">Thời điểm xuất hiện (phút:giây)</legend>
-                <TimestampPickerInput
-                  valueSeconds={field.value}
-                  onChange={field.onChange}
-                  currentTime={currentTime}
-                  maxDuration={duration}
+                <Input
+                  value={timestampText}
+                  placeholder="MM:SS"
+                  aria-label="Thời điểm xuất hiện (phút:giây)"
+                  onChange={(event) => {
+                    setTimestampText(event.target.value);
+                    const parsed = parseQuizTime(event.target.value, duration);
+                    field.onChange(parsed.error ? NaN : parsed.value);
+                  }}
                   disabled={isPending}
-                  hasError={Boolean(fieldState.error)}
-                  ariaDescribedBy={fieldState.error ? `${formId}-timestamp-error` : undefined}
-                  inputRef={field.ref}
+                  aria-invalid={Boolean(fieldState.error)}
+                  aria-describedby={fieldState.error ? `${formId}-timestamp-error` : undefined}
+                  ref={field.ref}
                   onBlur={field.onBlur}
-                  className="[&_button]:h-10 [&_input]:min-h-8"
+                  className="w-36 tabular-nums"
                 />
                 {fieldState.error && (
                   <p id={`${formId}-timestamp-error`} role="alert" className="text-xs text-destructive">
