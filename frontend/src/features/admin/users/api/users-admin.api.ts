@@ -25,7 +25,6 @@ export interface AdminUsersQueryParams {
 
 export interface UpdateUserAdminPayload {
   fullName?: string;
-  username?: string;
   bio?: string;
   role?: RoleEnum;
   status?: UserStatusEnum;

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseQuizTime, formatQuizTime } from '../utils/quiz-time-input.util';
+import { parseQuizTime, formatQuizTime, normalizeQuizTimeText } from '../utils/quiz-time-input.util';
 import { compareQuizTiming, hasQuizTimestamp, isQuizTimestamp } from 'share-lib';
 
 describe('Instructor quiz time input', () => {
@@ -37,5 +37,13 @@ describe('Instructor quiz time input', () => {
     ];
     assert.deepEqual([...quizzes].sort(compareQuizTiming).map((quiz) => quiz.id), ['draft-a', 'draft-b', 'zero', 'end']);
     assert.deepEqual(quizzes.filter(hasQuizTimestamp).map((quiz) => quiz.id), ['end', 'zero']);
+  });
+
+  it('normalizes single-digit minutes to 2-digit format for seamless editing', () => {
+    assert.equal(normalizeQuizTimeText('1:20'), '01:20');
+    assert.equal(normalizeQuizTimeText('0:15'), '00:15');
+    assert.equal(normalizeQuizTimeText('01:20'), '01:20');
+    assert.equal(normalizeQuizTimeText('12:45'), '12:45');
+    assert.equal(normalizeQuizTimeText(''), '');
   });
 });

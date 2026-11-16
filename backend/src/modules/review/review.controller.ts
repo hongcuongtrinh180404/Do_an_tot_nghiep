@@ -31,6 +31,7 @@ import { RestoreReviewDto } from './dto/restore-review.dto.js';
 import { AdminDeleteReviewDto } from './dto/admin-delete-review.dto.js';
 import { ReportReviewDto } from './dto/report-review.dto.js';
 import { InstructorQueryReviewsDto } from './dto/instructor-query-reviews.dto.js';
+import { ReplyReviewDto } from './dto/reply-review.dto.js';
 
 @Controller('reviews')
 export class ReviewController {
@@ -217,5 +218,26 @@ export class ReviewController {
   ): Promise<ApiResponse<PaginationResult<IReview>>> {
     const result = await this.reviewService.getInstructorReviews(instructorId, query);
     return ApiResponse.success(result, 'Lấy danh sách đánh giá giảng viên thành công');
+  }
+
+  @Post(':id/reply')
+  @Roles(RoleEnum.INSTRUCTOR)
+  async replyToReview(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser('id') instructorId: string,
+    @Body() dto: ReplyReviewDto,
+  ): Promise<ApiResponse<IReview>> {
+    const review = await this.reviewService.replyToReview(instructorId, id, dto);
+    return ApiResponse.success(review, 'Gửi phản hồi đánh giá thành công');
+  }
+
+  @Delete(':id/reply')
+  @Roles(RoleEnum.INSTRUCTOR)
+  async deleteInstructorReply(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser('id') instructorId: string,
+  ): Promise<ApiResponse<IReview>> {
+    const review = await this.reviewService.deleteInstructorReply(instructorId, id);
+    return ApiResponse.success(review, 'Xóa phản hồi đánh giá thành công');
   }
 }

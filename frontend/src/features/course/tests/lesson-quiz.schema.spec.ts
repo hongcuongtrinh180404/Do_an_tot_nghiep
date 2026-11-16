@@ -34,6 +34,16 @@ describe('Lesson quiz form validation', () => {
     assert.equal(createLessonQuizSchema(0).safeParse(validForm()).success, true);
   });
 
+  it('accepts valid explanationTimestamp and rejects values beyond video duration', () => {
+    const schema = createLessonQuizSchema(120);
+    for (const explanationTimestamp of [null, undefined, 0, 60, 120]) {
+      assert.equal(schema.safeParse({ ...validForm(), explanationTimestamp }).success, true);
+    }
+    for (const explanationTimestamp of [-1, 1.5, 121, NaN, Infinity]) {
+      assert.equal(schema.safeParse({ ...validForm(), explanationTimestamp }).success, false);
+    }
+  });
+
   it('requires nonblank question and answer text', () => {
     const form = validForm();
     form.questionData.question = '  ';

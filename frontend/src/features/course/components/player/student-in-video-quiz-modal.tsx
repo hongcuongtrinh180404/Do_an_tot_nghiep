@@ -12,13 +12,14 @@ interface Props {
   quizzes: IStudentLessonQuiz[];
   required: boolean;
   canSubmit: boolean;
+  isInstructorPreview?: boolean;
   submitting: boolean;
   error: string;
   onSubmit: (quiz: IStudentLessonQuiz, selectedOptionIds: string[]) => Promise<void>;
   onClose: () => void;
 }
 
-export function StudentInVideoQuizModal({ timestamp, formatTime, quizzes, required, canSubmit, submitting, error, onSubmit, onClose }: Props) {
+export function StudentInVideoQuizModal({ timestamp, formatTime, quizzes, required, canSubmit, isInstructorPreview = false, submitting, error, onSubmit, onClose }: Props) {
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
   const dialog = useRef<HTMLDivElement>(null);
@@ -66,7 +67,7 @@ export function StudentInVideoQuizModal({ timestamp, formatTime, quizzes, requir
       >
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2 sm:px-5 sm:py-3">
           <div className="flex min-w-0 items-center gap-3 text-xs sm:text-sm">
-            <span id="student-quiz-title" className="font-semibold">{required ? 'Câu hỏi bắt buộc' : 'Ôn tập câu hỏi'}</span>
+            <span id="student-quiz-title" className="font-semibold">{isInstructorPreview ? 'Làm thử câu hỏi' : required ? 'Câu hỏi bắt buộc' : 'Ôn tập câu hỏi'}</span>
             <span className="tabular-nums text-muted-foreground">{formatTime(timestamp)}</span>
           </div>
           <div className="flex shrink-0 items-center gap-1">
@@ -81,6 +82,7 @@ export function StudentInVideoQuizModal({ timestamp, formatTime, quizzes, requir
         </header>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 sm:p-5">
+          {isInstructorPreview && <p className="text-sm text-muted-foreground">Kết quả làm thử không được lưu vào tiến độ học tập.</p>}
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">{quiz.questionType === 'multiple' ? 'Chọn một hoặc nhiều đáp án' : 'Chọn một đáp án'}</p>
             <h2 className="text-sm font-semibold leading-relaxed sm:text-base">{quiz.question}</h2>

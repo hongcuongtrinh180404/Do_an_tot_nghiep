@@ -16,11 +16,12 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { RoleEnum, type IUserProfile } from 'share-lib';
+import { RoleEnum, type IUserProfile, type IPublicUserProfile } from 'share-lib';
 import { ApiResponse, PaginationResult } from '../base/index.js';
 import { MAX_AVATAR_SIZE_BYTES } from '../storage/index.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { Public } from '../auth/decorators/public.decorator.js';
 import { UserService } from './services/user.service.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { QueryUsersDto } from './dto/query-users.dto.js';
@@ -81,6 +82,16 @@ export class UserController {
   ): Promise<ApiResponse<{ avatar: string; user: IUserProfile }>> {
     const result = await this.userService.updateAvatar(userId, file);
     return ApiResponse.success(result, 'Tải lên ảnh đại diện thành công');
+  }
+
+  @Get('public/:username')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  async getPublicProfile(
+    @Param('username') username: string,
+  ): Promise<ApiResponse<IPublicUserProfile>> {
+    const profile = await this.userService.getPublicProfileByUsername(username);
+    return ApiResponse.success(profile, 'Lấy hồ sơ công khai thành công');
   }
 
   @Get(':id')

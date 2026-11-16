@@ -15,7 +15,13 @@ describe('Stable quiz synchronization', () => {
   function harness() {
     const find = { session: vi.fn().mockReturnThis(), exec: vi.fn().mockResolvedValue([{ _id: new Types.ObjectId(quizId) }]) };
     const update = { session: vi.fn().mockReturnThis(), exec: vi.fn().mockResolvedValue({}) };
-    const model = { find: vi.fn(() => find), updateMany: vi.fn((_filter: unknown, _update: unknown) => update), updateOne: vi.fn(() => update), insertMany: vi.fn() };
+    const model = {
+      find: vi.fn(() => find),
+      deleteMany: vi.fn(() => update),
+      updateMany: vi.fn((_filter: unknown, _update: unknown) => update),
+      updateOne: vi.fn(() => update),
+      insertMany: vi.fn(),
+    };
     const repository = new LessonQuizRepository(model as unknown as Model<LessonQuizEntity>);
     vi.spyOn(repository, 'findByLessonIdAndTimestamp').mockResolvedValue([]);
     return { repository, model };
@@ -25,7 +31,8 @@ describe('Stable quiz synchronization', () => {
     const h = harness();
     await h.repository.syncQuizzesAtTimestamp(lessonId, 192, [payload], session);
     expect(h.model.updateOne).toHaveBeenCalledWith(expect.objectContaining({ _id: quizId }), { $set: expect.objectContaining({ question: payload.question, timestamp: 192 }) }, { session });
-    expect(h.model.updateMany.mock.calls[0][0]).toMatchObject({ _id: { $nin: [new Types.ObjectId(quizId)] } });
+    expect(h.model.deleteMany).toHaveBeenCalledWith(expect.objectContaining({ _id: { $nin: [new Types.ObjectId(quizId)] } }));
+    expect(h.model.updateMany).not.toHaveBeenCalled();
     expect(h.model.insertMany).not.toHaveBeenCalled();
   });
 
@@ -33,6 +40,7 @@ describe('Stable quiz synchronization', () => {
     const h = harness();
     await expect(h.repository.syncQuizzesAtTimestamp(lessonId, 192, [payload, payload], session)).rejects.toThrow(BadRequestException);
     await expect(h.repository.syncQuizzesAtTimestamp(lessonId, 192, [{ ...payload, id: '607f1f77bcf86cd799439099' }], session)).rejects.toThrow(BadRequestException);
+    expect(h.model.deleteMany).not.toHaveBeenCalled();
     expect(h.model.updateMany).not.toHaveBeenCalled();
     expect(h.model.updateOne).not.toHaveBeenCalled();
   });

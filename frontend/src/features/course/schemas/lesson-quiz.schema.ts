@@ -32,6 +32,10 @@ export function createLessonQuizSchema(duration?: number) {
       .refine((timestamp) => !duration || !Number.isFinite(duration) || timestamp <= duration, {
         message: 'Thời điểm xuất hiện không được vượt quá thời lượng video.',
       }).nullable(),
+    explanationTimestamp: z.number().int('Thời gian giải thích phải là số giây nguyên.').min(0, 'Thời gian không được âm.')
+      .refine((time) => !duration || !Number.isFinite(duration) || time <= duration, {
+        message: 'Thời gian giải thích không được vượt quá thời lượng video.',
+      }).nullable().optional(),
     questionData: quizQuestionFieldsSchema,
   });
 }

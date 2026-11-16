@@ -9,6 +9,7 @@ import {
   IAdminReviewStats,
   IReviewModerationEntry,
   IReviewReportEntry,
+  IInstructorReviewReply,
 } from 'share-lib';
 import { BaseMongoRepository, PaginationResult } from '../../base/index.js';
 import { ReviewEntity, ReviewDocument } from '../schemas/review.schema.js';
@@ -103,6 +104,32 @@ export class ReviewRepository extends BaseMongoRepository<IReview, ReviewDocumen
           }))
         : [];
 
+      const rawReply = plain.instructorReply as unknown;
+      let instructorReply: IInstructorReviewReply | null = null;
+
+      if (rawReply && typeof rawReply === 'object' && 'content' in rawReply) {
+        const reply = rawReply as {
+          content?: string;
+          instructorId?: unknown;
+          instructorName?: string | null;
+          repliedAt?: Date;
+          updatedAt?: Date | null;
+        };
+        const rawInstructorId = reply.instructorId;
+        const replyInstructorId =
+          typeof rawInstructorId === 'string'
+            ? rawInstructorId
+            : (rawInstructorId as { toString?: () => string } | null)?.toString?.() ?? '';
+
+        instructorReply = {
+          content: reply.content ?? '',
+          instructorId: replyInstructorId,
+          instructorName: reply.instructorName ?? null,
+          repliedAt: reply.repliedAt || new Date(),
+          updatedAt: reply.updatedAt ?? null,
+        };
+      }
+
       const status = (plain.status as ReviewStatusEnum) || ReviewStatusEnum.VISIBLE;
 
       return {
@@ -116,6 +143,7 @@ export class ReviewRepository extends BaseMongoRepository<IReview, ReviewDocumen
         moderationHistory,
         reports,
         reportCount: Number(plain.reportCount || 0),
+        instructorReply,
         user,
         course,
         createdAt: (plain.createdAt as Date) || new Date(),
@@ -411,6 +439,7 @@ export class ReviewRepository extends BaseMongoRepository<IReview, ReviewDocumen
                 moderationHistory: 1,
                 reports: 1,
                 reportCount: 1,
+                instructorReply: 1,
                 createdAt: 1,
                 updatedAt: 1,
                 deletedAt: 1,
@@ -586,6 +615,61 @@ export class ReviewRepository extends BaseMongoRepository<IReview, ReviewDocumen
           },
         },
         { new: true, session: session ?? null },
+      )
+      .populate(USER_POPULATE)
+      .populate(COURSE_POPULATE)
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  async setInstructorReply(
+    reviewId: string,
+    reply: IInstructorReviewReply,
+    session?: ClientSession,
+  ): Promise<IReview | null> {
+    const doc = await this.model
+      .findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(reviewId),
+          deletedAt: null,
+          status: ReviewStatusEnum.VISIBLE,
+        },
+        {
+          $set: {
+            instructorReply: {
+              content: reply.content,
+              instructorId: new Types.ObjectId(reply.instructorId),
+              instructorName: reply.instructorName ?? null,
+              repliedAt: reply.repliedAt,
+              updatedAt: reply.updatedAt ?? null,
+            },
+          },
+        },
+        // The reply has its own timestamps; do not mark the student's review as edited.
+        { returnDocument: 'after', runValidators: true, timestamps: false, session: session ?? null },
+      )
+      .populate(USER_POPULATE)
+      .populate(COURSE_POPULATE)
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  async clearInstructorReply(
+    reviewId: string,
+    session?: ClientSession,
+  ): Promise<IReview | null> {
+    const doc = await this.model
+      .findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(reviewId),
+          deletedAt: null,
+          status: ReviewStatusEnum.VISIBLE,
+          instructorReply: { $ne: null },
+        },
+        { $set: { instructorReply: null } },
+        { returnDocument: 'after', runValidators: true, timestamps: false, session: session ?? null },
       )
       .populate(USER_POPULATE)
       .populate(COURSE_POPULATE)

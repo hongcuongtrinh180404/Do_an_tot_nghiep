@@ -12,6 +12,8 @@
     "test:lesson-doc-dialog:browser": "node scripts/test-lesson-doc-dialog-browser.mjs",
     "test:lesson-create:browser": "node scripts/test-lesson-create-browser.mjs",
     "test:quiz-timing:browser": "node scripts/test-quiz-timing-browser.mjs",
+    "test:instructor-video-quiz:browser": "node scripts/test-instructor-video-quiz-browser.mjs",
+    "test:profile:browser": "node scripts/test-profile-browser.mjs",
     "audit:ui": "node ../.agent/skills/web-design-guidelines/scripts/audit-ui.mjs src"
   },
   "dependencies": {

@@ -148,9 +148,10 @@ function LessonPlayerStudioContent({
   });
   const checkpoints = useLessonCheckpoints({
     userId, courseId, lessonId: lesson.id, player,
-    enabled: mode === 'learn' && lesson.content?.type === LessonContentTypeEnum.VIDEO,
+    enabled: (mode === 'learn' || canEdit) && lesson.content?.type === LessonContentTypeEnum.VIDEO,
+    instructorPreview: canEdit,
     enrolled: Boolean(learning.progress),
-    eligibilityReady: !userId || (!learning.isLoading && !learning.isError),
+    eligibilityReady: canEdit || !userId || (!learning.isLoading && !learning.isError),
   });
   const lessonCompletions = useLessonCompletionListQuery(userId, courseId, mode === 'learn' && Boolean(learning.progress));
 

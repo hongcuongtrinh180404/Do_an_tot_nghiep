@@ -46,6 +46,27 @@ export class ReviewReportEntrySchema {
 export const ReviewReportEntryModelSchema =
   SchemaFactory.createForClass(ReviewReportEntrySchema);
 
+@Schema({ _id: false, timestamps: false })
+export class ReviewInstructorReplyEntrySchema {
+  @Prop({ type: String, required: true, trim: true, maxlength: 2000 })
+  content: string;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: UserEntity.name, required: true })
+  instructorId: Types.ObjectId;
+
+  @Prop({ type: String, required: false, default: null })
+  instructorName?: string | null;
+
+  @Prop({ type: Date, default: () => new Date() })
+  repliedAt: Date;
+
+  @Prop({ type: Date, required: false, default: null })
+  updatedAt?: Date | null;
+}
+
+export const ReviewInstructorReplyEntryModelSchema =
+  SchemaFactory.createForClass(ReviewInstructorReplyEntrySchema);
+
 @Schema({ timestamps: true, collection: 'reviews' })
 export class ReviewEntity extends BaseAbstractDocument {
   @Prop({
@@ -114,6 +135,12 @@ export class ReviewEntity extends BaseAbstractDocument {
     index: true,
   })
   reportCount: number;
+
+  @Prop({
+    type: ReviewInstructorReplyEntryModelSchema,
+    default: null,
+  })
+  instructorReply?: ReviewInstructorReplyEntrySchema | null;
 }
 
 export const ReviewSchema = SchemaFactory.createForClass(ReviewEntity);

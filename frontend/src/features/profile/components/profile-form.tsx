@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { IUserProfile } from 'share-lib';
 import { Button } from '@/components/ui/button';
@@ -19,41 +19,34 @@ interface ProfileFormProps {
 export function ProfileForm({ user }: ProfileFormProps): React.JSX.Element {
   const updateMutation = useUpdateProfileMutation();
 
-  const getInitialFullName = (): string => {
-    if (user.fullName) return user.fullName;
-    if (user.lastName && user.firstName) return `${user.lastName} ${user.firstName}`;
-    return user.firstName || user.lastName || '';
-  };
+  const initialFullName = user.fullName || [user.lastName, user.firstName].filter(Boolean).join(' ');
 
   const {
     register,
     handleSubmit,
     reset,
-    watch,
+    control,
     formState: { errors, isDirty },
   } = useForm<UpdateProfileFormData>({
     resolver: zodResolver(updateProfileSchema),
     defaultValues: {
-      fullName: getInitialFullName(),
-      username: user.username || '',
+      fullName: initialFullName,
       bio: user.bio || '',
     },
   });
 
-  const currentBio = watch('bio') || '';
+  const currentBio = useWatch({ control, name: 'bio' }) || '';
 
   useEffect(() => {
     reset({
-      fullName: getInitialFullName(),
-      username: user.username || '',
+      fullName: initialFullName,
       bio: user.bio || '',
     });
-  }, [user, reset]);
+  }, [user, reset, initialFullName]);
 
   const onSubmit = (data: UpdateProfileFormData) => {
     updateMutation.mutate({
       fullName: data.fullName,
-      username: data.username && data.username.trim() !== '' ? data.username.trim() : undefined,
       bio: data.bio && data.bio.trim() !== '' ? data.bio.trim() : undefined,
     });
   };
@@ -71,7 +64,7 @@ export function ProfileForm({ user }: ProfileFormProps): React.JSX.Element {
 
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
             {/* Full Name */}
             <div className="space-y-1.5">
               <Label htmlFor="fullName" className="text-xs font-medium text-foreground">
@@ -88,31 +81,6 @@ export function ProfileForm({ user }: ProfileFormProps): React.JSX.Element {
                 <p className="text-[11px] text-destructive flex items-center gap-1 mt-1">
                   <Icon icon="lucide:alert-circle" className="size-3 shrink-0" />
                   {errors.fullName.message}
-                </p>
-              )}
-            </div>
-
-            {/* Username */}
-            <div className="space-y-1.5">
-              <Label htmlFor="username" className="text-xs font-medium text-foreground">
-                Tên định danh (Username)
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none">
-                  @
-                </span>
-                <Input
-                  id="username"
-                  placeholder="nguyenvana"
-                  {...register('username')}
-                  disabled={updateMutation.isPending}
-                  className="pl-7 h-9 text-xs font-mono border-border/70"
-                />
-              </div>
-              {errors.username?.message && (
-                <p className="text-[11px] text-destructive flex items-center gap-1 mt-1">
-                  <Icon icon="lucide:alert-circle" className="size-3 shrink-0" />
-                  {errors.username.message}
                 </p>
               )}
             </div>
@@ -153,8 +121,7 @@ export function ProfileForm({ user }: ProfileFormProps): React.JSX.Element {
               size="sm"
               onClick={() =>
                 reset({
-                  fullName: getInitialFullName(),
-                  username: user.username || '',
+                  fullName: initialFullName,
                   bio: user.bio || '',
                 })
               }

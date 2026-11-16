@@ -520,10 +520,10 @@ export function CreateQuizMarkerModal({
       <DeleteConfirmDialog
         open={isConfirmDeleteOpen}
         onOpenChange={setIsConfirmDeleteOpen}
-        title="Xác nhận xóa"
-        description="Bạn có chắc muốn xóa không ?"
+        title="Xóa câu hỏi trắc nghiệm?"
+        description="Bạn có chắc chắn muốn xóa tất cả câu hỏi tại mốc này không?"
         confirmText="Xác nhận xóa"
-        cancelText="Hủy"
+        cancelText="Hủy bỏ"
         isLoading={deleteClusterMutation.isPending}
         onConfirm={handleDeleteAllQuestions}
       />

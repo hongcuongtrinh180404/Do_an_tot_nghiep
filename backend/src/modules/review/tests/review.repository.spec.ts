@@ -238,4 +238,65 @@ describe('ReviewRepository', () => {
       averageRating: 0,
     });
   });
+
+  it('saves and maps a reply without changing student content, rating or edit timestamps', async () => {
+    const reviewId = new Types.ObjectId();
+    const instructorId = new Types.ObjectId();
+    const repliedAt = new Date('2026-11-16T10:00:00Z');
+    const reply = {
+      content: 'Cảm ơn bạn đã chia sẻ',
+      instructorId: instructorId.toString(),
+      instructorName: 'Giảng viên',
+      repliedAt,
+      updatedAt: null,
+    };
+    const query = {
+      populate: vi.fn().mockReturnThis(),
+      exec: vi.fn().mockResolvedValue({
+        _id: reviewId,
+        userId: new Types.ObjectId(userId),
+        courseId: new Types.ObjectId(courseId),
+        rating: 4,
+        comment: 'Nhận xét gốc',
+        instructorReply: { ...reply, instructorId },
+      }),
+    };
+    const findOneAndUpdate = vi.fn().mockReturnValue(query);
+    const repository = new ReviewRepository({ findOneAndUpdate } as unknown as Model<ReviewDocument>);
+
+    const result = await repository.setInstructorReply(reviewId.toString(), reply);
+
+    expect(findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: reviewId, deletedAt: null, status: ReviewStatusEnum.VISIBLE },
+      { $set: { instructorReply: { ...reply, instructorId } } },
+      { returnDocument: 'after', runValidators: true, timestamps: false, session: null },
+    );
+    expect(result).toMatchObject({
+      rating: 4,
+      comment: 'Nhận xét gốc',
+      instructorReply: reply,
+    });
+  });
+
+  it('clears only an existing reply on a still-visible, non-deleted review', async () => {
+    const reviewId = new Types.ObjectId();
+    const query = {
+      populate: vi.fn().mockReturnThis(),
+      exec: vi.fn().mockResolvedValue(null),
+    };
+    const findOneAndUpdate = vi.fn().mockReturnValue(query);
+    const repository = new ReviewRepository({ findOneAndUpdate } as unknown as Model<ReviewDocument>);
+
+    expect(await repository.clearInstructorReply(reviewId.toString())).toBeNull();
+    expect(findOneAndUpdate).toHaveBeenCalledWith(
+      {
+        _id: reviewId,
+        deletedAt: null,
+        status: ReviewStatusEnum.VISIBLE,
+        instructorReply: { $ne: null },
+      },
+      { $set: { instructorReply: null } },
+      { returnDocument: 'after', runValidators: true, timestamps: false, session: null },
+    );
+  });
 });

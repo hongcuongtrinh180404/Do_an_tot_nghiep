@@ -1,13 +1,25 @@
-import { Injectable, ConflictException, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, NotFoundException, Optional } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
-import { IUser, IUserProfile, AuthProviderEnum } from 'share-lib';
+import {
+  IUser,
+  IUserProfile,
+  IPublicUserProfile,
+  AuthProviderEnum,
+  RoleEnum,
+  UserStatusEnum,
+} from 'share-lib';
 import { BaseService, PaginationResult } from '../../base/index.js';
 import { UserRepository } from '../repositories/user.repository.js';
 import { StorageService } from '../../storage/storage.service.js';
 import { UpdateProfileDto } from '../dto/update-profile.dto.js';
 import { QueryUsersDto } from '../dto/query-users.dto.js';
 import { UpdateUserAdminDto } from '../dto/update-user-admin.dto.js';
+import {
+  generateUsername,
+  isUsernameDuplicateKeyError,
+  USERNAME_PATTERN,
+} from '../utils/username.util.js';
 
 @Injectable()
 export class UserService extends BaseService<IUser, string> {
@@ -17,6 +29,50 @@ export class UserService extends BaseService<IUser, string> {
     @Optional() protected readonly storageService?: StorageService,
   ) {
     super(userRepository, cls, UserService.name);
+  }
+
+  async generateUniqueUsername(
+    email: string,
+    excludeUserId?: string,
+    session?: ClientSession,
+  ): Promise<string> {
+    return generateUsername(email, async (candidate) => {
+      const existing = await this.findByUsername(candidate, session);
+      return Boolean(existing && existing.id !== excludeUserId);
+    });
+  }
+
+  override async create(payload: Partial<IUser>, session?: ClientSession): Promise<IUser> {
+    if (!payload.email?.trim()) throw new BadRequestException('Email không được để trống');
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const username = await this.generateUniqueUsername(payload.email, undefined, session);
+      try {
+        // Username is owned by the server, even when a caller supplies one.
+        return await super.create({ ...payload, username }, session);
+      } catch (error) {
+        if (!isUsernameDuplicateKeyError(error) || session?.inTransaction()) throw error;
+      }
+    }
+    throw new ConflictException('Không thể tạo đường dẫn hồ sơ. Vui lòng thử lại.');
+  }
+
+  /** Backfill a missing handle once; changing email must not change a published URL. */
+  async ensureUsername(user: IUser, session?: ClientSession): Promise<IUser> {
+    if (user.username) return user;
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const username = await this.generateUniqueUsername(user.email, user.id, session);
+      try {
+        const updated = await this.userRepository.claimUsername(user.id, username, session);
+        // Another login may have claimed it first. Read its value instead of overwriting it.
+        const current = updated ?? await this.findByIdOrFail(user.id, session);
+        return { ...user, ...current };
+      } catch (error) {
+        if (!isUsernameDuplicateKeyError(error) || session?.inTransaction()) throw error;
+      }
+    }
+    throw new ConflictException('Không thể tạo đường dẫn hồ sơ. Vui lòng thử lại.');
   }
 
   async findByEmail(
@@ -174,19 +230,26 @@ export class UserService extends BaseService<IUser, string> {
     }
   }
 
-  async ensureUsernameNotTaken(
-    username: string,
-    excludeUserId?: string,
-    session?: ClientSession,
-  ): Promise<void> {
-    const existing = await this.findByUsername(username, session);
-    if (existing && existing.id !== excludeUserId) {
-      throw new ConflictException(`Username '${username}' is already taken`);
+  async getPublicProfileByUsername(username: string): Promise<IPublicUserProfile> {
+    if (!USERNAME_PATTERN.test(username)) throw new NotFoundException('Không tìm thấy hồ sơ');
+    const user = await this.findByUsername(username);
+    if (!user || user.deletedAt || user.status !== UserStatusEnum.ACTIVE || !user.username) {
+      throw new NotFoundException('Không tìm thấy hồ sơ');
     }
+
+    return {
+      fullName: user.fullName || user.username,
+      username: user.username,
+      avatarUrl: user.avatarUrl || user.avatar || null,
+      bio: user.bio ?? null,
+      role: user.role,
+      createdAt: user.createdAt,
+      ...(user.role === RoleEnum.INSTRUCTOR ? { instructorId: user.id } : {}),
+    };
   }
 
   async getProfile(userId: string): Promise<IUserProfile> {
-    const user = await this.findByIdOrFail(userId);
+    const user = await this.ensureUsername(await this.findByIdOrFail(userId));
     const userWithPassword = await this.userRepository.findByEmail(user.email, true);
     const profile = this.toUserProfile(user);
     profile.hasPassword = !!(
@@ -197,10 +260,6 @@ export class UserService extends BaseService<IUser, string> {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<IUserProfile> {
-    if (dto.username) {
-      await this.ensureUsernameNotTaken(dto.username, userId);
-    }
-
     const updatePayload: Partial<IUser> = {};
 
     if (dto.fullName !== undefined) {
@@ -212,10 +271,6 @@ export class UserService extends BaseService<IUser, string> {
       updatePayload.fullName = `${newLast} ${newFirst}`.trim();
       if (dto.firstName !== undefined) updatePayload.firstName = dto.firstName;
       if (dto.lastName !== undefined) updatePayload.lastName = dto.lastName;
-    }
-
-    if (dto.username !== undefined) {
-      updatePayload.username = dto.username;
     }
 
     if (dto.bio !== undefined) {
@@ -298,11 +353,12 @@ export class UserService extends BaseService<IUser, string> {
       throw new NotFoundException(`Người dùng với ID '${userId}' không tồn tại`);
     }
 
-    if (dto.username && dto.username !== user.username) {
-      await this.ensureUsernameNotTaken(dto.username, userId, session);
-    }
-
-    const updated = await this.updateOrFail(userId, dto, session);
+    const updatePayload: Partial<IUser> = {};
+    if (dto.fullName !== undefined) updatePayload.fullName = dto.fullName;
+    if (dto.bio !== undefined) updatePayload.bio = dto.bio;
+    if (dto.role !== undefined) updatePayload.role = dto.role;
+    if (dto.status !== undefined) updatePayload.status = dto.status;
+    const updated = await this.updateOrFail(userId, updatePayload, session);
     return this.toUserProfile(updated);
   }
 

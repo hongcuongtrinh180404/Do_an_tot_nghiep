@@ -40,7 +40,7 @@ export function UsersTableToolbar({
       table={table}
       searchValue={searchValue}
       onSearchChange={onSearchChange}
-      searchPlaceholder="Tìm kiếm tên, email, tài khoản..."
+      searchPlaceholder="Tìm kiếm tên hoặc email..."
       isFiltered={isFiltered}
       onResetFilters={onResetFilters}
     >

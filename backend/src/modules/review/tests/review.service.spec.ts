@@ -46,6 +46,8 @@ describe('ReviewService', () => {
       dismissReports: vi.fn(),
       calculateInstructorReviewStats: vi.fn(),
       findInstructorReviews: vi.fn(),
+      setInstructorReply: vi.fn(),
+      clearInstructorReply: vi.fn(),
       withTransaction: vi.fn().mockImplementation((fn: (s: unknown) => unknown) => fn({})),
     };
 
@@ -648,6 +650,175 @@ describe('ReviewService', () => {
       const res = await service.getInstructorReviews(instructorId, query);
       expect(res).toEqual(mockList);
       expect(mockReviewRepo.findInstructorReviews).toHaveBeenCalledWith(instructorId, query);
+    });
+
+    it('28. should let the course instructor reply to a visible review', async () => {
+      const review = {
+        id: reviewId,
+        userId,
+        courseId,
+        status: ReviewStatusEnum.VISIBLE,
+        deletedAt: null,
+        instructorReply: null,
+      };
+      const updated = {
+        ...review,
+        instructorReply: {
+          content: 'Cảm ơn bạn đã chia sẻ',
+          instructorId,
+          instructorName: 'Giảng viên A',
+        },
+      };
+
+      (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(review);
+      (mockCourseRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: courseId,
+        instructorId,
+        deletedAt: null,
+      });
+      (mockUserRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: instructorId,
+        fullName: 'Giảng viên A',
+      });
+      (mockReviewRepo.setInstructorReply as ReturnType<typeof vi.fn>).mockResolvedValue(updated);
+
+      const result = await service.replyToReview(instructorId, reviewId, {
+        reply: 'Cảm ơn bạn đã chia sẻ',
+      });
+
+      expect(mockReviewRepo.setInstructorReply).toHaveBeenCalledWith(
+        reviewId,
+        expect.objectContaining({
+          content: 'Cảm ơn bạn đã chia sẻ',
+          instructorId,
+          instructorName: 'Giảng viên A',
+          updatedAt: null,
+        }),
+      );
+      expect(result.instructorReply?.content).toBe('Cảm ơn bạn đã chia sẻ');
+    });
+
+    it('29. should mark a reply edit with the current updatedAt timestamp', async () => {
+      const review = {
+        id: reviewId,
+        courseId,
+        status: ReviewStatusEnum.VISIBLE,
+        deletedAt: null,
+        instructorReply: {
+          content: 'Phản hồi cũ',
+          instructorId,
+          repliedAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: null,
+        },
+      };
+
+      (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(review);
+      (mockCourseRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: courseId,
+        instructorId,
+        deletedAt: null,
+      });
+      (mockUserRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: instructorId,
+        fullName: 'Giảng viên A',
+      });
+      (mockReviewRepo.setInstructorReply as ReturnType<typeof vi.fn>).mockResolvedValue(review);
+
+      await service.replyToReview(instructorId, reviewId, { reply: 'Phản hồi mới' });
+
+      expect(mockReviewRepo.setInstructorReply).toHaveBeenCalledWith(
+        reviewId,
+        expect.objectContaining({
+          content: 'Phản hồi mới',
+          repliedAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: expect.any(Date),
+        }),
+      );
+    });
+
+    it('30. should reject replies from an instructor who does not own the course', async () => {
+      (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: reviewId,
+        courseId,
+        status: ReviewStatusEnum.VISIBLE,
+        deletedAt: null,
+      });
+      (mockCourseRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: courseId,
+        instructorId: 'another_instructor',
+        deletedAt: null,
+      });
+
+      await expect(
+        service.replyToReview(instructorId, reviewId, { reply: 'Xin chào' }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('31. should reject replies to hidden reviews', async () => {
+      (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: reviewId,
+        courseId,
+        status: ReviewStatusEnum.HIDDEN,
+        deletedAt: null,
+      });
+      (mockCourseRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: courseId,
+        instructorId,
+        deletedAt: null,
+      });
+
+      await expect(
+        service.replyToReview(instructorId, reviewId, { reply: 'Xin chào' }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('32. should clear an existing reply', async () => {
+      const review = {
+        id: reviewId,
+        courseId,
+        status: ReviewStatusEnum.VISIBLE,
+        deletedAt: null,
+        instructorReply: {
+          content: 'Phản hồi cũ',
+          instructorId,
+          repliedAt: new Date(),
+        },
+      };
+
+      (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(review);
+      (mockCourseRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: courseId,
+        instructorId,
+        deletedAt: null,
+      });
+      (mockReviewRepo.clearInstructorReply as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ...review,
+        instructorReply: null,
+      });
+
+      const result = await service.deleteInstructorReply(instructorId, reviewId);
+
+      expect(mockReviewRepo.clearInstructorReply).toHaveBeenCalledWith(reviewId);
+      expect(result.instructorReply).toBeNull();
+    });
+
+    it('33. should reject deleting a reply that does not exist', async () => {
+      (mockReviewRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: reviewId,
+        courseId,
+        status: ReviewStatusEnum.VISIBLE,
+        deletedAt: null,
+        instructorReply: null,
+      });
+      (mockCourseRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: courseId,
+        instructorId,
+        deletedAt: null,
+      });
+
+      await expect(
+        service.deleteInstructorReply(instructorId, reviewId),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

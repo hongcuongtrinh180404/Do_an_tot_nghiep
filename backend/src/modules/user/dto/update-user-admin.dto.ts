@@ -13,14 +13,6 @@ export class UpdateUserAdminDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(50)
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.toLowerCase().trim() : undefined,
-  )
-  username?: string;
-
-  @IsOptional()
-  @IsString()
   @MaxLength(500)
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : undefined,

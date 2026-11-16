@@ -12,6 +12,7 @@ import {
   IReviewEligibility,
   ReviewStatusEnum,
   IAdminReviewStats,
+  IInstructorReviewReply,
 } from 'share-lib';
 import { BaseService, isDuplicateKeyError, PaginationResult } from '../../base/index.js';
 import { ReviewRepository } from '../repositories/review.repository.js';
@@ -28,6 +29,7 @@ import { RestoreReviewDto } from '../dto/restore-review.dto.js';
 import { AdminDeleteReviewDto } from '../dto/admin-delete-review.dto.js';
 import { ReportReviewDto } from '../dto/report-review.dto.js';
 import { InstructorQueryReviewsDto } from '../dto/instructor-query-reviews.dto.js';
+import { ReplyReviewDto } from '../dto/reply-review.dto.js';
 
 @Injectable()
 export class ReviewService extends BaseService<IReview, string> {
@@ -523,5 +525,72 @@ export class ReviewService extends BaseService<IReview, string> {
     query: InstructorQueryReviewsDto,
   ): Promise<PaginationResult<IReview>> {
     return this.reviewRepository.findInstructorReviews(instructorId, query);
+  }
+
+  async replyToReview(
+    instructorId: string,
+    reviewId: string,
+    dto: ReplyReviewDto,
+  ): Promise<IReview> {
+    const review = await this.getReplyableInstructorReview(instructorId, reviewId);
+    const instructor = await this.userRepository.findById(instructorId);
+    const now = new Date();
+
+    const reply: IInstructorReviewReply = {
+      content: dto.reply,
+      instructorId,
+      instructorName: instructor?.fullName ?? null,
+      repliedAt: review.instructorReply ? new Date(review.instructorReply.repliedAt) : now,
+      updatedAt: review.instructorReply ? now : null,
+    };
+
+    const updated = await this.reviewRepository.setInstructorReply(reviewId, reply);
+    if (!updated) {
+      throw new NotFoundException('Không tìm thấy đánh giá để phản hồi');
+    }
+
+    return updated;
+  }
+
+  async deleteInstructorReply(instructorId: string, reviewId: string): Promise<IReview> {
+    const review = await this.getReplyableInstructorReview(instructorId, reviewId);
+
+    if (!review.instructorReply) {
+      throw new BadRequestException('Đánh giá này chưa có phản hồi để xóa');
+    }
+
+    const updated = await this.reviewRepository.clearInstructorReply(reviewId);
+    if (!updated) {
+      throw new NotFoundException('Không tìm thấy đánh giá để xóa phản hồi');
+    }
+
+    return updated;
+  }
+
+  private async getReplyableInstructorReview(
+    instructorId: string,
+    reviewId: string,
+  ): Promise<IReview> {
+    const review = await this.reviewRepository.findById(reviewId);
+    if (!review || review.deletedAt) {
+      throw new NotFoundException('Không tìm thấy đánh giá');
+    }
+
+    const course = await this.courseRepository.findById(review.courseId);
+    if (!course || course.deletedAt) {
+      throw new NotFoundException('Không tìm thấy khóa học của đánh giá');
+    }
+
+    if (course.instructorId !== instructorId) {
+      throw new ForbiddenException(
+        'Bạn chỉ có thể phản hồi đánh giá thuộc khóa học của chính mình',
+      );
+    }
+
+    if (review.status !== ReviewStatusEnum.VISIBLE) {
+      throw new ForbiddenException('Không thể phản hồi đánh giá đã bị ẩn hoặc xóa');
+    }
+
+    return review;
   }
 }

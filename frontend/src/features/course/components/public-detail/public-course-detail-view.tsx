@@ -45,7 +45,7 @@ export function PublicCourseDetailView({
   const { data: user } = useCurrentUserQuery();
   const isLoggedIn = Boolean(user);
 
-  const [activeTab, setActiveTab] = useState<CourseDetailTabId>('info');
+  const [activeTab, setActiveTab] = useState<CourseDetailTabId>('curriculum');
 
   const {
     data: course,

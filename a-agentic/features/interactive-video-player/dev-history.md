@@ -25,7 +25,7 @@
     - Mỗi câu hỏi được sinh một chuỗi băm `quizRevision` từ `{ question, questionType, options }`.
     - Khi học viên nộp bài, backend so khớp `quizRevision` với CSDL. Nếu giảng viên vừa chỉnh sửa nội dung/đáp án câu hỏi, request trả về `409 Conflict` yêu cầu học viên tải lại dữ liệu mới, ngăn ngừa việc chấm điểm sai lệch.
   - *Bảo Toàn Định Danh Câu Hỏi Khi Giảng Viên Đồng Bộ (Stable ID Preservation):*
-    - `LessonQuizRepository.syncQuizzesAtTimestamp` sử dụng transaction MongoDB và bộ lọc cluster $\pm 2$s để cập nhật tại chỗ (`updateOne`) cho các câu hỏi đã có ID, chỉ xóa mềm câu hỏi bị gỡ bỏ, và chỉ `insertMany` cho câu hỏi thực sự mới. Điều này bảo vệ 100% lịch sử nộp bài của học viên không bị đứt gãy khi giảng viên chỉnh sửa bài giảng.
+    - `LessonQuizRepository.syncQuizzesAtTimestamp` sử dụng transaction MongoDB và bộ lọc cluster $\pm 2$s để cập nhật tại chỗ (`updateOne`) cho các câu hỏi đã có ID, xóa hẳn câu hỏi bị gỡ bỏ, và chỉ `insertMany` cho câu hỏi thực sự mới. Điều này bảo vệ 100% lịch sử nộp bài của các câu hỏi còn giữ lại khi giảng viên chỉnh sửa bài giảng.
   - *Xác Thực Hoàn Thành Bài Học (`LessonCompletionService`):*
     - Bài học có Quiz: Chỉ đạt `COMPLETED` khi học viên hoàn thành TẤT CẢ câu hỏi (`completedQuestions === quizzes.length`).
     - Bài học không có Quiz: Chỉ đạt `COMPLETED` khi video kết thúc thực tế (`Math.abs(positionSeconds - duration) <= 1`) và `mediaVersion` khớp với CSDL.

@@ -504,7 +504,8 @@ function LessonInspectorView({
   const lessonViewUrl = getLessonUrl(courseId, lesson.id);
 
   const materialsList = lesson.materials || [];
-  const totalMaterialsCount = materialsList.length;
+  const hasDocContent = Boolean(isDocLesson && lesson.content?.fileName);
+  const totalMaterialsCount = materialsList.length + (hasDocContent ? 1 : 0);
 
   return (
     <div className="space-y-4 animate-in fade-in-50 duration-200">
@@ -611,84 +612,90 @@ function LessonInspectorView({
         )}
       </div>
 
-      {/* 4. Biên tập và tài liệu riêng chỉ dành cho bài giảng video */}
-      {!isDocLesson && (
-        <>
+      {/* 4. Nút Biên tập nội dung bài học */}
+      {!readOnly && (
+        <Link
+          href={getLessonUrl(courseId, lesson.id, 'edit')}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-sky-600 hover:bg-sky-700 transition text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs cursor-pointer"
+          title="Biên tập Mindmap, Tóm tắt và câu hỏi của bài học"
+        >
+          <Icon icon="lucide:pencil" className="size-4" />
+          <span>Biên tập nội dung bài học</span>
+        </Link>
+      )}
+
+      {/* 5. Tài liệu riêng của bài */}
+      <div className="space-y-2.5 pt-2 border-t border-border/40">
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+            <Icon icon="lucide:file-text" className="size-3.5 text-sky-500" />
+            <span>Tài liệu riêng của bài</span>
+            {totalMaterialsCount > 0 && (
+              <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                {totalMaterialsCount} tệp
+              </span>
+            )}
+          </h4>
+
           {!readOnly && (
-            <Link
-              href={getLessonUrl(courseId, lesson.id, 'edit')}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-sky-600 hover:bg-sky-700 transition text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs cursor-pointer"
-              title="Biên tập Mindmap, Tóm tắt và câu hỏi của bài học"
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsUploadDialogOpen(true)}
+              className="h-6 text-[11px] px-2 text-sky-600 dark:text-sky-400 hover:text-sky-700 hover:bg-sky-500/10 gap-1 rounded-lg"
             >
-              <Icon icon="lucide:pencil" className="size-4" />
-              <span>Biên tập nội dung bài học</span>
-            </Link>
+              <Icon icon="lucide:plus" className="size-3" />
+              <span>Đính kèm tệp</span>
+            </Button>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          {hasDocContent && lesson.content?.fileName && (
+            <DocumentItemWithStatus
+              fileName={lesson.content.fileName}
+              fileSize={lesson.content.fileSize}
+              url={lesson.content.url}
+              isPreview={lesson.isPreview}
+            />
           )}
 
-          <div className="space-y-2.5 pt-2 border-t border-border/40">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                <Icon icon="lucide:file-text" className="size-3.5 text-sky-500" />
-                <span>Tài liệu riêng của bài</span>
-                {totalMaterialsCount > 0 && (
-                  <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                    {totalMaterialsCount} tệp
-                  </span>
-                )}
-              </h4>
+          {materialsList.map((mat) => (
+            <LessonMaterialItem
+              key={mat.id}
+              material={mat}
+              isPreview={lesson.isPreview}
+              onDelete={readOnly ? undefined : (m) => setTargetDeleteMaterial(m)}
+            />
+          ))}
 
-              {!readOnly && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsUploadDialogOpen(true)}
-                  className="h-6 text-[11px] px-2 text-sky-600 dark:text-sky-400 hover:text-sky-700 hover:bg-sky-500/10 gap-1 rounded-lg"
-                >
-                  <Icon icon="lucide:plus" className="size-3" />
-                  <span>Đính kèm tệp</span>
-                </Button>
-              )}
+          {totalMaterialsCount === 0 && (
+            <div className="p-4 rounded-xl border border-border/50 bg-slate-50/50 dark:bg-zinc-900/40 text-center">
+              <p className="text-xs text-muted-foreground italic">
+                Không có tài liệu riêng cho bài học này.
+              </p>
             </div>
+          )}
+        </div>
+      </div>
 
-            <div className="space-y-1.5">
-              {materialsList.map((mat) => (
-                <LessonMaterialItem
-                  key={mat.id}
-                  material={mat}
-                  isPreview={lesson.isPreview}
-                  onDelete={readOnly ? undefined : (m) => setTargetDeleteMaterial(m)}
-                />
-              ))}
+      <UploadLessonDocDialog
+        open={isUploadDialogOpen}
+        onOpenChange={setIsUploadDialogOpen}
+        lesson={lesson}
+        courseId={courseId}
+      />
 
-              {totalMaterialsCount === 0 && (
-                <div className="p-4 rounded-xl border border-border/50 bg-slate-50/50 dark:bg-zinc-900/40 text-center">
-                  <p className="text-xs text-muted-foreground italic">
-                    Không có tài liệu riêng cho bài học này.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <UploadLessonDocDialog
-            open={isUploadDialogOpen}
-            onOpenChange={setIsUploadDialogOpen}
-            lesson={lesson}
-            courseId={courseId}
-          />
-
-          <DeleteLessonMaterialDialog
-            open={Boolean(targetDeleteMaterial)}
-            onOpenChange={(open) => {
-              if (!open) setTargetDeleteMaterial(null);
-            }}
-            lessonId={lesson.id}
-            courseId={courseId}
-            material={targetDeleteMaterial}
-          />
-        </>
-      )}
+      <DeleteLessonMaterialDialog
+        open={Boolean(targetDeleteMaterial)}
+        onOpenChange={(open) => {
+          if (!open) setTargetDeleteMaterial(null);
+        }}
+        lessonId={lesson.id}
+        courseId={courseId}
+        material={targetDeleteMaterial}
+      />
     </div>
   );
 }

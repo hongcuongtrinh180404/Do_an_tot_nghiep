@@ -72,3 +72,15 @@ export interface IUserProfile {
   /** @deprecated Kept for backward compatibility during migration */
   provider?: AuthProviderEnum;
 }
+
+/** Explicit allowlist for anonymous profile views; never include private account fields. */
+export interface IPublicUserProfile {
+  fullName: string;
+  username: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  role: RoleEnum;
+  createdAt: Date | string;
+  /** Public course filtering key, present only for instructors. */
+  instructorId?: string;
+}

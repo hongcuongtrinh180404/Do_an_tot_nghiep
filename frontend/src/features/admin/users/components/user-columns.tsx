@@ -60,21 +60,6 @@ export const userColumns: ColumnDef<IUserProfile>[] = [
     enableSorting: true,
   },
   {
-    accessorKey: 'username',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Tên tài khoản" allowSorting={true} />
-    ),
-    cell: ({ row }) => {
-      const username = row.getValue('username') as string | null | undefined;
-      return (
-        <span className="text-xs text-muted-foreground font-mono">
-          {username ? `@${username}` : '—'}
-        </span>
-      );
-    },
-    enableSorting: true,
-  },
-  {
     accessorKey: 'role',
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Vai trò" allowSorting={true} />

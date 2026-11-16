@@ -235,7 +235,7 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
   }
 
   /**
-   * Xóa một câu hỏi cụ thể theo quizId
+   * Xóa cứng một câu hỏi cụ thể theo quizId
    */
   async deleteQuiz(quizId: string): Promise<boolean> {
     const trimmedId = quizId?.trim();
@@ -250,7 +250,11 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
 
     await this.assertNotPendingApproval(existing.lessonId);
 
-    await this.lessonQuizRepo.softDelete(trimmedId);
+    const deleted = await this.lessonQuizRepo.hardDelete(trimmedId);
+    if (!deleted) {
+      throw new NotFoundException(`Không tìm thấy câu hỏi với ID: ${trimmedId}`);
+    }
+    this.logger.log(`Đã xóa cứng câu hỏi ${trimmedId} của bài học ${existing.lessonId}`);
     return true;
   }
 

@@ -10,6 +10,7 @@ describe('UserService - Profile and Avatar Management', () => {
   let service: UserService;
   let mockUserRepository: {
     findById: ReturnType<typeof vi.fn>;
+    findByEmail: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
   let mockCls: { get: ReturnType<typeof vi.fn> };
@@ -36,6 +37,7 @@ describe('UserService - Profile and Avatar Management', () => {
   beforeEach(() => {
     mockUserRepository = {
       findById: vi.fn(),
+      findByEmail: vi.fn().mockResolvedValue(mockUser),
       update: vi.fn(),
     };
     mockCls = {
@@ -72,8 +74,12 @@ describe('UserService - Profile and Avatar Management', () => {
         bio: 'Lập trình viên',
         role: RoleEnum.STUDENT,
         status: UserStatusEnum.ACTIVE,
+        commissionRate: 30,
+        commissionRateUpdatedAt: null,
+        commissionRateUpdatedById: null,
         googleSub: null,
         isEmailVerified: false,
+        hasPassword: true,
         createdAt: mockUser.createdAt,
         updatedAt: mockUser.updatedAt,
         firstName: undefined,

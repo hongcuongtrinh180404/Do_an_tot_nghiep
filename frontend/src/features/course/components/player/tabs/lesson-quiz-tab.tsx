@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { useDeleteLessonQuizMutation, useLessonQuizzesQuery } from '@/features/course/api/lesson-quiz.api';
 import { DeleteConfirmDialog } from '@/components/shared/dialog/delete-confirm-dialog';
 import { LessonQuizQuestionDialog } from '../lesson-quiz-question-dialog';
-import { QuizTimestampField } from '../quiz-timestamp-field';
 import { useQuizTimingValidation } from '../../../hooks/use-quiz-timing-validation';
 import { isQuizTimestamp } from 'share-lib';
 
@@ -145,42 +144,69 @@ export function LessonQuizTab({
                 }`}
               >
                 {/* Header question */}
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 self-stretch sm:flex-row sm:items-center sm:justify-between">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-semibold text-muted-foreground">
                       Câu hỏi {index + 1}
                     </span>
 
-                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                      {isInstructor && (
-                        <>
-                          <Button type="button" size="sm" variant="outline" className="h-11 sm:h-7" onClick={() => openEditor(quiz)} disabled={isGenerating || deleteMutation.isPending}>
-                            <Icon icon="lucide:pencil" className="size-3.5" aria-hidden="true" />
-                            Sửa
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="h-11 text-destructive hover:text-destructive sm:h-7"
-                            disabled={isGenerating || deleteMutation.isPending}
-                            onClick={() => { onPauseVideo?.(); setQuizToDelete(quiz); }}
-                            aria-label={`Xóa câu hỏi ${index + 1}`}
-                          >
-                            <Icon icon="lucide:trash-2" className="size-3.5" aria-hidden="true" />
-                            Xóa
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                    {/* Viên thuốc thời điểm xuất hiện */}
+                    {quiz.timestamp != null ? (
+                      <button
+                        type="button"
+                        data-quiz-timestamp={quiz.id}
+                        onClick={() => onSeek?.(quiz.timestamp!)}
+                        title={`Tua video tới thời điểm xuất hiện tại ${formatTime(quiz.timestamp)}`}
+                        aria-label={`Tua video tới thời điểm xuất hiện tại ${formatTime(quiz.timestamp)}`}
+                        className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground hover:bg-accent hover:text-sky-600 dark:hover:text-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer border border-border/60"
+                      >
+                        <Icon icon="lucide:play-circle" className="size-3.5 text-sky-500" aria-hidden="true" />
+                        <span>{formatTime(quiz.timestamp)}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        data-quiz-timestamp={quiz.id}
+                        onClick={() => openEditor(quiz)}
+                        title="Chưa đặt thời điểm xuất hiện - Nhấn để thiết lập"
+                        aria-label="Chưa đặt thời điểm xuất hiện - Nhấn để thiết lập"
+                        className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer"
+                      >
+                        <Icon icon="lucide:clock-alert" className="size-3.5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+                        <span>Chưa đặt mốc xuất hiện</span>
+                      </button>
+                    )}
                   </div>
-                  <QuizTimestampField
-                    quiz={quiz}
-                    courseId={courseId}
-                    duration={duration}
-                    showRequiredError={showTimingErrors}
-                    disabled={isGenerating || deleteMutation.isPending}
-                  />
+
+                  <div className="flex items-center gap-2">
+                    {isInstructor && (
+                      <>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-2.5 text-xs font-medium border-border hover:bg-muted text-foreground cursor-pointer shadow-2xs"
+                          onClick={() => openEditor(quiz)}
+                          disabled={isGenerating || deleteMutation.isPending}
+                        >
+                          <Icon icon="lucide:pencil" className="size-3.5 mr-1 text-muted-foreground" aria-hidden="true" />
+                          Sửa
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-2.5 text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                          disabled={isGenerating || deleteMutation.isPending}
+                          onClick={() => { onPauseVideo?.(); setQuizToDelete(quiz); }}
+                          aria-label={`Xóa câu hỏi ${index + 1}`}
+                        >
+                          <Icon icon="lucide:trash-2" className="size-3.5 mr-1" aria-hidden="true" />
+                          Xóa
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Question Text */}

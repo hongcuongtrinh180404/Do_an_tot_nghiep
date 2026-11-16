@@ -87,6 +87,18 @@ export class LessonQuizRepository extends BaseMongoRepository<
     return docs.map((d) => this.toDomain(d as unknown as LessonQuizEntity));
   }
 
+  /**
+   * Xóa cứng một câu hỏi khỏi database (không thể khôi phục)
+   */
+  async hardDelete(id: string, session?: ClientSession): Promise<boolean> {
+    const result = await this.model
+      .deleteOne({ _id: id, deletedAt: null } as Record<string, unknown>)
+      .session(session ?? null)
+      .exec();
+
+    return (result.deletedCount ?? 0) > 0;
+  }
+
   async findByLessonIds(lessonIds: string[]): Promise<ILessonQuiz[]> {
     if (lessonIds.length === 0) return [];
     const docs = await this.model.find({
@@ -127,16 +139,13 @@ export class LessonQuizRepository extends BaseMongoRepository<
       throw new BadRequestException('Câu hỏi cần đồng bộ không thuộc checkpoint này hoặc bị trùng ID');
     }
 
-    // Preserve stable identities. Only removed questions are soft-deleted.
+    // Preserve stable identities. Only removed questions are permanently deleted.
     await this.model
-      .updateMany(
+      .deleteMany(
         {
           ...clusterFilter,
           _id: { $nin: retainedIds.map((id) => new Types.ObjectId(id)) },
         } as Record<string, unknown>,
-        {
-          $set: { deletedAt: new Date() },
-        },
       )
       .session(session ?? null)
       .exec();
@@ -169,7 +178,7 @@ export class LessonQuizRepository extends BaseMongoRepository<
   }
 
   /**
-   * Soft-delete tất cả câu hỏi tại cụm mốc thời gian của bài học (dung sai rangeSeconds, mặc định +- 2s)
+   * Xóa cứng tất cả câu hỏi tại cụm mốc thời gian của bài học (dung sai rangeSeconds, mặc định +- 2s)
    */
   async deleteQuizzesAtTimestampRange(
     lessonId: string,
@@ -185,20 +194,17 @@ export class LessonQuizRepository extends BaseMongoRepository<
     const maxTs = timestamp + rangeSeconds;
 
     const res = await this.model
-      .updateMany(
+      .deleteMany(
         {
           lessonId: lessonObjectId,
           timestamp: { $gte: minTs, $lte: maxTs },
           deletedAt: null,
         } as Record<string, unknown>,
-        {
-          $set: { deletedAt: new Date() },
-        },
       )
       .session(session ?? null)
       .exec();
 
-    return res.modifiedCount || 0;
+    return res.deletedCount || 0;
   }
 
   /**
@@ -224,16 +230,13 @@ export class LessonQuizRepository extends BaseMongoRepository<
       ? new Types.ObjectId(lessonId)
       : lessonId;
 
-    // 1. Soft-delete tất cả câu hỏi cũ của bài học
+    // 1. Xóa cứng tất cả câu hỏi cũ của bài học
     await this.model
-      .updateMany(
+      .deleteMany(
         {
           lessonId: lessonObjectId,
           deletedAt: null,
         } as Record<string, unknown>,
-        {
-          $set: { deletedAt: new Date() },
-        },
       )
       .session(session ?? null)
       .exec();

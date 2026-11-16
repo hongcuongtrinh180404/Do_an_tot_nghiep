@@ -3,6 +3,7 @@ import * as bcrypt from 'bcrypt';
 import { ISeeder, ISeederOptions } from '../../../database/seeds/seeder.interface.js';
 import { UserRepository } from '../repositories/user.repository.js';
 import { DEFAULT_SEED_PASSWORD, USER_SEED_DATA } from './user.seed.data.js';
+import { generateUsername } from '../utils/username.util.js';
 
 @Injectable()
 export class UserSeeder implements ISeeder {
@@ -11,6 +12,13 @@ export class UserSeeder implements ISeeder {
   private readonly saltRounds = 10;
 
   constructor(private readonly userRepository: UserRepository) {}
+
+  private generateUsername(email: string, excludeUserId?: string): Promise<string> {
+    return generateUsername(email, async (candidate) => {
+      const owner = await this.userRepository.findByUsername(candidate);
+      return Boolean(owner && owner.id !== excludeUserId);
+    });
+  }
 
   async run(options?: ISeederOptions): Promise<void> {
     const isRefresh = Boolean(options?.refresh);
@@ -31,7 +39,9 @@ export class UserSeeder implements ISeeder {
           const passwordHash = await bcrypt.hash(DEFAULT_SEED_PASSWORD, this.saltRounds);
           await this.userRepository.update(existing.id, {
             fullName: item.fullName,
-            username: item.username,
+            ...(!existing.username
+              ? { username: await this.generateUsername(item.email, existing.id) }
+              : {}),
             role: item.role,
             status: item.status,
             isEmailVerified: true,
@@ -49,7 +59,7 @@ export class UserSeeder implements ISeeder {
         const passwordHash = await bcrypt.hash(DEFAULT_SEED_PASSWORD, this.saltRounds);
         await this.userRepository.create({
           email: item.email,
-          username: item.username,
+          username: await this.generateUsername(item.email),
           fullName: item.fullName,
           role: item.role,
           status: item.status,

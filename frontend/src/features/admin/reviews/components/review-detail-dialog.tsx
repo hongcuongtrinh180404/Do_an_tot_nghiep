@@ -196,6 +196,30 @@ export function ReviewDetailDialog({
             )}
           </div>
 
+          {/* Instructor Reply */}
+          {review.instructorReply && (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <Icon icon="lucide:message-circle-reply" className="size-4 text-primary" />
+                <span className="font-bold text-foreground">Phản hồi từ giảng viên</span>
+                {review.instructorReply.instructorName && (
+                  <span className="text-muted-foreground">
+                    {review.instructorReply.instructorName}
+                  </span>
+                )}
+                <span className="text-muted-foreground">
+                  · {formatDate(review.instructorReply.repliedAt)}
+                </span>
+                {review.instructorReply.updatedAt && (
+                  <span className="italic text-muted-foreground">(đã chỉnh sửa)</span>
+                )}
+              </div>
+              <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] pl-6">
+                {review.instructorReply.content}
+              </p>
+            </div>
+          )}
+
           {/* Reports Section (if any reports) */}
           {review.reports && review.reports.length > 0 && (
             <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 space-y-3">

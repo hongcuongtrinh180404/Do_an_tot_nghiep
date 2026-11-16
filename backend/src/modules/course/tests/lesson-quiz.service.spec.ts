@@ -23,7 +23,7 @@ describe('LessonQuizService (Unit Tests - AAA Pattern)', () => {
       findByLessonIdAndTimestamp: vi.fn(),
       syncQuizzesAtTimestamp: vi.fn(),
       findById: vi.fn(),
-      softDelete: vi.fn(),
+      hardDelete: vi.fn(),
       moveOrMergeCluster: vi.fn(),
       withTransaction: vi.fn((callback: (session: unknown) => Promise<unknown>) => callback(null)),
       create: vi.fn(),
@@ -96,7 +96,7 @@ describe('LessonQuizService (Unit Tests - AAA Pattern)', () => {
         updatedById: 'mock-user-id',
       }), undefined);
       expect(mockLessonQuizRepo.syncQuizzesAtTimestamp).not.toHaveBeenCalled();
-      expect(mockLessonQuizRepo.softDelete).not.toHaveBeenCalled();
+      expect(mockLessonQuizRepo.hardDelete).not.toHaveBeenCalled();
     });
 
     it('accepts the start, end and unknown-duration timestamps', async () => {
@@ -196,7 +196,7 @@ describe('LessonQuizService (Unit Tests - AAA Pattern)', () => {
       expect(mockLessonQuizRepo.update).toHaveBeenCalledWith(quizId, expect.objectContaining({ timestamp: 90, order: 8 }), undefined);
       expect(mockLessonQuizRepo.update).toHaveBeenCalledTimes(1);
       expect(mockLessonQuizRepo.moveOrMergeCluster).not.toHaveBeenCalled();
-      expect(mockLessonQuizRepo.softDelete).not.toHaveBeenCalled();
+      expect(mockLessonQuizRepo.hardDelete).not.toHaveBeenCalled();
     });
 
     it('rejects invalid updates without modifying the original question', async () => {
@@ -382,18 +382,28 @@ describe('LessonQuizService (Unit Tests - AAA Pattern)', () => {
   });
 
   describe('deleteQuiz', () => {
-    it('Arrange - Act - Assert: should soft-delete quiz when found', async () => {
+    it('Arrange - Act - Assert: should hard-delete quiz when found', async () => {
       // Arrange
       const quizId = 'quiz-123';
-      mockLessonQuizRepo.findById!.mockResolvedValue({ id: quizId });
-      mockLessonQuizRepo.softDelete!.mockResolvedValue(true);
+      mockLessonQuizRepo.findById!.mockResolvedValue({ id: quizId, lessonId: 'lesson-123' });
+      mockLessonQuizRepo.hardDelete!.mockResolvedValue(true);
 
       // Act
       const result = await service.deleteQuiz(quizId);
 
       // Assert
       expect(result).toBe(true);
-      expect(mockLessonQuizRepo.softDelete).toHaveBeenCalledWith(quizId);
+      expect(mockLessonQuizRepo.hardDelete).toHaveBeenCalledWith(quizId);
+    });
+
+    it('Arrange - Act - Assert: should throw NotFoundException if quiz disappears before hard delete', async () => {
+      // Arrange
+      const quizId = 'quiz-123';
+      mockLessonQuizRepo.findById!.mockResolvedValue({ id: quizId, lessonId: 'lesson-123' });
+      mockLessonQuizRepo.hardDelete!.mockResolvedValue(false);
+
+      // Act & Assert
+      await expect(service.deleteQuiz(quizId)).rejects.toThrow(NotFoundException);
     });
 
     it('Arrange - Act - Assert: should throw NotFoundException if quiz not found', async () => {

@@ -4,6 +4,7 @@ import path from 'node:path';
 import mongoose, { Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { RoleEnum, UserStatusEnum, ReviewStatusEnum, CourseStatusEnum, CourseLevelEnum } from 'share-lib';
+import { generateUsername } from '../src/modules/user/utils/username.util.js';
 
 // Parse .env manually
 try {
@@ -62,6 +63,8 @@ async function run() {
   }
 
   const usersCol = db.collection('users');
+  const usernameForEmail = (email: string) => generateUsername(email, async (candidate) =>
+    Boolean(await usersCol.findOne({ username: candidate, deletedAt: null })));
   const coursesCol = db.collection('courses');
   const enrollmentsCol = db.collection('enrollments');
   const reviewsCol = db.collection('reviews');
@@ -74,7 +77,7 @@ async function run() {
     const passwordHash = await bcrypt.hash('Password123@', 10);
     const adminRes = await usersCol.insertOne({
       email: 'sseu1804@gmail.com',
-      username: 'admin',
+      username: await usernameForEmail('sseu1804@gmail.com'),
       fullName: 'CUONG TRINH',
       role: RoleEnum.ADMIN,
       status: UserStatusEnum.ACTIVE,
@@ -95,7 +98,7 @@ async function run() {
     const passwordHash = await bcrypt.hash('Password123@', 10);
     const insRes = await usersCol.insertOne({
       email: 'instructor1@thc.edu.vn',
-      username: 'instructor1',
+      username: await usernameForEmail('instructor1@thc.edu.vn'),
       fullName: 'TS. Nguyễn Văn Hùng',
       role: RoleEnum.INSTRUCTOR,
       status: UserStatusEnum.ACTIVE,
@@ -130,7 +133,7 @@ async function run() {
       const passwordHash = await bcrypt.hash('Password123@', 10);
       const res = await usersCol.insertOne({
         email: prof.email,
-        username: prof.username,
+        username: await usernameForEmail(prof.email),
         fullName: prof.fullName,
         role: RoleEnum.STUDENT,
         status: UserStatusEnum.ACTIVE,

@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import mongoose, { Model } from 'mongoose';
 import { RoleEnum, UserStatusEnum } from 'share-lib';
-import { UserEntity, UserSchema, UserDocument } from '../schemas/user.schema.js';
+import { UserEntity, UserSchema } from '../schemas/user.schema.js';
+import { ClsService } from 'nestjs-cls';
+import { readFile, unlink } from 'node:fs/promises';
+import { UserRepository } from '../repositories/user.repository.js';
+import { UserService } from '../services/user.service.js';
+import { backfillUsernames } from '../../../../scripts/backfill-usernames.js';
 
 describe('UserSchema & MongoDB Partial Unique Indexes (Integration Test)', () => {
   let connection: mongoose.Connection;
@@ -26,6 +31,71 @@ describe('UserSchema & MongoDB Partial Unique Indexes (Integration Test)', () =>
 
   beforeEach(async () => {
     await UserModel.deleteMany({});
+  });
+
+  describe('automatic handle persistence', () => {
+    const repository = () => new UserRepository(UserModel);
+    const service = () => new UserService(
+      repository(), { get: () => 'SYSTEM' } as unknown as ClsService,
+    );
+
+    it('resolves concurrent account creation with same email prefix through the unique index', async () => {
+      const users = await Promise.all(Array.from({ length: 4 }, (_, index) =>
+        service().create({ email: `racer@domain${index}.test`, fullName: 'Concurrent Account' })));
+      expect(users.map((user) => user.username ?? '').sort((a, b) => a.localeCompare(b)))
+        .toEqual(['racer', 'racer2', 'racer3', 'racer4']);
+    });
+
+    it('claims a missing handle only once across concurrent logins', async () => {
+      const account = await repository().create({ email: 'login@gmail.com', fullName: 'Login Account' });
+      const [first, second] = await Promise.all([
+        service().ensureUsername(account), service().ensureUsername(account),
+      ]);
+      expect(first.username).toBe('login');
+      expect(second.username).toBe(first.username);
+      expect((await UserModel.findById(account.id))?.username).toBe('login');
+    });
+
+    it('does not overwrite a handle when claiming one for a second time', async () => {
+      const account = await UserModel.create({ email: 'a@gmail.com', fullName: 'A', username: 'a' });
+      expect(await repository().claimUsername(account.id, 'another')).toBeNull();
+      expect((await UserModel.findById(account.id))?.username).toBe('a');
+    });
+
+    it('restores a deleted user with a new handle if another user took the old one', async () => {
+      const original = await UserModel.create({
+        email: 'original@gmail.com', fullName: 'Original', username: 'taken', deletedAt: new Date(),
+      });
+      await UserModel.create({ email: 'other@gmail.com', fullName: 'Other', username: 'taken' });
+      expect(await repository().restore(original.id)).toBe(true);
+      expect((await UserModel.findById(original.id))?.username).toBe('original');
+      expect((await UserModel.findById(original.id))?.deletedAt).toBeNull();
+    });
+
+    it('backfills swapped usernames safely, leaves deleted users alone, and is idempotent', async () => {
+      const a = await UserModel.create({ email: 'a@gmail.com', fullName: 'A', username: 'b' });
+      const b = await UserModel.create({ email: 'b@gmail.com', fullName: 'B', username: 'a' });
+      const deleted = await UserModel.create({
+        email: 'deleted@gmail.com', fullName: 'Deleted', username: 'old-deleted', deletedAt: new Date(),
+      });
+      const collection = connection.db!.collection('test_users') as Parameters<typeof backfillUsernames>[0];
+      const preview = await backfillUsernames(collection);
+      expect(preview).toMatchObject({ totalUsers: 2, changedUsers: 2, updatedUsers: 0 });
+      expect((await UserModel.findById(a.id))?.username).toBe('b');
+      const result = await backfillUsernames(collection, { apply: true });
+      try {
+        expect(result.updatedUsers).toBe(2);
+        expect((await UserModel.findById(a.id))?.username).toBe('a');
+        expect((await UserModel.findById(b.id))?.username).toBe('b');
+        expect((await UserModel.findById(deleted.id))?.username).toBe('old-deleted');
+        const backup = JSON.parse(await readFile(result.backupPath!, 'utf8'));
+        expect(backup.users).toHaveLength(2);
+        expect(backup.users[0]).not.toHaveProperty('passwordHash');
+        expect(await backfillUsernames(collection, { apply: true })).toMatchObject({ changedUsers: 0, updatedUsers: 0 });
+      } finally {
+        if (result.backupPath) await unlink(result.backupPath);
+      }
+    });
   });
 
   describe('Field Defaults & Schema Validation', () => {

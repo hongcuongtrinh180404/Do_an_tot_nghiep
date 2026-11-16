@@ -131,7 +131,7 @@
 - `QuizQuestionFields`: nội dung, hình thức một/nhiều đáp án đúng, phương án trả lời và giải thích dùng chung cho dialog từng câu và `CreateQuizMarkerModal`.
 - Payload dùng chung: `ISaveLessonQuizPayload` (`timestamp`, `question`, `questionType`, `options`, `explanation?`). `lessonId`, `id`, `order` và audit fields không nhận từ payload của thao tác từng câu.
 - `SaveLessonQuizDto` kế thừa `QuizQuestionContentDto`, dùng lại DTO options của API sync. Timestamp là số giây nguyên không âm; không vượt `lesson.content.duration` nếu có. Nội dung/đáp án trim, tối thiểu 2 phương án, mã/nhãn duy nhất; `single` đúng 1 đáp án, `multiple` ít nhất 1 đáp án.
-- Tạo và chuyển mốc chỉ ghi một document; order được nối sau câu cuối ở timestamp đích. Sửa tại cùng mốc giữ order. Dùng CRUD của `BaseService`/`BaseMongoRepository` để giữ audit và soft-delete; không cần collection hay migration mới.
+- Tạo và chuyển mốc chỉ ghi một document; order được nối sau câu cuối ở timestamp đích. Sửa tại cùng mốc giữ order. Dùng CRUD của `BaseService`/`BaseMongoRepository` để giữ audit; riêng thao tác xóa câu hỏi (xóa đơn lẻ, xóa cả cụm tại mốc, gỡ câu khi đồng bộ checkpoint hoặc thay thế toàn bộ bằng AI) xóa cứng khỏi `lesson_quizzes` theo yêu cầu nghiệp vụ, không tạo thêm collection hay migration mới.
 - Cache `lessonQuizKeys.byLesson` cập nhật và invalidate sau thao tác, đồng bộ danh sách với marker. Không dùng `/quizzes/sync` hoặc `/move-merge` để sửa/di chuyển một câu.
 - Tạo lại quiz AI cần xác nhận trước khi thay thế toàn bộ danh sách. Cơ chế gom marker gần nhau (±2 giây) và editor cụm cũ giữ nguyên.
 

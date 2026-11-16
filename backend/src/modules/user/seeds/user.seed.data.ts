@@ -2,7 +2,6 @@ import { RoleEnum, UserStatusEnum } from 'share-lib';
 
 export interface IUserSeedItem {
   email: string;
-  username: string;
   fullName: string;
   role: RoleEnum;
   status: UserStatusEnum;
@@ -16,7 +15,6 @@ export const USER_SEED_DATA: IUserSeedItem[] = [
   // 1 Admin
   {
     email: 'sseu1804@gmail.com',
-    username: 'admin',
     fullName: 'CUONG TRINH',
     role: RoleEnum.ADMIN,
     status: UserStatusEnum.ACTIVE,
@@ -27,7 +25,6 @@ export const USER_SEED_DATA: IUserSeedItem[] = [
   // 3 Instructors
   {
     email: 'instructor1@thc.edu.vn',
-    username: 'instructor1',
     fullName: 'TS. Nguyễn Văn Hùng',
     role: RoleEnum.INSTRUCTOR,
     status: UserStatusEnum.ACTIVE,
@@ -36,7 +33,6 @@ export const USER_SEED_DATA: IUserSeedItem[] = [
   },
   {
     email: 'instructor2@thc.edu.vn',
-    username: 'instructor2',
     fullName: 'ThS. Trần Thị Mai',
     role: RoleEnum.INSTRUCTOR,
     status: UserStatusEnum.ACTIVE,
@@ -45,7 +41,6 @@ export const USER_SEED_DATA: IUserSeedItem[] = [
   },
   {
     email: 'instructor3@thc.edu.vn',
-    username: 'instructor3',
     fullName: 'KTS. Lê Hoàng Nam',
     role: RoleEnum.INSTRUCTOR,
     status: UserStatusEnum.ACTIVE,
@@ -56,7 +51,6 @@ export const USER_SEED_DATA: IUserSeedItem[] = [
   // 3 Students
   {
     email: 'student1@thc.edu.vn',
-    username: 'student1',
     fullName: 'Phạm Minh Quân',
     role: RoleEnum.STUDENT,
     status: UserStatusEnum.ACTIVE,
@@ -65,7 +59,6 @@ export const USER_SEED_DATA: IUserSeedItem[] = [
   },
   {
     email: 'student2@thc.edu.vn',
-    username: 'student2',
     fullName: 'Lê Thùy Dung',
     role: RoleEnum.STUDENT,
     status: UserStatusEnum.ACTIVE,
@@ -74,7 +67,6 @@ export const USER_SEED_DATA: IUserSeedItem[] = [
   },
   {
     email: 'student3@thc.edu.vn',
-    username: 'student3',
     fullName: 'Đỗ Hoàng Khang',
     role: RoleEnum.STUDENT,
     status: UserStatusEnum.ACTIVE,

@@ -15,14 +15,13 @@ import {
   type LessonQuizFormValues,
 } from '../../schemas/lesson-quiz.schema';
 import { QuizQuestionFields } from './quiz-question-fields';
-import { Input } from '@/components/ui/input';
-import { formatQuizTime, parseQuizTime } from '../../utils/quiz-time-input.util';
+import { QuizTimeInput } from './quiz-time-input';
 
 interface LessonQuizQuestionDialogProps {
   lessonId: string;
   quiz?: ILessonQuiz;
   canEdit: boolean;
-  currentTime: number;
+  currentTime?: number;
   duration?: number;
   onOpenChange: (open: boolean) => void;
 }
@@ -31,11 +30,11 @@ export function LessonQuizQuestionDialog({
   lessonId,
   quiz,
   canEdit,
+  currentTime = 0,
   duration,
   onOpenChange,
 }: LessonQuizQuestionDialogProps): React.JSX.Element {
   const formId = useId();
-  const [timestampText, setTimestampText] = useState(formatQuizTime(quiz?.timestamp ?? null));
   const [isDiscardOpen, setIsDiscardOpen] = useState(false);
   const saveMutation = useSaveLessonQuizMutation(lessonId);
   const {
@@ -48,6 +47,7 @@ export function LessonQuizQuestionDialog({
     resolver: zodResolver(createLessonQuizSchema(duration)),
     defaultValues: {
       timestamp: quiz?.timestamp ?? null,
+      explanationTimestamp: quiz?.explanationTimestamp ?? null,
       questionData: createQuizQuestionValues(quiz),
     },
   });
@@ -69,13 +69,18 @@ export function LessonQuizQuestionDialog({
     onOpenChange(open);
   };
 
-  const onSubmit = async ({ timestamp, questionData }: LessonQuizFormValues) => {
+  const onSubmit = async ({ timestamp, explanationTimestamp, questionData }: LessonQuizFormValues) => {
     if (!canEdit || saveMutation.isPending) return;
     clearErrors('root');
     try {
       await saveMutation.mutateAsync({
         quizId: quiz?.id,
-        payload: { timestamp, ...questionData, explanation: questionData.explanation || null, explanationTimestamp: quiz?.explanationTimestamp },
+        payload: {
+          timestamp,
+          explanationTimestamp: explanationTimestamp ?? null,
+          ...questionData,
+          explanation: questionData.explanation || null,
+        },
       });
       onOpenChange(false);
     } catch (error: unknown) {
@@ -102,37 +107,48 @@ export function LessonQuizQuestionDialog({
           </>
         }
       >
-        <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
-          <Controller
-            name="timestamp"
-            control={control}
-            render={({ field, fieldState }) => (
-              <fieldset disabled={isPending} className="space-y-2">
-                <legend className="mb-2 text-sm font-medium">Thời điểm xuất hiện (phút:giây)</legend>
-                <Input
-                  value={timestampText}
-                  placeholder="MM:SS"
-                  aria-label="Thời điểm xuất hiện (phút:giây)"
-                  onChange={(event) => {
-                    setTimestampText(event.target.value);
-                    const parsed = parseQuizTime(event.target.value, duration);
-                    field.onChange(parsed.error ? NaN : parsed.value);
-                  }}
-                  disabled={isPending}
-                  aria-invalid={Boolean(fieldState.error)}
-                  aria-describedby={fieldState.error ? `${formId}-timestamp-error` : undefined}
-                  ref={field.ref}
+        <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Controller
+              name="timestamp"
+              control={control}
+              render={({ field, fieldState }) => (
+                <QuizTimeInput
+                  id={`${formId}-timestamp`}
+                  label="Thời điểm xuất hiện"
+                  subtext="Mốc video dừng để học viên trả lời câu hỏi"
+                  icon="lucide:clock-3"
+                  value={field.value}
+                  onChange={field.onChange}
                   onBlur={field.onBlur}
-                  className="w-36 tabular-nums"
+                  error={fieldState.error?.message}
+                  disabled={isPending}
+                  duration={duration}
+                  inputRef={field.ref}
                 />
-                {fieldState.error && (
-                  <p id={`${formId}-timestamp-error`} role="alert" className="text-xs text-destructive">
-                    {fieldState.error.message}
-                  </p>
-                )}
-              </fieldset>
-            )}
-          />
+              )}
+            />
+
+            <Controller
+              name="explanationTimestamp"
+              control={control}
+              render={({ field, fieldState }) => (
+                <QuizTimeInput
+                  id={`${formId}-explanation-timestamp`}
+                  label="Thời gian giải thích"
+                  subtext="Mốc video bắt đầu giải thích kiến thức tương ứng"
+                  icon="lucide:lightbulb"
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                  disabled={isPending}
+                  duration={duration}
+                  inputRef={field.ref}
+                />
+              )}
+            />
+          </div>
           <Controller
             name="questionData"
             control={control}

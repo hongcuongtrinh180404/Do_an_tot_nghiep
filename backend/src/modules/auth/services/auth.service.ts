@@ -85,9 +85,6 @@ export class AuthService {
 
   async register(dto: RegisterDto): Promise<IRegisterResponse> {
     await this.userService.ensureEmailNotTaken(dto.email);
-    if (dto.username) {
-      await this.userService.ensureUsernameNotTaken(dto.username);
-    }
 
     const hashedPassword = await this.localAuthService.hashPassword(dto.password);
     const fullName =
@@ -104,7 +101,6 @@ export class AuthService {
       passwordHash: hashedPassword,
       password: hashedPassword,
       fullName,
-      username: dto.username || null,
       role: RoleEnum.STUDENT,
       provider: AuthProviderEnum.LOCAL,
       status: UserStatusEnum.INACTIVE,
@@ -130,7 +126,7 @@ export class AuthService {
 
   async login(dto: LoginDto): Promise<IAuthResponse> {
     const user = await this.localAuthService.validateUser(dto.email, dto.password);
-    const userProfile = this.mapToProfile(user);
+    const userProfile = this.mapToProfile(await this.userService.ensureUsername(user));
     const tokens = await this.authTokenService.generateTokens(userProfile);
     const refreshTokenHash = this.authTokenService.hashToken(tokens.refreshToken);
 
@@ -154,7 +150,7 @@ export class AuthService {
       throw new UnauthorizedException('User account is invalid or deactivated');
     }
 
-    const userProfile = this.mapToProfile(user);
+    const userProfile = this.mapToProfile(await this.userService.ensureUsername(user));
     const incomingHash = this.authTokenService.hashToken(dto.refreshToken);
     const newTokens = await this.authTokenService.generateTokens(userProfile);
     const newHash = this.authTokenService.hashToken(newTokens.refreshToken);
@@ -190,7 +186,7 @@ export class AuthService {
       throw new UnauthorizedException('User not found or inactive');
     }
     const userWithPassword = await this.userService.findByEmail(user.email, true);
-    const profile = this.mapToProfile(user);
+    const profile = this.mapToProfile(await this.userService.ensureUsername(user));
     profile.hasPassword = !!(
       userWithPassword?.passwordHash ||
       (userWithPassword as { password?: string })?.password
@@ -244,7 +240,7 @@ export class AuthService {
       throw new UnauthorizedException('User account is deactivated');
     }
 
-    const userProfile = this.mapToProfile(user);
+    const userProfile = this.mapToProfile(await this.userService.ensureUsername(user));
     const tokens = await this.authTokenService.generateTokens(userProfile);
     const refreshTokenHash = this.authTokenService.hashToken(tokens.refreshToken);
 
@@ -381,7 +377,7 @@ export class AuthService {
     }
 
     // 5. Cấp phát phiên làm việc (Tokens & Session)
-    const userProfile = this.mapToProfile(user);
+    const userProfile = this.mapToProfile(await this.userService.ensureUsername(user));
     const tokens = await this.authTokenService.generateTokens(userProfile);
     const refreshTokenHash = this.authTokenService.hashToken(tokens.refreshToken);
 
@@ -422,7 +418,7 @@ export class AuthService {
       emailVerificationExpires: null,
     })) as IUser;
 
-    const userProfile = this.mapToProfile(updatedUser);
+    const userProfile = this.mapToProfile(await this.userService.ensureUsername(updatedUser));
     const tokens = await this.authTokenService.generateTokens(userProfile);
     const refreshTokenHash = this.authTokenService.hashToken(tokens.refreshToken);
 

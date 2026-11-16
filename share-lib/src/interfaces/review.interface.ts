@@ -31,6 +31,14 @@ export interface IReviewReportEntry {
   createdAt: Date | string;
 }
 
+export interface IInstructorReviewReply {
+  content: string;
+  instructorId: string;
+  instructorName?: string | null;
+  repliedAt: Date | string;
+  updatedAt?: Date | string | null;
+}
+
 export interface IReview {
   id: string;
   userId: string;
@@ -42,6 +50,7 @@ export interface IReview {
   moderationHistory?: IReviewModerationEntry[];
   reports?: IReviewReportEntry[];
   reportCount?: number;
+  instructorReply?: IInstructorReviewReply | null;
   user?: IReviewUserSummary | null;
   course?: IReviewCourseSummary | null;
   createdAt: Date | string;
@@ -71,6 +80,10 @@ export interface IRestoreReviewPayload {
 
 export interface IReportReviewPayload {
   reason: string;
+}
+
+export interface IReplyReviewPayload {
+  reply: string;
 }
 
 export interface IReviewDistributionItem {

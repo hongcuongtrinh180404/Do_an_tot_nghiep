@@ -42,6 +42,7 @@ sequenceDiagram
    - Soft-deleted records are treated as non-existent for standard business operations.
 3. **Hard Delete Restriction**:
    - ❌ **FORBIDDEN:** Calling `deleteOne` or `deleteMany` on business collections without explicit system architecture approval.
+   - ✅ **Approved exception:** Quiz question removal in `lesson_quizzes` (single question, timestamp cluster, removed questions during checkpoint sync, or AI replacement) permanently deletes the documents on explicit instructor/admin action. Historical answer documents may remain but are ignored because the quiz no longer exists.
 4. **Restore Capability**:
    - Calling `restore(id)` resets `deletedAt = null` and updates `updatedById = currentUserId`.
 

@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import type { IUserProfile } from 'share-lib';
 import { RoleEnum, UserStatusEnum } from 'share-lib';
 import { toast } from 'sonner';
 import { Icon } from '@/components/ui/icon';
 import { Card, CardContent } from '@/components/ui/card';
 import { AvatarUploader } from './avatar-uploader';
+import { CopyProfileLinkButton } from './copy-profile-link-button';
+import { getPublicProfilePath } from '../utils/profile-url';
 
 interface ProfileInfoCardProps {
   user: IUserProfile;
@@ -75,8 +78,12 @@ export function ProfileInfoCard({ user }: ProfileInfoCardProps): React.JSX.Eleme
             <h2 className="text-base font-semibold tracking-tight text-foreground">
               {fullName}
             </h2>
-            <p className="text-xs text-muted-foreground font-mono">
-              {user.username ? `@${user.username}` : user.email}
+            <p className="text-sm text-muted-foreground">
+              {user.username ? (
+                <Link href={getPublicProfilePath(user.username)} className="break-all underline underline-offset-4 hover:text-foreground">
+                  @{user.username}
+                </Link>
+              ) : user.email}
             </p>
           </div>
 
@@ -92,6 +99,7 @@ export function ProfileInfoCard({ user }: ProfileInfoCardProps): React.JSX.Eleme
               {statusLabel}
             </span>
           </div>
+          {user.username && <CopyProfileLinkButton username={user.username} />}
         </div>
 
         {/* Account Details List */}

@@ -6,7 +6,7 @@ import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 
 export interface TimestampPickerInputProps {
-  valueSeconds: number;
+  valueSeconds: number | null | undefined;
   onChange: (seconds: number) => void;
   maxDuration?: number;
   disabled?: boolean;
@@ -41,11 +41,12 @@ export function TimestampPickerInput({
   const minInputRef = useRef<HTMLInputElement>(null);
   const secInputRef = useRef<HTMLInputElement>(null);
 
-  const initialMinutes = Math.floor(Math.max(0, valueSeconds) / 60);
-  const initialSeconds = Math.floor(Math.max(0, valueSeconds) % 60);
+  const safeSeconds = valueSeconds != null ? Math.max(0, valueSeconds) : null;
+  const initialMinutes = safeSeconds != null ? Math.floor(safeSeconds / 60) : null;
+  const initialSeconds = safeSeconds != null ? Math.floor(safeSeconds % 60) : null;
 
-  const [minStr, setMinStr] = useState<string>(formatPadded(initialMinutes));
-  const [secStr, setSecStr] = useState<string>(formatPadded(initialSeconds));
+  const [minStr, setMinStr] = useState<string>(initialMinutes != null ? formatPadded(initialMinutes) : '');
+  const [secStr, setSecStr] = useState<string>(initialSeconds != null ? formatPadded(initialSeconds) : '');
 
   // Theo dõi ô đang được focus để tránh useEffect đồng bộ ngược ghi đè khi người dùng đang gõ
   const [focusedInput, setFocusedInput] = useState<'min' | 'sec' | null>(null);
@@ -53,9 +54,14 @@ export function TimestampPickerInput({
   // Đồng bộ state cục bộ khi valueSeconds thay đổi từ bên ngoài (chỉ khi người dùng KHÔNG đang focus gõ)
   useEffect(() => {
     if (focusedInput !== null) return;
+    if (valueSeconds == null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMinStr('');
+      setSecStr('');
+      return;
+    }
     const m = Math.floor(Math.max(0, valueSeconds) / 60);
     const s = Math.floor(Math.max(0, valueSeconds) % 60);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMinStr(formatPadded(m));
     setSecStr(formatPadded(s));
   }, [valueSeconds, focusedInput]);
@@ -165,7 +171,7 @@ export function TimestampPickerInput({
     }
   };
 
-  const isExceedDuration = maxDuration && maxDuration > 0 && valueSeconds > maxDuration;
+  const isExceedDuration = Boolean(maxDuration && maxDuration > 0 && valueSeconds != null && valueSeconds > maxDuration);
 
   return (
     <div className={cn('flex items-center gap-2', className)}>

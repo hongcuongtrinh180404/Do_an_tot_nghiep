@@ -1,11 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import type { IStudentLessonQuiz } from 'share-lib';
+import type { ILessonQuizAnswer, IStudentLessonQuiz } from 'share-lib';
 import { cacheLessonCompletion, lessonCompletionApi, lessonCompletionKeys, useLessonCompletionQuery, useStudentQuizPreviewQuery } from '../../api/lesson-completion.api';
+import { useLessonQuizzesQuery } from '../../api/lesson-quiz.api';
 import { LessonCheckpointController, type ActiveLessonCheckpoint } from '../../utils/lesson-checkpoint-controller';
+import { createInstructorQuizPreviews, gradeInstructorQuizPreview, instructorQuizPreviewRevision } from '../../utils/instructor-quiz-preview';
 import type { UseVideoPlayerReturn } from './use-video-player';
 
 const EMPTY_QUIZZES: IStudentLessonQuiz[] = [];
@@ -18,17 +20,27 @@ interface Options {
   enabled: boolean;
   enrolled: boolean;
   eligibilityReady: boolean;
+  instructorPreview?: boolean;
 }
 
-export function useLessonCheckpoints({ userId, courseId, lessonId, player, enabled, enrolled, eligibilityReady }: Options) {
+export function useLessonCheckpoints({ userId, courseId, lessonId, player, enabled, enrolled, eligibilityReady, instructorPreview = false }: Options) {
   const client = useQueryClient();
-  const enforced = Boolean(enrolled && userId);
+  const enforced = Boolean(!instructorPreview && enrolled && userId);
   const query = useLessonCompletionQuery(userId, courseId, lessonId, enabled && enforced);
-  const preview = useStudentQuizPreviewQuery(lessonId, enabled && eligibilityReady && !enforced);
-  const quizzes = enforced ? query.data?.quizzes ?? EMPTY_QUIZZES : preview.data ?? EMPTY_QUIZZES;
-  const ready = eligibilityReady && (enforced
-    ? query.isSuccess && !query.isError && query.isFetchedAfterMount
-    : preview.isSuccess && !preview.isError && preview.isFetchedAfterMount);
+  const preview = useStudentQuizPreviewQuery(lessonId, enabled && eligibilityReady && !enforced && !instructorPreview);
+  const management = useLessonQuizzesQuery(lessonId, enabled && instructorPreview);
+  const [previewAnswers, setPreviewAnswers] = useState(() => new Map<string, ILessonQuizAnswer>());
+  const instructorQuizzes = useMemo(
+    () => instructorPreview ? createInstructorQuizPreviews(management.data ?? [], previewAnswers, player.duration) : EMPTY_QUIZZES,
+    [instructorPreview, management.data, previewAnswers, player.duration],
+  );
+  const quizzes = instructorPreview ? instructorQuizzes
+    : enforced ? query.data?.quizzes ?? EMPTY_QUIZZES : preview.data ?? EMPTY_QUIZZES;
+  const quizQuery = instructorPreview ? management : enforced ? query : preview;
+  // Management queries may already be fresh in the editor cache; no learner enrollment is needed.
+  const ready = eligibilityReady && (instructorPreview
+    ? management.isSuccess && !management.isError
+    : quizQuery.isSuccess && !quizQuery.isError && quizQuery.isFetchedAfterMount);
   const [active, setActive] = useState<ActiveLessonCheckpoint | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -104,7 +116,24 @@ export function useLessonCheckpoints({ userId, courseId, lessonId, player, enabl
   }, [enabled, quizzes, ready, enforced]);
 
   const submit = useCallback(async (quiz: IStudentLessonQuiz, selectedOptionIds: string[]) => {
-    if (inFlight.current || !enforced || !userId || selectedOptionIds.length === 0) return;
+    if (!enabled || inFlight.current || selectedOptionIds.length === 0) return;
+    if (instructorPreview) {
+      if (!ready) return;
+      const official = management.data?.find((item) => item.id === quiz.id);
+      if (!official || instructorQuizPreviewRevision(official) !== quiz.revision) {
+        setError('Câu hỏi đã được cập nhật. Vui lòng trả lời phiên bản mới.');
+        return;
+      }
+      try {
+        const answer = gradeInstructorQuizPreview(official, selectedOptionIds);
+        setPreviewAnswers((previous) => new Map(previous).set(quiz.id, answer));
+        setError('');
+      } catch (failure) {
+        setError((failure as Error).message);
+      }
+      return;
+    }
+    if (!enforced || !userId) return;
     inFlight.current = true;
     setSubmitting(true);
     setError('');
@@ -126,13 +155,15 @@ export function useLessonCheckpoints({ userId, courseId, lessonId, player, enabl
       inFlight.current = false;
       if (alive.current) setSubmitting(false);
     }
-  }, [enforced, userId, courseId, lessonId, client, query]);
+  }, [enabled, instructorPreview, ready, management.data, enforced, userId, courseId, lessonId, client, query]);
 
   return {
     active, quizzes, submitting, error, ready, enforced,
+    isInstructorPreview: instructorPreview,
+    canSubmit: enabled && (instructorPreview || enforced),
     completion: enforced ? query.data : undefined,
-    isError: enabled && eligibilityReady && (enforced ? query.isError : preview.isError),
-    retry: () => enforced ? query.refetch() : preview.refetch(),
+    isError: enabled && eligibilityReady && quizQuery.isError,
+    retry: () => quizQuery.refetch(),
     submit,
     close: () => { setError(''); controllerRef.current?.close(); },
     openCheckpoint: (timestamp: number) => { setError(''); controllerRef.current?.openCheckpoint(timestamp); },

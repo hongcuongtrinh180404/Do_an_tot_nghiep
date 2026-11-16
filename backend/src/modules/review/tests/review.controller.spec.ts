@@ -22,6 +22,8 @@ describe('ReviewController', () => {
       deleteReview: vi.fn(),
       getInstructorStats: vi.fn(),
       getInstructorReviews: vi.fn(),
+      replyToReview: vi.fn(),
+      deleteInstructorReply: vi.fn(),
     };
 
     controller = new ReviewController(mockService as unknown as ReviewService);
@@ -109,6 +111,39 @@ describe('ReviewController', () => {
     const revsRes = await controller.getInstructorReviews('inst_1', query);
     expect(mockService.getInstructorReviews).toHaveBeenCalledWith('inst_1', query);
     expect(revsRes.data).toEqual(mockReviews);
+  });
+
+  it('9. should protect reply endpoints and delegate to service', async () => {
+    const replyRoles = reflector.get<RoleEnum[]>(
+      ROLES_KEY,
+      ReviewController.prototype.replyToReview,
+    );
+    const deleteReplyRoles = reflector.get<RoleEnum[]>(
+      ROLES_KEY,
+      ReviewController.prototype.deleteInstructorReply,
+    );
+
+    expect(replyRoles).toContain(RoleEnum.INSTRUCTOR);
+    expect(deleteReplyRoles).toContain(RoleEnum.INSTRUCTOR);
+
+    const mockReview = { id: 'rev_1', instructorReply: { content: 'Cảm ơn bạn' } };
+    (mockService.replyToReview as ReturnType<typeof vi.fn>).mockResolvedValue(mockReview);
+    (mockService.deleteInstructorReply as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...mockReview,
+      instructorReply: null,
+    });
+
+    const replyRes = await controller.replyToReview('rev_1', 'inst_1', {
+      reply: 'Cảm ơn bạn',
+    });
+    expect(mockService.replyToReview).toHaveBeenCalledWith('inst_1', 'rev_1', {
+      reply: 'Cảm ơn bạn',
+    });
+    expect(replyRes.data).toEqual(mockReview);
+
+    const deleteRes = await controller.deleteInstructorReply('rev_1', 'inst_1');
+    expect(mockService.deleteInstructorReply).toHaveBeenCalledWith('inst_1', 'rev_1');
+    expect(deleteRes.data).toEqual({ ...mockReview, instructorReply: null });
   });
 });
 

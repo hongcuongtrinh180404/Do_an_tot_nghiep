@@ -20,7 +20,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let mockUserService: {
     ensureEmailNotTaken: ReturnType<typeof vi.fn>;
-    ensureUsernameNotTaken: ReturnType<typeof vi.fn>;
+    ensureUsername: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     findById: ReturnType<typeof vi.fn>;
     findByEmail: ReturnType<typeof vi.fn>;
@@ -79,7 +79,9 @@ describe('AuthService', () => {
   beforeEach(() => {
     mockUserService = {
       ensureEmailNotTaken: vi.fn().mockResolvedValue(undefined),
-      ensureUsernameNotTaken: vi.fn().mockResolvedValue(undefined),
+      ensureUsername: vi.fn().mockImplementation(async (user: IUser) => ({
+        ...user, username: user.username || user.email.split('@')[0],
+      })),
       create: vi.fn().mockResolvedValue(mockUser),
       findById: vi.fn().mockResolvedValue(mockUser),
       findByEmail: vi.fn().mockResolvedValue(null),
@@ -469,6 +471,8 @@ describe('AuthService', () => {
       expect(mockUserService.findByEmail).not.toHaveBeenCalled();
       expect(mockUserService.create).not.toHaveBeenCalled();
       expect(result.user.id).toBe('existing_google_user');
+      expect(mockUserService.ensureUsername).toHaveBeenCalledWith(existingGoogleUser);
+      expect(result.user.username).toBe('student_google');
       expect(result.tokens).toEqual(mockTokens);
     });
 

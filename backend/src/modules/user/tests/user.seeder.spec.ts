@@ -2,12 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RoleEnum, UserStatusEnum, IUser } from 'share-lib';
 import { UserSeeder } from '../seeds/user.seeder.js';
 import { UserRepository } from '../repositories/user.repository.js';
-import { USER_SEED_DATA, DEFAULT_SEED_PASSWORD } from '../seeds/user.seed.data.js';
+import { buildUsernameBase } from '../utils/username.util.js';
+import { USER_SEED_DATA } from '../seeds/user.seed.data.js';
 
 describe('UserSeeder', () => {
   let seeder: UserSeeder;
   let mockUserRepository: {
     findByEmail: ReturnType<typeof vi.fn>;
+    findByUsername: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     restore: ReturnType<typeof vi.fn>;
@@ -27,6 +29,7 @@ describe('UserSeeder', () => {
   beforeEach(() => {
     mockUserRepository = {
       findByEmail: vi.fn(),
+      findByUsername: vi.fn().mockResolvedValue(null),
       create: vi.fn(),
       update: vi.fn(),
       restore: vi.fn(),
@@ -58,7 +61,7 @@ describe('UserSeeder', () => {
       expect(mockUserRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           email: firstSeed.email,
-          username: firstSeed.username,
+          username: buildUsernameBase(firstSeed.email),
           role: firstSeed.role,
           status: firstSeed.status,
           passwordHash: expect.any(String),
@@ -85,6 +88,16 @@ describe('UserSeeder', () => {
   });
 
   describe('run (Refresh Mode)', () => {
+    it('preserves stable handles on refresh instead of rebuilding them from a changed email', async () => {
+      mockUserRepository.findByEmail.mockImplementation(async (email: string) => ({
+        ...createFakeUser(email, RoleEnum.STUDENT), username: 'stable-handle',
+      }));
+      await seeder.run({ refresh: true });
+      for (const [, payload] of mockUserRepository.update.mock.calls) {
+        expect(payload).not.toHaveProperty('username');
+      }
+    });
+
     it('should update existing users and reset password when refresh flag is true', async () => {
       // Arrange
       mockUserRepository.findByEmail.mockImplementation((email: string) => {
@@ -105,7 +118,7 @@ describe('UserSeeder', () => {
         `id_${firstSeed.email}`,
         expect.objectContaining({
           fullName: firstSeed.fullName,
-          username: firstSeed.username,
+          username: buildUsernameBase(firstSeed.email),
           role: firstSeed.role,
           status: firstSeed.status,
           passwordHash: expect.any(String),

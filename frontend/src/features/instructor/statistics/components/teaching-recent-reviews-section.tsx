@@ -4,6 +4,8 @@ import * as React from 'react';
 import Image from 'next/image';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { DeleteConfirmDialog } from '@/components/shared/dialog/delete-confirm-dialog';
 import {
   Select,
   SelectContent,
@@ -14,6 +16,10 @@ import { RatingStars } from '@/components/shared/rating/rating-stars';
 import type { IReview, ICourse } from 'share-lib';
 import { formatDateTimeVn } from '@/features/admin/revenue/utils/revenue-format.util';
 import type { IPaginatedResult } from '../api/teaching-stats.api';
+import {
+  useDeleteReviewReplyMutation,
+  useReplyToReviewMutation,
+} from '../api/teaching-stats.api';
 
 interface TeachingRecentReviewsSectionProps {
   data?: IPaginatedResult<IReview>;
@@ -55,12 +61,64 @@ export function TeachingRecentReviewsSection({
   const total = data?.total || 0;
   const totalPages = data?.totalPages || 1;
 
+  const replyMutation = useReplyToReviewMutation();
+  const deleteReplyMutation = useDeleteReviewReplyMutation();
+
+  const [replyingReviewId, setReplyingReviewId] = React.useState<string | null>(null);
+  const [replyDraft, setReplyDraft] = React.useState('');
+  const [replyError, setReplyError] = React.useState('');
+  const [reviewToDeleteReplyId, setReviewToDeleteReplyId] = React.useState<string | null>(null);
+  const isReplyPending = replyMutation.isPending || deleteReplyMutation.isPending;
+  const replyInputRef = React.useRef<HTMLTextAreaElement>(null);
+
+  React.useEffect(() => {
+    if (replyingReviewId) replyInputRef.current?.focus();
+  }, [replyingReviewId]);
+
+  const startReply = (review: IReview) => {
+    if (isReplyPending) return;
+    setReplyError('');
+    setReplyingReviewId(review.id);
+    setReplyDraft(review.instructorReply?.content ?? '');
+  };
+
+  const cancelReply = () => {
+    setReplyError('');
+    setReplyingReviewId(null);
+    setReplyDraft('');
+  };
+
+  const submitReply = (reviewId: string) => {
+    const content = replyDraft.trim();
+    if (!content || content.length > 2000 || isReplyPending) return;
+    setReplyError('');
+
+    replyMutation.mutate(
+      { reviewId, payload: { reply: content } },
+      {
+        onSuccess: () => cancelReply(),
+        onError: () => setReplyError('Chưa gửi được phản hồi. Nội dung đã nhập vẫn được giữ lại; vui lòng thử lại.'),
+      },
+    );
+  };
+
+  const confirmDeleteReply = () => {
+    if (!reviewToDeleteReplyId || isReplyPending) return;
+
+    deleteReplyMutation.mutate(reviewToDeleteReplyId, {
+      onSuccess: () => {
+        if (replyingReviewId === reviewToDeleteReplyId) cancelReply();
+        setReviewToDeleteReplyId(null);
+      },
+    });
+  };
+
   return (
     <div className="bg-card rounded-xl border border-border/70 p-5 shadow-2xs space-y-5">
       {/* Section Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/40">
         <div>
-          <h2 className="text-base sm:text-lg font-bold text-foreground">
+          <h2 id="section-recent-reviews" className="text-base sm:text-lg font-bold text-foreground">
             Đánh giá gần đây
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -267,6 +325,149 @@ export function TeachingRecentReviewsSection({
                     <span>Học viên chỉ gửi đánh giá điểm sao, không nhập nhận xét bằng văn bản.</span>
                   </p>
                 )}
+
+                {/* Existing instructor reply */}
+                {review.instructorReply && replyingReviewId !== review.id && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-1.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-primary">
+                        <Icon icon="lucide:message-circle-reply" className="size-3.5" />
+                        <span>Phản hồi của bạn</span>
+                        <span className="font-normal text-muted-foreground">
+                          · {formatDateTimeVn(review.instructorReply.repliedAt)}
+                        </span>
+                        {review.instructorReply.updatedAt && (
+                          <span className="font-normal italic text-muted-foreground">
+                            (đã chỉnh sửa)
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startReply(review)}
+                          disabled={isReplyPending}
+                          aria-label={`Sửa phản hồi cho ${userName}`}
+                          className="h-11 sm:h-7 px-2 text-xs font-medium text-primary hover:bg-primary/10"
+                        >
+                          <Icon icon="lucide:edit-3" className="size-3 mr-1" />
+                          Sửa
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setReviewToDeleteReplyId(review.id)}
+                          disabled={isReplyPending}
+                          aria-label={`Xóa phản hồi cho ${userName}`}
+                          className="h-11 sm:h-7 px-2 text-xs font-medium text-destructive hover:bg-destructive/10"
+                        >
+                          <Icon icon="lucide:trash-2" className="size-3 mr-1" />
+                          Xóa
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
+                      {review.instructorReply.content}
+                    </p>
+                  </div>
+                )}
+
+                {/* Reply composer */}
+                {replyingReviewId === review.id ? (
+                  <form
+                    className="rounded-lg border border-primary/25 bg-primary/5 p-3 space-y-2"
+                    aria-busy={replyMutation.isPending}
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      submitReply(review.id);
+                    }}
+                  >
+                    <label
+                      htmlFor={`review-reply-${review.id}`}
+                      className="flex items-center gap-1.5 text-sm font-semibold text-foreground"
+                    >
+                      <Icon icon="lucide:message-circle-reply" className="size-3.5" />
+                      <span>
+                        {review.instructorReply ? 'Chỉnh sửa phản hồi' : 'Phản hồi học viên'}
+                      </span>
+                    </label>
+                    <Textarea
+                      ref={replyInputRef}
+                      id={`review-reply-${review.id}`}
+                      name="reply"
+                      value={replyDraft}
+                      onChange={(event) => {
+                        setReplyDraft(event.target.value);
+                        setReplyError('');
+                      }}
+                      aria-describedby={`review-reply-help-${review.id} review-reply-count-${review.id}`}
+                      disabled={isReplyPending}
+                      rows={3}
+                      required
+                      maxLength={2000}
+                      placeholder="Viết phản hồi cho học viên..."
+                      className="text-sm bg-background"
+                    />
+                    <p id={`review-reply-help-${review.id}`} className="text-xs text-muted-foreground">
+                      Phản hồi hiển thị công khai bên dưới đánh giá. Tối đa 2.000 ký tự.
+                    </p>
+                    {replyError && <p role="alert" className="text-xs text-destructive">{replyError}</p>}
+                    <div className="flex items-center justify-between gap-2">
+                      <span id={`review-reply-count-${review.id}`} className="text-xs text-muted-foreground tabular-nums">
+                        {replyDraft.length}/2000
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={cancelReply}
+                          disabled={isReplyPending}
+                          className="h-11 sm:h-8 px-3 text-xs"
+                        >
+                          Hủy
+                        </Button>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={!replyDraft.trim() || replyDraft.trim().length > 2000 || isReplyPending}
+                          className="h-11 sm:h-8 px-3 text-xs"
+                        >
+                          {replyMutation.isPending ? (
+                            <>
+                              <Icon icon="lucide:loader-2" className="size-3.5 mr-1 animate-spin" />
+                              Đang gửi...
+                            </>
+                          ) : (
+                            <>
+                              <Icon icon="lucide:send" className="size-3.5 mr-1" />
+                              Gửi phản hồi
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </form>
+                ) : (
+                  !review.instructorReply && (
+                    <div className="pt-0.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => startReply(review)}
+                        disabled={isReplyPending}
+                        className="h-11 sm:h-7 px-2.5 text-xs font-medium"
+                      >
+                        <Icon icon="lucide:reply" className="size-3.5 mr-1" />
+                        Phản hồi học viên
+                      </Button>
+                    </div>
+                  )
+                )}
               </div>
             );
           })
@@ -322,6 +523,20 @@ export function TeachingRecentReviewsSection({
           </div>
         </div>
       )}
+
+      <DeleteConfirmDialog
+        open={Boolean(reviewToDeleteReplyId)}
+        onOpenChange={(open) => {
+          if (!open && !deleteReplyMutation.isPending) setReviewToDeleteReplyId(null);
+        }}
+        title="Xóa phản hồi đánh giá"
+        itemName="phản hồi này"
+        description="Bạn có chắc chắn muốn xóa phản hồi đã gửi? Học viên sẽ không còn thấy nội dung phản hồi này."
+        confirmText="Xóa phản hồi"
+        cancelText="Hủy"
+        isLoading={deleteReplyMutation.isPending}
+        onConfirm={confirmDeleteReply}
+      />
     </div>
   );
 }

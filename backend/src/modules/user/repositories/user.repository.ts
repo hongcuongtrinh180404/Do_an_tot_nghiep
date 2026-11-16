@@ -5,6 +5,7 @@ import { IUser, AuthProviderEnum, RoleEnum, UserStatusEnum } from 'share-lib';
 import { BaseMongoRepository, PaginationOptions, PaginationResult } from '../../base/index.js';
 import { UserEntity } from '../schemas/user.schema.js';
 import { QueryUsersDto } from '../dto/query-users.dto.js';
+import { generateUsername, isUsernameDuplicateKeyError } from '../utils/username.util.js';
 
 @Injectable()
 export class UserRepository extends BaseMongoRepository<IUser, UserEntity> {
@@ -46,6 +47,50 @@ export class UserRepository extends BaseMongoRepository<IUser, UserEntity> {
       .exec();
 
     return doc ? this.toDomain(doc) : null;
+  }
+
+  async claimUsername(
+    userId: string,
+    username: string,
+    session?: ClientSession,
+  ): Promise<IUser | null> {
+    const doc = await this.model.findOneAndUpdate(
+      { _id: userId, deletedAt: null, $or: [{ username: null }, { username: '' }] },
+      { $set: { username } },
+      { returnDocument: 'after', session: session ?? null },
+    ).exec();
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  override async restore(
+    userId: string,
+    updatedById?: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    const deleted = await this.model
+      .findOne({ _id: userId, deletedAt: { $ne: null } })
+      .session(session ?? null)
+      .exec();
+    if (!deleted) return false;
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const owner = deleted.username ? await this.findByUsername(deleted.username, session) : null;
+      const username = deleted.username && !owner
+        ? deleted.username
+        : await generateUsername(deleted.email, async (candidate) =>
+          Boolean(await this.findByUsername(candidate, session)));
+      try {
+        const result = await this.model.updateOne(
+          { _id: userId, deletedAt: { $ne: null } },
+          { $set: { deletedAt: null, username, ...(updatedById ? { updatedById } : {}) } },
+          session ? { session } : {},
+        ).exec();
+        return result.modifiedCount > 0;
+      } catch (error) {
+        if (!isUsernameDuplicateKeyError(error) || session?.inTransaction()) throw error;
+      }
+    }
+    throw new Error('Không thể khôi phục đường dẫn hồ sơ duy nhất');
   }
 
   async findByProvider(
@@ -385,7 +430,6 @@ export class UserRepository extends BaseMongoRepository<IUser, UserEntity> {
       filterQuery.$or = [
         { fullName: { $regex: escaped, $options: 'i' } },
         { email: { $regex: escaped, $options: 'i' } },
-        { username: { $regex: escaped, $options: 'i' } },
       ];
     }
 

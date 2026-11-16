@@ -152,7 +152,7 @@ export function CourseReviewsTab({
                   </div>
                   <div className="flex-1 h-2 rounded-full bg-neutral-100 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-[#027D88] transition-all duration-500"
+                      className="h-full rounded-full bg-[#027D88] transition-[width] duration-500 motion-reduce:transition-none"
                       style={{ width: `${item.percentage}%` }}
                     />
                   </div>
@@ -294,7 +294,7 @@ export function CourseReviewsTab({
               <Icon icon="lucide:info" className="size-4 text-[#027D88]" />
             </div>
             <div className="space-y-1">
-              <h4 className="text-xs font-bold text-[#161616] uppercase tracking-wider">
+              <h4 className="text-sm font-semibold text-[#161616]">
                 Điều kiện đánh giá khóa học
               </h4>
               <p className="text-xs text-[#666666] leading-relaxed">
@@ -434,6 +434,32 @@ export function CourseReviewsTab({
                     <p className="mt-2.5 text-xs sm:text-sm text-[#161616] leading-relaxed whitespace-pre-line">
                       {review.comment}
                     </p>
+                  )}
+
+                  {/* Instructor Reply */}
+                  {review.instructorReply && (
+                    <div className="mt-3 rounded-xl border border-[#027D88]/20 bg-[#027D88]/5 p-3 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-[#027D88]">
+                        <Icon icon="lucide:message-circle-reply" className="size-3.5" />
+                        <span className="[overflow-wrap:anywhere]">
+                          Phản hồi từ giảng viên
+                          {review.instructorReply.instructorName
+                            ? `: ${review.instructorReply.instructorName}`
+                            : ''}
+                        </span>
+                        <span className="font-normal text-[#666666]">
+                          · {formatReviewDate(review.instructorReply.repliedAt)}
+                        </span>
+                        {review.instructorReply.updatedAt && (
+                          <span className="font-normal italic text-[#666666]">
+                            (đã chỉnh sửa)
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-[#161616] leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
+                        {review.instructorReply.content}
+                      </p>
+                    </div>
                   )}
                 </article>
               );

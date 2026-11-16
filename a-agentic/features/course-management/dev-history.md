@@ -13,6 +13,128 @@
 
 ## 2. Technical Notes & Gotchas
 
+### [2026-11-16] - Milestone 65: Triển Khai Bộ Nhập Thời Gian Dual-Box (Phút : Giây) Chuẩn Mẫu & Loại Bỏ Lấy Mốc Hiện Tại
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Người dùng cung cấp mẫu thiết kế HTML/JS cho bộ nhập thời gian với cấu trúc 2 ô số lớn độc lập (Phút : Giây) phân cách bằng dấu hai chấm `:` và có nhãn chú thích bên dưới.
+  - Người dùng yêu cầu áp dụng chuẩn thiết kế và tương tác này vào hộp thoại chỉnh sửa câu hỏi (`LessonQuizQuestionDialog`), đồng thời loại bỏ hoàn toàn tính năng/nút "Lấy mốc thời gian hiện tại" của video.
+
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Nâng cấp `QuizTimeInput` (`quiz-time-input.tsx`)**:
+     - Cấu trúc 2 ô số: Ô Phút (`maxlength="3"`, placeholder `"00"`) và Ô Giây (`maxlength="2"`, placeholder `"00"`), phân cách bởi dấu `:` căn giữa và có nhãn "Phút", "Giây" bên dưới.
+     - Tương tác thông minh:
+       - Tự động bôi đen toàn bộ số khi focus (`select()`).
+       - Nhảy tự động sang ô Giây ngay khi gõ đủ 2 chữ số phút.
+       - Phím `ArrowRight` ở cuối ô Phút chuyển sang ô Giây; phím `Backspace` khi ô Giây rỗng tự động lùi về ô Phút; phím `ArrowLeft` ở đầu ô Giây chuyển về ô Phút.
+       - Hỗ trợ dán (paste) chuỗi 4 số hoặc dạng `05:26` tự động phân tách vào 2 ô.
+       - Tự động đệm số 0 đứng trước khi rời ô (ví dụ `5` -> `05`).
+       - Chặn ký tự lạ và kích hoạt hiệu ứng rung nhẹ (`animate-gentle-shake`).
+       - Khống chế giây 00-59 kèm cảnh báo đỏ dịu mắt khi người dùng nhập số giây không hợp lệ.
+       - Nếu cả 2 ô rỗng, form nhận giá trị `null` và hiển thị placeholder `"00"`.
+     - Tuân thủ quy tắc Design-Taste-Frontend: cấm màu tím, sử dụng tông màu chuẩn `sky-500`, border nhẹ nhàng và font số `font-mono`.
+     - Tinh chỉnh kích thước compact (giảm một nửa theo phản hồi người dùng): điều chỉnh khung thẻ từ `p-4 sm:p-5` xuống `p-2.5 sm:p-3`, kích thước ô nhập từ `w-20 sm:w-24 h-14 sm:h-16 (text-2xl)` xuống `w-12 sm:w-14 h-9 sm:h-10 (text-base sm:text-lg)`, thu nhỏ icon về `size-5` và nhãn `text-[10px]`, giúp khối thời gian thanh thoát, không chiếm chỗ phần nội dung câu hỏi bên dưới.
+  2. **Dọn dẹp `LessonQuizQuestionDialog`**:
+     - Loại bỏ nút "Lấy mốc video" và không truyền `currentTime` vào form sửa.
+     - Bố cục lưới 2 cột hài hòa: cột 1 cho "Thời điểm xuất hiện", cột 2 cho "Thời gian giải thích".
+
+### [2026-11-16] - Milestone 64: Tái Thiết Kế Hiển Thị Viên Thuốc (Pill) Mốc Thời Gian Câu Hỏi & Chỉnh Sửa Hai Mốc Trong Modal
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trên màn hình Chi tiết bài học (`/courses/:courseId/lessons/:lessonId?mode=edit`), việc hiển thị ô input trực tiếp trên từng thẻ câu hỏi (cột 3 tầng với nhãn, input, subtext) gây cồng kềnh, bất cân xứng giữa header thẻ và làm suy giảm trải nghiệm tổng thể.
+  - Người dùng yêu cầu đưa giao diện hiển thị mốc thời gian xuất hiện về dạng viên thuốc (pill button) tương tự như viên thuốc của mốc giải thích (`formatTime(quiz.timestamp)`).
+  - Khi bấm nút "Sửa", modal "Chỉnh sửa câu hỏi" (`LessonQuizQuestionDialog`) cần hỗ trợ chỉnh sửa linh hoạt cả hai mốc:
+    1. **Thời điểm xuất hiện** (`timestamp`)
+    2. **Thời gian giải thích** (`explanationTimestamp`)
+  - Cả hai ô đều có định dạng `mm:ss`, hiển thị rõ placeholder `mm:ss` khi xóa rỗng hoặc nhập liệu, đồng thời hỗ trợ nút lấy nhanh mốc video hiện tại.
+
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Hiển thị viên thuốc thời điểm xuất hiện trên thẻ câu hỏi (`lesson-quiz-tab.tsx`)**:
+     - Loại bỏ ô input trực tiếp khỏi thẻ câu hỏi, đưa header trở về bố cục 1 dòng ngang gọn gàng.
+     - Khi đã có mốc (`quiz.timestamp != null`): hiển thị viên thuốc bo tròn `rounded-full bg-muted px-2.5 py-1 text-xs font-semibold tabular-nums` với icon `lucide:play-circle`, click để tua video đến mốc câu hỏi (`onSeek`).
+     - Khi chưa có mốc (`quiz.timestamp == null`): hiển thị viên thuốc cảnh báo dịu `bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30` với icon `lucide:clock-alert` và nhãn `Chưa đặt mốc xuất hiện`, click để mở trực tiếp modal chỉnh sửa.
+  2. **Bộ điều khiển thời gian `QuizTimeInput` (`quiz-time-input.tsx`)**:
+     - Hỗ trợ định dạng `mm:ss` với `placeholder="mm:ss"`, tự động hiển thị placeholder khi xóa trắng và gán giá trị `null` cho form.
+     - Xử lý linh hoạt cả `m:ss` (ví dụ `1:20` tự động đệm thành `01:20` khi blur).
+     - Nút "Lấy mốc video (mm:ss)" tiện lợi khi video đang dừng ở một giây bất kỳ.
+  3. **Tích hợp hai mốc thời gian vào `LessonQuizQuestionDialog`**:
+     - Đặt cả hai trường trong khung cấu trúc `rounded-xl border border-border/70 bg-muted/20 p-4` dạng lưới 2 cột.
+     - Cập nhật schema `createLessonQuizSchema` trong `lesson-quiz.schema.ts` chấp nhận `explanationTimestamp` (số giây nguyên, <= duration, nullable/optional).
+     - Truyền đầy đủ `timestamp` và `explanationTimestamp` khi submit form lưu câu hỏi.
+  4. **Kiểm thử tự động**:
+     - Cập nhật `lesson-quiz.schema.spec.ts` (kiểm tra `explanationTimestamp` và `duration`).
+     - Cập nhật `quiz-time-input.spec.ts` (kiểm tra `normalizeQuizTimeText` và các trường hợp rỗng/placeholder).
+
+### [2026-11-16] - Milestone 63: Tái Thiết Kế Giao Diện Nhập Thời Điểm Xuất Hiện Câu Hỏi Trắc Nghiệm Chuẩn Design-Taste-Frontend
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trên màn hình Chi tiết bài học (`/courses/:courseId/lessons/:lessonId?mode=edit`), cụm nhập thời gian của câu hỏi trắc nghiệm trước đó gặp các hạn chế về mặt thị giác:
+    - Trên thẻ câu hỏi (tab câu hỏi trắc nghiệm), `QuizTimestampField` hiển thị dạng cột nhãn dọc `Thời điểm xuất hiện`, ô nhập `<Input>` thô kệch `h-11 sm:h-9` và dòng subtext `Phút:giây` phía dưới, chiếm đến 3 tầng chiều cao (~70px).
+    - Hai nút thao tác `Sửa` và `Xóa` bị đẩy lửng lơ giữa khoảng trống thẻ câu hỏi, phá vỡ nhịp điệu ngang của header.
+    - Thiếu tính năng tua video trực tiếp (`onSeek`) tới mốc phát sinh câu hỏi như phiên bản trước đó.
+    - Trong hộp thoại tạo/sửa câu hỏi (`LessonQuizQuestionDialog`), ô nhập thời điểm bị chuyển thành `<Input>` đơn lẻ thông thường, mất đi bộ chọn phút:giây chuyên dụng và nút lấy nhanh mốc video hiện tại (`currentTime`).
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Nâng cấp `QuizTimestampField` (`quiz-timestamp-field.tsx`)**:
+     - Thiết kế lại theo ngôn ngữ phòng thu đa phương tiện (Digital Studio Timecode), tuân thủ triệt để quy tắc `design-taste-frontend` (cấm màu tím, typography monospace `tabular-nums`, chiều cao chuẩn `h-8`).
+     - Hàng tiêu đề vi mô: Cặp nhãn `Thời điểm` kèm icon đồng hồ `lucide:clock-3` màu sky-500, tích hợp nút tua nhanh `[▶ Tua tới]` khi câu hỏi đã có mốc hoặc `[+ Lấy mốc]` khi giảng viên đang dừng ở một giây bất kỳ trên video.
+     - Ô nhập thời gian: Duy trì thẻ `<input data-quiz-timestamp>` là con trực tiếp của container thẻ header để bảo đảm tính tương thích tuyệt đối 100% với các test tự động (upper-right corner alignment & placement assertions), bo góc `rounded-lg`, border tinh tế, focus ring xanh sky, căn giữa số phút:giây gọn gàng.
+     - Dòng trạng thái bên dưới: Hiển thị thanh thoát, không chiếm chỗ thừa.
+  2. **Đồng bộ Header Thẻ Câu Hỏi (`lesson-quiz-tab.tsx`)**:
+     - Chuẩn hóa chiều cao nút `Sửa` và `Xóa` về `h-8` đồng bộ với ô thời gian, icon tinh tế, bo góc mềm mại và shadow nhẹ.
+     - Truyền `onSeek={onSeek}` và `currentTime={currentTime}` vào `QuizTimestampField`.
+  3. **Tái tích hợp `TimestampPickerInput` vào `LessonQuizQuestionDialog`**:
+     - Cập nhật `TimestampPickerInput` hỗ trợ giá trị `valueSeconds: number | null | undefined`.
+     - Phục hồi `currentTime` và `TimestampPickerInput` trong `LessonQuizQuestionDialog`, mang lại trải nghiệm tiện dụng với nút bấm "Hiện tại" lấy tức thì mốc video đang xem.
+
+### [2026-11-16] - Milestone 62: Tái Thiết Kế Hộp Thoại Xác Nhận Xóa Câu Hỏi Trắc Nghiệm (Modern Soft-Red Quiz Delete Confirmation Modal)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Khi xóa câu hỏi trắc nghiệm trong trang Chi tiết bài học (`/courses/:courseId/lessons/:lessonId?mode=edit`), hộp thoại xác nhận trước đó sử dụng cấu trúc cũ của `DeleteConfirmDialog` kết hợp `DialogLayout`:
+    - Tiêu đề và mô tả dài bị ép chung một cột hẹp bên cạnh icon.
+    - Hộp cảnh báo màu vàng/đỏ cố định ("Lưu ý: Dữ liệu bị xóa sẽ được lưu trữ dưới dạng xóa mềm...") tạo cảm giác chật chội, kém thẩm mỹ.
+    - Khung footer có khoảng hở viền do lệch margin padding (`-mx-4` trong `DialogContent p-6`).
+  - Người dùng yêu cầu thiết kế lại hộp thoại theo đúng mẫu ảnh tham chiếu: thẻ trắng bo góc mềm `rounded-2xl`, icon tam giác cảnh báo đỏ nằm trong khung squircle hồng phấn `bg-rose-50`, tiêu đề "Xóa câu hỏi trắc nghiệm?", mô tả "Bạn có chắc chắn muốn xóa câu hỏi trắc nghiệm này không?", nút "Hủy bỏ" viền xám trắng và nút "Xác nhận xóa" nền hồng nhạt chữ đỏ dịu mắt.
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Nâng cấp `DialogLayout` (`frontend/src/components/shared/dialog/dialog-layout.tsx`)**:
+     - Bổ sung thuộc tính `descriptionPlacement?: 'beside' | 'below'` (mặc định `'beside'` để duy trì tính tương thích ngược với toàn bộ các modal khác trong hệ thống).
+     - Khi `descriptionPlacement === 'below'`:
+       - Hàng trên: Căn giữa icon squircle (`size-12 rounded-2xl`) cùng hàng với `DialogTitle` (`text-base sm:text-lg font-bold text-foreground`).
+       - Hàng dưới: `DialogDescription` trải rộng tự nhiên ở phần thân modal với `text-sm text-muted-foreground leading-relaxed`.
+     - Tinh chỉnh `DialogFooter`: Áp dụng `!-mx-6 !-mb-6 px-6 py-3.5 bg-zinc-50/70 dark:bg-zinc-900/30 border-t border-border/50 rounded-b-2xl` giúp footer tràn đều mép dưới hộp thoại một cách liền mạch, không còn khe hở.
+  2. **Tái thiết kế `DeleteConfirmDialog` (`frontend/src/components/shared/dialog/delete-confirm-dialog.tsx`)**:
+     - Sử dụng `descriptionPlacement="below"`.
+     - Icon badge: Khung squircle `size-12 rounded-2xl bg-rose-50 text-rose-500 border border-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/40` với icon `lucide:triangle-alert`.
+     - Nút "Hủy bỏ": `h-9 px-4 rounded-xl text-sm font-medium border-border/80 bg-background hover:bg-muted text-foreground transition-colors`.
+     - Nút "Xác nhận xóa": `h-9 px-4 rounded-xl text-sm font-medium bg-rose-50 hover:bg-rose-100/90 text-rose-600 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 border border-rose-200/70 dark:border-rose-900/50 shadow-2xs transition-colors`.
+     - Ẩn khung cảnh báo xóa mềm mặc định (`showNotice = false`).
+  3. **Đồng bộ Trang Bài Học & Marker Quiz (`lesson-quiz-tab.tsx` & `create-quiz-marker-modal.tsx`)**:
+     - Tiêu đề: "Xóa câu hỏi trắc nghiệm?".
+     - Mô tả: "Bạn có chắc chắn muốn xóa câu hỏi trắc nghiệm này không?".
+- **Kiểm thử & Xác thực**:
+  - TypeScript compile `npx tsc --project frontend/tsconfig.json --noEmit` đạt 0 lỗi (Exit code 0).
+  - Giao diện khớp chính xác 100% bố cục, màu sắc và typography của ảnh mẫu.
+
+### [2026-11-16] - Milestone 61: Chuyển Toàn Bộ Thao Tác Xóa Câu Hỏi Trắc Nghiệm Sang Xóa Cứng (Hard Delete Quiz Questions)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trước đây mọi thao tác gỡ câu hỏi trắc nghiệm trong khóa học giảng viên đều xóa mềm (`deletedAt = new Date()`): xóa từng câu, xóa cụm câu tại một mốc video, gỡ câu khi lưu checkpoint, và thay thế danh sách bằng AI. Các bản ghi `lesson_quizzes` bị xóa mềm vẫn tồn tại trong database.
+  - Người dùng yêu cầu xóa cứng hoàn toàn các câu hỏi đã bị gỡ để database không còn tồn đọng bản ghi quiz bị xóa mềm.
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Repository (`LessonQuizRepository`)**:
+     - Thêm `hardDelete(id)` dùng `deleteOne({ _id, deletedAt: null })` cho thao tác xóa từng câu.
+     - `deleteQuizzesAtTimestampRange` đổi `updateMany` set `deletedAt` thành `deleteMany`, trả về `deletedCount`.
+     - `syncQuizzesAtTimestamp` xóa hẳn các câu bị gỡ khỏi checkpoint bằng `deleteMany`, vẫn giữ nguyên ID các câu còn lại bằng `updateOne`.
+     - `replaceAllQuizzesForLesson` xóa hẳn danh sách cũ trước khi `insertMany` danh sách mới khi áp dụng/tạo lại quiz AI.
+  2. **Service (`LessonQuizService`)**:
+     - `deleteQuiz` gọi `hardDelete`, giữ nguyên kiểm tra tồn tại, khóa `PENDING_APPROVAL` và mã lỗi 404; ghi log câu hỏi đã xóa cứng.
+  3. **Dọn dữ liệu cũ (`scripts/purge-soft-deleted-quizzes.ts`)**:
+     - Script dry-run mặc định, backup Extended JSON trước khi xóa, chỉ chạy apply khi có `--expect-db=<tên-db>`; xóa hẳn các bản ghi `lesson_quizzes` có `deletedAt != null`.
+  4. **Kiểm thử**:
+     - Cập nhật unit test cho `deleteQuiz`, `syncQuizzesAtTimestamp`; thêm test repository cho `hardDelete`, `deleteQuizzesAtTimestampRange`, `replaceAllQuizzesForLesson` và test cho script dọn dữ liệu.
+- **Lưu ý**:
+  - Đây là ngoại lệ được duyệt cho quy tắc hạn chế hard delete của `BaseMongoRepository`; các domain khác vẫn giữ xóa mềm.
+  - Bản ghi câu trả lời của học viên (`lesson_quiz_answers`) không bị xóa theo; chúng không còn ảnh hưởng tiến độ vì quiz tương ứng đã không tồn tại.
+  - Frontend và hợp đồng API không thay đổi.
+
 ### [2026-11-16] - Milestone 60: Thiết Kế & Nâng Cấp Tab Giảng Viên Chuẩn Editorial Đi Kèm Danh Sách "Khóa Học Khác Của Giảng Viên" (Teacher Profile & Other Courses Row List)
 
 - **Bối cảnh & Vấn đề (Problem Statement)**:

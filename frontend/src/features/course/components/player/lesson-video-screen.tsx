@@ -1104,22 +1104,23 @@ export function LessonVideoScreen({
           </div>
         </div>
 
-        {/* Student In-Video Quiz Modal */}
-        {!isInstructor && checkpoints.active && (
+        {/* Learner quizzes and instructor-only, non-persisted trial answers share the same player UI. */}
+        {checkpoints.active && (
           <StudentInVideoQuizModal
             key={`${checkpoints.active.timestamp}:${checkpoints.active.quizzes[0]?.id}:${checkpoints.active.quizzes[0]?.revision}`}
             timestamp={checkpoints.active.timestamp}
             formatTime={formatTime}
             quizzes={checkpoints.active.quizzes}
             required={checkpoints.active.required}
-            canSubmit={checkpoints.enforced}
+            canSubmit={checkpoints.canSubmit}
+            isInstructorPreview={checkpoints.isInstructorPreview}
             submitting={checkpoints.submitting}
             error={checkpoints.error}
             onSubmit={checkpoints.submit}
             onClose={checkpoints.close}
           />
         )}
-        {!isInstructor && checkpoints.isError && (
+        {checkpoints.isError && (
           <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/90 p-4 text-sm text-white" role="alert">
             <p>Không tải được câu hỏi bài học.</p>
             <Button type="button" variant="secondary" onClick={() => { void checkpoints.retry(); }}>Thử lại</Button>

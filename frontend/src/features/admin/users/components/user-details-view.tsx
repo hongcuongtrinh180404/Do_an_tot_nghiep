@@ -56,7 +56,6 @@ export function UserDetailsView({ userId }: UserDetailsViewProps): React.JSX.Ele
     resolver: zodResolver(updateUserAdminSchema),
     defaultValues: {
       fullName: '',
-      username: '',
       bio: '',
       role: RoleEnum.STUDENT,
       status: UserStatusEnum.ACTIVE,
@@ -68,7 +67,6 @@ export function UserDetailsView({ userId }: UserDetailsViewProps): React.JSX.Ele
     if (user) {
       reset({
         fullName: user.fullName || '',
-        username: user.username || '',
         bio: user.bio || '',
         role: user.role,
         status: user.status,
@@ -90,7 +88,6 @@ export function UserDetailsView({ userId }: UserDetailsViewProps): React.JSX.Ele
     if (user) {
       reset({
         fullName: user.fullName || '',
-        username: user.username || '',
         bio: user.bio || '',
         role: user.role,
         status: user.status,
@@ -106,7 +103,6 @@ export function UserDetailsView({ userId }: UserDetailsViewProps): React.JSX.Ele
         userId,
         payload: {
           fullName: formData.fullName.trim(),
-          username: formData.username?.trim() || undefined,
           bio: formData.bio?.trim() || undefined,
           role: formData.role,
           status: formData.status,
@@ -117,7 +113,6 @@ export function UserDetailsView({ userId }: UserDetailsViewProps): React.JSX.Ele
           // Reset form với dữ liệu mới để formState.isDirty trở lại false
           reset({
             fullName: updated.fullName || '',
-            username: updated.username || '',
             bio: updated.bio || '',
             role: updated.role,
             status: updated.status,
@@ -264,11 +259,6 @@ export function UserDetailsView({ userId }: UserDetailsViewProps): React.JSX.Ele
             <p className="text-xs text-muted-foreground mt-0.5">
               {user.email}
             </p>
-            {user.username && (
-              <span className="text-xs font-mono text-muted-foreground mt-1 bg-muted px-2 py-0.5 rounded">
-                @{user.username}
-              </span>
-            )}
 
             <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
               <UserRoleBadge role={user.role} />
@@ -332,27 +322,14 @@ export function UserDetailsView({ userId }: UserDetailsViewProps): React.JSX.Ele
               required
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Tên người dùng */}
-              <FormInput
-                name="username"
-                control={control}
-                label="Tên tài khoản (Username)"
-                placeholder="vd: cuong_thc"
-                startIcon="lucide:at-sign"
-                description="Chỉ gồm chữ cái, chữ số và gạch dưới."
-              />
-
-              {/* Email - Readonly */}
-              <FormInput
-                name="email"
-                label="Địa chỉ Email"
-                value={user.email}
-                disabled
-                startIcon="lucide:mail"
-                description="Email là định danh chính, không thể chỉnh sửa trực tiếp."
-              />
-            </div>
+            <FormInput
+              name="email"
+              label="Địa chỉ Email"
+              value={user.email}
+              disabled
+              startIcon="lucide:mail"
+              description="Email là định danh chính, không thể chỉnh sửa trực tiếp."
+            />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Vai trò */}
