@@ -131,7 +131,6 @@ async function importLesson() {
       const auditUser = course.instructorId.toString();
       upsert('lessons', lessonId, auditUser, {
         sectionId: section._id, title: source.title, order: 1,
-        description: `Video bổ sung dùng chung cho bộ khóa học demo. Tác giả: ${source.author}. Video do người dùng cung cấp; thời lượng ${source.duration} giây. Bài học không cho xem thử.`,
         isPreview: false, transcriptionStatus: 'READY', materials: [],
         content: { type: 'video', url, publicId: `${bucket}/${key}`, fileName: source.sourceFileName,
           fileSize: video.length, mimeType: 'video/mp4', duration: source.duration },

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ILesson, ISection, LearningStatusEnum, LessonContentTypeEnum, LessonTranscriptionStatusEnum, RoleEnum } from 'share-lib';
 import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
@@ -12,7 +12,6 @@ import {
   useRetryLessonTranscriptionMutation,
 } from '../../api/course.api';
 import { usePublicCourseDetailQuery } from '../../api/enrollment.api';
-import { deserializeKeyPoints } from '../../utils/lesson-key-points.util';
 import { canEditCourseContent } from '../../utils/course-access.util';
 import { getCourseUrl, type CourseViewMode } from '../../utils/course-view-mode.util';
 import { useVideoPlayer } from './use-video-player';
@@ -70,6 +69,9 @@ export function LessonPlayerStudio({
     />
   );
 }
+
+// Transcript navigation uses real timestamps; retired key points must not create fake milestones.
+const timelineMarkers: TimelineMarker[] = [];
 
 interface LessonPlayerStudioContentProps extends LessonPlayerStudioProps {
   canEdit: boolean;
@@ -187,30 +189,6 @@ function LessonPlayerStudioContent({
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [lesson.id]);
-
-  // Generate Timeline markers for Video Seekbar (Keeping main milestones on the seekbar)
-  const timelineMarkers: TimelineMarker[] = useMemo(() => {
-    const keyPoints = deserializeKeyPoints(lesson.description);
-    const totalDuration =
-      lesson.content?.duration || transcript?.durationSeconds || player.duration || 900;
-
-    if (keyPoints.length > 0) {
-      const step = Math.max(30, Math.floor(totalDuration / (keyPoints.length + 1)));
-      return keyPoints.map((kp, idx) => ({
-        time: idx === 0 ? 0 : Math.min(totalDuration, idx * step),
-        label: kp.text,
-      }));
-    }
-
-    // Default aesthetic milestones matching the user specification
-    return [
-      { time: 0, label: '00:00 - Giới thiệu tổng quan' },
-      { time: 225, label: '03:45 - Cài đặt môi trường & Công cụ' },
-      { time: 510, label: '08:30 - Cấu trúc mã nguồn & Kiến trúc' },
-      { time: 730, label: '12:10 - Demo thực hành bài tập' },
-      { time: 960, label: '16:00 - Tổng kết & Hướng dẫn mở rộng' },
-    ];
-  }, [lesson.description, lesson.content?.duration, transcript?.durationSeconds, player.duration]);
 
   const isDocument = lesson.content?.type === LessonContentTypeEnum.DOCUMENT;
   const sentences = transcript?.sentences || [];

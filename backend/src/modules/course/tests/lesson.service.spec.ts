@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
-import { ILesson, ISection, ICourse, RoleEnum, LessonContentTypeEnum } from 'share-lib';
+import { ILesson, ISection, ICourse, RoleEnum, LessonContentTypeEnum, CourseStatusEnum } from 'share-lib';
 import { LessonService, CreateLessonInput } from '../services/lesson.service.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
@@ -16,6 +16,7 @@ describe('LessonService', () => {
     create: ReturnType<typeof vi.fn>;
     findBySectionId: ReturnType<typeof vi.fn>;
     findById: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
     addMaterial: ReturnType<typeof vi.fn>;
     deleteMaterial: ReturnType<typeof vi.fn>;
     softDelete: ReturnType<typeof vi.fn>;
@@ -54,7 +55,6 @@ describe('LessonService', () => {
     id: 'lesson_100',
     sectionId: 'section_100',
     title: 'Bài 1: Giới thiệu khóa học',
-    description: 'Mô tả bài 1',
     order: 0,
     content: null,
     isPreview: false,
@@ -71,6 +71,7 @@ describe('LessonService', () => {
       create: vi.fn(),
       findBySectionId: vi.fn(),
       findById: vi.fn(),
+      update: vi.fn(),
       addMaterial: vi.fn(),
       deleteMaterial: vi.fn(),
       softDelete: vi.fn().mockResolvedValue(true),
@@ -110,10 +111,11 @@ describe('LessonService', () => {
   });
 
   describe('createLesson', () => {
+    const content = { type: LessonContentTypeEnum.DOCUMENT, url: 'http://localhost:9000/media/slides.pdf' };
     const validInput: CreateLessonInput = {
       title: '  Bài 1: Giới thiệu khóa học  ',
-      description: '  Mô tả bài 1  ',
       order: 0,
+      content,
       userId: 'user_1',
     };
 
@@ -128,9 +130,8 @@ describe('LessonService', () => {
         {
           sectionId: 'section_100',
           title: 'Bài 1: Giới thiệu khóa học',
-          description: 'Mô tả bài 1',
           order: 0,
-          content: null,
+          content,
           isPreview: false,
           transcriptionStatus: 'IDLE',
           createdById: 'user_1',
@@ -148,6 +149,7 @@ describe('LessonService', () => {
       const inputWithoutUser: CreateLessonInput = {
         title: 'Bài 2',
         order: 1,
+        content,
       };
 
       await service.createLesson('section_100', inputWithoutUser);
@@ -161,24 +163,28 @@ describe('LessonService', () => {
       );
     });
 
-    it('3. should normalize empty description to null', async () => {
+    it.each([
+      undefined, null, {}, [], 'video.mp4',
+      { type: 'video', url: '   ' },
+      { type: 'document', url: 123 },
+      { type: 'audio', url: '/audio.mp3' },
+    ])('rejects missing or invalid media before writing: %j', async (invalidContent) => {
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      const input = { ...validInput, content: invalidContent } as unknown as CreateLessonInput;
+      await expect(service.createLesson('section_100', input)).rejects.toThrow(BadRequestException);
+      expect(mockLessonRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('trims the media URL and does not persist retired core content', async () => {
       mockSectionRepository.findById.mockResolvedValue(sampleSection);
       mockLessonRepository.create.mockResolvedValue(sampleLesson);
-
-      const inputEmptyDesc: CreateLessonInput = {
-        title: 'Bài 3',
-        description: '   ',
-        order: 2,
-      };
-
-      await service.createLesson('section_100', inputEmptyDesc);
-
-      expect(mockLessonRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          description: null,
-        }),
-        undefined,
-      );
+      await service.createLesson('section_100', {
+        ...validInput, content: { ...content, url: `  ${content.url}  ` },
+        ...{ description: 'Retired core content' },
+      });
+      const payload = mockLessonRepository.create.mock.calls[0][0];
+      expect(payload.content.url).toBe(content.url);
+      expect(payload).not.toHaveProperty('description');
     });
 
     it('4. should throw NotFoundException when section does not exist (null)', async () => {
@@ -220,6 +226,7 @@ describe('LessonService', () => {
       const negativeOrderInput: CreateLessonInput = {
         title: 'Bài học lỗi',
         order: -1,
+        content,
       };
 
       await expect(service.createLesson('section_100', negativeOrderInput)).rejects.toThrow(
@@ -702,6 +709,91 @@ describe('LessonService', () => {
 
       expect(result).toBe(true);
       expect(mockLessonRepository.softDelete).toHaveBeenCalledWith('lesson_100', 'admin_user', undefined);
+    });
+  });
+
+  describe('updateLesson', () => {
+    const sampleCourse: ICourse = {
+      id: 'course_100',
+      title: 'Khóa học Node.js',
+      slug: 'khoa-hoc-nodejs',
+      description: 'Mô tả',
+      instructorId: 'user_1',
+      level: 'BEGINNER' as any,
+      status: CourseStatusEnum.PUBLISHED,
+      price: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    };
+
+    it('1. should update lesson successfully and return updated lesson', async () => {
+      mockLessonRepository.findById.mockResolvedValue(sampleLesson);
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockCourseRepository.findById.mockResolvedValue(sampleCourse);
+      const updatedLesson = { ...sampleLesson, isPreview: true };
+      mockLessonRepository.update.mockResolvedValue(updatedLesson);
+
+      const result = await service.updateLesson(
+        'lesson_100',
+        { isPreview: true },
+        'user_1',
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(mockLessonRepository.update).toHaveBeenCalledWith(
+        'lesson_100',
+        { isPreview: true, updatedById: 'user_1' },
+        undefined,
+      );
+      expect(result.isPreview).toBe(true);
+    });
+
+    it('2. should throw NotFoundException when lesson does not exist', async () => {
+      mockLessonRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.updateLesson('non_existent', { isPreview: true }, 'user_1', RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('3. should throw ForbiddenException when user is not course instructor nor admin', async () => {
+      mockLessonRepository.findById.mockResolvedValue(sampleLesson);
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockCourseRepository.findById.mockResolvedValue(sampleCourse);
+
+      await expect(
+        service.updateLesson('lesson_100', { isPreview: true }, 'intruder', RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('4. should allow ADMIN to update lesson regardless of instructor', async () => {
+      mockLessonRepository.findById.mockResolvedValue(sampleLesson);
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockCourseRepository.findById.mockResolvedValue(sampleCourse);
+      mockLessonRepository.update.mockResolvedValue({ ...sampleLesson, isPreview: true });
+
+      const result = await service.updateLesson(
+        'lesson_100',
+        { isPreview: true },
+        'admin_user',
+        RoleEnum.ADMIN,
+      );
+
+      expect(result.isPreview).toBe(true);
+    });
+
+    it('5. should throw ConflictException if course is PENDING_APPROVAL', async () => {
+      mockLessonRepository.findById.mockResolvedValue(sampleLesson);
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockCourseRepository.findById.mockResolvedValue({
+        ...sampleCourse,
+        status: CourseStatusEnum.PENDING_APPROVAL,
+      });
+
+      await expect(
+        service.updateLesson('lesson_100', { isPreview: true }, 'user_1', RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow();
     });
   });
 });

@@ -222,7 +222,6 @@ async function importCatalog() {
     const firstLessonId = stableId(`lesson:${course.slug}:0`);
     const section = { courseId: oid(course.id), title: 'Học và thực hành hiệu quả', description: shared.overview, order: 0 };
     const lesson = { sectionId: oid(sectionId), order: 0, title: shared.title,
-      description: `${shared.overview}\n\n${shared.conclusion}`,
       content: { ...video, type: 'video', duration: media.duration },
       materials: [{ _id: oid(stableId(`material:${course.slug}:0`)), title: 'Tài liệu thực hành và tự đánh giá', ...pdf, createdAt: now }],
       isPreview: true, transcriptionStatus: 'READY' };

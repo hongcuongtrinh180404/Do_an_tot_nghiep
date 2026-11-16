@@ -1,4 +1,4 @@
-export type CourseMindmapNodeType = 'courseRoot' | 'section' | 'lesson' | 'keypoint';
+export type CourseMindmapNodeType = 'courseRoot' | 'section' | 'lesson';
 
 export interface NodeSize {
   width: number;
@@ -9,7 +9,7 @@ export interface NodeSize {
  * Tăng version này mỗi khi thay đổi kích thước node hoặc công thức layout.
  * Snapshot course_mindmaps cũ hơn version sẽ được tự động re-layout khi mở.
  */
-export const COURSE_MINDMAP_LAYOUT_VERSION = 4;
+export const COURSE_MINDMAP_LAYOUT_VERSION = 5;
 
 /**
  * Kích thước cố định của từng loại node.
@@ -21,7 +21,6 @@ export const COURSE_NODE_DIMENSIONS: Record<CourseMindmapNodeType, NodeSize> = {
   courseRoot: { width: 320, height: 128 },
   section: { width: 260, height: 84 },
   lesson: { width: 240, height: 76 },
-  keypoint: { width: 210, height: 52 },
 };
 
 export const COURSE_MINDMAP_GAPS = {

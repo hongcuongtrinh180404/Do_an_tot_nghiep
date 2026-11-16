@@ -14,6 +14,7 @@ describe('LessonsController', () => {
   let mockLessonService: {
     getLessonById: ReturnType<typeof vi.fn>;
     getLessonForUser: ReturnType<typeof vi.fn>;
+    updateLesson: ReturnType<typeof vi.fn>;
     addMaterial: ReturnType<typeof vi.fn>;
     deleteMaterial: ReturnType<typeof vi.fn>;
     deleteLesson: ReturnType<typeof vi.fn>;
@@ -31,7 +32,6 @@ describe('LessonsController', () => {
     id: sampleLessonId,
     sectionId: sampleSectionId,
     title: '01. Tổng quan kiến trúc hệ thống',
-    description: 'Nội dung bài học giới thiệu...',
     order: 0,
     content: {
       type: LessonContentTypeEnum.VIDEO,
@@ -54,6 +54,7 @@ describe('LessonsController', () => {
     mockLessonService = {
       getLessonById: vi.fn(),
       getLessonForUser: vi.fn(),
+      updateLesson: vi.fn(),
       addMaterial: vi.fn(),
       deleteMaterial: vi.fn(),
       deleteLesson: vi.fn(),
@@ -91,6 +92,41 @@ describe('LessonsController', () => {
       await expect(controller.getLessonDetail(sampleLessonId, sampleUserId, RoleEnum.INSTRUCTOR)).rejects.toThrow(
         `Không tìm thấy bài học với ID '${sampleLessonId}'`,
       );
+    });
+  });
+
+  describe('PATCH /lessons/:id - updateLesson', () => {
+    it('should update lesson successfully and return updated lesson', async () => {
+      const updatedLesson = { ...sampleLesson, isPreview: false };
+      mockLessonService.updateLesson.mockResolvedValue(updatedLesson);
+
+      const dto = { isPreview: false };
+      const response = await controller.updateLesson(
+        sampleLessonId,
+        dto,
+        sampleUserId,
+        RoleEnum.INSTRUCTOR,
+      );
+
+      expect(mockLessonService.updateLesson).toHaveBeenCalledWith(
+        sampleLessonId,
+        dto,
+        sampleUserId,
+        RoleEnum.INSTRUCTOR,
+      );
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('Cập nhật bài học thành công');
+      expect(response.data).toEqual(updatedLesson);
+    });
+
+    it('should propagate exception when updateLesson fails', async () => {
+      mockLessonService.updateLesson.mockRejectedValue(
+        new NotFoundException(`Không tìm thấy bài học với ID '${sampleLessonId}'`),
+      );
+
+      await expect(
+        controller.updateLesson(sampleLessonId, { isPreview: false }, sampleUserId, RoleEnum.INSTRUCTOR),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

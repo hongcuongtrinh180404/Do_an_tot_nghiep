@@ -36,7 +36,6 @@ import { startLayoutAnimation } from '../../utils/mindmap-animation.util';
 import { CourseRootNode } from '../mindmap/nodes/course-root-node';
 import { SectionNode } from '../mindmap/nodes/section-node';
 import { LessonNode } from '../mindmap/nodes/lesson-node';
-import { KeypointNode } from '../mindmap/nodes/keypoint-node';
 import { SmoothBezierEdge } from '../mindmap/edges/smooth-bezier-edge';
 import {
   CourseMindmapContextProvider,
@@ -47,7 +46,6 @@ const nodeTypes: NodeTypes = {
   courseRoot: CourseRootNode,
   section: SectionNode,
   lesson: LessonNode,
-  keypoint: KeypointNode,
 };
 
 const edgeTypes: EdgeTypes = {
@@ -124,7 +122,7 @@ function InnerMindmapCanvas({
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initialData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initialData.edges);
-  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => initialData.collapsedIds);
+  const [, setCollapsedIds] = useState<Set<string>>(() => initialData.collapsedIds);
   const [showMinimap, setShowMinimap] = useState<boolean>(false);
 
   const nodesRef = useRef(nodes);
@@ -194,19 +192,6 @@ function InnerMindmapCanvas({
             next.delete(sectionId);
           } else {
             next.add(sectionId);
-          }
-          const layouted = getLayoutedCached(next);
-          animateToLayout(layouted.nodes, layouted.edges);
-          return next;
-        });
-      },
-      onToggleLessonCollapse: (lessonId: string) => {
-        setCollapsedIds((prev) => {
-          const next = new Set(prev);
-          if (next.has(lessonId)) {
-            next.delete(lessonId);
-          } else {
-            next.add(lessonId);
           }
           const layouted = getLayoutedCached(next);
           animateToLayout(layouted.nodes, layouted.edges);

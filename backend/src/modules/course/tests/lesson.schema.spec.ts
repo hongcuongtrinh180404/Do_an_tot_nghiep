@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import mongoose, { Model, Types } from 'mongoose';
 import { LessonEntity, LessonSchema } from '../schemas/lesson.schema.js';
+import { LessonContentTypeEnum } from 'share-lib';
 
 describe('LessonSchema & MongoDB Indexes (Integration / Unit Test)', () => {
   let connection: mongoose.Connection;
   let LessonModel: Model<LessonEntity>;
   const TEST_DB_URI = 'mongodb://localhost:27017/thc_datn_lesson_test';
+  const content = { type: LessonContentTypeEnum.DOCUMENT, url: '/slides.pdf' };
 
   beforeAll(async () => {
     connection = await mongoose.createConnection(TEST_DB_URI).asPromise();
@@ -32,14 +34,14 @@ describe('LessonSchema & MongoDB Indexes (Integration / Unit Test)', () => {
       const lesson = await LessonModel.create({
         sectionId,
         title: '  Bài 1: Giới thiệu khóa học  ',
-        description: '  Mô tả chi tiết bài 1  ',
+        content,
         order: 0,
       });
 
       expect(lesson._id).toBeInstanceOf(Types.ObjectId);
       expect(lesson.sectionId.toString()).toBe(sectionId.toString());
       expect(lesson.title).toBe('Bài 1: Giới thiệu khóa học');
-      expect(lesson.description).toBe('Mô tả chi tiết bài 1');
+      expect(lesson.content.type).toBe(LessonContentTypeEnum.DOCUMENT);
       expect(lesson.order).toBe(0);
       expect(lesson.deletedAt).toBeNull();
       expect(lesson.createdById).toBeNull();
@@ -48,15 +50,31 @@ describe('LessonSchema & MongoDB Indexes (Integration / Unit Test)', () => {
       expect(lesson.updatedAt).toBeInstanceOf(Date);
     });
 
-    it('should assign default null to description if omitted', async () => {
+    it('does not recreate the retired description field', async () => {
       const sectionId = new Types.ObjectId();
       const lesson = await LessonModel.create({
         sectionId,
         title: 'Bài 2: Cài đặt công cụ',
         order: 1,
+        content,
       });
 
-      expect(lesson.description).toBeNull();
+      expect(lesson.toObject()).not.toHaveProperty('description');
+      expect(LessonSchema.path('description')).toBeUndefined();
+    });
+
+    it.each([undefined, null, {}, { type: 'video', url: '' }])('rejects creating a lesson without valid media: %j', async (invalidContent) => {
+      await expect(new LessonModel({
+        sectionId: new Types.ObjectId(), title: 'Thiếu nội dung', order: 0, content: invalidContent,
+      }).validate()).rejects.toThrow();
+    });
+
+    it('can still read legacy lessons without media', () => {
+      const legacy = LessonModel.hydrate({
+        _id: new Types.ObjectId(), sectionId: new Types.ObjectId(), title: 'Bài cũ', order: 0, content: null,
+      });
+      expect(legacy.title).toBe('Bài cũ');
+      expect(legacy.content).toBeNull();
     });
 
     it('should reject when required fields (title, sectionId, order) are missing', async () => {

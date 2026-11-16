@@ -3,7 +3,7 @@
 import React from 'react';
 import { Icon } from '@/components/ui/icon';
 
-export type CourseDetailTabId = 'curriculum' | 'mindmap' | 'reviews' | 'instructor';
+export type CourseDetailTabId = 'info' | 'curriculum' | 'mindmap' | 'reviews' | 'instructor';
 
 interface CourseDetailTabsProps {
   activeTab: CourseDetailTabId;
@@ -23,6 +23,7 @@ export function CourseDetailTabs({
   reviewCount = 0,
 }: CourseDetailTabsProps): React.JSX.Element {
   const tabs: ITabItem[] = [
+    { id: 'info', label: 'Thông tin môn học', icon: 'lucide:info' },
     { id: 'curriculum', label: 'Nội dung', icon: 'lucide:book-open' },
     { id: 'mindmap', label: 'Mindmap tổng quan', icon: 'lucide:network' },
     { id: 'reviews', label: `Đánh giá (${reviewCount})`, icon: 'lucide:star' },
@@ -41,6 +42,7 @@ export function CourseDetailTabs({
           return (
             <button
               key={tab.id}
+              type="button"
               role="tab"
               id={`tab-${tab.id}`}
               aria-selected={isActive}
@@ -71,4 +73,3 @@ export function CourseDetailTabs({
     </div>
   );
 }
-

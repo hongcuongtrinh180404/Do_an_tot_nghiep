@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { CourseStatusEnum, type ICourse } from 'share-lib';
+import {
+  extractPlainTextFromHtml,
+  formatCourseDescription,
+} from '../utils/format-course-description.util';
 
 /**
  * Pure functions matching the CourseCard logic for verification
@@ -316,6 +320,67 @@ describe('Instructor Course Card Redesign - Logic & Formatting', () => {
       expect(actions.menuActions.map((m) => m.label)).toEqual(['Xem thử', 'Ngưng bán', 'Rút duyệt', 'Xóa']);
       expect(actions.canDelete).toBe(false);
       expect(actions.deleteDisabledReason).toContain('đang chờ duyệt');
+    });
+  });
+
+  describe('Course Description HTML Sanitization and Snippet Formatting', () => {
+    it('strips rich HTML tags cleanly without merging adjacent words', () => {
+      const html = '<h2>Nhập môn Python</h2><p>Khóa học demo cấp độ cơ bản thuộc danh mục Công nghệ thông tin.</p>';
+      expect(extractPlainTextFromHtml(html)).toBe(
+        'Nhập môn Python Khóa học demo cấp độ cơ bản thuộc danh mục Công nghệ thông tin.',
+      );
+    });
+
+    it('decodes common HTML entities and normalizes whitespace', () => {
+      const html = '<p>HTML &amp; CSS &nbsp;&lt;hướng dẫn&gt; &#39;Mindly&#39; &quot;AI&quot;</p>';
+      expect(extractPlainTextFromHtml(html)).toBe('HTML & CSS <hướng dẫn> \'Mindly\' "AI"');
+    });
+
+    it('returns empty string for undefined, null, or empty HTML', () => {
+      expect(extractPlainTextFromHtml(undefined)).toBe('');
+      expect(extractPlainTextFromHtml(null)).toBe('');
+      expect(extractPlainTextFromHtml('')).toBe('');
+      expect(extractPlainTextFromHtml('<p><br></p>')).toBe('');
+      expect(extractPlainTextFromHtml('<p>&nbsp;</p>')).toBe('');
+    });
+
+    it('omits redundant leading course title when present in heading', () => {
+      const title = 'Nhập môn Python';
+      const html = '<h2>Nhập môn Python</h2><p>Khóa học demo cấp độ cơ bản thuộc danh mục Công nghệ thông tin, gồm 1 chương và 2 bài video:...</p>';
+      expect(formatCourseDescription(html, title)).toBe(
+        'Khóa học demo cấp độ cơ bản thuộc danh mục Công nghệ thông tin, gồm 1 chương và 2 bài video:...',
+      );
+    });
+
+    it('omits redundant leading course title with punctuation separators', () => {
+      const title = 'Xây dựng Design System với Figma';
+      const html = '<h2>Xây dựng Design System với Figma</h2><p>Khóa học demo cấp độ nâng cao thuộc danh mục Thiết kế đồ họa, gồm 1 chương v...</p>';
+      expect(formatCourseDescription(html, title)).toBe(
+        'Khóa học demo cấp độ nâng cao thuộc danh mục Thiết kế đồ họa, gồm 1 chương v...',
+      );
+    });
+
+    it('returns clean description as-is when it does not start with course title', () => {
+      const title = 'Khóa học React';
+      const html = '<p>Học xây dựng ứng dụng hiện đại với React 19 và Next.js 15.</p>';
+      expect(formatCourseDescription(html, title)).toBe(
+        'Học xây dựng ứng dụng hiện đại với React 19 và Next.js 15.',
+      );
+    });
+
+    it('falls back to default placeholder when description is empty or only empty tags', () => {
+      expect(formatCourseDescription(undefined, 'Khóa học')).toBe(
+        'Chưa có tóm tắt nội dung bài giảng cho khóa học này.',
+      );
+      expect(formatCourseDescription('<p><br></p>', 'Khóa học')).toBe(
+        'Chưa có tóm tắt nội dung bài giảng cho khóa học này.',
+      );
+    });
+
+    it('retains title text if description contains only the title and no remaining body', () => {
+      const title = 'Nhập môn Python';
+      const html = '<h2>Nhập môn Python</h2>';
+      expect(formatCourseDescription(html, title)).toBe('Nhập môn Python');
     });
   });
 });

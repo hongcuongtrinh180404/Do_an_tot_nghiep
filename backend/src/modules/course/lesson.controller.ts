@@ -32,19 +32,8 @@ export class LessonController {
   ): Promise<ApiResponse<ILesson>> {
     const lesson = await this.lessonService.createLesson(sectionId, {
       title: dto.title,
-      description: dto.description,
       order: dto.order,
-      content: dto.content
-        ? {
-            type: dto.content.type,
-            url: dto.content.url,
-            publicId: dto.content.publicId,
-            fileName: dto.content.fileName,
-            fileSize: dto.content.fileSize,
-            mimeType: dto.content.mimeType,
-            duration: dto.content.duration,
-          }
-        : null,
+      content: dto.content,
       isPreview: dto.isPreview ?? false,
       userId,
     });

@@ -1,6 +1,5 @@
 import type { Node, Edge } from '@xyflow/react';
 import type { ISection, ILesson } from 'share-lib';
-import { deserializeKeyPoints } from './lesson-key-points.util';
 
 export interface CourseMindmapRawData {
   course: {
@@ -38,28 +37,17 @@ export interface LessonNodeData {
   duration?: number;
   isPreview?: boolean;
   contentType?: string;
-  keyPointCount: number;
-  isCollapsed: boolean;
-  onToggleCollapse?: (lessonId: string) => void;
-  [key: string]: unknown;
-}
-
-export interface KeypointNodeData {
-  keypointId: string;
-  text: string;
-  index: number;
   [key: string]: unknown;
 }
 
 /**
- * Chuyển đổi dữ liệu Khóa học, Chương mục, Bài học và Ý chính thành Nodes & Edges của React Flow
+ * Chuyển đổi Khóa học, Chương mục và Bài học thành Nodes & Edges của React Flow.
  */
 export function convertCurriculumToFlowElements(
   data: CourseMindmapRawData,
   collapsedIds: Set<string>,
   callbacks?: {
     onToggleSectionCollapse?: (sectionId: string) => void;
-    onToggleLessonCollapse?: (lessonId: string) => void;
   },
 ): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = [];
@@ -123,8 +111,6 @@ export function convertCurriculumToFlowElements(
     // 3. Lessons (Level 2)
     lessons.forEach((lesson, lIdx) => {
       const lesNodeId = `les-${lesson.id}`;
-      const isLesCollapsed = collapsedIds.has(lesson.id);
-      const keyPoints = deserializeKeyPoints(lesson.description);
 
       nodes.push({
         id: lesNodeId,
@@ -138,9 +124,6 @@ export function convertCurriculumToFlowElements(
           duration: lesson.content?.duration,
           isPreview: lesson.isPreview,
           contentType: lesson.content?.type,
-          keyPointCount: keyPoints.length,
-          isCollapsed: isLesCollapsed,
-          onToggleCollapse: callbacks?.onToggleLessonCollapse,
         } satisfies LessonNodeData,
       });
 
@@ -151,32 +134,6 @@ export function convertCurriculumToFlowElements(
         type: 'smoothBezier',
       });
 
-      // Nếu Lesson bị đóng (collapsed), không render các keypoint bên dưới
-      if (isLesCollapsed) return;
-
-      // 4. Keypoints (Level 3)
-      keyPoints.forEach((kp, kpIdx) => {
-        // ID cố định và duy nhất theo bài học và index để tránh đổi ID ngẫu nhiên giữa các lần render
-        const kpNodeId = `kp-${lesson.id}-${kpIdx}`;
-
-        nodes.push({
-          id: kpNodeId,
-          type: 'keypoint',
-          position: { x: 0, y: 0 },
-          data: {
-            keypointId: kp.id,
-            text: kp.text,
-            index: kpIdx,
-          } satisfies KeypointNodeData,
-        });
-
-        edges.push({
-          id: `edge-${lesNodeId}-${kpNodeId}`,
-          source: lesNodeId,
-          target: kpNodeId,
-          type: 'smoothBezier',
-        });
-      });
     });
   });
 
@@ -185,7 +142,7 @@ export function convertCurriculumToFlowElements(
 
 /**
  * Tạo danh sách thu gọn mặc định: Thu gọn toàn bộ Chương mục (ẩn bài học)
- * và thu gọn toàn bộ Bài học (ẩn ý chính) để khởi tạo canvas ở mức 2 cấp độ đầu tiên.
+ * để khởi tạo canvas ở mức 2 cấp độ đầu tiên.
  */
 export function generateDefaultCollapsedIds(rawData: CourseMindmapRawData): Set<string> {
   const collapsed = new Set<string>();
@@ -193,13 +150,6 @@ export function generateDefaultCollapsedIds(rawData: CourseMindmapRawData): Set<
   // 1. Thu gọn tất cả các Section
   rawData.sections.forEach((sec) => {
     collapsed.add(sec.id);
-  });
-
-  // 2. Thu gọn trước tất cả các Lesson để khi mở Section thì Lesson không tự động bung Keypoints
-  Object.values(rawData.lessonsBySection).forEach((lessons) => {
-    lessons.forEach((lesson) => {
-      collapsed.add(lesson.id);
-    });
   });
 
   return collapsed;

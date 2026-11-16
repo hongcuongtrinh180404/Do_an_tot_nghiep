@@ -26,8 +26,8 @@ export interface ILesson {
   id: string;
   sectionId: string;
   title: string;
-  description?: string | null;
   order: number;
+  /** Legacy lessons may have no content; creating a lesson always requires it. */
   content?: ILessonContent | null;
   materials?: ILessonMaterial[];
   isPreview: boolean;
@@ -41,8 +41,15 @@ export interface ILesson {
 
 export interface ICreateLessonPayload {
   title: string;
-  description?: string | null;
   order: number;
+  content: ILessonContent;
+  isPreview?: boolean;
+}
+
+export interface IUpdateLessonPayload {
+  title?: string;
+  order?: number;
   content?: ILessonContent | null;
   isPreview?: boolean;
 }
+

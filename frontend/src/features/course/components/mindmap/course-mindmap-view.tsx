@@ -41,7 +41,6 @@ import { startLayoutAnimation } from '../../utils/mindmap-animation.util';
 import { CourseRootNode } from './nodes/course-root-node';
 import { SectionNode } from './nodes/section-node';
 import { LessonNode } from './nodes/lesson-node';
-import { KeypointNode } from './nodes/keypoint-node';
 import { SmoothBezierEdge } from './edges/smooth-bezier-edge';
 import { CourseMindmapToolbar } from './course-mindmap-toolbar';
 import {
@@ -53,7 +52,6 @@ const nodeTypes: NodeTypes = {
   courseRoot: CourseRootNode,
   section: SectionNode,
   lesson: LessonNode,
-  keypoint: KeypointNode,
 };
 
 const edgeTypes: EdgeTypes = {
@@ -217,20 +215,6 @@ function InnerCanvas({
             next.add(sectionId);
           }
           // Layout được cache → không tính lại nếu toggle lại cùng set
-          const layouted = getLayoutedCached(next);
-          animateToLayout(layouted.nodes, layouted.edges);
-          return next;
-        });
-        setIsModified(true);
-      },
-      onToggleLessonCollapse: (lessonId: string) => {
-        setCollapsedIds((prev) => {
-          const next = new Set(prev);
-          if (next.has(lessonId)) {
-            next.delete(lessonId);
-          } else {
-            next.add(lessonId);
-          }
           const layouted = getLayoutedCached(next);
           animateToLayout(layouted.nodes, layouted.edges);
           return next;

@@ -18,6 +18,7 @@ import {
   type IUpdateSectionPayload,
   type IReorderSectionsPayload,
   type ICreateLessonPayload,
+  type IUpdateLessonPayload,
   type ISection,
   type ILesson,
   type ILessonTranscript,
@@ -165,6 +166,13 @@ export const courseApi = {
   async deleteLessonMaterial(lessonId: string, materialId: string): Promise<ILesson> {
     const res = await apiClient.delete<IApiResponse<ILesson>>(
       `/lessons/${lessonId}/materials/${materialId}`,
+    );
+    return res.data.data;
+  },
+  async updateLesson(lessonId: string, payload: IUpdateLessonPayload): Promise<ILesson> {
+    const res = await apiClient.patch<IApiResponse<ILesson>>(
+      `/lessons/${lessonId}`,
+      payload,
     );
     return res.data.data;
   },
@@ -862,6 +870,105 @@ export function useDeleteLessonMutation(sectionId: string, courseId?: string) {
     },
   });
 }
+
+export function useUpdateLessonMutation(courseId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    meta: { approvalCourseId: courseId },
+    mutationFn: ({
+      lessonId,
+      payload,
+    }: {
+      lessonId: string;
+      payload: IUpdateLessonPayload;
+    }) => courseApi.updateLesson(lessonId, payload),
+    onSuccess: (updatedLesson) => {
+      // 1. Cập nhật tức thì dữ liệu trong query cache: chi tiết bài học
+      queryClient.setQueryData<ILesson>(
+        courseKeys.lessonDetail(updatedLesson.id),
+        updatedLesson,
+      );
+
+      // 2. Cập nhật tức thì danh sách bài học của section
+      if (updatedLesson.sectionId) {
+        queryClient.setQueryData<ILesson[]>(
+          courseKeys.lessons(updatedLesson.sectionId),
+          (old) => {
+            if (!old) return [updatedLesson];
+            return old.map((l) => (l.id === updatedLesson.id ? updatedLesson : l));
+          },
+        );
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.lessons(updatedLesson.sectionId),
+        });
+      }
+
+      // 3. Invalidate query chi tiết và sections để đảm bảo dữ liệu đồng bộ
+      void queryClient.invalidateQueries({
+        queryKey: courseKeys.lessonDetail(updatedLesson.id),
+      });
+      if (courseId) {
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.sections(courseId),
+        });
+      }
+    },
+    onError: (error: unknown) => {
+      const axiosError = error as {
+        response?: {
+          status?: number;
+          data?: {
+            message?: string | string[];
+            error?: string;
+            statusCode?: number;
+          };
+        };
+      };
+
+      const status = axiosError.response?.status;
+      const responseData = axiosError.response?.data;
+      const rawMessage = responseData?.message;
+      const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage;
+
+      if (status === 401) {
+        toast.error('Phiên làm việc đã hết hạn', {
+          description: 'Vui lòng đăng nhập lại để tiếp tục.',
+        });
+        return;
+      }
+
+      if (status === 403) {
+        toast.error('Không có quyền thực hiện', {
+          description:
+            message || 'Chỉ giảng viên sở hữu khóa học mới có quyền chỉnh sửa bài học.',
+        });
+        return;
+      }
+
+      if (status === 404) {
+        toast.error('Bài học không tồn tại', {
+          description: message || 'Bài học này có thể đã bị xóa trước đó.',
+        });
+        return;
+      }
+
+      if (status === 409) {
+        toast.error('Không thể chỉnh sửa bài học', {
+          description:
+            message || 'Khóa học đang trong quá trình chờ phê duyệt, không thể chỉnh sửa.',
+        });
+        return;
+      }
+
+      toast.error('Lỗi cập nhật bài học', {
+        description:
+          message || 'Không thể kết nối đến máy chủ hoặc đã xảy ra lỗi. Vui lòng thử lại sau.',
+      });
+    },
+  });
+}
+
 
 export function useReorderSectionsMutation(courseId: string) {
   const queryClient = useQueryClient();

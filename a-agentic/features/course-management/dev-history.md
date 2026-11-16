@@ -13,6 +13,82 @@
 
 ## 2. Technical Notes & Gotchas
 
+### [2026-11-16] - Milestone 59: Nút Chuyển Đổi Trạng Thái Bài Học (Có Phí ↔ Miễn Phí Học Thử) Trực Tiếp Trên Inspector Panel (Toggle Lesson Preview Status)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trên giao diện Chi tiết khóa học ở chế độ biên tập (`/courses/:id?mode=edit`), khi giảng viên hoặc quản trị viên chọn một bài học (bài giảng video hoặc tài liệu đọc) trong cây danh mục, cột thông tin ngữ cảnh bên phải (`ContextualInspectorPanel`) hiển thị chi tiết bài học cùng khung đen xem trước (Media Banner).
+  - Khung này trước đây chỉ hiển thị trạng thái dạng tĩnh: `🔒 Cần mua khóa học` (`isPreview === false`) hoặc `🔓 Cho phép học thử` (`isPreview === true`).
+  - Giảng viên không có cách nào chuyển đổi nhanh trạng thái này từ có phí sang miễn phí học thử hoặc ngược lại trực tiếp từ panel, mà phải cấu hình qua các bước phức tạp.
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Shared Library (`share-lib`)**:
+     - Bổ sung interface `IUpdateLessonPayload` vào `lesson.interface.ts` gồm các trường `title`, `order`, `content`, `isPreview`. Biên dịch lại `share-lib` qua `tsc`.
+  2. **Backend API (`backend`)**:
+     - **DTO (`UpdateLessonDto`)**: Triển khai DTO với validation chặt chẽ bằng `class-validator` và `class-transformer` (`@IsBoolean()`, `@IsOptional()`, `@Transform` cắt tỉa khoảng trắng cho chuỗi).
+     - **Service (`LessonService.updateLesson`)**:
+       - Kiểm tra bài học tồn tại và chưa bị soft-deleted.
+       - Kiểm tra quyền sở hữu IDOR: Giảng viên chỉ sửa được bài học trong khóa học của mình; Admin sở hữu toàn quyền.
+       - Kiểm tra trạng thái khóa học: Chặn cập nhật khi khóa học đang ở trạng thái `PENDING_APPROVAL` (`ConflictException`).
+       - Cập nhật trường `isPreview` và `updatedById` thông qua abstract domain repository `lessonRepository.update(id, payload, session)`.
+     - **Controller (`LessonsController.updateLesson`)**: Thêm route `@Patch(':id')` chuẩn RESTful, bảo vệ bằng `@Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)` và `@UseGuards(LessonManagementGuard)`.
+     - **Unit Testing**: Bổ sung bộ test cases toàn diện cho `LessonsController.updateLesson` và `LessonService.updateLesson`. Toàn bộ 60/60 tests passed (100%).
+  3. **Frontend API & UI Integration (`frontend`)**:
+     - **API Client & React Query (`course.api.ts`)**:
+       - Thêm `courseApi.updateLesson(lessonId, payload)`.
+       - Xây dựng mutation hook `useUpdateLessonMutation(courseId)` với cơ chế invalidate và cập nhật cache thông minh: cập nhật tức thì `lessonDetail`, danh sách bài học `lessons(sectionId)` và danh sách chương `sections(courseId)`.
+     - **Giao diện Inspector Panel (`ContextualInspectorPanel.tsx`)**:
+       - Trong component `LessonInspectorView`, tích hợp hàm `handleTogglePreview` với thông báo toast (sonner) khi thành công hoặc thất bại.
+       - Thêm nút bấm trực quan chuẩn UX ngay bên trong khung Media Banner (chỉ hiển thị khi `!readOnly`):
+         - Khi bài học đang có phí (`isPreview = false`): Hiển thị nút viền màu xanh lục (emerald), icon `lucide:lock-open`, nhãn `Chuyển sang học thử miễn phí`.
+         - Khi bài học đang miễn phí (`isPreview = true`): Hiển thị nút viền màu hổ phách (amber), icon `lucide:lock`, nhãn `Chuyển sang có phí (Cần mua)`.
+         - Hiển thị spinner xoay (`lucide:loader-2 animate-spin`) và vô hiệu hóa nút trong khi mutation đang xử lý để chống double click.
+         - Khi chuyển đổi thành công, huy hiệu `Học thử` trên cây danh mục bài học bên trái và các huy hiệu tài liệu con tự động cập nhật ngay lập tức mà không cần F5 tải lại trang.
+  4. **Kiểm thử & Xác thực**:
+     - Toàn bộ unit tests backend cho Lesson Service và Controller đạt 60/60 PASS.
+     - Kiểm tra kiểu dữ liệu TypeScript (`tsc --noEmit`) đạt 0 lỗi trên toàn bộ dự án (`share-lib`, `backend`, `frontend`).
+     - Bản build NestJS (`nest build`) thành công 100%.
+
+### [2026-11-16] - Milestone 58: Khắc Phục Lỗi Hiển Thị Thẻ HTML Trong Thẻ Khóa Học Giảng Viên (Sanitize HTML & Smart Description Excerpt)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trên giao diện Quản lý khóa học của giảng viên (`/courses`), các thẻ khóa học (`CourseCard`) bị lỗi hiển thị nguyên văn chuỗi HTML thô (ví dụ: `<h2>Nhập môn Python</h2><p>Khóa học demo cấp độ cơ bản...</p>`) thay vì văn bản thuần đã định dạng.
+  - Nguyên nhân cốt lõi: Trường `course.description` lưu trữ HTML phong phú sinh ra từ trình soạn thảo rich-text hoặc dữ liệu seed demo catalog. Trong component `CourseCard` (`frontend/src/features/course/components/course-card.tsx`), dữ liệu được render trực tiếp `{course.description}` vào phần tử `<p className="line-clamp-1 ...">`, khiến React escape ký tự và trình duyệt hiển thị các thẻ HTML `<h2>`, `<p>` thành văn bản thô.
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Tách mô-đun tiện ích an toàn SSR/Client (`frontend/src/features/course/utils/format-course-description.util.ts`)**:
+     - `extractPlainTextFromHtml(html)`: Chèn khoảng trắng ngăn cách giữa các thẻ khối (`</p>`, `</h2>`, `</li>`, `<br/>`) để từ ngữ không bị dính chùm vào nhau khi bóc tách; loại bỏ toàn bộ thẻ HTML; giải mã đầy đủ các HTML entities thông dụng (`&nbsp;`, `&amp;`, `&quot;`, `&lt;`, `&gt;`, `&#39;`); chuẩn hóa khoảng trắng dư thừa.
+     - `formatCourseDescription(description, courseTitle)`: Tự động loại bỏ tiền tố tiêu đề trùng lặp khi phần mô tả bắt đầu bằng tiêu đề khóa học (từ `<h2>{title}</h2>`), giúp hiển thị ngay nội dung tóm tắt cốt lõi mà không bị lặp lại tên khóa học. Nếu mô tả trống hoặc chỉ chứa thẻ rỗng, fallback về `"Chưa có tóm tắt nội dung bài giảng cho khóa học này."`.
+  2. **Cập nhật `CourseCard`**:
+     - Áp dụng `formatCourseDescription(course.description, course.title)` cho đoạn văn bản mô tả tóm tắt.
+     - Thêm thuộc tính `title={courseSummary}` lên thẻ `<p>` để người dùng có thể rê chuột xem toàn bộ nội dung tóm tắt không bị cắt bởi `line-clamp-1`.
+  3. **Kiểm thử**:
+     - Bổ sung 8 test cases chuyên sâu trong `frontend/src/features/course/tests/course-management-card.spec.ts` kiểm thử toàn bộ các kịch bản HTML: bóc tách không dính chữ, giải mã entities, loại bỏ tiêu đề trùng lặp, giữ lại nội dung khi không có tiêu đề, fallback thẻ rỗng. Toàn bộ 28/28 tests passed (100%).
+
+### [2026-11-15] - Milestone 57: Chỉ Báo Trực Quan & Danh Sách Mở Rộng Tài Liệu Đính Kèm Bài Học Video (Collapsible Materials Indicator)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trên giao diện Chi tiết khóa học chế độ biên tập (`/courses/:id?mode=edit` - `CourseSectionsList`), danh sách bài giảng trong mỗi chương học trước đây hiển thị tất cả bài học video dưới dạng một dòng phẳng (flat line) đồng nhất.
+  - Giảng viên không có cách nào nhận biết ngay bài giảng video nào đã có tài liệu đính kèm và bài nào còn thiếu tài liệu mà không phải nhấp chuột vào từng bài để mở Contextual Inspector Panel bên phải.
+  - Khi muốn xem hoặc quản lý các tài liệu con, giảng viên phải chuyển qua lại giữa cây giáo trình và panel bên phải.
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Nhận diện trực quan 2 dấu hiệu & Nguyên lý căn lề Outer Margin Alignment**:
+     - **Cột 1 (Ngoài cùng bên trái - Margin 24px: `w-6 h-6 shrink-0`)**: Dành riêng cho mũi tên `>` hoặc `v` (khi mở rộng). Với bài học không có tài liệu (hoặc bài đọc tài liệu), vị trí này trở thành **khoảng đệm tàng hình (`size-6 block`)**, hoàn toàn không dồn hay đẩy các biểu tượng bên cạnh.
+     - **Cột 2 (Biểu tượng - Icons Column: `size-6 rounded-lg`)**: Toàn bộ icon máy quay (📹) và icon tài liệu (📄) được căn thẳng tắp theo một đường gióng dọc 100%.
+     - **Cột 3 (Tên bài học & Badge)**: Tiêu đề bài học căn lề thẳng hàng, với thẻ badge số lượng (`📎 X tài liệu`, nền xanh nhạt `bg-sky-500/10 border-sky-500/20 text-sky-700 dark:text-sky-400`) được đính kèm inline ngay phía sau tên bài.
+  2. **Danh sách tài liệu con mở rộng (Collapsible Materials Sub-list & Indentation)**:
+     - Khi nhấn vào mũi tên `>`, mũi tên xoay 90° thành `v`. Biểu tượng máy quay 📹 và tiêu đề bài học giữ nguyên vị trí cố định 100%, không bị dịch chuyển.
+     - Danh sách tài liệu con bên dưới được **thụt lề rõ rệt (`pl-12 sm:pl-14`)** kết hợp **đường nét đứt đậm rõ nét (Dashed Tree Guide Line: `border-l-2 border-t-2 border-dashed border-slate-400 dark:border-slate-500`) nối thẳng từ tâm mũi tên `v` của dòng cha**, kèm nhánh nét đứt ngang rẽ sang icon tệp tương ứng. Đường nét đứt dọc tự động dừng ở giữa dòng của file cuối cùng (`isLastItem ? 'h-1/2' : 'h-full'`).
+     - Tinh chỉnh lề ngoài cùng bên trái (`pl-4 sm:pl-5` thay vì `pl-8 sm:pl-10`) và chiều rộng Cột 1 (`w-5 h-5` thay vì `w-6 h-6`) giúp danh sách bài học gọn gàng, vừa vặn và thẩm mỹ hơn.
+     - Tương tác độc lập: Click vào mũi tên mở/đóng chỉ toggle danh sách tài liệu con (`e.stopPropagation()`), không làm mất bài học đang được chọn trên Inspector Panel.
+     - Mỗi tài liệu con hiển thị: Icon phân loại định dạng tệp (PDF, DOCX, XLSX, PPTX, ZIP/RAR, FILE chung) tự động đổi màu theo chuẩn, tên tệp được giải mã UTF-8 (`decodeUtf8FileName`), dung lượng tệp chuẩn hóa KB/MB (`formatFileSize`), link Mở/Tải về (`<a download>`), và nút Thùng rác xóa file.
+  3. **Tích hợp Xóa tài liệu trực tiếp từ Cây giáo trình**:
+     - Bổ sung `DeleteLessonMaterialDialog` và state `deleteMaterialTarget` vào `CourseSectionsListContent`.
+     - Khi xóa tài liệu từ cây giáo trình, dialog xác nhận an toàn mở ra. Sau khi xóa thành công, React Query tự động invalidate cache `sections` và `lessons`, cập nhật ngay lập tức badge số lượng và tự động ẩn mũi tên nếu bài học không còn tài liệu nào.
+  4. **Tách mô-đun tiện ích dùng chung (`lesson-material.util.ts`)**:
+     - Chuẩn hóa hàm `formatFileSize`, `getMaterialFileConfig`, và `shouldShowMaterialIndicator` tại `frontend/src/features/course/utils/lesson-material.util.ts`, loại bỏ mã trùng lặp giữa `ContextualInspectorPanel` và `CourseSectionsList`.
+  5. **Kiểm thử**:
+     - Viết bộ 11 unit test trong `frontend/src/features/course/tests/lesson-material-indicator.spec.ts` kiểm thử toàn diện các điều kiện hiển thị chỉ báo, định dạng dung lượng và ánh xạ loại file (100% PASS).
+     - Bộ test hồi quy `smart-header-scroll.spec.ts` pass toàn bộ (38/38 tests).
+     - TypeScript compiler (`tsc --noEmit`) đạt 0 lỗi.
+
 ### [2026-11-15] - Milestone 56: Tinh Gọn Thẻ Khóa Học Giảng Viên (CourseCard) - Loại Bỏ Footer Ngăn Cách & Tích Hợp Thông Tin Thống Nhất
 
 - **Bối cảnh & Vấn đề (Problem Statement)**:

@@ -10,6 +10,8 @@ import {
   IsNumber,
   IsBoolean,
   ValidateNested,
+  IsDefined,
+  IsObject,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { LessonContentTypeEnum, decodeUtf8FileName } from 'share-lib';
@@ -64,24 +66,17 @@ export class CreateLessonDto {
   @MaxLength(200, { message: 'Tiêu đề bài học không được vượt quá 200 ký tự' })
   title: string;
 
-  @IsOptional()
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim() || undefined : value,
-  )
-  @IsString({ message: 'Mô tả bài học phải là chuỗi ký tự' })
-  @MaxLength(1000, { message: 'Mô tả bài học không được vượt quá 1000 ký tự' })
-  description?: string;
-
   @IsNotEmpty({ message: 'Thứ tự bài học không được để trống' })
   @Type(() => Number)
   @IsInt({ message: 'Thứ tự bài học phải là số nguyên' })
   @Min(0, { message: 'Thứ tự bài học phải lớn hơn hoặc bằng 0' })
   order: number;
 
-  @IsOptional()
+  @IsDefined({ message: 'Vui lòng tải lên video hoặc tài liệu cho bài học' })
+  @IsObject({ message: 'Nội dung bài học phải là video hoặc tài liệu hợp lệ' })
   @ValidateNested()
   @Type(() => LessonContentDto)
-  content?: LessonContentDto | null;
+  content: LessonContentDto;
 
   @IsOptional()
   @IsBoolean({ message: 'isPreview phải là giá trị boolean' })

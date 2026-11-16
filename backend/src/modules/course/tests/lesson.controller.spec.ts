@@ -7,7 +7,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ILesson, RoleEnum } from 'share-lib';
+import { ILesson, LessonContentTypeEnum, RoleEnum } from 'share-lib';
 import { LessonController } from '../lesson.controller.js';
 import { LessonService } from '../services/lesson.service.js';
 import { CreateLessonDto } from '../dto/create-lesson.dto.js';
@@ -23,12 +23,12 @@ describe('LessonController', () => {
 
   const sampleSectionId = '607f1f77bcf86cd799439022';
   const sampleUserId = 'user_instructor_123';
+  const content = { type: LessonContentTypeEnum.DOCUMENT, url: 'http://localhost:9000/media/slides.pdf' };
 
   const sampleLesson: ILesson = {
     id: 'lesson_1',
     sectionId: sampleSectionId,
     title: 'Bài học 1: Giới thiệu khóa học',
-    description: 'Nội dung chi tiết bài học',
     order: 0,
     content: null,
     isPreview: false,
@@ -53,8 +53,8 @@ describe('LessonController', () => {
       // Arrange
       const dto: CreateLessonDto = {
         title: 'Bài học 1: Giới thiệu khóa học',
-        description: 'Nội dung chi tiết bài học',
         order: 0,
+        content,
       };
 
       mockLessonService.createLesson.mockResolvedValue(sampleLesson);
@@ -65,9 +65,8 @@ describe('LessonController', () => {
       // Assert
       expect(mockLessonService.createLesson).toHaveBeenCalledWith(sampleSectionId, {
         title: dto.title,
-        description: dto.description,
         order: dto.order,
-        content: null,
+        content,
         isPreview: false,
         userId: sampleUserId,
       });
@@ -84,6 +83,7 @@ describe('LessonController', () => {
       const dto: CreateLessonDto = {
         title: 'Bài học 2: Cài đặt công cụ',
         order: 1,
+        content,
       };
 
       const customLesson: ILesson = {
@@ -91,7 +91,6 @@ describe('LessonController', () => {
         id: 'lesson_2',
         sectionId: customSectionId,
         title: dto.title,
-        description: null,
         order: 1,
         content: null,
         isPreview: false,
@@ -107,9 +106,8 @@ describe('LessonController', () => {
       // Assert
       expect(mockLessonService.createLesson).toHaveBeenCalledWith(customSectionId, {
         title: dto.title,
-        description: undefined,
         order: dto.order,
-        content: null,
+        content,
         isPreview: false,
         userId: customUserId,
       });
@@ -121,6 +119,7 @@ describe('LessonController', () => {
       const dto: CreateLessonDto = {
         title: 'Bài học',
         order: 0,
+        content,
       };
 
       mockLessonService.createLesson.mockRejectedValue(
@@ -141,6 +140,7 @@ describe('LessonController', () => {
       const dto: CreateLessonDto = {
         title: 'Bài học',
         order: -1,
+        content,
       };
 
       mockLessonService.createLesson.mockRejectedValue(
@@ -200,8 +200,8 @@ describe('LessonController', () => {
     it('9. should validate and transform valid payload successfully', async () => {
       const payload = {
         title: '   Bài học hợp lệ   ',
-        description: 'Mô tả bài học',
         order: '2',
+        content,
       };
 
       const transformed = await validationPipe.transform(payload, {

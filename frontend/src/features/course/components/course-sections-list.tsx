@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import type { ISection, ILesson } from 'share-lib';
+import { decodeUtf8FileName, type ISection, type ILesson, type ILessonMaterial } from 'share-lib';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import {
@@ -16,6 +16,7 @@ import { CreateSectionDialog } from './create-section-dialog';
 import { EditSectionDialog } from './edit-section-dialog';
 import { DeleteSectionDialog } from './delete-section-dialog';
 import { DeleteLessonDialog } from './delete-lesson-dialog';
+import { DeleteLessonMaterialDialog } from './delete-lesson-material-dialog';
 import { SectionLessonCreateForm } from './section-lesson-create-form';
 import { UploadLessonDocDialog } from './upload-lesson-doc-dialog';
 import { CourseOverviewMetrics } from './course-overview-metrics';
@@ -29,6 +30,11 @@ import {
 } from './course-view-mode-switcher';
 import { CourseMindmapView } from './mindmap/course-mindmap-view';
 import { formatVideoDuration, getVideoLessonStats } from '../utils/course-lesson-stats.util';
+import {
+  formatFileSize,
+  getMaterialFileConfig,
+  shouldShowMaterialIndicator,
+} from '../utils/lesson-material.util';
 import type { CourseCurriculumHandle } from '../hooks/use-course-approval-navigation';
 
 interface CourseSectionsListProps {
@@ -48,6 +54,7 @@ interface ChapterTreeItemProps {
   onSelectLesson: (lesson: ILesson) => void;
   onAttachDocument?: (lesson: ILesson) => void;
   onDeleteLesson?: (lesson: ILesson) => void;
+  onDeleteMaterial?: (lessonId: string, material: ILessonMaterial) => void;
   onEditChapter: () => void;
   onDeleteChapter?: () => void;
   isDeletingChapter?: boolean;
@@ -74,6 +81,7 @@ function ChapterTreeItem({
   onSelectLesson,
   onAttachDocument,
   onDeleteLesson,
+  onDeleteMaterial,
   onEditChapter,
   onDeleteChapter,
   isDeletingChapter = false,
@@ -88,10 +96,19 @@ function ChapterTreeItem({
   onDragEnd,
 }: ChapterTreeItemProps): React.JSX.Element {
   const { data: lessons, isLoading, isError } = useSectionLessonsQuery(section.id);
+  const [expandedLessons, setExpandedLessons] = useState<Record<string, boolean>>({});
   const lessonList = lessons ?? [];
   const videoStats = getVideoLessonStats(lessonList);
   const durationText = formatVideoDuration(videoStats);
   const displayChapterIndex = String(index + 1).padStart(2, '0');
+
+  const toggleLessonExpand = (lessonId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedLessons((prev) => ({
+      ...prev,
+      [lessonId]: !prev[lessonId],
+    }));
+  };
 
   return (
     <div
@@ -106,12 +123,12 @@ function ChapterTreeItem({
       onDrop={readOnly ? undefined : onDrop}
       onDragEnd={onDragEnd}
       className={`rounded-2xl border transition-all shadow-xs overflow-hidden ${isDragging
-          ? 'opacity-40 scale-[0.99] border-dashed border-sky-500/60 shadow-lg'
-          : isDragOver
-            ? 'border-2 border-dashed border-sky-500 ring-2 ring-sky-500/20 bg-sky-500/5'
-            : isChapterSelected
-              ? 'border-sky-500 ring-2 ring-sky-500/15 bg-card'
-              : 'border-border/60 bg-card hover:border-border/80'
+        ? 'opacity-40 scale-[0.99] border-dashed border-sky-500/60 shadow-lg'
+        : isDragOver
+          ? 'border-2 border-dashed border-sky-500 ring-2 ring-sky-500/20 bg-sky-500/5'
+          : isChapterSelected
+            ? 'border-sky-500 ring-2 ring-sky-500/15 bg-card'
+            : 'border-border/60 bg-card hover:border-border/80'
         }`}
     >
       {/* Chapter Header Row */}
@@ -238,85 +255,205 @@ function ChapterTreeItem({
                 ? formatVideoDuration(getVideoLessonStats([lesson]))
                 : 'Tài liệu';
 
-              return (
-                <div
-                  key={lesson.id}
-                  data-approval-lesson={lesson.id}
-                  tabIndex={-1}
-                  role="group"
-                  aria-label={lesson.title}
-                  onClick={() => onSelectLesson(lesson)}
-                  className={`p-3 pl-8 sm:pl-10 flex items-center justify-between cursor-pointer transition-colors text-xs ${isLessonSelected
-                      ? 'bg-sky-500/10 border-l-4 border-sky-600 text-sky-950 dark:text-sky-100 font-semibold'
-                      : 'hover:bg-muted/30 text-foreground'
-                    }`}
-                >
-                  <div className="flex items-center space-x-3 min-w-0 flex-1">
-                    {/* Lesson Type Icon */}
-                    <span
-                      className={`size-6 rounded-lg flex items-center justify-center text-xs shrink-0 ${isVideo
-                          ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
-                          : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        }`}
-                    >
-                      <Icon
-                        icon={isVideo ? 'lucide:video' : 'lucide:file-text'}
-                        className="size-3.5"
-                      />
-                    </span>
+              const materials = lesson.materials ?? [];
+              const hasMaterials = shouldShowMaterialIndicator(isVideo, materials);
+              const isLessonExpanded = Boolean(expandedLessons[lesson.id]);
 
-                    {/* Lesson Title & Badges */}
-                    <div className="truncate flex-1 min-w-0">
-                      <p className="truncate flex items-center gap-2">
-                        <span className="truncate">{lesson.title}</span>
-                        {lesson.isPreview && (
-                          <span className="text-[9px] text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1 rounded shrink-0">
-                            Học thử
-                          </span>
+              return (
+                <div key={lesson.id} className="transition-colors">
+                  <div
+                    data-approval-lesson={lesson.id}
+                    tabIndex={-1}
+                    role="group"
+                    aria-label={lesson.title}
+                    onClick={() => onSelectLesson(lesson)}
+                    className={`p-3 pl-4 sm:pl-5 flex items-center justify-between cursor-pointer transition-colors text-xs ${isLessonSelected
+                        ? 'bg-sky-500/10 border-l-4 border-sky-600 text-sky-950 dark:text-sky-100 font-semibold'
+                        : 'hover:bg-muted/30 text-foreground'
+                      }`}
+                  >
+                    <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                      {/* Cột 1 (Margin 20px): Vùng đệm ngoài cùng gọn gàng dành cho mũi tên > / v hoặc khoảng đệm tàng hình */}
+                      <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                        {hasMaterials ? (
+                          <button
+                            type="button"
+                            onClick={(e) => toggleLessonExpand(lesson.id, e)}
+                            className="size-5 flex items-center justify-center text-muted-foreground/70 hover:text-foreground rounded transition-colors"
+                            title={isLessonExpanded ? 'Thu gọn tài liệu' : 'Xem tài liệu đính kèm'}
+                            aria-label={isLessonExpanded ? 'Thu gọn tài liệu' : 'Xem tài liệu đính kèm'}
+                          >
+                            <Icon
+                              icon="lucide:chevron-right"
+                              className={`size-3.5 transition-transform duration-200 ${isLessonExpanded ? 'rotate-90 text-sky-600 dark:text-sky-400' : ''
+                                }`}
+                            />
+                          </button>
+                        ) : (
+                          /* Khoảng đệm tàng hình khi bài học không có tài liệu, đảm bảo Cột 2 luôn thẳng tắp */
+                          <span className="size-5 block" aria-hidden="true" />
                         )}
-                      </p>
+                      </div>
+
+                      {/* Cột 2 (Biểu tượng): Máy quay (📹) hoặc Tài liệu (📄) căn thẳng tắp theo đường gióng dọc 100% */}
+                      <span
+                        className={`size-6 rounded-lg flex items-center justify-center text-xs shrink-0 ${isVideo
+                            ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
+                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          }`}
+                      >
+                        <Icon
+                          icon={isVideo ? 'lucide:video' : 'lucide:file-text'}
+                          className="size-3.5"
+                        />
+                      </span>
+
+                      {/* Cột 3 (Tên bài học): Tiêu đề căn lề thẳng hàng, badge số lượng đính kèm inline liền kề phía sau */}
+                      <div className="truncate flex-1 min-w-0">
+                        <p className="truncate flex items-center gap-2">
+                          <span className="truncate">{lesson.title}</span>
+                          {hasMaterials && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-400 shadow-2xs shrink-0 select-none"
+                              title={`Bài học có ${materials.length} tài liệu đính kèm`}
+                            >
+                              <Icon icon="lucide:paperclip" className="size-2.5" />
+                              <span>{materials.length} tài liệu</span>
+                            </span>
+                          )}
+                          {lesson.isPreview && (
+                            <span className="text-[9px] text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1 rounded shrink-0">
+                              Học thử
+                            </span>
+                          )}
+                        </p>
+                      </div>
+
+                      <span className="text-[10px] text-muted-foreground shrink-0 font-mono">
+                        {lessonDuration}
+                      </span>
                     </div>
 
-                    <span className="text-[10px] text-muted-foreground shrink-0 font-mono">
-                      {lessonDuration}
-                    </span>
-                  </div>
+                    {/* Cụm nút thao tác bên phải (Đính kèm tài liệu & Thùng rác) */}
+                    {!readOnly && (
+                      <div
+                        className="flex items-center gap-0.5 ml-2.5 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Nút đính kèm tài liệu cho bài học video (UI Only) */}
+                        {isVideo && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAttachDocument?.(lesson);
+                            }}
+                            className="w-7 h-7 bg-transparent border-0 outline-none text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors duration-150 shrink-0"
+                            title="Đính kèm tài liệu cho video này"
+                            aria-label="Đính kèm tài liệu cho video này"
+                          >
+                            <Icon icon="lucide:paperclip" className="size-3.5" />
+                          </button>
+                        )}
 
-                  {/* Cụm nút thao tác bên phải (Đính kèm tài liệu & Thùng rác) */}
-                  {!readOnly && (
-                    <div
-                      className="flex items-center gap-0.5 ml-2.5 shrink-0"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {/* Nút đính kèm tài liệu cho bài học video (UI Only) */}
-                      {isVideo && (
+                        {/* Nút thùng rác xóa bài học / tài liệu (UI Only) */}
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onAttachDocument?.(lesson);
+                            onDeleteLesson?.(lesson);
                           }}
-                          className="w-7 h-7 bg-transparent border-0 outline-none text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors duration-150 shrink-0"
-                          title="Đính kèm tài liệu cho video này"
-                          aria-label="Đính kèm tài liệu cho video này"
+                          className="w-7 h-7 bg-transparent border-0 outline-none text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 flex items-center justify-center cursor-pointer transition-colors duration-150 shrink-0"
+                          title={isVideo ? 'Xóa bài học' : 'Xóa tài liệu'}
+                          aria-label={isVideo ? 'Xóa bài học' : 'Xóa tài liệu'}
                         >
-                          <Icon icon="lucide:paperclip" className="size-3.5" />
+                          <Icon icon="lucide:trash-2" className="size-3.5 sm:size-4" />
                         </button>
-                      )}
+                      </div>
+                    )}
+                  </div>
 
-                      {/* Nút thùng rác xóa bài học / tài liệu (UI Only) */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteLesson?.(lesson);
-                        }}
-                        className="w-7 h-7 bg-transparent border-0 outline-none text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 flex items-center justify-center cursor-pointer transition-colors duration-150 shrink-0"
-                        title={isVideo ? 'Xóa bài học' : 'Xóa tài liệu'}
-                        aria-label={isVideo ? 'Xóa bài học' : 'Xóa tài liệu'}
-                      >
-                        <Icon icon="lucide:trash-2" className="size-3.5 sm:size-4" />
-                      </button>
+                  {/* Danh sách tài liệu con khi xổ xuống với đường nét đứt mờ nối từ dòng cha */}
+                  {hasMaterials && isLessonExpanded && (
+                    <div className="bg-muted/10 border-t border-border/15 divide-y divide-border/10 relative">
+                      {materials.map((mat, mIdx) => {
+                        const displayTitle = decodeUtf8FileName(mat.title || mat.fileName);
+                        const displayFileName = decodeUtf8FileName(mat.fileName);
+                        const fileSizeText = formatFileSize(mat.fileSize);
+                        const fileConfig = getMaterialFileConfig(mat.fileName, mat.mimeType);
+                        const isLastItem = mIdx === materials.length - 1;
+
+                        return (
+                          <div
+                            key={mat.id}
+                            className="relative flex items-center justify-between pl-12 sm:pl-14 pr-3 py-2 hover:bg-muted/30 transition-colors text-xs group/mat"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {/* Đường nét đứt đậm dọc nối từ tâm mũi tên v của dòng cha xuống */}
+                            <div
+                              className={`absolute left-[25px] sm:left-[29px] w-0.5 border-l-2 border-dashed border-slate-400 dark:border-slate-500 pointer-events-none top-0 ${isLastItem ? 'h-1/2' : 'h-full'
+                                }`}
+                              aria-hidden="true"
+                            />
+
+                            {/* Nhánh nét đứt đậm ngang rẽ sang icon tài liệu */}
+                            <div
+                              className="absolute top-1/2 left-[26px] sm:left-[30px] w-[22px] sm:w-[26px] border-t-2 border-dashed border-slate-400 dark:border-slate-500 pointer-events-none"
+                              aria-hidden="true"
+                            />
+
+                            <div className="flex items-center space-x-2.5 min-w-0 flex-1 relative z-1">
+                              <span
+                                className={`size-6 rounded-md flex items-center justify-center text-xs shrink-0 border ${fileConfig.colorClass} bg-card`}
+                                title={fileConfig.tagText}
+                              >
+                                <Icon icon={fileConfig.icon} className="size-3.5" />
+                              </span>
+
+                              <div className="truncate flex-1 min-w-0">
+                                <div className="flex items-center gap-2 truncate">
+                                  <span className="truncate font-medium text-foreground" title={displayTitle}>
+                                    {displayTitle}
+                                  </span>
+                                  {fileSizeText && (
+                                    <span className="text-[10px] text-muted-foreground shrink-0 font-mono">
+                                      {fileSizeText}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 ml-2 shrink-0">
+                              {mat.url && (
+                                <a
+                                  href={mat.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download={displayFileName}
+                                  className="size-7 rounded-lg hover:bg-sky-500/10 text-muted-foreground hover:text-sky-600 dark:hover:text-sky-400 flex items-center justify-center transition-colors cursor-pointer"
+                                  title="Mở hoặc tải về tài liệu"
+                                  aria-label="Mở hoặc tải về tài liệu"
+                                >
+                                  <Icon icon="lucide:download" className="size-3.5" />
+                                </a>
+                              )}
+
+                              {!readOnly && (
+                                <button
+                                  type="button"
+                                  onClick={() => onDeleteMaterial?.(lesson.id, mat)}
+                                  className="size-7 rounded-lg hover:bg-destructive/10 text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
+                                  title="Xóa tài liệu"
+                                  aria-label="Xóa tài liệu"
+                                >
+                                  <Icon icon="lucide:trash-2" className="size-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -361,6 +498,10 @@ function CourseSectionsListContent({ courseId, approvalRef, readOnly = false }: 
   const [deleteLessonTarget, setDeleteLessonTarget] = useState<{
     lesson: ILesson;
     sectionId: string;
+  } | null>(null);
+  const [deleteMaterialTarget, setDeleteMaterialTarget] = useState<{
+    lessonId: string;
+    material: ILessonMaterial;
   } | null>(null);
 
   // Expanded chapters state: Record<chapterId, boolean> (All collapsed by default!)
@@ -574,6 +715,9 @@ function CourseSectionsListContent({ courseId, approvalRef, readOnly = false }: 
                       onDeleteLesson={(lesson) =>
                         setDeleteLessonTarget({ lesson, sectionId: section.id })
                       }
+                      onDeleteMaterial={(lessonId, material) =>
+                        setDeleteMaterialTarget({ lessonId, material })
+                      }
                       onEditChapter={() => setEditSectionTarget(section)}
                       onDeleteChapter={() => setDeleteSectionTarget(section)}
                       onAddLesson={() =>
@@ -674,6 +818,20 @@ function CourseSectionsListContent({ courseId, approvalRef, readOnly = false }: 
           if (!open) setDeleteLessonTarget(null);
         }}
         onSuccess={handleDeleteLessonSuccess}
+      />
+
+      {/* Modal: Xóa tài liệu đính kèm bài học */}
+      <DeleteLessonMaterialDialog
+        courseId={courseId}
+        lessonId={deleteMaterialTarget?.lessonId}
+        material={deleteMaterialTarget?.material ?? null}
+        open={Boolean(deleteMaterialTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteMaterialTarget(null);
+        }}
+        onSuccess={() => {
+          setDeleteMaterialTarget(null);
+        }}
       />
     </div>
   );

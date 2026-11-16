@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { serializeKeyPoints } from '../utils/lesson-key-points.util';
 
 export const ACCEPTED_LESSON_FILE_EXTENSIONS = '.mp4,.webm,.mov,.pdf,.docx';
 
@@ -29,15 +28,6 @@ export function isDocumentFile(file: File): boolean {
   );
 }
 
-export const keyPointItemSchema = z.object({
-  id: z.string().min(1, 'ID ý cốt lõi không được để trống'),
-  text: z
-    .string()
-    .max(200, 'Mỗi ý cốt lõi không được vượt quá 200 ký tự'),
-});
-
-export type KeyPointItemData = z.infer<typeof keyPointItemSchema>;
-
 export const createLessonSchema = z.object({
   title: z
     .string({ message: 'Tiêu đề bài học không được để trống' })
@@ -48,35 +38,45 @@ export const createLessonSchema = z.object({
         .min(1, 'Tiêu đề bài học không được để trống')
         .max(200, 'Tiêu đề bài học không được vượt quá 200 ký tự'),
     ),
-  keyPoints: z
-    .array(keyPointItemSchema)
-    .min(1, 'Vui lòng nhập ít nhất 1 ý cốt lõi của bài học')
-    .refine(
-      (points) =>
-        points.some((p) => typeof p.text === 'string' && p.text.trim().length > 0),
-      {
-        message: 'Vui lòng nhập ít nhất 1 ý cốt lõi của bài học',
-      },
-    )
-    .refine(
-      (points) => serializeKeyPoints(points).length <= 1000,
-      {
-        message: 'Tổng nội dung các ý cốt lõi không được vượt quá 1000 ký tự',
-      },
-    ),
-  description: z
-    .string()
-    .transform((val) => (typeof val === 'string' ? val.trim() : ''))
-    .pipe(z.string().max(1000, 'Mô tả bài học không được vượt quá 1000 ký tự'))
-    .optional()
-    .or(z.literal('')),
   order: z
     .number({ message: 'Thứ tự bài học phải là một số hợp lệ' })
     .int('Thứ tự bài học phải là số nguyên')
     .min(0, 'Thứ tự bài học phải lớn hơn hoặc bằng 0'),
   contentType: z.enum(['video', 'document']),
-  contentFile: z.custom<File | null | undefined>().optional().nullable(),
+  contentFile: z.custom<File | null>(
+    (value) => typeof File !== 'undefined' && value instanceof File,
+    { message: 'Vui lòng tải lên video hoặc tài liệu cho bài học' },
+  ),
   isPreview: z.boolean(),
+}).superRefine(({ contentFile, contentType }, ctx) => {
+  if (!contentFile) return;
+
+  const isVideo = contentType === 'video';
+  if (isVideo ? !isVideoFile(contentFile) : !isDocumentFile(contentFile)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['contentFile'],
+      message: isVideo
+        ? 'Vui lòng chọn video định dạng MP4, WebM hoặc MOV'
+        : 'Vui lòng chọn tài liệu định dạng PDF hoặc DOCX',
+    });
+  }
+  if (contentFile.size === 0) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['contentFile'],
+      message: 'Tệp tải lên không được rỗng',
+    });
+  }
+  if (contentFile.size > (isVideo ? MAX_VIDEO_FILE_SIZE : MAX_DOCUMENT_FILE_SIZE)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['contentFile'],
+      message: isVideo
+        ? 'Dung lượng video không được vượt quá 5GB'
+        : 'Dung lượng tài liệu không được vượt quá 500MB',
+    });
+  }
 });
 
 export type CreateLessonFormData = z.infer<typeof createLessonSchema>;

@@ -44,8 +44,10 @@ export class LessonRepository extends BaseMongoRepository<ILesson, LessonEntity>
         };
       });
 
+      const lesson = { ...plain };
+      delete lesson.description;
       return {
-        ...plain,
+        ...lesson,
         id: id as string,
         sectionId: (sectionId ?? '') as string,
         content: (plain.content ?? null) as ILesson['content'],

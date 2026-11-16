@@ -14,6 +14,7 @@ import {
   useCourseSectionsQuery,
 } from '../api/course.api';
 import { useCancelCourseApprovalMutation } from '../api/course-approval.api';
+import { formatCourseDescription } from '../utils/format-course-description.util';
 
 interface CourseCardProps {
   course: ICourse;
@@ -195,6 +196,7 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
   );
   const hasValidThumbnail = Boolean(course.thumbnailUrl && course.thumbnailUrl.trim() && !imageError);
   const theme = getCategoryThemedBackground(course.category?.name);
+  const courseSummary = formatCourseDescription(course.description, course.title);
 
   const handleDelete = () => {
     deleteMutation.mutate(course.id, {
@@ -304,6 +306,14 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
                   <span>{course.category?.name ?? 'Công nghệ thông tin'}</span>
                 </div>
               </div>
+
+              {/* Short Description */}
+              <p
+                className="text-sm sm:text-[15px] text-neutral-700 dark:text-neutral-300 line-clamp-1 leading-relaxed"
+                title={courseSummary}
+              >
+                {courseSummary}
+              </p>
             </div>
 
             {/* Consolidated Meta Line: Structure • Students • Rating */}
@@ -336,11 +346,10 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
                 Học phí:
               </span>
               <span
-                className={`text-lg sm:text-2xl font-extrabold tracking-tight ${
-                  priceInfo.isFree
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-neutral-950 dark:text-neutral-50'
-                }`}
+                className={`text-lg sm:text-2xl font-extrabold tracking-tight ${priceInfo.isFree
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-neutral-950 dark:text-neutral-50'
+                  }`}
               >
                 {priceInfo.text}
               </span>
@@ -446,11 +455,10 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
                       setIsMenuOpen(false);
                       setIsDeleteDialogOpen(true);
                     }}
-                    className={`flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors text-left ${
-                      canDelete
-                        ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer'
-                        : 'text-neutral-400 opacity-50 cursor-not-allowed'
-                    }`}
+                    className={`flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors text-left ${canDelete
+                      ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer'
+                      : 'text-neutral-400 opacity-50 cursor-not-allowed'
+                      }`}
                   >
                     <Icon icon="lucide:trash-2" className="size-4 text-red-600 shrink-0" />
                     <span>Xóa</span>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -35,11 +35,6 @@ import {
   isVideoFile,
   isDocumentFile,
 } from '../schemas/create-lesson.schema';
-import { LessonKeyPointsInput } from './lesson-key-points-input';
-import {
-  serializeKeyPoints,
-  generateKeyPointId,
-} from '../utils/lesson-key-points.util';
 import { useSectionLessonsQuery, useCreateLessonMutation } from '../api/course.api';
 import { useUploadLessonContentMutation } from '../api/lesson-content.api';
 
@@ -55,6 +50,14 @@ export interface SectionLessonCreateFormProps {
 
 type UploadStatus = 'IDLE' | 'UPLOADING' | 'UPLOADED' | 'UPLOAD_ERROR';
 
+const EMPTY_LESSON_FORM: CreateLessonFormData = {
+  title: '',
+  order: 0,
+  contentType: 'video',
+  contentFile: null,
+  isPreview: false,
+};
+
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -63,7 +66,12 @@ function formatFileSize(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-export function SectionLessonCreateForm({
+export function SectionLessonCreateForm(props: SectionLessonCreateFormProps): React.JSX.Element | null {
+  if (!props.open) return null;
+  return <SectionLessonCreateFormContent key={props.sectionId} {...props} />;
+}
+
+function SectionLessonCreateFormContent({
   sectionId,
   sectionTitle,
   open,
@@ -90,18 +98,12 @@ export function SectionLessonCreateForm({
     handleSubmit,
     reset,
     setValue,
+    setError,
     control,
     formState: { errors, isSubmitting },
   } = useForm<CreateLessonFormData>({
     resolver: zodResolver(createLessonSchema),
-    defaultValues: {
-      title: '',
-      keyPoints: [{ id: generateKeyPointId(), text: '' }],
-      order: calculatedOrder,
-      contentType: 'video',
-      contentFile: null,
-      isPreview: false,
-    },
+    defaultValues: EMPTY_LESSON_FORM,
   });
 
   const selectedFile = useWatch({ control, name: 'contentFile' });
@@ -110,30 +112,15 @@ export function SectionLessonCreateForm({
   const isUploading = uploadStatus === 'UPLOADING' || uploadMutation.isPending;
   const isCreating = isSubmitting || createLessonMutation.isPending;
   const isPending = isUploading || isCreating;
-
-  // Reset form whenever the dialog opens or calculated order updates
-  useEffect(() => {
-    if (open) {
-      reset({
-        title: '',
-        keyPoints: [{ id: generateKeyPointId(), text: '' }],
-        order: calculatedOrder,
-        contentType: 'video',
-        contentFile: null,
-        isPreview: false,
-      });
-    }
-  }, [open, calculatedOrder, reset]);
+  const hasUploadedContent = Boolean(
+    selectedFile &&
+    uploadStatus === 'UPLOADED' &&
+    uploadedContent?.type === contentType &&
+    uploadedContent.url.trim(),
+  );
 
   const performClose = () => {
-    reset({
-      title: '',
-      keyPoints: [{ id: generateKeyPointId(), text: '' }],
-      order: calculatedOrder,
-      contentType: 'video',
-      contentFile: null,
-      isPreview: false,
-    });
+    reset(EMPTY_LESSON_FORM);
     setUploadedContent(null);
     setUploadStatus('IDLE');
     setUploadErrorMessage(null);
@@ -155,11 +142,15 @@ export function SectionLessonCreateForm({
   };
 
   const executeUpload = async (file: File) => {
+    setUploadedContent(null);
     setUploadStatus('UPLOADING');
     setUploadErrorMessage(null);
 
     try {
       const res = await uploadMutation.mutateAsync(file);
+      if (res.type !== contentType || !res.url?.trim()) {
+        throw new Error('Máy chủ chưa xác nhận nội dung đã tải lên. Vui lòng thử lại.');
+      }
       setUploadedContent(res);
       setUploadStatus('UPLOADED');
     } catch (err: unknown) {
@@ -167,7 +158,9 @@ export function SectionLessonCreateForm({
       const msg =
         err && typeof err === 'object' && 'response' in err
           ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-          : 'Tải file lên máy chủ lưu trữ thất bại. Vui lòng thử lại.';
+          : err instanceof Error
+            ? err.message
+            : 'Tải file lên máy chủ lưu trữ thất bại. Vui lòng thử lại.';
       setUploadErrorMessage(msg || 'Lỗi tải file lên máy chủ lưu trữ');
     }
   };
@@ -178,6 +171,11 @@ export function SectionLessonCreateForm({
       setUploadedContent(null);
       setUploadStatus('IDLE');
       setUploadErrorMessage(null);
+      return;
+    }
+
+    if (file.size === 0) {
+      toast.error('Tệp tải lên không được rỗng');
       return;
     }
 
@@ -240,29 +238,29 @@ export function SectionLessonCreateForm({
     // Chặn submit khi file upload bị lỗi (không bao giờ silently ignore file)
     if (uploadStatus === 'UPLOAD_ERROR') {
       toast.error('File chưa được tải lên thành công', {
-        description: 'Vui lòng nhấn "Thử lại" hoặc xóa file để tiếp tục tạo bài học.',
+        description: 'Vui lòng nhấn "Thử lại" hoặc chọn một tệp khác trước khi thêm bài học.',
       });
       return;
     }
 
-    if (isCreating) return;
-
-    // Gắn metadata nếu upload thành công, ngược lại gửi null
-    const payloadContent =
-      uploadStatus === 'UPLOADED' && uploadedContent ? uploadedContent : null;
+    if (!hasUploadedContent || !uploadedContent) {
+      setError('contentFile', {
+        type: 'manual',
+        message: 'Vui lòng tải lên thành công video hoặc tài liệu trước khi thêm bài học',
+      });
+      return;
+    }
+    if (createLessonMutation.isPending) return;
 
     try {
-      const serializedDescription = serializeKeyPoints(data.keyPoints);
-
       await createLessonMutation.mutateAsync({
         title: data.title.trim(),
-        description: serializedDescription,
         order: calculatedOrder,
-        content: payloadContent,
+        content: uploadedContent,
         isPreview: data.isPreview,
       });
 
-      onSubmit?.(data);
+      onSubmit?.({ ...data, order: calculatedOrder });
       performClose();
     } catch {
       // Error notifications are handled inside useCreateLessonMutation's onError callback.
@@ -327,21 +325,6 @@ export function SectionLessonCreateForm({
               )}
             </div>
 
-            {/* Nội dung cốt lõi của bài học (Lesson Key Points) */}
-            <Controller
-              name="keyPoints"
-              control={control}
-              render={({ field }) => (
-                <LessonKeyPointsInput
-                  id="lesson-key-points"
-                  value={field.value}
-                  onChange={field.onChange}
-                  disabled={isPending}
-                  error={errors.keyPoints?.message}
-                />
-              )}
-            />
-
             {/* Loại nội dung bài học */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -359,6 +342,9 @@ export function SectionLessonCreateForm({
                 value={contentType}
                 onValueChange={(val) => {
                   if (val === 'video' || val === 'document') {
+                    setUploadedContent(null);
+                    setUploadStatus('IDLE');
+                    setUploadErrorMessage(null);
                     setValue('contentType', val, { shouldValidate: true, shouldDirty: true });
                   }
                 }}
@@ -385,10 +371,11 @@ export function SectionLessonCreateForm({
             {/* Tài liệu / Video bài học */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium text-foreground">
+                <Label htmlFor="lesson-file-input" className="text-xs font-medium text-foreground">
                   {contentType === 'video' ? 'Video bài giảng' : 'Tài liệu học tập'}
+                  {' '}<span className="text-destructive">*</span>
                 </Label>
-                <span className="text-[11px] font-mono text-muted-foreground">
+                <span className="text-[11px] text-muted-foreground" aria-live="polite">
                   {uploadStatus === 'UPLOADING' && (
                     <span className="text-primary font-medium flex items-center gap-1">
                       <Icon icon="lucide:loader-2" className="size-3 animate-spin" />
@@ -407,7 +394,7 @@ export function SectionLessonCreateForm({
                       Lỗi tải lên
                     </span>
                   )}
-                  {uploadStatus === 'IDLE' && (selectedFile ? 'Sẵn sàng' : 'Không bắt buộc')}
+                  {uploadStatus === 'IDLE' && 'Bắt buộc'}
                 </span>
               </div>
 
@@ -421,6 +408,9 @@ export function SectionLessonCreateForm({
                     : ACCEPTED_DOCUMENT_FILE_EXTENSIONS
                 }
                 disabled={isPending || uploadStatus === 'UPLOADED'}
+                aria-required="true"
+                aria-invalid={Boolean(errors.contentFile)}
+                aria-describedby={`lesson-file-help${errors.contentFile ? ' lesson-file-error' : ''}`}
                 className="sr-only"
                 onChange={(e) => {
                   const file = e.target.files?.[0] ?? null;
@@ -560,6 +550,14 @@ export function SectionLessonCreateForm({
                   </div>
                 </div>
               )}
+              <p id="lesson-file-help" className="text-xs text-muted-foreground">
+                Bắt buộc tải lên thành công một video hoặc tài liệu trước khi thêm bài học.
+              </p>
+              {errors.contentFile && (
+                <p id="lesson-file-error" role="alert" className="text-xs text-destructive">
+                  {errors.contentFile.message}
+                </p>
+              )}
             </div>
 
             {/* Interactive Toggle Card: Cho phép học thử miễn phí (isPreview) */}
@@ -642,7 +640,7 @@ export function SectionLessonCreateForm({
               </Button>
               <Button
                 type="submit"
-                disabled={isPending || uploadStatus === 'UPLOAD_ERROR'}
+                disabled={isPending || !hasUploadedContent}
                 className="text-xs gap-1.5"
               >
                 {isCreating ? (

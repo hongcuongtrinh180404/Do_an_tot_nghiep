@@ -73,7 +73,7 @@ describe('LessonRepository', () => {
       expect(domain.sectionId).toBe(mockSectionObjectId.toString());
       expect(typeof domain.sectionId).toBe('string');
       expect(domain.title).toBe('Bài 1: Giới thiệu khóa học');
-      expect(domain.description).toBe('Mô tả bài 1');
+      expect(domain).not.toHaveProperty('description');
       expect(domain.order).toBe(0);
       expect(domain.createdAt).toBe(now);
       expect(domain.updatedAt).toBe(now);
@@ -104,7 +104,7 @@ describe('LessonRepository', () => {
       expect(domain.id).toBe(mockMongoId.toString());
       expect(domain.sectionId).toBe(mockSectionObjectId.toString());
       expect(domain.title).toBe('Bài 2: Cài đặt môi trường');
-      expect(domain.description).toBeNull();
+      expect(domain).not.toHaveProperty('description');
       expect(domain.order).toBe(1);
     });
 

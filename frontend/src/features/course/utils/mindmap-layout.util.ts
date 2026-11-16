@@ -23,9 +23,6 @@ function getCourseNodeMargin(type: string | undefined): LayoutMargin {
   if (type === 'section' || type === 'lesson') {
     return { left: 6, right: 12 };
   }
-  if (type === 'keypoint') {
-    return { left: 4 };
-  }
   return { right: 6 };
 }
 
@@ -68,7 +65,7 @@ export function getLayoutedElements<T extends Node, E extends Edge>(
       g.setEdge(edge.source, edge.target);
     });
 
-    // nodes được converter tạo theo DFS: section/lesson/keypoint đang theo
+    // nodes được converter tạo theo DFS: section/lesson đang theo
     // đúng thứ tự giáo trình tăng dần. Tắt heuristic tối ưu thứ tự của Dagre
     // để giữ nguyên thứ tự chèn từ trên xuống và vẫn căn cha giữa cụm con.
     dagre.layout(g, { disableOptimalOrderHeuristic: true });

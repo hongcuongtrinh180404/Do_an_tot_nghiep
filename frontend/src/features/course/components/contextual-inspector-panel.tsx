@@ -8,18 +8,24 @@ import {
   LessonContentTypeEnum,
   decodeUtf8FileName,
 } from 'share-lib';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { useSectionLessonsQuery, useLessonDetailQuery } from '../api/course.api';
 import {
-  deserializeKeyPoints,
-  getKeyPointColor,
-} from '../utils/lesson-key-points.util';
+  useSectionLessonsQuery,
+  useLessonDetailQuery,
+  useUpdateLessonMutation,
+} from '../api/course.api';
 import { UploadLessonDocDialog } from './upload-lesson-doc-dialog';
 import { DeleteLessonMaterialDialog } from './delete-lesson-material-dialog';
 import { formatVideoDuration, getVideoLessonStats } from '../utils/course-lesson-stats.util';
 import { getLessonUrl } from '../utils/course-view-mode.util';
+import {
+  formatFileSize,
+  getMaterialFileConfig,
+} from '../utils/lesson-material.util';
 
 export type ContextSelection =
   | { type: 'chapter'; chapterId: string }
@@ -49,13 +55,18 @@ function formatExactLessonDuration(seconds?: number | null): string {
   return '< 1 phút';
 }
 
-function formatFileSize(bytes?: number | null): string {
-  if (!bytes || bytes <= 0) return '';
-  if (bytes >= 1024 * 1024) {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+function formatVideoClock(seconds?: number | null): string {
+  if (seconds === undefined || seconds === null || seconds <= 0) return '00:00';
+  const total = Math.round(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) {
+    return `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
   }
-  return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
 }
+
 
 // Reusable Document Item with Access Status Badge & Icon
 interface DocumentItemWithStatusProps {
@@ -138,63 +149,6 @@ function DocumentItemWithStatus({
   );
 }
 
-function getMaterialFileConfig(fileName: string, mimeType?: string | null) {
-  const ext = fileName.split('.').pop()?.toLowerCase() || '';
-
-  if (ext === 'pdf' || mimeType?.includes('pdf')) {
-    return {
-      icon: 'lucide:file-text',
-      colorClass: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
-      tagText: 'PDF',
-    };
-  }
-  if (
-    ['zip', 'rar', '7z', 'tar', 'gz'].includes(ext) ||
-    mimeType?.includes('zip') ||
-    mimeType?.includes('rar')
-  ) {
-    return {
-      icon: 'lucide:archive',
-      colorClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-      tagText: ext.toUpperCase() || 'ZIP',
-    };
-  }
-  if (['doc', 'docx'].includes(ext) || mimeType?.includes('word')) {
-    return {
-      icon: 'lucide:file-text',
-      colorClass: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
-      tagText: 'DOCX',
-    };
-  }
-  if (
-    ['xls', 'xlsx', 'csv'].includes(ext) ||
-    mimeType?.includes('excel') ||
-    mimeType?.includes('spreadsheet')
-  ) {
-    return {
-      icon: 'lucide:file-spreadsheet',
-      colorClass: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
-      tagText: 'EXCEL',
-    };
-  }
-  if (
-    ['ppt', 'pptx'].includes(ext) ||
-    mimeType?.includes('presentation') ||
-    mimeType?.includes('powerpoint')
-  ) {
-    return {
-      icon: 'lucide:presentation',
-      colorClass: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
-      tagText: 'PPTX',
-    };
-  }
-
-  return {
-    icon: 'lucide:file',
-    colorClass: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
-    tagText: ext.toUpperCase() || 'FILE',
-  };
-}
 
 interface LessonMaterialItemProps {
   material: ILessonMaterial;
@@ -484,9 +438,29 @@ function LessonInspectorView({
   readOnly?: boolean;
 }): React.JSX.Element {
   const { data: lesson, isLoading, isError, refetch } = useLessonDetailQuery(lessonId);
+  const updateLessonMutation = useUpdateLessonMutation(courseId);
 
   const [targetDeleteMaterial, setTargetDeleteMaterial] = React.useState<ILessonMaterial | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = React.useState(false);
+
+  const handleTogglePreview = (targetIsPreview: boolean) => {
+    if (!lesson || updateLessonMutation.isPending || lesson.isPreview === targetIsPreview) return;
+    updateLessonMutation.mutate(
+      {
+        lessonId: lesson.id,
+        payload: { isPreview: targetIsPreview },
+      },
+      {
+        onSuccess: (updated) => {
+          toast.success(
+            updated.isPreview
+              ? 'Đã chuyển bài học sang chế độ học thử miễn phí'
+              : 'Đã chuyển bài học sang chế độ có phí (cần mua khóa học)',
+          );
+        },
+      },
+    );
+  };
 
   if (isLoading) {
     return (
@@ -526,178 +500,195 @@ function LessonInspectorView({
     Boolean(lesson.content) &&
     lesson.content?.type === LessonContentTypeEnum.DOCUMENT;
 
-  const durationText = formatExactLessonDuration(lesson.content?.duration);
-  const headerSubtitle = isDocLesson
-    ? 'Tài liệu đọc'
-    : durationText !== 'Chưa xác định'
-      ? durationText
-      : 'Video bài giảng';
+  const durationClock = formatVideoClock(lesson.content?.duration);
   const lessonViewUrl = getLessonUrl(courseId, lesson.id);
 
-  const keyPoints = deserializeKeyPoints(lesson.description);
   const materialsList = lesson.materials || [];
-  const hasDocContent = Boolean(isDocLesson && lesson.content?.fileName);
-  const totalMaterialsCount = materialsList.length + (hasDocContent ? 1 : 0);
+  const totalMaterialsCount = materialsList.length;
 
   return (
     <div className="space-y-4 animate-in fade-in-50 duration-200">
-      {/* Top Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-border/40">
-        <span className="text-[10px] uppercase font-bold tracking-wider text-sky-700 dark:text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full">
-          Chi tiết bài học
-        </span>
-        <span className="text-xs text-muted-foreground font-medium">{headerSubtitle}</span>
-      </div>
-
-      {/* Lesson Title & Breadcrumb */}
+      {/* 1. Header: Loại bài giảng & Tiêu đề bài học */}
       <div>
-        <div className="text-[11px] text-muted-foreground mb-1 truncate">{chapterTitle}</div>
-        <h3 className="text-base font-bold text-foreground leading-snug">{lesson.title}</h3>
-        {keyPoints.length > 0 ? (
-          <div className="mt-2 space-y-1.5">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
-              Ý cốt lõi bài học ({keyPoints.length})
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {keyPoints.map((point, index) => {
-                const color = getKeyPointColor(index);
-                return (
-                  <span
-                    key={point.id}
-                    style={{
-                      backgroundColor: color.bg,
-                      borderColor: color.border,
-                    }}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[11px] font-medium text-slate-800 shadow-2xs"
-                  >
-                    <span
-                      style={{ backgroundColor: color.dot }}
-                      className="size-1.5 rounded-full shrink-0"
-                      aria-hidden="true"
-                    />
-                    <span className="line-clamp-1 max-w-[200px]">{point.text}</span>
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-            {lesson.description?.trim() || 'Chưa có mô tả chi tiết cho bài học này.'}
-          </p>
-        )}
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-100 dark:border-sky-900/50">
+          <Icon
+            icon={isDocLesson ? 'lucide:file-text' : 'lucide:video'}
+            className="size-3.5"
+          />
+          <span>{isDocLesson ? 'Tài liệu đọc' : 'Video bài giảng'}</span>
+        </div>
+        <h3 className="text-lg sm:text-xl font-bold text-foreground leading-snug tracking-tight mt-2.5">
+          {lesson.title}
+        </h3>
       </div>
 
-      {/* Khung xem trước Bài học (Media Banner) */}
-      <div className="bg-zinc-950 rounded-xl p-4 text-white space-y-2 border border-border/40">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-zinc-400">Trạng thái phát</span>
-          <span
-            className={`${lesson.isPreview ? 'text-emerald-400' : 'text-amber-400'
-              } font-semibold flex items-center gap-1`}
-          >
+      {/* 2. Khung xem trước Bài học (16:9 Video/Doc Player Banner) */}
+      <Link
+        href={lessonViewUrl}
+        className="block aspect-video w-full rounded-2xl overflow-hidden bg-zinc-950 relative border border-border/50 shadow-xs group cursor-pointer"
+        title={isDocLesson ? 'Xem chi tiết tài liệu' : 'Xem trước bài giảng'}
+      >
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4">
+          <div className="size-14 rounded-full bg-white/10 group-hover:bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
             <Icon
-              icon={lesson.isPreview ? 'lucide:lock-open' : 'lucide:lock'}
-              className="size-3"
+              icon={isDocLesson ? 'lucide:file-text' : 'lucide:play'}
+              className={cn('size-6 text-white', !isDocLesson && 'fill-current ml-0.5')}
             />
-            {lesson.isPreview ? 'Cho phép học thử' : 'Cần mua khóa học'}
-          </span>
-        </div>
-
-        <Link
-          href={lessonViewUrl}
-          className="flex items-center justify-center py-4 bg-zinc-900 rounded-lg cursor-pointer hover:bg-zinc-800 transition group text-white hover:text-white"
-        >
-          <Icon
-            icon={isDocLesson ? 'lucide:file-text' : 'lucide:play-circle'}
-            className="size-6 text-sky-400 mr-2 group-hover:scale-110 transition-transform"
-          />
-          <span className="text-xs font-bold text-white">
+          </div>
+          <span className="text-[11px] font-medium text-zinc-400 mt-2.5 group-hover:text-white transition-colors">
             {isDocLesson ? 'Xem chi tiết tài liệu' : 'Xem trước bài giảng'}
           </span>
-        </Link>
-        {!readOnly && (
-          <Link
-            href={getLessonUrl(courseId, lesson.id, 'edit')}
-            className="flex items-center justify-center gap-2 py-2.5 bg-sky-600 rounded-lg hover:bg-sky-700 transition text-white text-xs font-bold"
-            title="Biên tập Mindmap, Tóm tắt và câu hỏi của bài học"
-          >
-            <Icon icon="lucide:pencil" className="size-3.5" />
-            <span>Biên tập nội dung bài học</span>
-          </Link>
+        </div>
+
+        {/* Digital Clock duration badge ở góc dưới bên phải (chỉ cho video) */}
+        {!isDocLesson && (
+          <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/75 backdrop-blur-md rounded-md text-[11px] font-mono font-medium text-white flex items-center gap-1.5 border border-white/10">
+            <Icon icon="lucide:play" className="size-2.5 fill-current" />
+            <span>{durationClock}</span>
+          </div>
+        )}
+      </Link>
+
+      {/* 3. Thẻ Hình thức truy cập (Access Mode Segmented Pill Card) */}
+      <div className="bg-slate-50/70 dark:bg-zinc-900/70 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="size-10 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/60 flex items-center justify-center shrink-0">
+            <Icon icon="lucide:layers" className="size-5" />
+          </div>
+          <div className="min-w-0">
+            <h4 className="text-xs sm:text-sm font-bold text-foreground truncate">
+              Hình thức truy cập
+            </h4>
+            <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2 mt-0.5">
+              Thiết lập bài học này cho học thử hoặc có phí cho học viên.
+            </p>
+          </div>
+        </div>
+
+        {/* Segmented Pill Toggle Switch */}
+        {!readOnly ? (
+          <div className="inline-flex items-center p-1 bg-white dark:bg-zinc-800 rounded-full border border-slate-200 dark:border-zinc-700 shadow-2xs shrink-0">
+            <button
+              type="button"
+              disabled={updateLessonMutation.isPending}
+              onClick={() => handleTogglePreview(true)}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer select-none',
+                lesson.isPreview
+                  ? 'bg-sky-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-700/50',
+                updateLessonMutation.isPending && 'opacity-60 cursor-not-allowed',
+              )}
+            >
+              <Icon icon="lucide:gift" className="size-3.5 shrink-0" />
+              <span>Học thử</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={updateLessonMutation.isPending}
+              onClick={() => handleTogglePreview(false)}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer select-none',
+                !lesson.isPreview
+                  ? 'bg-sky-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-700/50',
+                updateLessonMutation.isPending && 'opacity-60 cursor-not-allowed',
+              )}
+            >
+              <Icon icon="lucide:lock" className="size-3.5 shrink-0" />
+              <span>Có phí</span>
+            </button>
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 shrink-0">
+            <Icon
+              icon={lesson.isPreview ? 'lucide:gift' : 'lucide:lock'}
+              className="size-3.5 shrink-0"
+            />
+            <span>{lesson.isPreview ? 'Học thử' : 'Có phí'}</span>
+          </div>
         )}
       </div>
 
-      {/* Tài liệu riêng của bài (Cấp 4) */}
-      <div className="space-y-2 pt-1 border-t border-border/40">
-        <div className="flex items-center justify-between">
-          <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-            <Icon icon="lucide:file-text" className="size-3.5 text-sky-500" />
-            <span>Tài liệu riêng của bài</span>
-            {totalMaterialsCount > 0 && (
-              <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                {totalMaterialsCount} tệp
-              </span>
-            )}
-          </h4>
-
+      {/* 4. Biên tập và tài liệu riêng chỉ dành cho bài giảng video */}
+      {!isDocLesson && (
+        <>
           {!readOnly && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsUploadDialogOpen(true)}
-              className="h-6 text-[11px] px-2 text-sky-600 dark:text-sky-400 hover:text-sky-700 hover:bg-sky-500/10 gap-1 rounded-lg"
+            <Link
+              href={getLessonUrl(courseId, lesson.id, 'edit')}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-sky-600 hover:bg-sky-700 transition text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs cursor-pointer"
+              title="Biên tập Mindmap, Tóm tắt và câu hỏi của bài học"
             >
-              <Icon icon="lucide:plus" className="size-3" />
-              <span>Đính kèm tệp</span>
-            </Button>
-          )}
-        </div>
-
-        <div className="space-y-1.5">
-          {hasDocContent && lesson.content?.fileName && (
-            <DocumentItemWithStatus
-              fileName={lesson.content.fileName}
-              fileSize={lesson.content.fileSize}
-              url={lesson.content.url}
-              isPreview={lesson.isPreview}
-            />
+              <Icon icon="lucide:pencil" className="size-4" />
+              <span>Biên tập nội dung bài học</span>
+            </Link>
           )}
 
-          {materialsList.map((mat) => (
-            <LessonMaterialItem
-              key={mat.id}
-              material={mat}
-              isPreview={lesson.isPreview}
-              onDelete={readOnly ? undefined : (m) => setTargetDeleteMaterial(m)}
-            />
-          ))}
+          <div className="space-y-2.5 pt-2 border-t border-border/40">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Icon icon="lucide:file-text" className="size-3.5 text-sky-500" />
+                <span>Tài liệu riêng của bài</span>
+                {totalMaterialsCount > 0 && (
+                  <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                    {totalMaterialsCount} tệp
+                  </span>
+                )}
+              </h4>
 
-          {totalMaterialsCount === 0 && (
-            <p className="text-xs text-muted-foreground/80 italic p-3 bg-muted/20 border border-border/40 rounded-xl text-center">
-              Không có tài liệu riêng cho bài học này.
-            </p>
-          )}
-        </div>
-      </div>
+              {!readOnly && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsUploadDialogOpen(true)}
+                  className="h-6 text-[11px] px-2 text-sky-600 dark:text-sky-400 hover:text-sky-700 hover:bg-sky-500/10 gap-1 rounded-lg"
+                >
+                  <Icon icon="lucide:plus" className="size-3" />
+                  <span>Đính kèm tệp</span>
+                </Button>
+              )}
+            </div>
 
-      <UploadLessonDocDialog
-        open={isUploadDialogOpen}
-        onOpenChange={setIsUploadDialogOpen}
-        lesson={lesson}
-        courseId={courseId}
-      />
+            <div className="space-y-1.5">
+              {materialsList.map((mat) => (
+                <LessonMaterialItem
+                  key={mat.id}
+                  material={mat}
+                  isPreview={lesson.isPreview}
+                  onDelete={readOnly ? undefined : (m) => setTargetDeleteMaterial(m)}
+                />
+              ))}
 
-      <DeleteLessonMaterialDialog
-        open={Boolean(targetDeleteMaterial)}
-        onOpenChange={(open) => {
-          if (!open) setTargetDeleteMaterial(null);
-        }}
-        lessonId={lesson.id}
-        courseId={courseId}
-        material={targetDeleteMaterial}
-      />
+              {totalMaterialsCount === 0 && (
+                <div className="p-4 rounded-xl border border-border/50 bg-slate-50/50 dark:bg-zinc-900/40 text-center">
+                  <p className="text-xs text-muted-foreground italic">
+                    Không có tài liệu riêng cho bài học này.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <UploadLessonDocDialog
+            open={isUploadDialogOpen}
+            onOpenChange={setIsUploadDialogOpen}
+            lesson={lesson}
+            courseId={courseId}
+          />
+
+          <DeleteLessonMaterialDialog
+            open={Boolean(targetDeleteMaterial)}
+            onOpenChange={(open) => {
+              if (!open) setTargetDeleteMaterial(null);
+            }}
+            lessonId={lesson.id}
+            courseId={courseId}
+            material={targetDeleteMaterial}
+          />
+        </>
+      )}
     </div>
   );
 }

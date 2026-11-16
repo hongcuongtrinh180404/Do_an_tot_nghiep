@@ -5,8 +5,6 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { Icon } from '@/components/ui/icon';
 import type { LessonNodeData } from '../../../utils/mindmap-converter.util';
 
-import { useCourseMindmapContext } from '../course-mindmap-context';
-import { CollapseCountBadge } from './collapse-count-badge';
 import { COURSE_NODE_DIMENSIONS } from '../../../utils/mindmap-node-size.util';
 
 function formatDuration(seconds?: number): string {
@@ -17,9 +15,7 @@ function formatDuration(seconds?: number): string {
 
 function LessonNodeComponent({ data }: NodeProps): React.JSX.Element {
   const nodeData = data as unknown as LessonNodeData;
-  const { onToggleLessonCollapse } = useCourseMindmapContext();
   const durationText = formatDuration(nodeData.duration);
-  const hasKeypoints = nodeData.keyPointCount > 0;
   const isVideo = nodeData.contentType === 'video' || !nodeData.contentType;
   const dimension = COURSE_NODE_DIMENSIONS.lesson;
 
@@ -61,23 +57,10 @@ function LessonNodeComponent({ data }: NodeProps): React.JSX.Element {
                 Học thử
               </span>
             )}
-            {hasKeypoints && (
-              <span className="text-[9px] text-muted-foreground">
-                {nodeData.keyPointCount} ý chính
-              </span>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Huy hiệu thu gọn +count / nút mở rộng neo mép phải */}
-      <CollapseCountBadge
-        count={nodeData.keyPointCount}
-        isCollapsed={nodeData.isCollapsed}
-        onToggle={() => onToggleLessonCollapse(nodeData.lessonId)}
-        variant="emerald"
-        typeLabel="ý chính"
-      />
     </div>
   );
 }

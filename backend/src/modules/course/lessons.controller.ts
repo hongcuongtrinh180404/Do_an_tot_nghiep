@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Param,
   Body,
@@ -22,6 +23,7 @@ import { LessonTranscriptService } from './services/lesson-transcript.service.js
 import { LessonFileValidationPipe } from './pipes/lesson-file-validation.pipe.js';
 import { LessonManagementGuard } from './guards/lesson-management.guard.js';
 import { LessonAccessGuard } from './guards/lesson-access.guard.js';
+import { UpdateLessonDto } from './dto/update-lesson.dto.js';
 
 @Controller('lessons')
 export class LessonsController {
@@ -39,6 +41,25 @@ export class LessonsController {
   ): Promise<ApiResponse<ILesson>> {
     const lesson = await this.lessonService.getLessonForUser(id, userId, userRole);
     return ApiResponse.success(lesson, 'Lấy thông tin bài học thành công');
+  }
+
+  @Patch(':id')
+  @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
+  @UseGuards(LessonManagementGuard)
+  @HttpCode(HttpStatus.OK)
+  async updateLesson(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() dto: UpdateLessonDto,
+    @CurrentUser('id') userId?: string,
+    @CurrentUser('role') userRole?: RoleEnum,
+  ): Promise<ApiResponse<ILesson>> {
+    const updatedLesson = await this.lessonService.updateLesson(
+      id,
+      dto,
+      userId,
+      userRole,
+    );
+    return ApiResponse.success(updatedLesson, 'Cập nhật bài học thành công');
   }
 
   @Post(':id/materials')

@@ -27,12 +27,18 @@ import { EnrollmentRepository } from '../../enrollment/repositories/enrollment.r
 
 export interface CreateLessonInput {
   title: string;
-  description?: string | null;
   order: number;
-  content?: ILessonContent | null;
+  content: ILessonContent;
   isPreview?: boolean;
   userId?: string;
 }
+
+export interface UpdateLessonInput {
+  title?: string;
+  order?: number;
+  isPreview?: boolean;
+}
+
 
 @Injectable()
 export class LessonService extends BaseService<ILesson, string> {
@@ -77,6 +83,15 @@ export class LessonService extends BaseService<ILesson, string> {
       throw new BadRequestException('Thứ tự bài học không được nhỏ hơn 0');
     }
 
+    if (
+      !input.content ||
+      ![LessonContentTypeEnum.VIDEO, LessonContentTypeEnum.DOCUMENT].includes(input.content.type) ||
+      typeof input.content.url !== 'string' ||
+      !input.content.url.trim()
+    ) {
+      throw new BadRequestException('Vui lòng tải lên video hoặc tài liệu hợp lệ cho bài học');
+    }
+
     const userId = input.userId ?? this.getCurrentUserId();
 
     const isVideo = input.content?.type === LessonContentTypeEnum.VIDEO;
@@ -85,9 +100,8 @@ export class LessonService extends BaseService<ILesson, string> {
       {
         sectionId: section.id,
         title: input.title.trim(),
-        description: input.description?.trim() || null,
         order: input.order,
-        content: input.content ?? null,
+        content: { ...input.content, url: input.content.url.trim() },
         isPreview: Boolean(input.isPreview),
         transcriptionStatus: isVideo
           ? LessonTranscriptionStatusEnum.QUEUED
@@ -109,6 +123,63 @@ export class LessonService extends BaseService<ILesson, string> {
     }
 
     return createdLesson;
+  }
+
+  async updateLesson(
+    lessonId: string,
+    input: UpdateLessonInput,
+    userId?: string,
+    userRole?: RoleEnum,
+    session?: ClientSession,
+  ): Promise<ILesson> {
+    const lesson = await this.getLessonById(lessonId, session);
+
+    // Kiểm tra quyền sở hữu (IDOR) & trạng thái chờ duyệt
+    if (this.courseRepository) {
+      const section = await this.sectionRepository.findById(lesson.sectionId, session);
+      if (section) {
+        const course = await this.courseRepository.findById(section.courseId, session);
+        if (course && course.status === CourseStatusEnum.PENDING_APPROVAL) {
+          throw new ConflictException(
+            'Khóa học đang trong quá trình chờ phê duyệt, không thể cập nhật bài học.',
+          );
+        }
+        if (
+          course &&
+          userId &&
+          userRole !== RoleEnum.ADMIN &&
+          course.instructorId !== userId &&
+          String(course.instructorId) !== userId
+        ) {
+          throw new ForbiddenException('Bạn không có quyền chỉnh sửa bài học này');
+        }
+      }
+    }
+
+    const updatePayload: Partial<ILesson> = {};
+    if (input.title !== undefined) {
+      updatePayload.title = input.title.trim();
+    }
+    if (input.order !== undefined) {
+      if (input.order < 0) {
+        throw new BadRequestException('Thứ tự bài học không được nhỏ hơn 0');
+      }
+      updatePayload.order = input.order;
+    }
+    if (input.isPreview !== undefined) {
+      updatePayload.isPreview = Boolean(input.isPreview);
+    }
+    const currentUserId = userId ?? this.getCurrentUserId();
+    if (currentUserId) {
+      updatePayload.updatedById = currentUserId;
+    }
+
+    const updated = await this.lessonRepository.update(lesson.id, updatePayload, session);
+    if (!updated) {
+      throw new NotFoundException(`Không thể cập nhật bài học với ID '${lessonId}'`);
+    }
+
+    return updated;
   }
 
   async getLessonsBySectionId(

@@ -10,6 +10,7 @@
     "test:smart-header": "vitest run src/features/course/tests/smart-header-scroll.spec.ts",
     "test:smart-header:browser": "node scripts/test-smart-header-browser.mjs",
     "test:lesson-doc-dialog:browser": "node scripts/test-lesson-doc-dialog-browser.mjs",
+    "test:lesson-create:browser": "node scripts/test-lesson-create-browser.mjs",
     "audit:ui": "node ../.agent/skills/web-design-guidelines/scripts/audit-ui.mjs src"
   },
   "dependencies": {

@@ -4,7 +4,6 @@ import { createContext, useContext } from 'react';
 
 export interface CourseMindmapContextValue {
   onToggleSectionCollapse: (sectionId: string) => void;
-  onToggleLessonCollapse: (lessonId: string) => void;
 }
 
 const CourseMindmapContext = createContext<CourseMindmapContextValue | null>(null);

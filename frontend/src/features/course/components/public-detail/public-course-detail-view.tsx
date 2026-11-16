@@ -17,6 +17,7 @@ import { canManageCourse } from '../../utils/course-access.util';
 import { CourseDetailHeader } from './course-detail-header';
 import { CourseIntroMedia } from './course-intro-media';
 import { CourseDetailTabs, type CourseDetailTabId } from './course-detail-tabs';
+import { CourseInfoTab } from './course-info-tab';
 import { CourseCurriculumTab } from './course-curriculum-tab';
 import { CourseMindmapTab } from './course-mindmap-tab';
 import { CourseReviewsTab } from './course-reviews-tab';
@@ -193,7 +194,7 @@ export function PublicCourseDetailView({
               title={course.title}
             />
 
-            {/* 3. 4-Tab Content Navigation */}
+            {/* 3. 5-Tab Content Navigation */}
             <CourseDetailTabs
               activeTab={activeTab}
               onSelectTab={setActiveTab}
@@ -202,6 +203,10 @@ export function PublicCourseDetailView({
 
             {/* 4. Active Tab Content Pane */}
             <div className="pt-2">
+              {activeTab === 'info' && (
+                <CourseInfoTab course={course} />
+              )}
+
               {activeTab === 'curriculum' && (
                 <CourseCurriculumTab
                   sections={course.sections}

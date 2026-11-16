@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
-import { ILessonContent, ILessonMaterial, LessonContentTypeEnum, LessonTranscriptionStatusEnum } from 'share-lib';
+import { type ILessonContent, ILessonMaterial, LessonContentTypeEnum, LessonTranscriptionStatusEnum } from 'share-lib';
 import { BaseAbstractDocument } from '../../base/index.js';
 import { SectionEntity } from './section.schema.js';
 
@@ -79,9 +79,6 @@ export class LessonEntity extends BaseAbstractDocument {
   @Prop({ type: String, required: true, trim: true })
   title: string;
 
-  @Prop({ type: String, required: false, default: null, trim: true })
-  description?: string | null;
-
   @Prop({
     type: Number,
     required: true,
@@ -89,8 +86,8 @@ export class LessonEntity extends BaseAbstractDocument {
   })
   order: number;
 
-  @Prop({ type: LessonContentSchema, required: false, default: null })
-  content?: ILessonContent | null;
+  @Prop({ type: LessonContentSchema, required: true })
+  content: ILessonContent;
 
   @Prop({ type: [LessonMaterialSchema], default: [] })
   materials: LessonMaterialEntity[];
