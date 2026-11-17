@@ -10,6 +10,8 @@ import { courseKeys } from './course.api';
 export interface IQuizQuestionPayloadItem {
   id?: string;
   order: number;
+  /** Omit to keep the source checkpoint time; null unschedules this question. */
+  timestamp?: number | null;
   question: string;
   questionType: QuizQuestionTypeEnum;
   options: IQuizOption[];

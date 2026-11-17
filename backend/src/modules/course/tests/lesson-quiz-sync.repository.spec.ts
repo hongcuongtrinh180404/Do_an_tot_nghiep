@@ -24,6 +24,7 @@ describe('Stable quiz synchronization', () => {
     };
     const repository = new LessonQuizRepository(model as unknown as Model<LessonQuizEntity>);
     vi.spyOn(repository, 'findByLessonIdAndTimestamp').mockResolvedValue([]);
+    vi.spyOn(repository, 'findByLessonId').mockResolvedValue([]);
     return { repository, model };
   }
 
@@ -43,6 +44,40 @@ describe('Stable quiz synchronization', () => {
     expect(h.model.deleteMany).not.toHaveBeenCalled();
     expect(h.model.updateMany).not.toHaveBeenCalled();
     expect(h.model.updateOne).not.toHaveBeenCalled();
+  });
+
+  it.each([0, 80, null])('moves a retained question to %s without deleting the destination or changing its explanation time', async (timestamp) => {
+    const h = harness();
+    await h.repository.syncQuizzesAtTimestamp(lessonId, 20, [
+      { ...payload, timestamp, explanationTimestamp: 12 },
+    ], session);
+    expect(h.model.updateOne).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: quizId }),
+      { $set: expect.objectContaining({ timestamp, explanationTimestamp: 12 }) },
+      { session },
+    );
+    expect(h.model.deleteMany).toHaveBeenCalledWith(expect.objectContaining({
+      timestamp: { $gte: 18, $lte: 22 },
+      _id: { $nin: [new Types.ObjectId(quizId)] },
+    }));
+    expect(h.repository.findByLessonId).toHaveBeenCalledWith(lessonId, session);
+    expect(h.model.insertMany).not.toHaveBeenCalled();
+  });
+
+  it('stores independent appearance and explanation times for newly added questions', async () => {
+    const h = harness();
+    await h.repository.syncQuizzesAtTimestamp(lessonId, 20, [
+      payload,
+      { ...payload, id: undefined, order: 2, timestamp: 45, explanationTimestamp: 0 },
+    ], session);
+    expect(h.model.insertMany).toHaveBeenCalledWith([
+      expect.objectContaining({ timestamp: 45, explanationTimestamp: 0, order: 2 }),
+    ], { session });
+    expect(h.model.updateOne).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: quizId }),
+      { $set: expect.objectContaining({ timestamp: 20 }) },
+      { session },
+    );
   });
 
   it('publishes synchronization atomically rather than exposing a transient empty quiz list', async () => {

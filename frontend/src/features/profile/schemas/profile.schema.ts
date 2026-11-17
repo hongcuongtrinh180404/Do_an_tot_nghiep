@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+const socialLinkItemSchema = z
+  .string()
+  .transform((val) => (typeof val === 'string' ? val.trim() : ''))
+  .pipe(z.string().max(255, 'Đường dẫn không được vượt quá 255 ký tự'))
+  .optional()
+  .or(z.literal(''));
+
 export const updateProfileSchema = z.object({
   fullName: z
     .string()
@@ -24,6 +31,14 @@ export const updateProfileSchema = z.object({
     .string()
     .transform((val) => (typeof val === 'string' ? val.trim() : ''))
     .pipe(z.string().max(50, 'Họ và tên đệm không được vượt quá 50 ký tự'))
+    .optional(),
+  socialLinks: z
+    .object({
+      facebook: socialLinkItemSchema,
+      youtube: socialLinkItemSchema,
+      linkedin: socialLinkItemSchema,
+      github: socialLinkItemSchema,
+    })
     .optional(),
 });
 

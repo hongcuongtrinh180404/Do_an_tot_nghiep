@@ -9,13 +9,15 @@ import { Icon } from '@/components/ui/icon';
 import { Card, CardContent } from '@/components/ui/card';
 import { AvatarUploader } from './avatar-uploader';
 import { CopyProfileLinkButton } from './copy-profile-link-button';
+import { ProfileSocialButtons } from './profile-social-buttons';
 import { getPublicProfilePath } from '../utils/profile-url';
 
 interface ProfileInfoCardProps {
   user: IUserProfile;
+  showCopyProfileLink?: boolean;
 }
 
-export function ProfileInfoCard({ user }: ProfileInfoCardProps): React.JSX.Element {
+export function ProfileInfoCard({ user, showCopyProfileLink = true }: ProfileInfoCardProps): React.JSX.Element {
   const [hasCopied, setHasCopied] = useState<boolean>(false);
 
   const fullName =
@@ -99,7 +101,8 @@ export function ProfileInfoCard({ user }: ProfileInfoCardProps): React.JSX.Eleme
               {statusLabel}
             </span>
           </div>
-          {user.username && <CopyProfileLinkButton username={user.username} />}
+          {showCopyProfileLink && user.username && <CopyProfileLinkButton username={user.username} />}
+          <ProfileSocialButtons socialLinks={user.socialLinks} />
         </div>
 
         {/* Account Details List */}

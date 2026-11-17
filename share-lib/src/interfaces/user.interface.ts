@@ -2,6 +2,13 @@ import { RoleEnum } from '../enums/role.enum.js';
 import { UserStatusEnum } from '../enums/user-status.enum.js';
 import { AuthProviderEnum } from '../enums/auth-provider.enum.js';
 
+export interface ISocialLinks {
+  facebook?: string | null;
+  youtube?: string | null;
+  linkedin?: string | null;
+  github?: string | null;
+}
+
 export interface IUser {
   id: string;
   email: string;
@@ -38,6 +45,7 @@ export interface IUser {
   provider?: AuthProviderEnum;
   /** @deprecated Kept for backward compatibility during migration */
   providerId?: string | null;
+  socialLinks?: ISocialLinks | null;
   createdAt: Date | string;
   updatedAt: Date | string;
   deletedAt?: Date | string | null;
@@ -71,6 +79,7 @@ export interface IUserProfile {
   avatar?: string | null;
   /** @deprecated Kept for backward compatibility during migration */
   provider?: AuthProviderEnum;
+  socialLinks?: ISocialLinks | null;
 }
 
 /** Explicit allowlist for anonymous profile views; never include private account fields. */
@@ -83,4 +92,5 @@ export interface IPublicUserProfile {
   createdAt: Date | string;
   /** Public course filtering key, present only for instructors. */
   instructorId?: string;
+  socialLinks?: ISocialLinks | null;
 }

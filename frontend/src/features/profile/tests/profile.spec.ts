@@ -4,6 +4,7 @@ import { updateProfileSchema } from '../schemas/profile.schema';
 import { updateUserAdminSchema } from '@/features/admin/users/schemas/user-admin.schema';
 import { getPublicProfilePath } from '../utils/profile-url';
 import { getPublicProfile } from '../services/public-profile.server';
+import { formatSocialUrl } from '../components/profile-social-buttons';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -52,5 +53,36 @@ describe('server-owned profile handle', () => {
     vi.stubGlobal('fetch', fetchMock);
     expect(await getPublicProfile(username)).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  describe('socialLinks schema and formatting', () => {
+    it('parses and trims social links', () => {
+      const data = updateProfileSchema.parse({
+        fullName: 'Trịnh Hồng Cường',
+        socialLinks: {
+          facebook: '  facebook.com/hongcuongtam  ',
+          linkedin: ' linkedin.com/in/hongcuongtam ',
+          youtube: '',
+          github: '   ',
+        },
+      });
+
+      expect(data.socialLinks?.facebook).toBe('facebook.com/hongcuongtam');
+      expect(data.socialLinks?.linkedin).toBe('linkedin.com/in/hongcuongtam');
+      expect(data.socialLinks?.youtube).toBe('');
+      expect(data.socialLinks?.github).toBe('');
+    });
+
+    it('formats social links into valid external URLs', () => {
+      expect(formatSocialUrl('facebook', 'facebook.com/hongcuongtam')).toBe('https://facebook.com/hongcuongtam');
+      expect(formatSocialUrl('facebook', 'https://facebook.com/hongcuongtam')).toBe('https://facebook.com/hongcuongtam');
+      expect(formatSocialUrl('linkedin', 'linkedin.com/in/hongcuongtam')).toBe('https://linkedin.com/in/hongcuongtam');
+      expect(formatSocialUrl('youtube', 'youtube.com/@hongcuongtam')).toBe('https://youtube.com/@hongcuongtam');
+      expect(formatSocialUrl('github', 'github.com/hongcuongtam')).toBe('https://github.com/hongcuongtam');
+      expect(formatSocialUrl('github', 'cuongdev')).toBe('https://github.com/cuongdev');
+      expect(formatSocialUrl('facebook', '')).toBeNull();
+      expect(formatSocialUrl('facebook', '   ')).toBeNull();
+      expect(formatSocialUrl('facebook', null)).toBeNull();
+    });
   });
 });

@@ -31,6 +31,7 @@ import { LessonMindmapCanvasView } from './mindmap/lesson-mindmap-canvas-view';
 interface LessonMindmapTabProps {
   lessonId: string;
   isInstructor?: boolean;
+  isActive?: boolean;
   currentTime?: number;
   duration?: number;
   onSeek?: (timestamp: number) => void;
@@ -56,6 +57,7 @@ function collectAllNodeIds(node: ILessonMindmapNode): string[] {
 interface TreeNodeProps {
   node: ILessonMindmapNode;
   level: number;
+  nearNodeIds: ReadonlySet<string>;
   currentTime?: number;
   duration?: number;
   onSeek?: (timestamp: number) => void;
@@ -75,9 +77,10 @@ interface TreeNodeProps {
   onRequestDelete: (node: ILessonMindmapNode) => void;
 }
 
-function TreeNode({
+const TreeNode = React.memo(function MindmapTreeNode({
   node,
   level,
+  nearNodeIds,
   currentTime = 0,
   duration = 0,
   onSeek,
@@ -97,7 +100,7 @@ function TreeNode({
   onRequestDelete,
 }: TreeNodeProps): React.JSX.Element {
   const hasChildren = Array.isArray(node.children) && node.children.length > 0;
-  const isNearCurrentTime = Math.abs(currentTime - node.timestamp) < 5;
+  const isNearCurrentTime = nearNodeIds.has(node.id);
   const isEditing = isInstructor && editingNodeId === node.id;
   const titleInputRef = useRef<HTMLInputElement>(null);
 
@@ -275,6 +278,7 @@ function TreeNode({
               key={child.id}
               node={child}
               level={level + 1}
+              nearNodeIds={nearNodeIds}
               currentTime={currentTime}
               duration={duration}
               onSeek={onSeek}
@@ -298,11 +302,12 @@ function TreeNode({
       )}
     </div>
   );
-}
+});
 
-export function LessonMindmapTab({
+export const LessonMindmapTab = React.memo(function LessonMindmapTab({
   lessonId,
   isInstructor = false,
+  isActive = true,
   currentTime = 0,
   duration = 0,
   onSeek,
@@ -326,8 +331,25 @@ export function LessonMindmapTab({
   // View mode switcher: 'tree' | 'canvas'
   const [viewMode, setViewMode] = useState<'tree' | 'canvas'>('tree');
 
-  // Local optimistic tree state
-  const [localTree, setLocalTree] = useState<ILessonMindmapData | null>(null);
+  // Render query data immediately. Only edits need an override; a new server
+  // snapshot supersedes it once editing finishes, without an empty intermediate render.
+  const [treeOverride, setTreeOverride] = useState<{
+    source: ILessonMindmapData | null;
+    value: ILessonMindmapData;
+  } | null>(null);
+  const localTree = treeOverride && (editingNodeId !== null || treeOverride.source === currentMindmapData)
+    ? treeOverride.value
+    : currentMindmapData;
+  const setLocalTree = useCallback((value: ILessonMindmapData) => {
+    setTreeOverride({ source: currentMindmapData, value });
+  }, [currentMindmapData]);
+  const saveTree = useCallback((value: ILessonMindmapData) => {
+    updateMindmap({ mindmap: value }, {
+      onError: () => {
+        setTreeOverride((previous) => previous?.value === value ? null : previous);
+      },
+    });
+  }, [updateMindmap]);
 
   // Canvas Collapsed IDs: null = chưa có override, dùng mặc định 2 cấp độ.
   // Lưu kèm structureKey để tự reset khi cấu trúc cây thay đổi (AI sinh lại, thêm/xóa nhánh).
@@ -336,19 +358,12 @@ export function LessonMindmapTab({
     ids: Set<string>;
   } | null>(null);
 
-  useEffect(() => {
-    if (currentMindmapData && !editingNodeId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLocalTree(currentMindmapData);
-    }
-  }, [currentMindmapData, editingNodeId]);
-
   // Chỉ reset trạng thái thu gọn khi cấu trúc cây thay đổi (load lần đầu,
   // AI sinh lại, thêm/xóa nhánh). Sửa title không làm reset.
   const mindmapStructureKey = useMemo(() => {
-    if (!currentMindmapData?.root) return '';
-    return collectAllNodeIds(currentMindmapData.root).sort().join('|');
-  }, [currentMindmapData]);
+    if (!localTree?.root) return '';
+    return collectAllNodeIds(localTree.root).sort().join('|');
+  }, [localTree]);
 
   const canvasCollapsedIds = useMemo(() => {
     if (!localTree?.root) return null;
@@ -368,12 +383,31 @@ export function LessonMindmapTab({
   // Expansion state
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
 
-  const handleToggleExpand = (id: string) => {
+  const handleToggleExpand = useCallback((id: string) => {
     setExpandedMap((prev) => ({
       ...prev,
       [id]: prev[id] === undefined ? false : !prev[id],
     }));
-  };
+  }, []);
+
+  const timedNodes = useMemo(() => {
+    const nodes: ILessonMindmapNode[] = [];
+    const visit = (node: ILessonMindmapNode) => {
+      nodes.push(node);
+      node.children?.forEach(visit);
+    };
+    if (localTree?.root) visit(localTree.root);
+    return nodes;
+  }, [localTree]);
+  // Keep the memoized tree unchanged between actual highlight boundaries.
+  // Raw playback time is only needed by the timestamp editor while it is open.
+  const nearNodeIdsKey = JSON.stringify(isActive && viewMode === 'tree'
+    ? timedNodes.filter((node) => Math.abs(currentTime - node.timestamp) < 5).map((node) => node.id)
+    : []);
+  const nearNodeIds = useMemo<ReadonlySet<string>>(
+    () => new Set(JSON.parse(nearNodeIdsKey) as string[]),
+    [nearNodeIdsKey],
+  );
 
   const isAllExpanded = useMemo(() => {
     if (!localTree?.root) return true;
@@ -399,15 +433,16 @@ export function LessonMindmapTab({
     }
   };
 
-  const handleStartEdit = (node: ILessonMindmapNode) => {
-    if (!isInstructor) return;
+  const handleStartEdit = useCallback((node: ILessonMindmapNode) => {
+    if (!isInstructor || !localTree) return;
+    setLocalTree(localTree);
     setAddingNodeId(null);
     setEditingNodeId(node.id);
     setEditTitle(node.title);
     setEditTimestamp(node.timestamp ?? 0);
-  };
+  }, [isInstructor, localTree, setLocalTree]);
 
-  const handleSaveEdit = (nodeId: string) => {
+  const handleSaveEdit = useCallback((nodeId: string) => {
     if (!isInstructor || !localTree || !editTitle.trim()) return;
 
     // Khống chế timestamp an toàn không bao giờ vượt quá thời lượng video
@@ -427,10 +462,10 @@ export function LessonMindmapTab({
     setAddingNodeId(null);
 
     // Lưu trực tiếp lên server
-    updateMindmap({ mindmap: updatedData });
-  };
+    saveTree(updatedData);
+  }, [isInstructor, localTree, editTitle, editTimestamp, duration, setLocalTree, saveTree]);
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = useCallback(() => {
     if (addingNodeId && localTree) {
       // Hoàn tác nhánh mới vừa tạo chưa được lưu
       const revertedRoot = deleteNodeFromTree(localTree.root, addingNodeId);
@@ -438,10 +473,10 @@ export function LessonMindmapTab({
       setAddingNodeId(null);
     }
     setEditingNodeId(null);
-  };
+  }, [addingNodeId, localTree, setLocalTree]);
 
   // Node Adding state (Default timestamp = 0 per Socratic Gate)
-  const handleAddChild = (parentId: string) => {
+  const handleAddChild = useCallback((parentId: string) => {
     if (!isInstructor || !localTree) return;
 
     const newId = `node-${Date.now()}`;
@@ -463,7 +498,7 @@ export function LessonMindmapTab({
     setEditingNodeId(newId);
     setEditTitle('Nhánh mới');
     setEditTimestamp(0);
-  };
+  }, [isInstructor, localTree, setLocalTree]);
 
   // Node Deletion state & Confirmation
   const [deletingNode, setDeletingNode] = useState<{
@@ -472,7 +507,9 @@ export function LessonMindmapTab({
     childCount: number;
   } | null>(null);
 
-  const handleRequestDelete = (node: ILessonMindmapNode) => {
+  const executeDelete = useCallback(deleteBranch, [isInstructor, localTree, editingNodeId, setLocalTree, saveTree]);
+
+  const handleRequestDelete = useCallback((node: ILessonMindmapNode) => {
     if (!isInstructor) return;
     const childCount = countDescendants(node);
     if (childCount > 0) {
@@ -486,9 +523,9 @@ export function LessonMindmapTab({
       // Leaf node without children -> delete directly
       executeDelete(node.id);
     }
-  };
+  }, [isInstructor, executeDelete]);
 
-  const executeDelete = (nodeId: string) => {
+  function deleteBranch(nodeId: string) {
     if (!isInstructor || !localTree) return;
 
     const newRoot = deleteNodeFromTree(localTree.root, nodeId);
@@ -500,8 +537,8 @@ export function LessonMindmapTab({
     }
 
     // Silent auto-save to server
-    updateMindmap({ mindmap: updatedData });
-  };
+    saveTree(updatedData);
+  }
 
   const handleConfirmDelete = () => {
     if (!isInstructor || !deletingNode) return;
@@ -586,6 +623,7 @@ export function LessonMindmapTab({
           <div className="w-full py-1">
             <LessonMindmapCanvasView
               canEdit={isInstructor}
+              isActive={isActive}
               root={localTree.root}
               currentTime={currentTime}
               duration={duration}
@@ -599,7 +637,8 @@ export function LessonMindmapTab({
             <TreeNode
               node={localTree.root}
               level={0}
-              currentTime={currentTime}
+              nearNodeIds={nearNodeIds}
+              currentTime={editingNodeId ? currentTime : 0}
               duration={duration}
               onSeek={onSeek}
               isExpanded={expandedMap[localTree.root.id] !== false}
@@ -698,4 +737,4 @@ export function LessonMindmapTab({
       </Dialog>
     </div>
   );
-}
+});

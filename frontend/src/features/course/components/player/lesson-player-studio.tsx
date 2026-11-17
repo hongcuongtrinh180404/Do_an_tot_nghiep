@@ -20,7 +20,6 @@ import { LessonVideoScreen, TimelineMarker } from './lesson-video-screen';
 import { LessonNavSidebar } from './lesson-nav-sidebar';
 import { LessonTabsContainer } from './lesson-tabs-container';
 import { useLessonLearningProgress } from './use-lesson-learning-progress';
-import { LearningProgressSummary } from '../learning-progress-summary';
 import { useLessonCheckpoints } from './use-lesson-checkpoints';
 import { useLessonCompletionListQuery } from '../../api/lesson-completion.api';
 
@@ -214,10 +213,6 @@ function LessonPlayerStudioContent({
 
       {/* Main Layout Container: Ergonomic Laptop Width Max-bounds */}
       <div className="flex-1 w-full max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {mode === 'learn' && (
-          <LearningProgressSummary progress={learning.progress} isLoading={learning.isLoading}
-            isError={learning.isError} onRetry={() => void learning.refetch()} saveState={learning.saveState} />
-        )}
         {mode === 'learn' && checkpoints.completion && (
           <p className="text-sm font-medium text-foreground">
             {checkpoints.completion.status === LearningStatusEnum.COMPLETED ? 'Bài học đã hoàn thành' : 'Bài học chưa hoàn thành'}

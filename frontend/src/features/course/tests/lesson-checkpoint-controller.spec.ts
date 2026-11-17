@@ -36,7 +36,7 @@ function harness(quizzes = [question('q1', 192), question('q2', 254)], start = 1
 }
 
 describe('Lesson checkpoints', () => {
-  it('queues Q1 then Q2 and remembers the original 05:00 destination', () => {
+  it('keeps each saved answer open until continuing, then remembers the original 05:00 destination', () => {
     const h = harness();
     h.controller.requestSeek(300);
     assert.equal(h.media.position, 192);
@@ -44,10 +44,19 @@ describe('Lesson checkpoints', () => {
     assert.equal(h.active()?.quizzes[0].id, 'q1');
     assert.equal(h.active()?.required, true);
     h.save('q1');
+    assert.equal(h.active()?.quizzes[0].id, 'q1');
+    assert.ok(h.active()?.quizzes[0].answer);
+    assert.equal(h.active()?.required, false);
+    assert.equal(h.media.position, 192);
+    assert.equal(h.media.paused, true);
+    h.controller.close();
     assert.equal(h.media.position, 254);
     assert.equal(h.active()?.quizzes[0].id, 'q2');
     assert.equal(h.media.paused, true);
     h.save('q2');
+    assert.equal(h.active()?.quizzes[0].id, 'q2');
+    assert.equal(h.media.paused, true);
+    h.controller.close();
     assert.equal(h.active(), null);
     assert.equal(h.media.position, 300);
     assert.equal(h.media.paused, false);
@@ -71,15 +80,17 @@ describe('Lesson checkpoints', () => {
     h.controller.requestSeek(300);
     h.controller.requestSeek(420);
     h.controller.requestSeek(360);
-    h.save('q1'); h.save('q2');
+    h.save('q1'); h.controller.close();
+    h.save('q2'); h.controller.close();
     assert.equal(h.media.position, 360);
   });
 
-  it('resumes automatically after mandatory quizzes even when the forward seek started paused', () => {
+  it('resumes after explicitly continuing past mandatory quizzes even when the forward seek started paused', () => {
     const h = harness();
     h.media.paused = true;
     h.controller.requestSeek(300);
-    h.save('q1'); h.save('q2');
+    h.save('q1'); h.controller.close();
+    h.save('q2'); h.controller.close();
     assert.equal(h.media.position, 300);
     assert.equal(h.media.paused, false);
   });
@@ -87,7 +98,8 @@ describe('Lesson checkpoints', () => {
   it('does not restart the video when the remembered destination is its exact end', () => {
     const h = harness();
     h.controller.requestSeek(600);
-    h.save('q1'); h.save('q2');
+    h.save('q1'); h.controller.close();
+    h.save('q2'); h.controller.close();
     assert.equal(h.media.position, 600);
     assert.equal(h.media.paused, true);
   });
@@ -97,6 +109,7 @@ describe('Lesson checkpoints', () => {
     h.controller.requestSeek(300);
     h.controller.requestSeek(200);
     h.save('q1');
+    h.controller.close();
     assert.equal(h.media.position, 200);
     assert.equal(h.active(), null);
   });
@@ -120,7 +133,8 @@ describe('Lesson checkpoints', () => {
     h.media.paused = false;
     h.controller.play();
     assert.equal(h.active()?.quizzes[0].id, 'q1');
-    h.save('q1'); h.save('q2');
+    h.save('q1'); h.controller.close();
+    h.save('q2'); h.controller.close();
     assert.equal(h.media.position, 300);
   });
 
@@ -131,6 +145,9 @@ describe('Lesson checkpoints', () => {
     assert.equal(h.media.position, 192);
     assert.equal(h.active()?.quizzes[0].id, 'q1');
     h.save('q1');
+    assert.equal(h.media.paused, true);
+    assert.ok(h.active()?.quizzes[0].answer);
+    h.controller.close();
     assert.equal(h.media.position, 192);
     assert.equal(h.media.paused, false);
     h.controller.timeUpdate(192.5);
@@ -166,7 +183,8 @@ describe('Lesson checkpoints', () => {
     h.media.position = 500;
     h.controller.seeking(500);
     assert.equal(h.media.position, 192);
-    h.save('q1'); h.save('q2');
+    h.save('q1'); h.controller.close();
+    h.save('q2'); h.controller.close();
     assert.equal(h.media.position, 500);
   });
 
@@ -179,6 +197,9 @@ describe('Lesson checkpoints', () => {
     h.controller.setData([question('q1', 192)], true, true);
     assert.equal(h.active()?.quizzes[0].id, 'q1');
     h.controller.setData([question('q1', 192, true)], true, true);
+    assert.equal(h.media.position, 192);
+    assert.equal(h.media.paused, true);
+    h.controller.close();
     assert.equal(h.media.position, 400);
   });
 
@@ -193,6 +214,7 @@ describe('Lesson checkpoints', () => {
     h.controller.play();
     assert.equal(h.active()?.timestamp, 0);
     h.save('q1');
+    h.controller.close();
     h.controller.timeUpdate(0.1);
     assert.equal(h.active(), null);
   });
@@ -204,6 +226,8 @@ describe('Lesson checkpoints', () => {
     h.controller.ended();
     assert.equal(h.active()?.timestamp, 600);
     h.save('q1');
+    assert.ok(h.active()?.quizzes[0].answer);
+    h.controller.close();
     assert.equal(h.active(), null);
     assert.equal(h.media.paused, true);
   });
@@ -242,10 +266,53 @@ describe('Lesson checkpoints', () => {
     h.controller.requestSeek(300);
     assert.deepEqual(h.active()?.quizzes.map((quiz) => quiz.id), ['q2', 'q3']);
     h.save('q2');
-    assert.deepEqual(h.active()?.quizzes.map((quiz) => quiz.id), ['q3']);
+    assert.deepEqual(h.active()?.quizzes.map((quiz) => quiz.id), ['q2', 'q3']);
+    assert.ok(h.active()?.quizzes[0].answer);
+    assert.equal(h.active()?.required, true);
     h.save('q3');
+    assert.equal(h.active()?.required, false);
+    assert.equal(h.media.paused, true);
+    h.controller.close();
     assert.equal(h.media.position, 300);
     assert.equal(h.active(), null);
+  });
+
+  it('does not skip answer review or reinsert previously completed questions when polling', () => {
+    const h = harness([question('q1', 192, true), question('q2', 193)]);
+    h.controller.requestSeek(300);
+    const playsBeforeReview = h.plays();
+    assert.deepEqual(h.active()?.quizzes.map((quiz) => quiz.id), ['q2']);
+    h.save('q2');
+    h.controller.setData([question('q1', 192, true), question('q2', 193, true)], true, true);
+    assert.deepEqual(h.active()?.quizzes.map((quiz) => quiz.id), ['q2']);
+    assert.equal(h.media.position, 192);
+    assert.equal(h.media.paused, true);
+    assert.equal(h.plays(), playsBeforeReview);
+    h.controller.close();
+    assert.equal(h.media.position, 300);
+    assert.equal(h.media.paused, false);
+  });
+
+  it('keeps the next question mandatory if the learner closes a partially answered cluster', () => {
+    const h = harness([question('q1', 192), question('q2', 193)]);
+    h.controller.requestSeek(300);
+    h.save('q1');
+    h.controller.close();
+    assert.equal(h.active(), null);
+    assert.equal(h.media.paused, true);
+    h.controller.play();
+    assert.deepEqual(h.active()?.quizzes.map((quiz) => quiz.id), ['q2']);
+    assert.equal(h.media.position, 192);
+    assert.equal(h.active()?.required, true);
+  });
+
+  it('does not leave an empty modal blocking playback when the open question is removed', () => {
+    const h = harness([question('q1', 192)]);
+    h.controller.requestSeek(300);
+    h.controller.setData([], true, true);
+    assert.equal(h.active(), null);
+    assert.equal(h.media.position, 300);
+    assert.equal(h.media.paused, false);
   });
 
   it('keeps preview quizzes optional and never grants completion locally', () => {

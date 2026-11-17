@@ -1,10 +1,11 @@
-import type { IUserProfile } from 'share-lib';
+import type { IUserProfile, ISocialLinks } from 'share-lib';
 
 export interface IUpdateProfilePayload {
   fullName?: string;
   bio?: string;
   firstName?: string;
   lastName?: string;
+  socialLinks?: ISocialLinks;
 }
 
 export interface IAvatarUploadResponse {

@@ -580,3 +580,29 @@
   - 24/24 unit tests in `src/modules/auth/tests/auth.service.spec.ts` passing (100%), including new test cases for transient certificate error retry and recovery.
   - 65/65 unit tests in `src/modules/auth` pass cleanly.
 
+### [2026-11-17] - Online Social Links ("Liên kết trực tuyến") Implementation for User & Public Profiles
+
+- **Problem / Requirements**:
+  - The user requested adding a "Liên kết trực tuyến" (Online Social Links) section in the user profile page (`/profile` & `/profile/[username]`).
+  - Supported platforms: Facebook, LinkedIn, YouTube, GitHub.
+  - Channels with links are displayed in a centered horizontal row of square icon buttons (`w-9 h-9`, rounded-lg, max 4) on the left profile card under "Sao chép liên kết".
+  - Empty channels automatically hide from the public view.
+  - In the editing form on the right, each field provides an icon prefix, helpful placeholder, and a quick-clear (`X`) button.
+  - External links must be properly normalized (`https://...`) to prevent relative route navigation errors.
+- **Solution**:
+  - **Shared Library (`share-lib/`)**:
+    - Created `ISocialLinks` interface with `facebook`, `youtube`, `linkedin`, `github`.
+    - Added `socialLinks?: ISocialLinks | null;` to `IUser`, `IUserProfile`, and `IPublicUserProfile`.
+  - **Backend (`backend/src/modules/user`)**:
+    - Added sub-document `socialLinks` to `UserEntity` in `user.schema.ts`.
+    - Created `UpdateSocialLinksDto` with `@Transform` trimming and `@MaxLength(255)` in `update-profile.dto.ts`.
+    - Updated `UserService`: persists `dto.socialLinks` in `updateProfile`, maps `socialLinks` in `toUserProfile` and `getPublicProfileByUsername`.
+    - Extended unit tests in `user.public-profile.spec.ts` and `user.service.spec.ts` (100% passing).
+  - **Frontend (`frontend/src/features/profile`)**:
+    - Updated `updateProfileSchema` in `profile.schema.ts` and `IUpdateProfilePayload` in `profile.types.ts`.
+    - Created `ProfileSocialButtons` (`profile-social-buttons.tsx`): renders max 4 square buttons (`w-9 h-9`), auto-filters empty channels, normalizes URLs with `formatSocialUrl`, and opens external links securely (`target="_blank" rel="noopener noreferrer"`).
+    - Integrated `ProfileSocialButtons` into `ProfileInfoCard` (owner view) and `ReadOnlyProfile` (public view).
+    - Updated `ProfileForm`: added the "Liên kết trực tuyến" section with 4 branded inputs, clear buttons (`X`), and integration with reset/dirty form state.
+    - Extended frontend unit tests in `profile.spec.ts` covering validation, trimming, and `formatSocialUrl` normalization (13/13 passing).
+
+

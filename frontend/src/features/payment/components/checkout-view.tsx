@@ -225,7 +225,7 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
                 href="/my-courses"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-[#e5e7eb] bg-white hover:bg-neutral-50 text-neutral-700 font-semibold py-3 px-6 text-sm transition-all"
               >
-                <span>Xem khóa học của tôi</span>
+                <span>Xem khóa học đã mua</span>
               </Link>
             </div>
           </div>

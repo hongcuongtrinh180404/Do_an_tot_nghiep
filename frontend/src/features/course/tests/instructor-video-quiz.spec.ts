@@ -3,7 +3,7 @@
 import { act, createElement, StrictMode, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { QuizQuestionTypeEnum, type ILessonCompletion, type ILessonQuiz, type IStudentLessonQuiz } from 'share-lib';
+import { LearningStatusEnum, QuizQuestionTypeEnum, type ILessonCompletion, type ILessonQuiz, type IStudentLessonQuiz, type ISubmitLessonQuizAnswer } from 'share-lib';
 import { useLessonCheckpoints, type LessonCheckpoints } from '../components/player/use-lesson-checkpoints';
 import { StudentInVideoQuizModal } from '../components/player/student-in-video-quiz-modal';
 import type { UseVideoPlayerReturn } from '../components/player/use-video-player';
@@ -300,6 +300,97 @@ describe('Instructor in-video quiz preview', () => {
     expect(button('A.Đáp án A').disabled).toBe(true);
     expect(container.textContent).toContain('Đăng ký khóa học');
     expectNoProgressWrites();
+  });
+});
+
+describe('Learner checkpoint answer review', () => {
+  function mockLearnerCompletion() {
+    let state: ILessonCompletion = {
+      courseId: 'course', lessonId: 'lesson', status: LearningStatusEnum.NOT_STARTED,
+      quizzesVersion: 'quizzes', mediaVersion: 'media', videoEnded: false,
+      completedQuestions: 0, totalQuestions: official.length,
+      quizzes: createInstructorQuizPreviews(official, new Map()),
+    };
+    completionQuery.mockImplementation(() => loaded(state));
+    submitAnswer.mockImplementation(async (_courseId: string, _lessonId: string, payload: ISubmitLessonQuizAnswer) => {
+      const source = official.find((quiz) => quiz.id === payload.quizId)!;
+      state = {
+        ...state,
+        completedQuestions: state.completedQuestions + 1,
+        quizzes: state.quizzes.map((quiz) => quiz.id === payload.quizId ? {
+          ...quiz, answer: gradeInstructorQuizPreview(source, payload.selectedOptionIds), explanation: source.explanation,
+        } : quiz),
+      };
+      return state;
+    });
+  }
+
+  it('keeps saved questions available for disclosure and only advances on explicit continuation', async () => {
+    official.push(question('q3', 90));
+    mockLearnerCompletion();
+    renderProbe({ instructorPreview: false, enrolled: true });
+    act(() => player.seek(100));
+    expect(video.currentTime).toBe(30);
+    expect(paused).toBe(true);
+
+    act(() => button('B.Đáp án B').click());
+    await act(async () => button('Trả lời').click());
+    expect(latest.active?.quizzes.map((quiz) => quiz.id)).toEqual(['q1', 'q2']);
+    expect(latest.active?.required).toBe(true);
+    expect(container.textContent).toContain('Câu hỏi q1');
+    expect(container.textContent).not.toContain('Giải thích q1');
+    expect(paused).toBe(true);
+    act(() => button('Xem đáp án').click());
+    expect(container.textContent).toContain('Giải thích q1');
+
+    act(() => button('Câu tiếp theo').click());
+    expect(container.textContent).toContain('Câu hỏi q2');
+    expect(container.textContent).not.toContain('Giải thích q1');
+    act(() => {
+      button('A.Đáp án A').click();
+      button('C.Đáp án C').click();
+    });
+    await act(async () => button('Trả lời').click());
+    expect(latest.active?.required).toBe(false);
+    expect(container.textContent).toContain('Xem đáp án');
+    expect(container.textContent).not.toContain('Giải thích q2');
+    expect(video.currentTime).toBe(30);
+    expect(paused).toBe(true);
+
+    // Revealing an answer is optional, but the next mandatory checkpoint cannot be bypassed.
+    act(() => button('Xem tiếp video').click());
+    expect(latest.active?.quizzes[0].id).toBe('q3');
+    expect(video.currentTime).toBe(90);
+    expect(paused).toBe(true);
+    act(() => button('A.Đáp án A').click());
+    await act(async () => button('Trả lời').click());
+    expect(container.textContent).toContain('Xem đáp án');
+    expect(container.textContent).not.toContain('Giải thích q3');
+    expect(paused).toBe(true);
+    act(() => button('Xem tiếp video').click());
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(video.currentTime).toBe(100);
+    expect(paused).toBe(false);
+    expect(submitAnswer).toHaveBeenCalledTimes(3);
+    expect(cacheCompletion).toHaveBeenCalledTimes(3);
+  });
+
+  it('keeps a failed submission unanswered and permits retrying before answer review', async () => {
+    mockLearnerCompletion();
+    submitAnswer.mockRejectedValueOnce(new Error('offline'));
+    renderProbe({ instructorPreview: false, enrolled: true });
+    advance(30.4);
+    act(() => button('B.Đáp án B').click());
+    await act(async () => button('Trả lời').click());
+    expect(latest.active?.required).toBe(true);
+    expect(latest.active?.quizzes[0].answer).toBeNull();
+    expect(container.textContent).not.toContain('Xem đáp án');
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Không thể gửi');
+    expect(paused).toBe(true);
+    await act(async () => button('Trả lời').click());
+    expect(container.textContent).toContain('Xem đáp án');
+    expect(container.textContent).not.toContain('Giải thích q1');
+    expect(cacheCompletion).toHaveBeenCalledOnce();
   });
 });
 

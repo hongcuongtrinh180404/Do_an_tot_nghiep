@@ -248,6 +248,7 @@ export class UserService extends BaseService<IUser, string> {
       bio: user.bio ?? null,
       role: user.role,
       createdAt: user.createdAt,
+      socialLinks: user.socialLinks ?? null,
       ...(user.role === RoleEnum.INSTRUCTOR ? { instructorId: user.id } : {}),
     };
   }
@@ -279,6 +280,15 @@ export class UserService extends BaseService<IUser, string> {
 
     if (dto.bio !== undefined) {
       updatePayload.bio = dto.bio;
+    }
+
+    if (dto.socialLinks !== undefined) {
+      updatePayload.socialLinks = {
+        facebook: dto.socialLinks.facebook || null,
+        youtube: dto.socialLinks.youtube || null,
+        linkedin: dto.socialLinks.linkedin || null,
+        github: dto.socialLinks.github || null,
+      };
     }
 
     const updated = await this.updateOrFail(userId, updatePayload);
@@ -394,6 +404,7 @@ export class UserService extends BaseService<IUser, string> {
       lastName: user.lastName,
       avatar: user.avatarUrl || user.avatar || null,
       provider: user.provider,
+      socialLinks: user.socialLinks ?? null,
     };
   }
 }

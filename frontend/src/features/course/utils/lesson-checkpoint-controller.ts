@@ -45,15 +45,17 @@ export class LessonCheckpointController {
     this.ready = ready;
     this.enforced = enforced;
     if (!ready) { this.port.pause(); return; }
-    if (this.active?.required || this.pendingTarget !== null) this.drain();
-    else if (this.active) {
+    if (this.active) {
       const current = this.checkpoints.get(this.active.timestamp);
-      if (current && enforced && current.some((quiz) => !quiz.answer)) {
-        this.active = { ...this.active, quizzes: current, required: true };
-        this.drain();
-      } else if (current) this.show({ ...this.active, quizzes: current });
-      else this.close();
-    }
+      const visibleIds = new Set(this.active.quizzes.map((quiz) => quiz.id));
+      // Keep submitted questions visible for optional answer review. Polling must not advance
+      // the learner or reinsert previously completed questions ahead of the current question.
+      const visible = current?.filter((quiz) => !enforced || visibleIds.has(quiz.id) || !quiz.answer);
+      if (visible?.length) {
+        this.port.pause();
+        this.show({ ...this.active, quizzes: visible, required: enforced && visible.some((quiz) => !quiz.answer) });
+      } else this.drain();
+    } else if (this.pendingTarget !== null) this.drain();
   }
 
   private show(checkpoint: ActiveLessonCheckpoint | null): void {
@@ -186,6 +188,9 @@ export class LessonCheckpointController {
     const required = this.active?.required;
     this.show(null);
     if (required) { this.port.pause(); return; }
+    // Continue the remembered seek only after the learner leaves the completed question.
+    // drain() still stops at every unanswered checkpoint before that destination.
+    if (this.pendingTarget !== null) { this.drain(); return; }
     this.pendingTarget = null;
     this.zeroHandled = true;
     if (this.resumeAfter && this.port.position() < this.port.duration() - 0.01) this.port.play();

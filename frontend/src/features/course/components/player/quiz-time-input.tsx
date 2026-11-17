@@ -54,16 +54,11 @@ export function QuizTimeInput({
   // Sync state from value when not actively typing
   useEffect(() => {
     if (isFocusedRef.current) return;
-    if (value == null) {
-      setMinStr('');
-      setSecStr('');
-      setSecondsWarning(false);
-      return;
-    }
-    const m = Math.floor(Math.max(0, value) / 60);
-    const s = Math.floor(Math.max(0, value) % 60);
-    setMinStr(String(m).padStart(2, '0'));
-    setSecStr(String(s).padStart(2, '0'));
+    const m = value == null ? '' : String(Math.floor(Math.max(0, value) / 60)).padStart(2, '0');
+    const s = value == null ? '' : String(Math.floor(Math.max(0, value) % 60)).padStart(2, '0');
+    // A controlled MM/SS field needs local text drafts to preserve incomplete input while focused.
+    setMinStr(m);
+    setSecStr(s);
     setSecondsWarning(false);
   }, [value]);
 
@@ -118,8 +113,8 @@ export function QuizTimeInput({
     prevMinutesLength.current = e.currentTarget.value.length - selectedLen;
   };
 
-  const handleMinutesInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const cleaned = e.target.value.replace(/\D/g, '').slice(0, 3);
+  const handleMinutesInput = (e: React.InputEvent<HTMLInputElement>) => {
+    const cleaned = e.currentTarget.value.replace(/\D/g, '').slice(0, 3);
     setMinStr(cleaned);
 
     // Tự động chuyển con trỏ sang ô Giây sau khi gõ đủ 2 chữ số phút
@@ -210,8 +205,8 @@ export function QuizTimeInput({
     }
   };
 
-  const handleSecondsInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const cleaned = e.target.value.replace(/\D/g, '').slice(0, 2);
+  const handleSecondsInput = (e: React.InputEvent<HTMLInputElement>) => {
+    const cleaned = e.currentTarget.value.replace(/\D/g, '').slice(0, 2);
     if (!cleaned) {
       setSecStr('');
       setSecondsWarning(false);

@@ -12,6 +12,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPortalContainerProvider,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { UseVideoPlayerReturn } from './use-video-player';
@@ -659,6 +660,7 @@ export function LessonVideoScreen({
   }
 
   return (
+    <DialogPortalContainerProvider container={isFullscreen ? containerRef : undefined}>
     <div
       ref={containerRef}
       onPointerMove={handlePointerMove}
@@ -843,7 +845,7 @@ export function LessonVideoScreen({
                 className="absolute top-full pt-1.5 -translate-x-1/2 z-50 flex flex-col items-center pointer-events-auto select-none animate-in fade-in-0 zoom-in-95 duration-150"
               >
                 {/* Hitbox bridge so pointer events are seamlessly preserved when cursor travels from timeline track to button */}
-                <div className="absolute -top-3 inset-x-0 h-4 bg-transparent pointer-events-auto" />
+                <div className="absolute -top-1 inset-x-0 h-2 bg-transparent pointer-events-auto" />
 
                 {/* Mũi tên nhỏ trỏ lên thanh timeline */}
                 <div className="size-2 rotate-45 bg-amber-500 -mb-1 shadow-xs pointer-events-none" />
@@ -1134,6 +1136,7 @@ export function LessonVideoScreen({
             open={isQuizModalOpen}
             onOpenChange={setIsQuizModalOpen}
             timestamp={selectedQuizTime}
+            duration={duration}
             formatTime={formatTime}
             lessonId={lessonId}
             lessonTitle={lessonTitle}
@@ -1219,5 +1222,6 @@ export function LessonVideoScreen({
         </Dialog>
       </div>
     </div>
+    </DialogPortalContainerProvider>
   );
 }

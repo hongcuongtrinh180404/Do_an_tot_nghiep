@@ -325,6 +325,36 @@ describe('LessonQuizService (Unit Tests - AAA Pattern)', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    it('keeps the source checkpoint separate from each question appearance and explanation time', async () => {
+      const lessonId = '66f000000000000000000001';
+      mockLessonRepo.findById!.mockResolvedValue({ id: lessonId, content: { duration: 120 } });
+      await service.syncQuizzesAtTimestamp(lessonId, {
+        timestamp: 20,
+        questions: [
+          { ...validDto.questions[0], timestamp: 45, explanationTimestamp: 12 },
+          { ...validDto.questions[0], order: 2, timestamp: 0, explanationTimestamp: 0 },
+          { ...validDto.questions[0], order: 3, timestamp: null, explanationTimestamp: 120 },
+          { ...validDto.questions[0], order: 4 },
+        ],
+      });
+      expect(mockLessonQuizRepo.syncQuizzesAtTimestamp).toHaveBeenCalledWith(lessonId, 20, [
+        expect.objectContaining({ timestamp: 45, explanationTimestamp: 12 }),
+        expect.objectContaining({ timestamp: 0, explanationTimestamp: 0 }),
+        expect.objectContaining({ timestamp: null, explanationTimestamp: 120 }),
+        expect.objectContaining({ timestamp: 20 }),
+      ]);
+    });
+
+    it.each(['timestamp', 'explanationTimestamp'])('rejects an out-of-duration %s before synchronizing anything', async (field) => {
+      const lessonId = '66f000000000000000000001';
+      mockLessonRepo.findById!.mockResolvedValue({ id: lessonId, content: { duration: 120 } });
+      await expect(service.syncQuizzesAtTimestamp(lessonId, {
+        timestamp: 20,
+        questions: [{ ...validDto.questions[0], [field]: 121 }],
+      })).rejects.toThrow(BadRequestException);
+      expect(mockLessonQuizRepo.syncQuizzesAtTimestamp).not.toHaveBeenCalled();
+    });
+
     it('Arrange - Act - Assert: should throw BadRequestException if question text is empty', async () => {
       // Arrange
       const lessonId = '66f000000000000000000001';

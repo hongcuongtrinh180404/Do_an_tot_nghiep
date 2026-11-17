@@ -39,4 +39,26 @@ describe('public profile HTTP contract', () => {
       { type: 'body', metatype },
     )).rejects.toThrow(BadRequestException);
   });
+
+  it('accepts and validates socialLinks in UpdateProfileDto', async () => {
+    const pipe = new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true });
+    const transformed = await pipe.transform(
+      {
+        fullName: 'Cuong Trinh',
+        socialLinks: {
+          facebook: '  https://facebook.com/cuong  ',
+          youtube: '  https://youtube.com/@cuong  ',
+          linkedin: 'https://linkedin.com/in/cuong',
+          github: 'cuongdev',
+        },
+      },
+      { type: 'body', metatype: UpdateProfileDto },
+    );
+    expect(transformed.socialLinks).toEqual({
+      facebook: 'https://facebook.com/cuong',
+      youtube: 'https://youtube.com/@cuong',
+      linkedin: 'https://linkedin.com/in/cuong',
+      github: 'cuongdev',
+    });
+  });
 });

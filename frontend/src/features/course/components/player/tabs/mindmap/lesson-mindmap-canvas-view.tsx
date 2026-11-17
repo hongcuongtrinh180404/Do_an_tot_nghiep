@@ -36,9 +36,12 @@ const edgeTypes: EdgeTypes = {
   smoothBezier: SmoothBezierEdge,
 };
 
+const initialFitViewOptions = { padding: 0.25, duration: 0 };
+
 export interface LessonMindmapCanvasViewProps {
   root: ILessonMindmapNode;
   canEdit?: boolean;
+  isActive?: boolean;
   currentTime?: number;
   duration?: number;
   onSeek?: (timestamp: number) => void;
@@ -49,6 +52,7 @@ export interface LessonMindmapCanvasViewProps {
 function LessonMindmapFlowCanvas({
   root,
   canEdit = false,
+  isActive = true,
   currentTime = 0,
   onSeek,
   collapsedIds,
@@ -119,7 +123,7 @@ function LessonMindmapFlowCanvas({
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
   const cancelAnimationRef = useRef<(() => void) | null>(null);
-  const isFirstLayoutRef = useRef(true);
+  const appliedLayoutRef = useRef({ nodes: layoutNodes, edges: layoutEdges });
   // Tăng revision sau mỗi animation để effect highlight áp lại trạng thái mới nhất
   const [highlightRevision, setHighlightRevision] = useState(0);
 
@@ -133,12 +137,11 @@ function LessonMindmapFlowCanvas({
 
   // Animate khi cấu trúc / trạng thái thu gọn thay đổi
   useEffect(() => {
+    if (!isActive) return;
     cancelAnimationRef.current?.();
 
-    if (isFirstLayoutRef.current) {
-      isFirstLayoutRef.current = false;
-      setNodes(layoutNodes);
-      setEdges(layoutEdges);
+    // Mount/Strict Mode replay and reopening a tab are not layout changes.
+    if (appliedLayoutRef.current.nodes === layoutNodes && appliedLayoutRef.current.edges === layoutEdges) {
       return;
     }
 
@@ -154,6 +157,7 @@ function LessonMindmapFlowCanvas({
       },
       onComplete: () => {
         cancelAnimationRef.current = null;
+        appliedLayoutRef.current = { nodes: layoutNodes, edges: layoutEdges };
         setHighlightRevision((value) => value + 1);
         void fitView({ padding: 0.25, duration: 300 });
       },
@@ -161,8 +165,9 @@ function LessonMindmapFlowCanvas({
 
     return () => {
       cancelAnimationRef.current?.();
+      cancelAnimationRef.current = null;
     };
-  }, [layoutNodes, layoutEdges, setNodes, setEdges, fitView]);
+  }, [isActive, layoutNodes, layoutEdges, setNodes, setEdges, fitView]);
 
   // Dọn dẹp animation khi unmount
   useEffect(() => {
@@ -173,6 +178,7 @@ function LessonMindmapFlowCanvas({
 
   // Highlight node gần thời điểm video hiện tại mà KHÔNG reset vị trí
   useEffect(() => {
+    if (!isActive) return;
     const nearNodeIds = new Set<string>();
     for (const node of layoutNodes) {
       if (Math.abs(currentTime - node.data.timestamp) < 5) {
@@ -204,16 +210,7 @@ function LessonMindmapFlowCanvas({
       });
       return changed ? nextEdges : previousEdges;
     });
-  }, [currentTime, layoutNodes, highlightRevision, setNodes, setEdges]);
-
-  // Tự động fit view lần đầu khi ReactFlow đã render/measure nodes
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void fitView({ padding: 0.25, duration: 400 });
-    }, 120);
-
-    return () => clearTimeout(timer);
-  }, [fitView]);
+  }, [isActive, currentTime, layoutNodes, highlightRevision, setNodes, setEdges]);
 
   // Toàn màn hình toggle: Cơ chế CSS overlay fixed inset-0 z-50 từ CourseMindmapView
   const handleToggleFullscreen = useCallback(() => {
@@ -222,6 +219,7 @@ function LessonMindmapFlowCanvas({
 
   // Hỗ trợ phím tắt Escape để thoát toàn màn hình
   useEffect(() => {
+    if (!isActive || !isFullscreen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isFullscreen) {
         setIsFullscreen(false);
@@ -229,15 +227,21 @@ function LessonMindmapFlowCanvas({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFullscreen]);
+  }, [isActive, isFullscreen]);
 
-  // Căn giữa lại toàn màn hình khi chuyển đổi kích thước
+  // Only refit on an actual fullscreen change, after the resize observer has
+  // measured the new viewport. Initial fitting belongs to ReactFlow itself.
+  const fittedFullscreenRef = useRef(false);
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void fitView({ padding: 0.25, duration: 300 });
-    }, 120);
-    return () => clearTimeout(timer);
-  }, [isFullscreen, fitView]);
+    if (!isActive || fittedFullscreenRef.current === isFullscreen) return;
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        fittedFullscreenRef.current = isFullscreen;
+        void fitView({ padding: 0.25, duration: 300 });
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isActive, isFullscreen, fitView]);
 
   // Khôi phục layout chuẩn sau khi người dùng kéo node
   const handleRelayout = useCallback(() => {
@@ -269,8 +273,8 @@ function LessonMindmapFlowCanvas({
   }, [root, currentTime, activeCollapsedIds, handleToggleCollapse, onSeek, setNodes, setEdges, fitView]);
 
   const containerClasses = isFullscreen
-    ? 'fixed inset-0 z-50 w-screen h-screen bg-background flex flex-col p-3 sm:p-5 transition-all duration-200'
-    : 'relative w-full rounded-2xl border border-border/80 bg-muted/15 overflow-hidden transition-all h-[520px] sm:h-[580px] flex flex-col';
+    ? 'fixed inset-0 z-50 w-screen h-screen bg-background flex flex-col p-3 sm:p-5'
+    : 'relative w-full rounded-2xl border border-border/80 bg-muted/15 overflow-hidden h-[520px] sm:h-[580px] flex flex-col';
 
   return (
     <div ref={containerRef} className={containerClasses}>
@@ -333,7 +337,8 @@ function LessonMindmapFlowCanvas({
           elementsSelectable={true}
           minZoom={0.2}
           maxZoom={2}
-          defaultViewport={{ x: 50, y: 150, zoom: 0.85 }}
+          fitView
+          fitViewOptions={initialFitViewOptions}
           proOptions={{ hideAttribution: true }}
           className="touch-none select-none"
         >

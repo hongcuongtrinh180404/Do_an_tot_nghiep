@@ -16,6 +16,7 @@
 - `username`: `string` (Optional, unique lowercase, sparse partialFilterExpression: `{ deletedAt: null, username: { $type: "string" } }`)
 - `avatarUrl`: `string` (Optional, Cloudinary URL)
 - `bio`: `string` (Optional, short biography)
+- `socialLinks`: `{ facebook?: string | null, youtube?: string | null, linkedin?: string | null, github?: string | null } | null` (Optional online social channels)
 - `role`: `enum` (`student`, `instructor`, `admin` - default: `student`, indexed)
 - `status`: `enum` (`active`, `inactive`, `banned` - default: `active`, indexed)
 - `isEmailVerified`: `boolean` (default: `false`, indexed)

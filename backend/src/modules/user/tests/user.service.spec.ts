@@ -222,6 +222,21 @@ describe('UserService', () => {
         'user_1', expect.not.objectContaining({ username: expect.anything() }), undefined,
       );
     });
+
+    it('updates socialLinks in updateProfile', async () => {
+      const socialLinks = {
+        facebook: 'https://facebook.com/cuong',
+        youtube: 'https://youtube.com/@cuong',
+        linkedin: 'https://linkedin.com/in/cuong',
+        github: 'cuongdev',
+      };
+      mockUserRepository.update.mockResolvedValue({ ...mockUser, socialLinks });
+      const updated = await service.updateProfile('user_1', { socialLinks });
+      expect(mockUserRepository.update).toHaveBeenCalledWith(
+        'user_1', expect.objectContaining({ socialLinks }), undefined,
+      );
+      expect(updated.socialLinks).toEqual(socialLinks);
+    });
   });
 
   describe('public profile', () => {
@@ -232,7 +247,7 @@ describe('UserService', () => {
       });
       const result = await service.getPublicProfileByUsername('test');
       expect(Object.keys(result).sort()).toEqual(
-        ['fullName', 'username', 'avatarUrl', 'bio', 'role', 'createdAt'].sort(),
+        ['fullName', 'username', 'avatarUrl', 'bio', 'role', 'createdAt', 'socialLinks'].sort(),
       );
       expect(result.fullName).toBe(mockUser.fullName);
     });

@@ -60,6 +60,11 @@ export class QuizQuestionContentDto {
 
 export class QuizQuestionItemDto extends QuizQuestionContentDto {
   @IsOptional()
+  @IsInt()
+  @Min(0)
+  timestamp?: number | null;
+
+  @IsOptional()
   @IsString()
   id?: string;
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useId, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useController, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { ILessonQuiz } from 'share-lib';
 import { DialogLayout } from '@/components/shared/dialog/dialog-layout';
@@ -14,8 +14,7 @@ import {
   createQuizQuestionValues,
   type LessonQuizFormValues,
 } from '../../schemas/lesson-quiz.schema';
-import { QuizQuestionFields } from './quiz-question-fields';
-import { QuizTimeInput } from './quiz-time-input';
+import { QuizQuestionEditorFields } from './quiz-question-editor-fields';
 
 interface LessonQuizQuestionDialogProps {
   lessonId: string;
@@ -30,7 +29,6 @@ export function LessonQuizQuestionDialog({
   lessonId,
   quiz,
   canEdit,
-  currentTime = 0,
   duration,
   onOpenChange,
 }: LessonQuizQuestionDialogProps): React.JSX.Element {
@@ -51,6 +49,8 @@ export function LessonQuizQuestionDialog({
       questionData: createQuizQuestionValues(quiz),
     },
   });
+  const timestampControl = useController({ name: 'timestamp', control });
+  const explanationTimestampControl = useController({ name: 'explanationTimestamp', control });
   const isPending = isSubmitting || saveMutation.isPending;
 
   useEffect(() => {
@@ -108,53 +108,27 @@ export function LessonQuizQuestionDialog({
         }
       >
         <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Controller
-              name="timestamp"
-              control={control}
-              render={({ field, fieldState }) => (
-                <QuizTimeInput
-                  id={`${formId}-timestamp`}
-                  label="Thời điểm xuất hiện"
-                  subtext="Mốc video dừng để học viên trả lời câu hỏi"
-                  icon="lucide:clock-3"
-                  value={field.value}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  error={fieldState.error?.message}
-                  disabled={isPending}
-                  duration={duration}
-                  inputRef={field.ref}
-                />
-              )}
-            />
-
-            <Controller
-              name="explanationTimestamp"
-              control={control}
-              render={({ field, fieldState }) => (
-                <QuizTimeInput
-                  id={`${formId}-explanation-timestamp`}
-                  label="Thời gian giải thích"
-                  subtext="Mốc video bắt đầu giải thích kiến thức tương ứng"
-                  icon="lucide:lightbulb"
-                  value={field.value}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  error={fieldState.error?.message}
-                  disabled={isPending}
-                  duration={duration}
-                  inputRef={field.ref}
-                />
-              )}
-            />
-          </div>
           <Controller
             name="questionData"
             control={control}
             render={({ field }) => (
-              <QuizQuestionFields
+              <QuizQuestionEditorFields
                 idPrefix={formId}
+                timestamp={{
+                  value: timestampControl.field.value,
+                  onChange: timestampControl.field.onChange,
+                  onBlur: timestampControl.field.onBlur,
+                  inputRef: timestampControl.field.ref,
+                  error: timestampControl.fieldState.error?.message,
+                }}
+                explanationTimestamp={{
+                  value: explanationTimestampControl.field.value,
+                  onChange: explanationTimestampControl.field.onChange,
+                  onBlur: explanationTimestampControl.field.onBlur,
+                  inputRef: explanationTimestampControl.field.ref,
+                  error: explanationTimestampControl.fieldState.error?.message,
+                }}
+                duration={duration}
                 value={field.value}
                 onChange={field.onChange}
                 onBlur={field.onBlur}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,8 +16,8 @@ import {
   useSyncLessonQuizzesMutation,
   useDeleteLessonQuizClusterMutation,
 } from '../../api/lesson-quiz.api';
-import { createQuizQuestionValues, quizQuestionFieldsSchema, type QuizQuestionFieldsValue } from '../../schemas/lesson-quiz.schema';
-import { QuizQuestionFields } from './quiz-question-fields';
+import { createLessonQuizSchema, createQuizQuestionValues, type QuizQuestionFieldsValue } from '../../schemas/lesson-quiz.schema';
+import { QuizQuestionEditorFields } from './quiz-question-editor-fields';
 
 export interface QuizOption {
   id: string;
@@ -29,6 +29,8 @@ export interface QuizOption {
 export interface QuizQuestionItem extends QuizQuestionFieldsValue {
   id: string;
   order: number;
+  timestamp: number | null;
+  explanationTimestamp: number | null;
 }
 
 export interface CreateQuizMarkerModalProps {
@@ -36,6 +38,7 @@ export interface CreateQuizMarkerModalProps {
   canEdit?: boolean;
   onOpenChange: (open: boolean) => void;
   timestamp: number;
+  duration?: number;
   formatTime: (seconds: number) => string;
   lessonId?: string;
   lessonTitle?: string;
@@ -45,10 +48,12 @@ export interface CreateQuizMarkerModalProps {
 }
 
 // Helper to create a clean, blank question template for instructors
-export const createDefaultQuestion = (order: number = 1): QuizQuestionItem => ({
+export const createDefaultQuestion = (order: number = 1, timestamp: number = 0): QuizQuestionItem => ({
   ...createQuizQuestionValues(),
   id: `q-${Date.now()}-${order}`,
   order,
+  timestamp,
+  explanationTimestamp: null,
 });
 
 export function CreateQuizMarkerModal({
@@ -56,6 +61,7 @@ export function CreateQuizMarkerModal({
   canEdit = false,
   onOpenChange,
   timestamp,
+  duration,
   formatTime,
   lessonId,
   existingQuizzes = [],
@@ -63,7 +69,7 @@ export function CreateQuizMarkerModal({
   onSavedMock,
 }: CreateQuizMarkerModalProps): React.JSX.Element {
   // Multi-Question State: Starts with 1 clean empty question
-  const [questions, setQuestions] = useState<QuizQuestionItem[]>([createDefaultQuestion(1)]);
+  const [questions, setQuestions] = useState<QuizQuestionItem[]>(() => [createDefaultQuestion(1, timestamp)]);
   const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
@@ -71,9 +77,16 @@ export function CreateQuizMarkerModal({
   const [isSuccessToastVisible, setIsSuccessToastVisible] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState<boolean>(false);
+  const initializedRef = useRef(false);
+  const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const syncMutation = useSyncLessonQuizzesMutation(lessonId);
   const deleteClusterMutation = useDeleteLessonQuizClusterMutation(lessonId);
+  const isPending = syncMutation.isPending || deleteClusterMutation.isPending || isSuccessToastVisible;
+
+  useEffect(() => () => {
+    if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
+  }, []);
 
   const handleDeleteAllQuestions = async () => {
     if (!canEdit) return;
@@ -99,7 +112,13 @@ export function CreateQuizMarkerModal({
 
   // Load existing quizzes for this timestamp if present, otherwise initial clean template
   useEffect(() => {
-    if (!canEdit || !open) return;
+    if (!canEdit || !open) {
+      initializedRef.current = false;
+      return;
+    }
+    // Query refreshes must not overwrite unsaved timing/content while this editor is open.
+    if (initializedRef.current) return;
+    initializedRef.current = true;
     const matched = (existingQuizzes || []).filter((q) => q.timestamp !== null && Math.abs(q.timestamp - timestamp) <= 2);
     if (matched.length > 0) {
       const existingItems: QuizQuestionItem[] = matched.map((q, idx) => ({
@@ -114,11 +133,13 @@ export function CreateQuizMarkerModal({
           isCorrect: opt.isCorrect,
         })),
         explanation: q.explanation || '',
+        timestamp: q.timestamp,
+        explanationTimestamp: q.explanationTimestamp ?? null,
       }));
 
       if (initialAddNewQuestion) {
         // Automatically append the next question into existing question set
-        const nextQ = createDefaultQuestion(existingItems.length + 1);
+        const nextQ = createDefaultQuestion(existingItems.length + 1, timestamp);
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setQuestions([...existingItems, nextQ]);
         setActiveQuestionIndex(existingItems.length);
@@ -127,7 +148,7 @@ export function CreateQuizMarkerModal({
         setActiveQuestionIndex(0);
       }
     } else {
-      setQuestions([createDefaultQuestion(1)]);
+      setQuestions([createDefaultQuestion(1, timestamp)]);
       setActiveQuestionIndex(0);
     }
     setValidationError(null);
@@ -140,14 +161,16 @@ export function CreateQuizMarkerModal({
 
   // Reset Form
   const resetForm = useCallback(() => {
-    setQuestions([createDefaultQuestion(1)]);
+    setQuestions([createDefaultQuestion(1, timestamp)]);
     setActiveQuestionIndex(0);
     setDraggedIndex(null);
     setIsSuccessToastVisible(false);
     setValidationError(null);
-  }, []);
+    setIsConfirmDeleteOpen(false);
+  }, [timestamp]);
 
   const handleOpenChange = (nextOpen: boolean) => {
+    if (isPending) return;
     if (!nextOpen) {
       resetForm();
     }
@@ -175,7 +198,7 @@ export function CreateQuizMarkerModal({
   // Add a new blank question to the list
   const handleAddNewQuestion = () => {
     const nextIndex = questions.length;
-    const newQ = createDefaultQuestion(nextIndex + 1);
+    const newQ = createDefaultQuestion(nextIndex + 1, timestamp);
     setQuestions((prev) => [...prev, newQ]);
     setActiveQuestionIndex(nextIndex);
     if (validationError) setValidationError(null);
@@ -237,10 +260,15 @@ export function CreateQuizMarkerModal({
 
   // Save / Update All Questions
   const handleSaveAll = async () => {
-    if (!canEdit) return;
+    if (!canEdit || isPending) return;
+    const schema = createLessonQuizSchema(duration);
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
-      const validation = quizQuestionFieldsSchema.safeParse(q);
+      const validation = schema.safeParse({
+        timestamp: q.timestamp,
+        explanationTimestamp: q.explanationTimestamp,
+        questionData: q,
+      });
       if (!validation.success) {
         setActiveQuestionIndex(i);
         setValidationError(`Câu ${i + 1}: ${validation.error.issues[0]?.message ?? 'Nội dung không hợp lệ.'}`);
@@ -261,6 +289,7 @@ export function CreateQuizMarkerModal({
         questions: questions.map((q, idx) => ({
           id: q.id.startsWith('q-') ? undefined : q.id,
           order: idx + 1,
+          timestamp: q.timestamp,
           question: q.question.trim(),
           questionType:
             q.questionType === 'multiple'
@@ -273,6 +302,7 @@ export function CreateQuizMarkerModal({
             isCorrect: opt.isCorrect,
           })),
           explanation: q.explanation?.trim() || null,
+          explanationTimestamp: q.explanationTimestamp,
         })),
       });
 
@@ -285,7 +315,8 @@ export function CreateQuizMarkerModal({
         });
       }
 
-      setTimeout(() => {
+      savedTimeoutRef.current = setTimeout(() => {
+        savedTimeoutRef.current = null;
         setIsSuccessToastVisible(false);
         resetForm();
         onOpenChange(false);
@@ -299,7 +330,7 @@ export function CreateQuizMarkerModal({
     <Dialog open={canEdit && open} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="w-[calc(100%-2rem)] sm:w-[calc(100%-3rem)] max-w-[calc(1440px-3rem)] sm:max-w-[calc(1440px-3rem)] 2xl:max-w-[calc(1536px-3rem)] aspect-video max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl bg-card text-card-foreground border border-border shadow-2xl flex flex-col select-none"
+        className="w-[calc(100%-2rem)] sm:w-[calc(100%-3rem)] max-w-[calc(1440px-3rem)] sm:max-w-[calc(1440px-3rem)] 2xl:max-w-[calc(1536px-3rem)] h-[90dvh] lg:h-auto lg:aspect-video max-h-[90dvh] p-0 gap-0 overflow-hidden rounded-2xl bg-card text-card-foreground border border-border shadow-2xl flex flex-col select-none"
       >
         {/* Screen Reader Accessible Title & Description */}
         <DialogTitle className="sr-only">Tạo câu hỏi tương tác video</DialogTitle>
@@ -312,14 +343,15 @@ export function CreateQuizMarkerModal({
           {/* ========================================================================= */}
           {/* CỘT TRÁI (~70% Chiều ngang): FORM NHẬP LIỆU & BIÊN TẬP CHI TIẾT          */}
           {/* ========================================================================= */}
-          <div className="flex-1 lg:w-[70%] min-w-0 flex flex-col min-h-0 p-5 lg:p-6 overflow-y-auto space-y-3.5">
+          <div className="flex-1 lg:w-[70%] min-w-0 flex flex-col min-h-0 p-5 lg:p-6 overflow-hidden gap-3.5">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3.5">
             {/* Hàng 1: Mốc thời gian & Tiêu đề số câu (Bỏ hoàn toàn Checkpoint) */}
             <div className="flex items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-2.5">
                 {/* Badge mốc thời gian bo góc viền cam nhạt */}
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-mono text-xs font-bold shadow-2xs">
                   <Icon icon="lucide:clock" className="size-3.5 text-amber-500" />
-                  <span>⏱ {formatTime(timestamp)}</span>
+                  <span>{currentQuestion.timestamp == null ? 'Chưa đặt mốc xuất hiện' : formatTime(currentQuestion.timestamp)}</span>
                 </div>
 
                 {/* Tag định vị số thứ tự câu đang sửa */}
@@ -332,16 +364,26 @@ export function CreateQuizMarkerModal({
               <div />
             </div>
 
-            <QuizQuestionFields
-              idPrefix="marker-quiz"
+            <QuizQuestionEditorFields
+              key={currentQuestion.id}
+              idPrefix={`marker-quiz-${currentQuestion.id}`}
+              timestamp={{
+                value: currentQuestion.timestamp,
+                onChange: (value) => updateCurrentQuestion({ timestamp: value }),
+              }}
+              explanationTimestamp={{
+                value: currentQuestion.explanationTimestamp,
+                onChange: (value) => updateCurrentQuestion({ explanationTimestamp: value }),
+              }}
+              duration={duration}
               value={currentQuestion}
               onChange={updateCurrentQuestion}
-              disabled={syncMutation.isPending || deleteClusterMutation.isPending}
+              disabled={isPending}
             />
 
             {/* Validation & Success Banners */}
             {validationError && (
-              <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs flex items-center gap-2 animate-in fade-in-0">
+              <div role="alert" className="p-2 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs flex items-center gap-2 animate-in fade-in-0">
                 <Icon icon="lucide:alert-circle" className="size-3.5 shrink-0" />
                 <span>{validationError}</span>
               </div>
@@ -350,17 +392,19 @@ export function CreateQuizMarkerModal({
             {isSuccessToastVisible && (
               <div className="p-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-2 animate-in fade-in-0">
                 <Icon icon="lucide:check-circle" className="size-3.5 shrink-0" />
-                <span>Đã lưu thành công {questions.length} câu hỏi tại mốc {formatTime(timestamp)}!</span>
+                <span>Đã lưu thành công {questions.length} câu hỏi!</span>
               </div>
             )}
+            </div>
 
             {/* Hàng 6: Hàng nút hành động chân trang (Footer cột trái) */}
-            <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-border/70 shrink-0">
+            <div className="pt-2 flex flex-wrap items-center justify-end gap-2.5 border-t border-border/70 shrink-0">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => handleOpenChange(false)}
+                disabled={isPending}
                 className="bg-card border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-muted/50 px-4 py-2 rounded-xl text-xs h-9 cursor-pointer"
               >
                 Hủy / Đóng
@@ -368,7 +412,7 @@ export function CreateQuizMarkerModal({
               <Button
                 type="button"
                 size="sm"
-                disabled={syncMutation.isPending}
+                disabled={isPending}
                 onClick={handleSaveAll}
                 className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-5 py-2 rounded-xl text-xs shadow-md shadow-amber-500/20 h-9 cursor-pointer gap-1.5 disabled:opacity-50"
               >
@@ -385,7 +429,7 @@ export function CreateQuizMarkerModal({
           {/* ========================================================================= */}
           {/* CỘT PHẢI (~30% Chiều ngang): DANH SÁCH ĐIỀU HƯỚNG & KÉO THẢ THỨ TỰ       */}
           {/* ========================================================================= */}
-          <div className="lg:w-[30%] shrink-0 flex flex-col min-h-0 bg-muted/15 overflow-hidden">
+          <div className="lg:w-[30%] max-h-[30%] lg:max-h-none shrink-0 flex flex-col min-h-0 bg-muted/15 overflow-hidden">
             {/* Thanh Header nhỏ của Cột Phải */}
             <div className="px-3.5 py-3 border-b border-border/70 flex items-center justify-between gap-2 shrink-0 bg-card">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -403,7 +447,7 @@ export function CreateQuizMarkerModal({
                   size="sm"
                   title="Xóa toàn bộ câu hỏi tại mốc này"
                   onClick={() => setIsConfirmDeleteOpen(true)}
-                  disabled={deleteClusterMutation.isPending}
+                  disabled={isPending}
                   className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 font-medium px-2 py-1 rounded-lg text-xs flex items-center gap-1 h-7 cursor-pointer shadow-2xs"
                 >
                   <Icon icon="lucide:trash-2" className="size-3" />
@@ -414,6 +458,7 @@ export function CreateQuizMarkerModal({
                   type="button"
                   size="sm"
                   onClick={handleAddNewQuestion}
+                  disabled={isPending}
                   className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 font-bold px-2.5 py-1 rounded-lg text-xs flex items-center gap-1 h-7 cursor-pointer shadow-2xs"
                 >
                   <Icon icon="lucide:plus" className="size-3 stroke-[2.5]" />
@@ -434,12 +479,24 @@ export function CreateQuizMarkerModal({
                 return (
                   <div
                     key={q.id}
-                    draggable
+                    data-quiz-question-index={idx}
+                    role="button"
+                    tabIndex={isPending ? -1 : 0}
+                    aria-label={`Chỉnh sửa câu ${idx + 1}`}
+                    aria-current={isActive ? 'true' : undefined}
+                    draggable={!isPending}
                     onDragStart={(e) => handleDragStart(e, idx)}
                     onDrop={(e) => handleDrop(e, idx)}
                     onClick={() => {
+                      if (isPending) return;
                       setActiveQuestionIndex(idx);
                       if (validationError) setValidationError(null);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget || isPending || !['Enter', ' '].includes(event.key)) return;
+                      event.preventDefault();
+                      setActiveQuestionIndex(idx);
+                      setValidationError(null);
                     }}
                     className={`rounded-xl p-3 transition-all cursor-pointer relative group flex flex-col gap-1.5 ${
                       isBeingDragged ? 'opacity-40 scale-95' : 'opacity-100'
@@ -491,6 +548,7 @@ export function CreateQuizMarkerModal({
                             onClick={(e) => handleDeleteQuestion(e, idx)}
                             className="size-5 text-muted-foreground hover:text-destructive opacity-30 group-hover:opacity-100 transition p-0 cursor-pointer"
                             title="Xóa câu hỏi này"
+                            disabled={isPending}
                           >
                             <Icon icon="lucide:trash-2" className="size-3" />
                           </Button>

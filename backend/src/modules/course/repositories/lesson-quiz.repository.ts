@@ -116,6 +116,7 @@ export class LessonQuizRepository extends BaseMongoRepository<
     quizzes: Array<{
       id?: string;
       order: number;
+      timestamp?: number | null;
       question: string;
       questionType: QuizQuestionTypeEnum;
       options: ILessonQuiz['options'];
@@ -157,13 +158,13 @@ export class LessonQuizRepository extends BaseMongoRepository<
     for (const quiz of quizzes.filter((item) => item.id)) {
       const { id, ...content } = quiz;
       await this.model.updateOne({ _id: id, lessonId: lessonObjectId, deletedAt: null } as Record<string, unknown>, {
-        $set: { ...content, timestamp },
+        $set: { ...content, timestamp: content.timestamp === undefined ? timestamp : content.timestamp },
       }, { session }).exec();
     }
 
     const documentsToInsert = quizzes.filter((quiz) => !quiz.id).map((q) => ({
       lessonId: lessonObjectId,
-      timestamp,
+      timestamp: q.timestamp === undefined ? timestamp : q.timestamp,
       order: q.order,
       question: q.question,
       questionType: q.questionType,
@@ -174,6 +175,10 @@ export class LessonQuizRepository extends BaseMongoRepository<
     }));
 
     if (documentsToInsert.length > 0) await this.model.insertMany(documentsToInsert, { session });
+    // Timing edits can split this checkpoint; do not omit the moved questions from the response.
+    if (quizzes.some((quiz) => quiz.timestamp !== undefined && quiz.timestamp !== timestamp)) {
+      return this.findByLessonId(lessonId, session);
+    }
     return this.findByLessonIdAndTimestamp(lessonId, timestamp, session);
   }
 

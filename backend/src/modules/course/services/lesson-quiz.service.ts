@@ -202,7 +202,10 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
     await this.assertNotPendingApproval(trimmedLessonId);
 
     const normalized = dto.questions.map((question) => ({
-      ...this.normalizeQuiz({ ...question, timestamp: dto.timestamp }, lesson.content?.duration),
+      ...this.normalizeQuiz({
+        ...question,
+        timestamp: question.timestamp === undefined ? dto.timestamp : question.timestamp,
+      }, lesson.content?.duration),
       id: question.id, order: question.order,
     }));
     if (!Number.isSafeInteger(dto.timestamp) || dto.timestamp < 0 ||
@@ -220,6 +223,7 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
       normalized.map((q) => ({
         id: q.id,
         order: q.order,
+        timestamp: q.timestamp,
         question: q.question.trim(),
         questionType: q.questionType,
         options: q.options.map((opt) => ({

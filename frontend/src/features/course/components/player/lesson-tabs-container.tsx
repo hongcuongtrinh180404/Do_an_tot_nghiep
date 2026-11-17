@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icon';
 import { ActionConfirmDialog } from '@/components/shared/dialog/action-confirm-dialog';
 import { useLessonQuizzesQuery } from '../../api/lesson-quiz.api';
@@ -12,6 +12,7 @@ import {
   useGenerateMindmapMutation,
   useGenerateQuizMutation,
   useGenerateSummaryMutation,
+  useLessonMindmapAnalysisQuery,
 } from '../../api/transcript-analysis.api';
 
 export interface TabConfig {
@@ -75,8 +76,23 @@ export function LessonTabsContainer({
   onOpenQuiz,
 }: LessonTabsContainerProps): React.JSX.Element {
   const [activeTabId, setActiveTabId] = useState<TabConfig['id']>(reviewQuizId ? 'quiz' : 'summary');
+  const [hasOpenedMindmap, setHasOpenedMindmap] = useState(false);
+  const [mindmapLoadingHeight, setMindmapLoadingHeight] = useState(360);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [isQuizRegenerateOpen, setIsQuizRegenerateOpen] = useState(false);
   const { data: quizzes = [], isLoading: isQuizzesLoading, isError: isQuizzesError } = useLessonQuizzesQuery(lessonId, isInstructor);
+  // Warm the query alongside the other lesson data, without mounting the tree/canvas.
+  const { isLoading: isMindmapLoading } = useLessonMindmapAnalysisQuery(lessonId);
+
+  const handleTabChange = (tabId: TabConfig['id']) => {
+    if (tabId === 'mindmap') {
+      setHasOpenedMindmap(true);
+      if (isMindmapLoading) {
+        setMindmapLoadingHeight(contentRef.current?.getBoundingClientRect().height ?? 360);
+      }
+    }
+    setActiveTabId(tabId);
+  };
 
   // AI Mutations for quick-trigger from tab bar buttons
   const { mutate: generateMindmap, isPending: isMindmapGenerating } =
@@ -152,7 +168,7 @@ export function LessonTabsContainer({
                 role="tab"
                 type="button"
                 aria-selected={isActive}
-                onClick={() => setActiveTabId(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm transition-colors cursor-pointer ${
                   isActive
                     ? 'bg-background text-foreground shadow-2xs font-semibold'
@@ -192,7 +208,13 @@ export function LessonTabsContainer({
       </div>
 
       {/* Tab Content Display Area */}
-      <div className="flex-1 min-h-[360px] overflow-y-auto">
+      <div
+        ref={contentRef}
+        className="flex-1 min-h-[360px] overflow-y-auto"
+        style={activeTabId === 'mindmap' && isMindmapLoading
+          ? { minHeight: Math.max(360, mindmapLoadingHeight) }
+          : undefined}
+      >
         {activeTabId === 'summary' && (
           <LessonSummaryTab
             lessonId={lessonId}
@@ -203,14 +225,18 @@ export function LessonTabsContainer({
           />
         )}
 
-        {activeTabId === 'mindmap' && (
-          <LessonMindmapTab
-            lessonId={lessonId}
-            isInstructor={isInstructor}
-            currentTime={currentTime}
-            duration={duration}
-            onSeek={onSeek}
-          />
+        {hasOpenedMindmap && (
+          <div hidden={activeTabId !== 'mindmap'}>
+            <LessonMindmapTab
+              key={`${lessonId}:${isInstructor}`}
+              lessonId={lessonId}
+              isInstructor={isInstructor}
+              isActive={activeTabId === 'mindmap'}
+              currentTime={activeTabId === 'mindmap' ? currentTime : 0}
+              duration={duration}
+              onSeek={onSeek}
+            />
+          </div>
         )}
 
         {activeTabId === 'quiz' && (

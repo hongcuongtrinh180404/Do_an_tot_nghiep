@@ -7,6 +7,21 @@ import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Icon } from "@/components/ui/icon"
 
+const DialogPortalContainerContext =
+  React.createContext<DialogPrimitive.Portal.Props["container"]>(undefined)
+
+/** Keep a player's dialogs, including nested confirmations, inside its fullscreen element. */
+function DialogPortalContainerProvider({
+  container,
+  children,
+}: React.PropsWithChildren<Pick<DialogPrimitive.Portal.Props, "container">>) {
+  return (
+    <DialogPortalContainerContext.Provider value={container}>
+      {children}
+    </DialogPortalContainerContext.Provider>
+  )
+}
+
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
@@ -15,8 +30,9 @@ function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
 }
 
-function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+function DialogPortal({ container, ...props }: DialogPrimitive.Portal.Props) {
+  const inheritedContainer = React.useContext(DialogPortalContainerContext)
+  return <DialogPrimitive.Portal data-slot="dialog-portal" container={container === undefined ? inheritedContainer : container} {...props} />
 }
 
 function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
@@ -156,6 +172,7 @@ export {
   DialogHeader,
   DialogOverlay,
   DialogPortal,
+  DialogPortalContainerProvider,
   DialogTitle,
   DialogTrigger,
 }

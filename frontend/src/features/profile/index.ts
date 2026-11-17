@@ -5,6 +5,7 @@ export * from './schemas/change-password.schema';
 export * from './api/profile.api';
 export * from './components/avatar-uploader';
 export * from './components/profile-form';
+export * from './components/profile-social-buttons';
 export * from './components/profile-info-card';
 export * from './components/profile-page-content';
 export * from './components/change-email-modal';

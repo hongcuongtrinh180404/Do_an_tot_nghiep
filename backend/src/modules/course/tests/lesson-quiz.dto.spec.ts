@@ -52,4 +52,22 @@ describe('Lesson quiz DTO contracts', () => {
     expect(await validate(dto)).toEqual([]);
     expect(dto.questions[0]!.question).toBe(payload.question.trim());
   });
+
+  it.each([undefined, null, 0, 45])('accepts a per-question appearance time of %s with an independent explanation time', async (timestamp) => {
+    const dto = plainToInstance(SyncLessonQuizzesAtTimestampDto, {
+      timestamp: 20,
+      questions: [{ ...payload, timestamp, explanationTimestamp: 12, order: 1 }],
+    });
+    expect(await validate(dto, { whitelist: true, forbidNonWhitelisted: true })).toEqual([]);
+    expect(dto.questions[0]!.timestamp).toBe(timestamp);
+    expect(dto.questions[0]!.explanationTimestamp).toBe(12);
+  });
+
+  it.each([-1, 0.5, NaN, Infinity])('rejects an invalid per-question appearance time of %s', async (timestamp) => {
+    const dto = plainToInstance(SyncLessonQuizzesAtTimestampDto, {
+      timestamp: 20,
+      questions: [{ ...payload, timestamp, order: 1 }],
+    });
+    expect(await validate(dto)).not.toEqual([]);
+  });
 });

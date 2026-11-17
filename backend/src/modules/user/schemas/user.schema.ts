@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
-import { RoleEnum, UserStatusEnum, AuthProviderEnum } from 'share-lib';
+import { RoleEnum, UserStatusEnum, AuthProviderEnum, type ISocialLinks } from 'share-lib';
 import { BaseAbstractDocument } from '../../base/index.js';
 
 export type UserDocument = HydratedDocument<UserEntity>;
@@ -37,6 +37,18 @@ export class UserEntity extends BaseAbstractDocument {
 
   @Prop({ type: String, required: false, default: null, trim: true })
   bio?: string | null;
+
+  @Prop({
+    type: {
+      facebook: { type: String, default: null, trim: true },
+      youtube: { type: String, default: null, trim: true },
+      linkedin: { type: String, default: null, trim: true },
+      github: { type: String, default: null, trim: true },
+    },
+    _id: false,
+    default: null,
+  })
+  socialLinks?: ISocialLinks | null;
 
   @Prop({
     type: String,
