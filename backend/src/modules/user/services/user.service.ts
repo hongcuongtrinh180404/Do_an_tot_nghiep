@@ -230,13 +230,17 @@ export class UserService extends BaseService<IUser, string> {
     }
   }
 
-  async getPublicProfileByUsername(username: string): Promise<IPublicUserProfile> {
+  async findPublicUserByUsername(username: string): Promise<IUser & { username: string }> {
     if (!USERNAME_PATTERN.test(username)) throw new NotFoundException('Không tìm thấy hồ sơ');
     const user = await this.findByUsername(username);
     if (!user || user.deletedAt || user.status !== UserStatusEnum.ACTIVE || !user.username) {
       throw new NotFoundException('Không tìm thấy hồ sơ');
     }
+    return { ...user, username: user.username };
+  }
 
+  async getPublicProfileByUsername(username: string): Promise<IPublicUserProfile> {
+    const user = await this.findPublicUserByUsername(username);
     return {
       fullName: user.fullName || user.username,
       username: user.username,

@@ -19,7 +19,7 @@ const COURSE_POPULATE = {
     },
     {
       path: 'instructorId',
-      select: 'fullName email avatarUrl',
+      select: 'fullName email avatarUrl username bio',
     },
   ],
 };
@@ -70,6 +70,8 @@ export class EnrollmentRepository extends BaseMongoRepository<IEnrollment, Enrol
             fullName?: string;
             email?: string;
             avatarUrl?: string | null;
+            username?: string | null;
+            bio?: string | null;
           };
           const popInstId = popInst._id;
           popInstructorId =
@@ -81,6 +83,8 @@ export class EnrollmentRepository extends BaseMongoRepository<IEnrollment, Enrol
             fullName: popInst.fullName ?? '',
             email: popInst.email ?? '',
             avatarUrl: popInst.avatarUrl ?? null,
+            username: popInst.username ?? null,
+            bio: popInst.bio ?? null,
           };
         } else if (rawInstructor !== null && rawInstructor !== undefined) {
           popInstructorId =

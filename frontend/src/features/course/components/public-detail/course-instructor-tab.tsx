@@ -2,10 +2,12 @@
 
 import React, { useMemo } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Icon } from '@/components/ui/icon';
 import type { ICourseInstructorSummary } from 'share-lib';
 import { useInstructorPublicCoursesQuery } from '../../api/public-courses.api';
 import { TeacherCourseRow, formatCompactNumber } from './teacher-course-row';
+import { getPublicProfilePath } from '@/features/profile/utils/profile-url';
 
 export interface CourseInstructorTabProps {
   currentCourseId?: string;
@@ -19,7 +21,8 @@ export function CourseInstructorTab({
   instructorId,
 }: CourseInstructorTabProps): React.JSX.Element {
   const fullName = instructor?.fullName || 'Giảng viên Mindly';
-  const email = instructor?.email || 'instructor@mindly.edu.vn';
+  const instructorBio = instructor?.bio?.trim();
+  const profilePath = instructor?.username ? getPublicProfilePath(instructor.username) : null;
   const targetInstructorId = instructorId || instructor?.id;
 
   const {
@@ -85,11 +88,13 @@ export function CourseInstructorTab({
               <span>Giảng viên chuyên gia được xác thực</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-[#161616] truncate">
-              {fullName}
+              {profilePath ? <Link href={profilePath} className="hover:underline">{fullName}</Link> : fullName}
             </h2>
-            <p className="text-xs sm:text-sm text-[#666666]">
-              {email} • Senior Technical Architect & AI Curriculum Lead
-            </p>
+            {profilePath && (
+              <Link href={profilePath} className="inline-flex min-h-11 items-center text-sm text-[#666666] hover:underline">
+                @{instructor?.username}
+              </Link>
+            )}
           </div>
         </div>
 
@@ -124,14 +129,8 @@ export function CourseInstructorTab({
         {/* Biography & Philosophy */}
         <div className="space-y-3 text-xs sm:text-sm text-[#444444] leading-relaxed">
           <h3 className="text-base font-bold text-[#161616]">Về giảng viên</h3>
-          <p>
-            Với hơn 8 năm kinh nghiệm thực chiến trong lĩnh vực phát triển phần mềm và kiến trúc hệ thống,
-            giảng viên luôn tâm huyết mang đến phương pháp giảng dạy hiện đại, trực quan và gắn liền với thực tế
-            doanh nghiệp.
-          </p>
-          <p>
-            Mỗi bài giảng trên nền tảng Mindly được xây dựng cẩn trọng, tích hợp tối đa các công cụ hỗ trợ
-            học tập thông minh như Mindmap AI để học viên không chỉ ghi nhớ thụ động mà nắm bắt sâu sắc bản chất vấn đề.
+          <p className="whitespace-pre-wrap break-words">
+            {instructorBio || 'Giảng viên chưa cập nhật phần giới thiệu.'}
           </p>
         </div>
       </div>

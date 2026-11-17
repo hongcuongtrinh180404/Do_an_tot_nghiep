@@ -221,18 +221,8 @@ export function PublicHeader({
                     </p>
                   </div>
 
-                  {user.username && (
-                    <Link
-                      href={`/profile/${encodeURIComponent(user.username)}`}
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80 transition-colors"
-                    >
-                      <Icon icon="lucide:globe" className="size-4 text-neutral-400" />
-                      <span>Trang cá nhân</span>
-                    </Link>
-                  )}
                   <Link
-                    href="/profile"
+                    href={user.username ? `/profile/${encodeURIComponent(user.username)}` : '/profile'}
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80 transition-colors"
                   >
@@ -414,18 +404,8 @@ export function PublicHeader({
                   {user.email}
                 </p>
               </div>
-              {user.username && (
-                <Link
-                  href={`/profile/${encodeURIComponent(user.username)}`}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="min-h-11 flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
-                >
-                  <Icon icon="lucide:globe" className="size-4 text-neutral-400" />
-                  <span>Trang cá nhân</span>
-                </Link>
-              )}
               <Link
-                href="/profile"
+                href={user.username ? `/profile/${encodeURIComponent(user.username)}` : '/profile'}
                 onClick={() => setMobileMenuOpen(false)}
                 className="min-h-11 flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
               >

@@ -1,10 +1,11 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import type { IApiResponse, IUserProfile } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
-import { authKeys } from '@/features/auth/api/auth.api';
+import { authKeys, useCurrentUserQuery } from '@/features/auth/api/auth.api';
 import { useIsMounted } from '@/hooks/use-is-mounted';
 import type {
   IUpdateProfilePayload,
@@ -13,7 +14,7 @@ import type {
 
 export const profileKeys = {
   all: ['profile'] as const,
-  detail: () => [...profileKeys.all, 'detail'] as const,
+  detail: (userId?: string) => [...profileKeys.all, 'detail', userId] as const,
 };
 
 export const profileApi = {
@@ -47,31 +48,38 @@ export const profileApi = {
   },
 };
 
-export function useUserProfileQuery() {
+export function useUserProfileQuery(enabled = true) {
   const isMounted = useIsMounted();
+  const { data: authUser } = useCurrentUserQuery();
   const hasToken =
     isMounted && typeof window !== 'undefined'
       ? !!localStorage.getItem('accessToken')
       : false;
 
   return useQuery({
-    queryKey: profileKeys.detail(),
+    queryKey: profileKeys.detail(authUser?.id),
     queryFn: () => profileApi.getProfile(),
-    enabled: isMounted && hasToken,
+    enabled: enabled && isMounted && hasToken && Boolean(authUser?.id),
     staleTime: 2 * 60 * 1000,
   });
 }
 
 export function useUpdateProfileMutation() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   return useMutation({
     mutationFn: (payload: IUpdateProfilePayload) =>
       profileApi.updateProfile(payload),
     onSuccess: (updatedUser: IUserProfile) => {
       // Sync into React Query caches
-      queryClient.setQueryData(profileKeys.detail(), updatedUser);
+      queryClient.setQueryData(profileKeys.detail(updatedUser.id), updatedUser);
       queryClient.setQueryData(authKeys.me(), updatedUser);
+      // The same biography/name appears in public profiles and course instructor summaries.
+      void queryClient.invalidateQueries({ queryKey: ['courses'] });
+      void queryClient.invalidateQueries({ queryKey: ['public-courses'] });
+      void queryClient.invalidateQueries({ queryKey: ['public-profile-courses'] });
+      router.refresh();
 
       // Sync into localStorage
       try {
@@ -102,6 +110,7 @@ export function useUpdateProfileMutation() {
 
 export function useUploadAvatarMutation() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   return useMutation({
     mutationFn: (file: File) => profileApi.uploadAvatar(file),
@@ -109,8 +118,11 @@ export function useUploadAvatarMutation() {
       const updatedUser = data.user;
 
       // Sync into React Query caches
-      queryClient.setQueryData(profileKeys.detail(), updatedUser);
+      queryClient.setQueryData(profileKeys.detail(updatedUser.id), updatedUser);
       queryClient.setQueryData(authKeys.me(), updatedUser);
+      void queryClient.invalidateQueries({ queryKey: ['courses'] });
+      void queryClient.invalidateQueries({ queryKey: ['public-courses'] });
+      router.refresh();
 
       // Sync into localStorage
       try {

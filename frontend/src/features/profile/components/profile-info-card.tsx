@@ -139,7 +139,7 @@ export function ProfileInfoCard({ user }: ProfileInfoCardProps): React.JSX.Eleme
           {memberSince && (
             <div className="flex items-center justify-between py-1.5">
               <span className="text-muted-foreground">Thời gian gia nhập</span>
-              <span className="font-medium text-foreground">Tháng {memberSince}</span>
+              <span className="font-medium text-foreground">{memberSince}</span>
             </div>
           )}
         </div>

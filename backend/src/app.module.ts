@@ -18,6 +18,7 @@ import { GeminiModule } from './modules/gemini/gemini.module.js';
 import { TranscriptAnalysisModule } from './modules/transcript-analysis/transcript-analysis.module.js';
 import { LearningProgressModule } from './modules/learning-progress/learning-progress.module.js';
 import { ReviewModule } from './modules/review/review.module.js';
+import { PublicProfileModule } from './modules/profile/public-profile.module.js';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { ReviewModule } from './modules/review/review.module.js';
     TranscriptAnalysisModule,
     LearningProgressModule,
     ReviewModule,
+    PublicProfileModule,
   ],
   controllers: [AppController],
   providers: [AppService],

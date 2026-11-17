@@ -2,7 +2,7 @@ import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { PublicHeader, PublicFooter } from '@/features/course/components/public-discovery';
-import { PublicProfilePageContent } from '@/features/profile/components/public-profile-page-content';
+import { ProfilePageView } from '@/features/profile/components/profile-page-view';
 import { getPublicProfile } from '@/features/profile/services/public-profile.server';
 import { getPublicProfilePath } from '@/features/profile/utils/profile-url';
 
@@ -32,7 +32,7 @@ export default async function PublicProfilePage({ params }: PublicProfilePagePro
         <PublicHeader />
       </Suspense>
       <main className="flex-1">
-        <PublicProfilePageContent key={profile.username} profile={profile} />
+        <ProfilePageView key={profile.username} profile={profile} />
       </main>
       <PublicFooter />
     </div>

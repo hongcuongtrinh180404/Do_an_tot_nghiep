@@ -1,32 +1,23 @@
 'use client';
 
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import type { IApiResponse, ICourse } from 'share-lib';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import type { IApiResponse, IPublicProfileCourses, ProfileCourseType } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 import { useIsMounted } from '@/hooks/use-is-mounted';
-import {
-  mapCourseToPublicCard,
-  type IPublicCoursesResult,
-} from '@/features/course/services/public-courses.service';
-
-export function usePublicProfileCoursesQuery(instructorId?: string, page = 1) {
+export function usePublicProfileCoursesQuery(username: string, type: ProfileCourseType, enabled = true) {
   const isMounted = useIsMounted();
-  return useQuery<IPublicCoursesResult>({
-    queryKey: ['public-profile-courses', instructorId, page],
-    enabled: isMounted && Boolean(instructorId),
-    placeholderData: keepPreviousData,
+  return useInfiniteQuery({
+    queryKey: ['public-profile-courses', username, type],
+    enabled: isMounted && Boolean(username) && enabled,
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage: IPublicProfileCourses) => lastPage.nextCursor ?? undefined,
     staleTime: 60000,
-    queryFn: async () => {
-      // Do not use the catalog's mock-data fallback on a real person's profile.
-      const response = await apiClient.get<IApiResponse<{
-        items: ICourse[];
-        total: number;
-        page: number;
-        limit: number;
-        totalPages: number;
-      }>>('/courses', { params: { instructorId, page, limit: 12 } });
-      const result = response.data.data;
-      return { ...result, items: result.items.map((course) => mapCourseToPublicCard(course)) };
+    queryFn: async ({ pageParam }) => {
+      const response = await apiClient.get<IApiResponse<IPublicProfileCourses>>(
+        `/users/public/${encodeURIComponent(username)}/courses`,
+        { params: { type, ...(pageParam ? { cursor: pageParam } : {}) } },
+      );
+      return response.data.data;
     },
   });
 }

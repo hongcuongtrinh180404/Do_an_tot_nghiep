@@ -503,12 +503,8 @@ function LessonInspectorView({
   const durationClock = formatVideoClock(lesson.content?.duration);
   const lessonViewUrl = getLessonUrl(courseId, lesson.id);
 
-  const materialsList = lesson.materials || [];
-  const hasDocContent = Boolean(isDocLesson && lesson.content?.fileName);
-  const totalMaterialsCount = materialsList.length + (hasDocContent ? 1 : 0);
-
-  return (
-    <div className="space-y-4 animate-in fade-in-50 duration-200">
+  const lessonPreview = (
+    <>
       {/* 1. Header: Loại bài giảng & Tiêu đề bài học */}
       <div>
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-100 dark:border-sky-900/50">
@@ -549,7 +545,24 @@ function LessonInspectorView({
           </div>
         )}
       </Link>
+    </>
+  );
 
+  // Uploaded chapter documents only have a read-only detail view.
+  if (isDocLesson) {
+    return (
+      <div className="space-y-4 animate-in fade-in-50 duration-200">
+        {lessonPreview}
+      </div>
+    );
+  }
+
+  const materialsList = lesson.materials || [];
+  const totalMaterialsCount = materialsList.length;
+
+  return (
+    <div className="space-y-4 animate-in fade-in-50 duration-200">
+      {lessonPreview}
       {/* 3. Thẻ Hình thức truy cập (Access Mode Segmented Pill Card) */}
       <div className="bg-slate-50/70 dark:bg-zinc-900/70 border border-slate-200/80 dark:border-zinc-800 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-2xs">
         <div className="flex items-center gap-3 min-w-0">
@@ -652,15 +665,6 @@ function LessonInspectorView({
         </div>
 
         <div className="space-y-1.5">
-          {hasDocContent && lesson.content?.fileName && (
-            <DocumentItemWithStatus
-              fileName={lesson.content.fileName}
-              fileSize={lesson.content.fileSize}
-              url={lesson.content.url}
-              isPreview={lesson.isPreview}
-            />
-          )}
-
           {materialsList.map((mat) => (
             <LessonMaterialItem
               key={mat.id}
@@ -727,6 +731,7 @@ export function ContextualInspectorPanel({
     const section = sections.find((s) => s.id === selection.chapterId);
     content = (
       <LessonInspectorView
+        key={selection.lessonId}
         lessonId={selection.lessonId}
         chapterTitle={section?.title || 'Bài giảng khóa học'}
         courseId={courseId}

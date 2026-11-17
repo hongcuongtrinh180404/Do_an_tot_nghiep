@@ -132,7 +132,9 @@ function expectDocumentOnly(): void {
   expect(container.querySelector('h3')?.textContent).toBe(documentLesson.title);
   expect(container.querySelector('a[title="Xem chi tiết tài liệu"]')?.getAttribute('href'))
     .toBe('/courses/course-1/lessons/document-1');
-  expect(container.textContent).toContain('Hình thức truy cập');
+  expect(container.querySelectorAll('a')).toHaveLength(1);
+  expect(container.querySelectorAll('button')).toHaveLength(0);
+  expect(container.textContent).not.toContain('Hình thức truy cập');
   expect(container.textContent).not.toContain('Biên tập nội dung bài học');
   expect(container.textContent).not.toContain('Tài liệu riêng của bài');
   expect(container.textContent).not.toContain('Đính kèm tệp');
@@ -141,12 +143,10 @@ function expectDocumentOnly(): void {
 }
 
 describe('ContextualInspectorPanel', () => {
-  it('keeps the document preview and access mode without lesson editing or materials', () => {
+  it('only shows the document header and read-only preview without video controls or materials', () => {
     renderLesson({ ...documentLesson, materials: videoLesson.materials });
 
     expectDocumentOnly();
-    expect(findButton('Học thử')).toBeDefined();
-    expect(findButton('Có phí')).toBeDefined();
     expect(container.textContent).not.toContain('chapter-guide.pdf');
     expect(container.textContent).not.toContain('Slide bài giảng');
   });
@@ -161,22 +161,29 @@ describe('ContextualInspectorPanel', () => {
     expect(container.textContent).not.toContain('Không có tài liệu riêng');
   });
 
-  it('still lets the instructor change document access', () => {
-    renderLesson(documentLesson);
+  it.each([false, true])('does not expose mutations for a document with isPreview=%s', (isPreview) => {
+    renderLesson({ ...documentLesson, isPreview });
+
+    expectDocumentOnly();
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it('still lets the instructor change video access', () => {
+    renderLesson(videoLesson);
 
     act(() => findButton('Có phí')!.click());
     expect(mutate).not.toHaveBeenCalled();
 
     act(() => findButton('Học thử')!.click());
     expect(mutate).toHaveBeenCalledWith(
-      { lessonId: documentLesson.id, payload: { isPreview: true } },
+      { lessonId: videoLesson.id, payload: { isPreview: true } },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
 
-    renderLesson({ ...documentLesson, isPreview: true });
+    renderLesson({ ...videoLesson, isPreview: true });
     act(() => findButton('Có phí')!.click());
     expect(mutate).toHaveBeenLastCalledWith(
-      { lessonId: documentLesson.id, payload: { isPreview: false } },
+      { lessonId: videoLesson.id, payload: { isPreview: false } },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });
@@ -214,21 +221,26 @@ describe('ContextualInspectorPanel', () => {
   it.each([documentLesson, videoLesson])('respects read-only mode for $id', (lesson) => {
     renderLesson(lesson, true);
 
-    expect(container.textContent).toContain('Hình thức truy cập');
-    expect(container.textContent).toContain('Có phí');
     expect(findButton('Học thử')).toBeUndefined();
     expect(findButton('Có phí')).toBeUndefined();
     expect(findButton('Đính kèm tệp')).toBeUndefined();
     expect(container.textContent).not.toContain('Biên tập nội dung bài học');
     expect(container.querySelector('button[aria-label="Xóa tài liệu"]')).toBeNull();
     if (lesson === documentLesson) expectDocumentOnly();
-    else expect(container.textContent).toContain('Slide bài giảng');
+    else {
+      expect(container.textContent).toContain('Hình thức truy cập');
+      expect(container.textContent).toContain('Có phí');
+      expect(container.textContent).toContain('Slide bài giảng');
+    }
   });
 
-  it('hides video-only sections and dialogs when switching to a document', () => {
+  it.each(['upload', 'delete'])('clears the %s dialog when switching between a video and a document', (dialog) => {
     renderLesson(videoLesson);
-    act(() => findButton('Đính kèm tệp')!.click());
-    expect(container.querySelector('[data-testid="upload-material-dialog"]')
+    act(() => {
+      if (dialog === 'upload') findButton('Đính kèm tệp')!.click();
+      else container.querySelector<HTMLButtonElement>('button[aria-label="Xóa tài liệu"]')!.click();
+    });
+    expect(container.querySelector(`[data-testid="${dialog}-material-dialog"]`)
       ?.getAttribute('data-open')).toBe('true');
 
     renderLesson(documentLesson);
@@ -237,6 +249,10 @@ describe('ContextualInspectorPanel', () => {
     renderLesson(videoLesson);
     expect(container.textContent).toContain('Biên tập nội dung bài học');
     expect(container.textContent).toContain('Tài liệu riêng của bài');
+    expect(container.querySelector('[data-testid="upload-material-dialog"]')
+      ?.getAttribute('data-open')).toBe('false');
+    expect(container.querySelector('[data-testid="delete-material-dialog"]')
+      ?.getAttribute('data-open')).toBe('false');
   });
 
   it('keeps documents and video attachments in the chapter overview', () => {

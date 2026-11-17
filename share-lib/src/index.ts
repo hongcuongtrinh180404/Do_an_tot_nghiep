@@ -14,6 +14,7 @@ export * from './enums/review-status.enum.js';
 
 // Interfaces
 export * from './interfaces/user.interface.js';
+export * from './interfaces/public-profile.interface.js';
 export * from './interfaces/auth.interface.js';
 export * from './interfaces/session.interface.js';
 export * from './interfaces/api-response.interface.js';

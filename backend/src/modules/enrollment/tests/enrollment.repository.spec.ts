@@ -45,6 +45,8 @@ describe('EnrollmentRepository', () => {
             fullName: 'ThS. Nguyễn Văn Cường',
             email: 'cuong.instructor@example.com',
             avatarUrl: 'https://cdn.example.com/avatars/cuong.jpg',
+            username: 'cuong.instructor',
+            bio: 'Giảng viên phát triển web.',
           },
           categoryId: {
             _id: categoryObjId,
@@ -81,6 +83,8 @@ describe('EnrollmentRepository', () => {
         fullName: 'ThS. Nguyễn Văn Cường',
         email: 'cuong.instructor@example.com',
         avatarUrl: 'https://cdn.example.com/avatars/cuong.jpg',
+        username: 'cuong.instructor',
+        bio: 'Giảng viên phát triển web.',
       });
 
       // Verify category transformation
@@ -121,4 +125,3 @@ describe('EnrollmentRepository', () => {
     });
   });
 });
-

@@ -19,7 +19,7 @@ const CATEGORY_POPULATE = {
 
 const INSTRUCTOR_POPULATE = {
   path: 'instructorId',
-  select: 'fullName email avatarUrl',
+  select: 'fullName email avatarUrl username bio',
 };
 
 @Injectable()
@@ -51,6 +51,8 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
           fullName?: string;
           email?: string;
           avatarUrl?: string | null;
+          username?: string | null;
+          bio?: string | null;
         };
         const popId = popInst._id;
         instructorId =
@@ -62,6 +64,8 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
           fullName: popInst.fullName ?? '',
           email: popInst.email ?? '',
           avatarUrl: popInst.avatarUrl ?? null,
+          username: popInst.username ?? null,
+          bio: popInst.bio ?? null,
         };
       } else if (rawInstructor !== null && rawInstructor !== undefined) {
         instructorId =

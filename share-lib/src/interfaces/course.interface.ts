@@ -7,6 +7,8 @@ export interface ICourseInstructorSummary {
   fullName: string;
   email: string;
   avatarUrl?: string | null;
+  username?: string | null;
+  bio?: string | null;
 }
 
 export interface ICourse {

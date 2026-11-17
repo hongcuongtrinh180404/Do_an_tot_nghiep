@@ -12,7 +12,7 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim() || undefined : value,
+    typeof value === 'string' ? value.trim() : value,
   )
   @IsString({ message: 'Bio phải là chuỗi ký tự' })
   @MaxLength(500, { message: 'Bio không được vượt quá 500 ký tự' })

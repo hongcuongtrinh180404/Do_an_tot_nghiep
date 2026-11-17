@@ -47,7 +47,7 @@ export function ProfileForm({ user }: ProfileFormProps): React.JSX.Element {
   const onSubmit = (data: UpdateProfileFormData) => {
     updateMutation.mutate({
       fullName: data.fullName,
-      bio: data.bio && data.bio.trim() !== '' ? data.bio.trim() : undefined,
+      bio: data.bio?.trim() ?? '',
     });
   };
 
