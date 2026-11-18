@@ -50,7 +50,7 @@
 
 ### 2.1 Cấu trúc giao diện
 - Đường dẫn Admin: `/admin/revenue` (đổi từ mục cũ `/admin/orders`).
-- Sidebar hiển thị: **"Quản lý Đơn hàng, Giao dịch & Doanh thu"**.
+- Sidebar hiển thị: **"Quản Lý Doanh Thu & Hoa Hồng"**.
 - Gồm đúng **2 tab chính**:
   1. **Tổng quan doanh thu**
   2. **Doanh thu giảng viên**

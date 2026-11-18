@@ -24,4 +24,24 @@ describe('admin navigation', () => {
     expect(isAdminNavItemActive('/admin/revenue', usersHref)).toBe(false);
     expect(isAdminNavItemActive(null, usersHref)).toBe(false);
   });
+
+  it('places instructor approval nav item immediately after course approval', () => {
+    const courseIndex = ADMIN_NAV_ITEMS.findIndex((item) => item.href === '/admin/courses');
+    const instructorIndex = ADMIN_NAV_ITEMS.findIndex((item) => item.href === '/admin/instructors');
+
+    expect(courseIndex).toBeGreaterThanOrEqual(0);
+    expect(instructorIndex).toBe(courseIndex + 1);
+    expect(ADMIN_NAV_ITEMS[instructorIndex]).toMatchObject({
+      title: 'Phê duyệt giảng viên',
+      href: '/admin/instructors',
+      icon: 'lucide:user-check',
+    });
+  });
+
+  it('matches instructor approval route and nested sub-routes', () => {
+    const instructorsHref = '/admin/instructors';
+    expect(isAdminNavItemActive('/admin/instructors', instructorsHref)).toBe(true);
+    expect(isAdminNavItemActive('/admin/instructors/app-123', instructorsHref)).toBe(true);
+    expect(isAdminNavItemActive('/admin/courses', instructorsHref)).toBe(false);
+  });
 });

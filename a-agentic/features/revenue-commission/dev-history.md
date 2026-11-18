@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-11-18: Cập nhật nhãn tab Sidebar Admin
+
+- **Yêu cầu**: Đổi tiêu đề tab trên sidebar Admin từ `"Quản lý Đơn hàng, Giao dịch & Doanh thu"` thành `"Quản Lý Doanh Thu & Hoa Hồng"`.
+- **Files thay đổi**:
+  - `frontend/src/features/admin/constants/admin-navigation.ts`: Cập nhật `title: 'Quản Lý Doanh Thu & Hoa Hồng'`.
+  - `frontend/src/app/(admin)/admin/revenue/page.tsx`: Cập nhật metadata `title: 'Quản Lý Doanh Thu & Hoa Hồng | Mindly Admin'`.
+  - Cập nhật living docs tương ứng.
+
+---
+
 ## 2026-11-12: Triển khai Quản lý Doanh thu & Hoa hồng Admin Mindly
 
 ### 1. Yêu cầu & Bối cảnh

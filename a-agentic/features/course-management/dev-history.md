@@ -13,6 +13,27 @@
 
 ## 2. Technical Notes & Gotchas
 
+### [2026-11-18] - Milestone 69: Đồng Bộ Lĩnh Vực Đăng Ký Giảng Viên Với Danh Mục Khóa Học Hệ Thống (/become-instructor)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trước đó, các chip lựa chọn "Lĩnh vực chuyên môn muốn giảng dạy" sử dụng danh sách mock cứng.
+  - Người dùng yêu cầu đồng bộ chính xác các lĩnh vực cho phép đăng ký/chọn với các danh mục hiện tại của nền tảng Mindly (`course_categories`).
+
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Tích hợp Live Query Danh mục Nền tảng**:
+     - `instructor-application-form.tsx` gọi `usePublicCategoriesQuery()` (`/course-categories`) để tải danh sách danh mục đang hoạt động (`isActive !== false`) từ database.
+     - Đồng thời, `instructor-application.ts` đồng bộ bộ fallback `INSTRUCTOR_EXPERTISE_OPTIONS` chuẩn 7 danh mục cốt lõi của nền tảng:
+       1. *Công nghệ Thông tin & Lập trình*
+       2. *AI & Khoa học Dữ liệu*
+       3. *Thiết kế UI/UX & Đồ họa*
+       4. *Dựng Video & Đa phương tiện*
+       5. *Kinh doanh & Marketing số*
+       6. *Tài chính & Đầu tư*
+       7. *Ngoại ngữ & Kỹ năng mềm*
+  2. **Trải nghiệm mượt mà không Layout Shift**:
+     - Khi đang query hoặc SSR, hệ thống hiển thị tức thì bộ danh mục chuẩn hệ thống mà không có độ trễ hay chớp giật layout. Khi dữ liệu live sẵn sàng, chips tự động đồng bộ theo cấu hình quản trị mới nhất.
+  3. **Kiểm chuẩn**: `lint.mjs` đạt 0 FAIL, 0 WARN; TypeScript & ESLint 0 errors; Vitest 13/13 tests pass.
+
 ### [2026-11-18] - Milestone 68: Tối Ưu Bố Cục Typography SectionIntro Khắc Phục Lỗi Lệch Khối & Ngắt Chữ (/become-instructor)
 
 - **Bối cảnh & Vấn đề (Problem Statement)**:

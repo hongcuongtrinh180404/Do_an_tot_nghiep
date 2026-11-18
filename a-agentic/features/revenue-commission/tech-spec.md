@@ -99,7 +99,7 @@
 - URL: `/admin/revenue`
 - File: `frontend/src/app/(admin)/admin/revenue/page.tsx`
 - Instructor Detail: `frontend/src/app/(admin)/admin/revenue/instructors/[instructorId]/page.tsx`
-- Sidebar: Đổi từ `/admin/orders` thành `/admin/revenue` ("Quản lý Đơn hàng, Giao dịch & Doanh thu").
+- Sidebar: Đổi từ `/admin/orders` thành `/admin/revenue` ("Quản Lý Doanh Thu & Hoa Hồng").
 
 ### 4.2 State Management & Hooks
 - TanStack Query hooks: `useRevenueOverviewQuery`, `useRevenueChartQuery`, `useRevenueTransactionsQuery`, `useRevenueTransactionDetailQuery`, `useInstructorsRevenueQuery`, `useInstructorDetailQuery`, `useDefaultCommissionMutation`, `useInstructorCommissionMutation`.

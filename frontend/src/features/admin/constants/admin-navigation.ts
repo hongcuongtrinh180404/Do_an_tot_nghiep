@@ -17,7 +17,12 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     icon: 'lucide:book-open-check',
   },
   {
-    title: 'Quản lý Đơn hàng, Giao dịch & Doanh thu',
+    title: 'Phê duyệt giảng viên',
+    href: '/admin/instructors',
+    icon: 'lucide:user-check',
+  },
+  {
+    title: 'Quản Lý Doanh Thu & Hoa Hồng',
     href: '/admin/revenue',
     icon: 'lucide:receipt',
   },

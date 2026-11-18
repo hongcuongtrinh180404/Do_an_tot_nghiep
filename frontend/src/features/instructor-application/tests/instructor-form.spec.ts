@@ -37,11 +37,15 @@ describe('Instructor Application Form Specifications', () => {
   });
 
   describe('Expertise Options (Multi-select Tags/Chips)', () => {
-    it('provides multi-disciplinary teaching categories', () => {
-      expect(INSTRUCTOR_EXPERTISE_OPTIONS.length).toBeGreaterThanOrEqual(5);
-      expect(INSTRUCTOR_EXPERTISE_OPTIONS).toContain('Lập trình & Kỹ thuật phần mềm');
-      expect(INSTRUCTOR_EXPERTISE_OPTIONS).toContain('Trí tuệ nhân tạo & Khoa học dữ liệu');
-      expect(INSTRUCTOR_EXPERTISE_OPTIONS).toContain('Thiết kế UI/UX & Sản phẩm');
+    it('aligns with platform course categories', () => {
+      expect(INSTRUCTOR_EXPERTISE_OPTIONS.length).toBe(7);
+      expect(INSTRUCTOR_EXPERTISE_OPTIONS).toContain('Công nghệ Thông tin & Lập trình');
+      expect(INSTRUCTOR_EXPERTISE_OPTIONS).toContain('AI & Khoa học Dữ liệu');
+      expect(INSTRUCTOR_EXPERTISE_OPTIONS).toContain('Thiết kế UI/UX & Đồ họa');
+      expect(INSTRUCTOR_EXPERTISE_OPTIONS).toContain('Dựng Video & Đa phương tiện');
+      expect(INSTRUCTOR_EXPERTISE_OPTIONS).toContain('Kinh doanh & Marketing số');
+      expect(INSTRUCTOR_EXPERTISE_OPTIONS).toContain('Tài chính & Đầu tư');
+      expect(INSTRUCTOR_EXPERTISE_OPTIONS).toContain('Ngoại ngữ & Kỹ năng mềm');
     });
   });
 

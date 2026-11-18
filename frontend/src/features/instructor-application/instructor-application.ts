@@ -25,14 +25,13 @@ export const INSTRUCTOR_APPLICATION_LABELS: Record<InstructorApplicationStatus, 
 };
 
 export const INSTRUCTOR_EXPERTISE_OPTIONS = [
-  'Lập trình & Kỹ thuật phần mềm',
-  'Trí tuệ nhân tạo & Khoa học dữ liệu',
-  'Thiết kế UI/UX & Sản phẩm',
-  'Kinh doanh số & Khởi nghiệp',
-  'Ngoại ngữ & Kỹ năng học tập',
-  'Marketing số & Truyền thông',
-  'Quản trị dự án & Agile',
-  'Kỹ năng mềm & Phát triển cá nhân',
+  'Công nghệ Thông tin & Lập trình',
+  'AI & Khoa học Dữ liệu',
+  'Thiết kế UI/UX & Đồ họa',
+  'Dựng Video & Đa phương tiện',
+  'Kinh doanh & Marketing số',
+  'Tài chính & Đầu tư',
+  'Ngoại ngữ & Kỹ năng mềm',
 ] as const;
 
 export const INSTRUCTOR_TERMS_MOCK = [
@@ -69,7 +68,7 @@ export function getApplicationPreview(
           fullName: 'Nguyễn Văn Minh',
           email: 'minh.nguyen@example.com',
           phone: '0912 345 678',
-          expertises: ['Lập trình & Kỹ thuật phần mềm', 'Trí tuệ nhân tạo & Khoa học dữ liệu'],
+          expertises: ['Công nghệ Thông tin & Lập trình', 'AI & Khoa học Dữ liệu'],
           bio: 'Kỹ sư phần mềm cao cấp với 6 năm kinh nghiệm phát triển hệ thống phân tán và kiến trúc microservices.',
           experience: 'Đã từng hướng dẫn và đào tạo hơn 500 học viên qua các workshop nội bộ và khóa học lập trình trực tuyến.',
           cvFileName: 'NguyenVanMinh_SeniorSoftwareEngineer_CV.pdf',

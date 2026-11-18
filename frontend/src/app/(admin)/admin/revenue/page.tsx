@@ -3,7 +3,7 @@ import React, { Suspense } from 'react';
 import { RevenueView } from '@/features/admin/revenue';
 
 export const metadata: Metadata = {
-  title: 'Quản Lý Đơn Hàng, Giao Dịch & Doanh Thu | Mindly Admin',
+  title: 'Quản Lý Doanh Thu & Hoa Hồng | Mindly Admin',
   description: 'Thống kê doanh thu toàn hệ thống, biến động giao dịch SePay và quản lý hoa hồng giảng viên',
 };
 

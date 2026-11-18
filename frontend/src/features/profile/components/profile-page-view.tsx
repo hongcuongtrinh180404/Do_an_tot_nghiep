@@ -2,14 +2,17 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { RoleEnum, type IPublicUserProfile } from 'share-lib';
 import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
 import { useIsMounted } from '@/hooks/use-is-mounted';
 import { useUserProfileQuery } from '../api/profile.api';
+import { CopyProfileLinkButton } from './copy-profile-link-button';
 import { ProfileSocialButtons } from './profile-social-buttons';
 import { ProfileForm } from './profile-form';
 import { ProfileInfoCard } from './profile-info-card';
 import { ProfileCourseTabs } from './profile-course-tabs';
+import { getPublicProfilePath } from '../utils/profile-url';
 
 const roleLabels = {
   [RoleEnum.ADMIN]: 'Quản trị viên', [RoleEnum.INSTRUCTOR]: 'Giảng viên', [RoleEnum.STUDENT]: 'Học viên',
@@ -30,9 +33,13 @@ export function ProfilePageView({ profile }: { profile: IPublicUserProfile }): R
           <div className="space-y-2">
             <h1 id="profile-name" className="break-words text-2xl font-semibold tracking-tight sm:text-3xl">{ownProfile.fullName}</h1>
             <p className="text-sm text-muted-foreground">Quản lý hồ sơ cá nhân của bạn.</p>
+            <p className="break-all text-sm">
+              Liên kết hồ sơ:{' '}
+              <Link href={getPublicProfilePath(profile.username)} className="underline underline-offset-4">{getPublicProfilePath(profile.username)}</Link>
+            </p>
           </div>
           <div className="grid items-start gap-6 lg:grid-cols-3">
-            <ProfileInfoCard user={ownProfile} showCopyProfileLink={false} />
+            <ProfileInfoCard user={ownProfile} />
             <div className="lg:col-span-2"><ProfileForm user={ownProfile} /></div>
           </div>
         </section>
@@ -72,6 +79,7 @@ function ReadOnlyProfile({ profile }: { profile: IPublicUserProfile }): React.JS
           </div>
         </div>
         <div className="flex flex-col items-start sm:items-end gap-2.5 shrink-0">
+          <CopyProfileLinkButton username={profile.username} />
           <ProfileSocialButtons socialLinks={profile.socialLinks} />
         </div>
       </div>

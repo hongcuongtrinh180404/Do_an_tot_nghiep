@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Icon } from '@/components/ui/icon';
+import { usePublicCategoriesQuery } from '@/features/course/api/course-category.api';
 import {
   INSTRUCTOR_EXPERTISE_OPTIONS,
   INSTRUCTOR_TERMS_MOCK,
@@ -49,6 +50,17 @@ export function InstructorApplicationForm({
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const { data: publicCategories } = usePublicCategoriesQuery();
+
+  const availableExpertises = useMemo<string[]>(() => {
+    if (publicCategories && publicCategories.length > 0) {
+      return publicCategories
+        .filter((cat) => cat.isActive !== false)
+        .map((cat) => cat.name);
+    }
+    return [...INSTRUCTOR_EXPERTISE_OPTIONS];
+  }, [publicCategories]);
 
   function toggleExpertise(item: string): void {
     setSelectedExpertises((prev) =>
@@ -307,7 +319,7 @@ export function InstructorApplicationForm({
             role="group"
             aria-labelledby="expertise-chips-label"
           >
-            {INSTRUCTOR_EXPERTISE_OPTIONS.map((item) => {
+            {availableExpertises.map((item) => {
               const isSelected = selectedExpertises.includes(item);
               return (
                 <button
@@ -329,7 +341,7 @@ export function InstructorApplicationForm({
 
             {/* Any custom selected expertises that aren't in predefined list */}
             {selectedExpertises
-              .filter((item) => !INSTRUCTOR_EXPERTISE_OPTIONS.includes(item as (typeof INSTRUCTOR_EXPERTISE_OPTIONS)[number]))
+              .filter((item) => !availableExpertises.includes(item))
               .map((item) => (
                 <button
                   key={item}

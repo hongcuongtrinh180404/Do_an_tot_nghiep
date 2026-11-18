@@ -8,12 +8,14 @@ ChatbotModule → ChatbotAiClient → OpenAI-compatible API (River / DeepSeek)
 TranscriptAnalysisModule → GeminiModule → GeminiService → River / Gemini
 ```
 
-`ChatbotModule` export `ChatbotAiClient`, đã được import trong `AppModule`.
+`ChatbotModule` export `ChatbotAiClient`; `AppModule` dùng module này thông qua
+`ChatbotSearchModule`.
 Client dùng package `openai` hiện có, với instance và cấu hình riêng. Mỗi lần
 `complete()` gửi tối đa **một request không streaming** tới provider.
 
-Đây là bước nền tảng. HTTP API chat, lưu hội thoại, FAQ, frontend và bộ thực thi
-function nghiệp vụ là các bước tiếp theo. Các function nghiệp vụ sau này chỉ được
+Đã có tool [`search_courses`](./search-courses.md) và lớp điều phối tìm kiếm chỉ
+đọc. HTTP API chat, lưu hội thoại, FAQ và frontend là các bước tiếp theo.
+Các function nghiệp vụ chỉ được
 **đọc dữ liệu đã kiểm tra quyền sở hữu/quyền truy cập**; không thực hiện giao dịch
 hoặc thay đổi dữ liệu. Kiến trúc này không cần RAG hay vector database.
 
@@ -30,18 +32,29 @@ CHATBOT_TIMEOUT_MS=30000
 CHATBOT_MAX_OUTPUT_TOKENS=2048
 ```
 
-| Biến                        | Quy tắc                                                                          |
-| --------------------------- | -------------------------------------------------------------------------------- |
-| `CHATBOT_ENABLED`           | Mặc định `false`. Khi tắt, module load được mà không khởi tạo SDK.               |
-| `CHATBOT_API_KEY`           | Bắt buộc, không được rỗng khi bật. Có thể gán rõ cùng giá trị key River hiện có. |
-| `CHATBOT_BASE_URL`          | HTTPS; không chứa username/password, query hoặc fragment.                        |
-| `CHATBOT_MODEL`             | Tên model, tối đa 200 ký tự; mặc định như trên.                                  |
-| `CHATBOT_TIMEOUT_MS`        | Số nguyên từ 1000 đến 120000 ms, áp dụng cho **mỗi lượt gọi model**.             |
-| `CHATBOT_MAX_OUTPUT_TOKENS` | Số nguyên từ 1 đến 8192, mặc định 2048.                                          |
+| Biến                        | Quy tắc                                                              |
+| --------------------------- | -------------------------------------------------------------------- |
+| `CHATBOT_ENABLED`           | Mặc định `false`. Khi tắt, module load được mà không khởi tạo SDK.   |
+| `CHATBOT_API_KEY`           | Bắt buộc khi bật; dùng riêng credential trước đây đặt ở River key 3. |
+| `CHATBOT_BASE_URL`          | HTTPS; không chứa username/password, query hoặc fragment.            |
+| `CHATBOT_MODEL`             | Tên model, tối đa 200 ký tự; mặc định như trên.                      |
+| `CHATBOT_TIMEOUT_MS`        | Số nguyên từ 1000 đến 120000 ms, áp dụng cho **mỗi lượt gọi model**. |
+| `CHATBOT_MAX_OUTPUT_TOKENS` | Số nguyên từ 1 đến 8192, mặc định 2048.                              |
 
 Bật bằng `CHATBOT_ENABLED=true` và gán `CHATBOT_API_KEY`. Client không tự lấy key,
-model hoặc timeout từ `RIVER_*`/`GEMINI_*`. Việc dùng cùng key có thể chia sẻ quota
-tại provider; cấu hình và vòng đời client vẫn tách riêng.
+model hoặc timeout từ `RIVER_*`/`GEMINI_*`.
+
+Phân bổ key của dự án:
+
+- `RIVER_API_KEY_1`, `RIVER_API_KEY_2`: Mindmap/Summary/Quiz.
+- `CHATBOT_API_KEY`: credential riêng, trước đây là `RIVER_API_KEY_3`.
+- Để trống `RIVER_API_KEY_3`, không lặp credential chatbot trong biến dự phòng
+  `RIVER_API_KEY`. Biến dự phòng có thể trùng key 1 hoặc 2.
+- Sao chép giá trị thật khi cấu hình, không dùng chuỗi literal `${RIVER_API_KEY_3}`:
+  client không tự expand biến môi trường hoặc fallback sang River.
+
+Việc tách credential ở ứng dụng không bảo đảm River tách quota theo key nếu các
+key dùng chung tài khoản/hạn mức tại provider.
 
 Khởi tạo module không gửi request kiểm tra kết nối. Cấu hình sai được phát hiện
 khi backend khởi động; thông báo chỉ chứa tên biến sai. Không đưa key vào source,
@@ -178,16 +191,5 @@ không load `AppModule`, không kết nối database và không gọi service ng
 Output chỉ là trạng thái, số lượt gọi, thời gian và usage; lỗi có exit code 1.
 Lệnh live được chạy thủ công, không nằm trong `pnpm test`.
 
-Nếu muốn dùng key River hiện có cho một lần thử mà không lưu cấu hình, có thể
-gán rõ trong process bằng PowerShell (chạy trong thư mục `backend`):
-
-```powershell
-@'
-process.env.CHATBOT_ENABLED = 'true';
-process.env.CHATBOT_API_KEY = process.env.RIVER_API_KEY_1;
-await import('./scripts/test-chatbot.ts');
-'@ | node --env-file=.env --import tsx --input-type=module
-```
-
-Ví dụ này chỉ định `RIVER_API_KEY_1` một cách tường minh. `ChatbotAiClient` và
-script không có cơ chế tự dò hoặc fallback sang key River.
+Không dùng key 1/2 để dự phòng cho chatbot khi test lỗi hoặc gặp 429. Hãy kiểm tra
+cấu hình `CHATBOT_API_KEY` hoặc chạy lại thủ công sau khi hạn mức provider phục hồi.

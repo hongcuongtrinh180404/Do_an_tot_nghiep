@@ -1,0 +1,222 @@
+'use client';
+
+import * as React from 'react';
+import { InstructorApplicationStatusEnum, type IInstructorApplication } from 'share-lib';
+import { Button } from '@/components/ui/button';
+import { Icon } from '@/components/ui/icon';
+import { DialogLayout } from '@/components/shared/dialog';
+import { InstructorStatusBadge } from './instructor-status-badge';
+
+interface InstructorDetailDialogProps {
+  application: IInstructorApplication | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onApprove?: (application: IInstructorApplication) => void;
+  onReject?: (application: IInstructorApplication) => void;
+}
+
+export function InstructorDetailDialog({
+  application,
+  open,
+  onOpenChange,
+  onApprove,
+  onReject,
+}: InstructorDetailDialogProps): React.JSX.Element {
+  if (!application) {
+    return (
+      <DialogLayout open={open} onOpenChange={onOpenChange} title="Chi tiết hồ sơ">
+        <div />
+      </DialogLayout>
+    );
+  }
+
+  const isPending = application.status === InstructorApplicationStatusEnum.PENDING;
+
+  return (
+    <DialogLayout
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Chi tiết hồ sơ đăng ký giảng viên"
+      description={`Mã hồ sơ: #${application.id.slice(-8)} • Nộp lúc: ${
+        application.createdAt
+          ? new Date(application.createdAt).toLocaleString('vi-VN')
+          : 'Không xác định'
+      }`}
+      icon="lucide:user"
+      iconClassName="bg-primary/10 text-primary ring-primary/20"
+      className="sm:max-w-2xl"
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            className="text-xs h-9 cursor-pointer"
+          >
+            Đóng
+          </Button>
+
+          {isPending && (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  onReject?.(application);
+                }}
+                className="text-xs h-9 gap-1.5 border-rose-500/40 text-rose-600 hover:bg-rose-500/10 hover:text-rose-700 cursor-pointer"
+              >
+                <Icon icon="lucide:x" className="size-3.5" />
+                <span>Từ chối</span>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  onApprove?.(application);
+                }}
+                className="text-xs h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+              >
+                <Icon icon="lucide:check" className="size-3.5" />
+                <span>Phê duyệt</span>
+              </Button>
+            </div>
+          )}
+        </div>
+      }
+    >
+      <div className="space-y-4 py-2 max-h-[70vh] overflow-y-auto pr-1">
+        {/* Header Profile Summary */}
+        <div className="flex items-start justify-between gap-4 p-4 rounded-xl bg-muted/40 border border-border/60">
+          <div className="flex items-center gap-3">
+            <div className="size-12 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-base border border-primary/20 shrink-0">
+              {application.applicantName.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-foreground">
+                {application.applicantName}
+              </h3>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                <span>{application.email}</span>
+                <span>•</span>
+                <span>{application.phone}</span>
+              </div>
+            </div>
+          </div>
+          <InstructorStatusBadge status={application.status} />
+        </div>
+
+        {/* Lĩnh vực chuyên môn */}
+        <div className="space-y-1.5">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Lĩnh vực chuyên môn
+          </h4>
+          <div className="flex flex-wrap gap-1.5">
+            {application.expertises?.map((exp) => (
+              <span
+                key={exp}
+                className="text-xs px-2.5 py-1 rounded-md bg-secondary text-secondary-foreground font-medium border border-border/40"
+              >
+                {exp}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Tiểu sử tóm tắt */}
+        <div className="space-y-1.5">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Tiểu sử chuyên môn
+          </h4>
+          <p className="text-xs text-foreground/90 bg-muted/20 p-3 rounded-lg border border-border/40 leading-relaxed">
+            {application.bio || 'Chưa cung cấp tiểu sử.'}
+          </p>
+        </div>
+
+        {/* Kinh nghiệm sư phạm & giảng dạy */}
+        <div className="space-y-1.5">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Kinh nghiệm giảng dạy & đào tạo
+          </h4>
+          <p className="text-xs text-foreground/90 bg-muted/20 p-3 rounded-lg border border-border/40 leading-relaxed">
+            {application.experience || 'Chưa cung cấp thông tin kinh nghiệm.'}
+          </p>
+        </div>
+
+        {/* Hồ sơ CV đính kèm */}
+        <div className="space-y-1.5">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Hồ sơ năng lực (CV đính kèm)
+          </h4>
+          <div className="flex items-center justify-between p-3 rounded-lg bg-card border border-border/60">
+            <div className="flex items-center gap-2.5">
+              <Icon icon="lucide:file-text" className="size-5 text-primary" />
+              <div>
+                <p className="text-xs font-medium text-foreground">
+                  {application.cvFileName || 'Ho_so_ung_vien.pdf'}
+                </p>
+                <p className="text-[11px] text-muted-foreground">Tài liệu đính kèm (PDF/Word)</p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 gap-1.5 cursor-pointer"
+              onClick={() => {
+                if (application.cvFileUrl) {
+                  window.open(application.cvFileUrl, '_blank');
+                } else {
+                  alert(`Đang mở tài liệu: ${application.cvFileName || 'Ho_so_ung_vien.pdf'}`);
+                }
+              }}
+            >
+              <Icon icon="lucide:download" className="size-3.5" />
+              <span>Xem tài liệu</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Lịch sử xử lý nếu đã duyệt hoặc từ chối */}
+        {application.status !== InstructorApplicationStatusEnum.PENDING && (
+          <div className="space-y-2 pt-2 border-t border-border/60">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Thông tin xét duyệt
+            </h4>
+            <div className="p-3 rounded-lg bg-muted/30 border border-border/40 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>Người duyệt:</span>
+                <span className="font-medium text-foreground">
+                  {application.reviewedByName || 'Ban Quản Trị'}
+                </span>
+              </div>
+              {application.reviewedAt && (
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Thời gian duyệt:</span>
+                  <span className="font-medium text-foreground">
+                    {new Date(application.reviewedAt).toLocaleString('vi-VN')}
+                  </span>
+                </div>
+              )}
+              {application.rejectionReason && (
+                <div className="pt-1.5 border-t border-border/40 space-y-1">
+                  <span className="font-semibold text-rose-600 dark:text-rose-400">
+                    Lý do từ chối:
+                  </span>
+                  <p className="text-xs text-foreground/90 italic">
+                    "{application.rejectionReason}"
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </DialogLayout>
+  );
+}
