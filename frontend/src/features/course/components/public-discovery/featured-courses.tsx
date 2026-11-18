@@ -49,8 +49,8 @@ export function FeaturedCourses(): React.JSX.Element {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {featuredCourses.map((course, idx) => (
-              <div key={course.id} className={`taste-enter taste-enter-delay-${idx + 1}`}>
+            {featuredCourses.map((course) => (
+              <div key={course.id}>
                 <CourseCard course={course} />
               </div>
             ))}

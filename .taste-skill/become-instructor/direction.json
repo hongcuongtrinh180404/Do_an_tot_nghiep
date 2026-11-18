@@ -2,7 +2,7 @@
  "version": 1,
  "at": "2026-11-17T15:50:50.714Z",
  "seed": 244350772,
- "redraws": 0,
+ "redraws": 1,
  "input": {
   "brief": "Mindly instructor invitation: turn a video lesson into a mindmap and in-video quizzes, one student application entry",
   "sector": "ai-product",
@@ -198,29 +198,26 @@
    ]
   },
   {
-   "id": "how-it-works-stages-as-one-bar",
+   "id": "how-it-works-accordion-of-tinted-panels",
    "role": "how-it-works",
-   "name": "Stages as one bar",
-   "shape": "band",
+   "name": "Accordion of tinted panels",
+   "shape": "strip",
    "tags": [
-    "ui-led",
-    "poster",
-    "type-led"
+    "colour-field",
+    "poster"
    ],
    "directions": [
-    "loud-flat-poster",
-    "type-only-statement",
     "colour-chapters",
     "one-motif",
-    "editorial-report",
+    "loud-flat-poster",
     "dense-tiles",
-    "sentence-as-layout"
+    "borrowed-category"
    ],
    "needs": [],
-   "blueprint": "The product's progress bar, enlarged until it spans the page, is the diagram. One bar runs across columns 1–12, 22vh tall, built as a flex row of three or four solid segments with 6px gaps, root marked data-ui. Each segment's width follows how long that stage really takes (flex-grow from the true durations, 12% minimum), and each is a different flat palette colour, so the reader sees at once that signing up is a sliver and the rest is the product working. Inside every segment, top-left with 20px padding, its duration in words at clamp(20px, 2vw, 30px): 'Two minutes', 'About a day'. Under each segment, on its left edge, one clause at 17px, 22ch wide, beginning with its order word. Above the bar, 64px clear of it, the heading: two to five words at clamp(48px, 6.4vw, 104px), flush left. Nothing else.",
-   "mobile": "The bar turns vertical: segments stack as full-width blocks whose heights keep the proportions, 72px minimum, 6px gaps, about 70svh in total. Each holds its duration at 22px top-left and its clause at 16px beneath. The heading sits above at 11vw on two lines.",
+   "blueprint": "A two-column introduction, then one horizontal accordion. Introduction: the heading, two to four words at clamp(36px, 4vw, 60px), in columns 1–5; one paragraph at 18px in columns 7–11. 64px below, a flex row across columns 1–12, 520px tall, of four to six panels with no gaps. The open stage is a panel taking about 58% of the width; the rest are vertical slivers sharing what remains. Order is carried by colour: the first stage is the darkest tone of one hue and each later stage is a lighter flat tint of it, so the row reads dark to light from left to right. A sliver shows only its stage name, rotated 90 degrees and reading upward, at 20px bold, anchored to its bottom-left. The open panel shows the name at 40px top-left, a 36ch paragraph at 18px bottom-left and, optionally, one photograph in its right half. Clicking a sliver opens it (flex-basis transition, 450ms).",
+   "mobile": "The accordion turns vertical: stages stack at full width as bars 64px tall in the same dark-to-light order, names set horizontally at 18px. The open stage expands to its content height with the paragraph at 17px. The first stage is open by default.",
    "seenIn": [
-    "opl-wild-as"
+    "aww-white-desert"
    ]
   },
   {

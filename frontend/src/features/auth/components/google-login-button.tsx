@@ -6,16 +6,20 @@ import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import { RoleEnum } from 'share-lib';
 import { toast } from 'sonner';
 import { useGoogleAuthMutation } from '../api/auth.api';
+import { getAuthReturnPath } from '../utils/auth-return-path';
 
 interface GoogleLoginButtonProps {
   text?: 'signin_with' | 'signup_with' | 'continue_with';
+  returnTo?: string | null;
 }
 
 export function GoogleLoginButton({
   text = 'continue_with',
+  returnTo,
 }: GoogleLoginButtonProps): React.JSX.Element {
   const router = useRouter();
   const googleAuthMutation = useGoogleAuthMutation();
+  const safeReturnTo = getAuthReturnPath(returnTo);
 
   const handleSuccess = (credentialResponse: CredentialResponse) => {
     if (!credentialResponse.credential) {
@@ -29,8 +33,10 @@ export function GoogleLoginButton({
         onSuccess: (authData) => {
           if (authData.user.role === RoleEnum.ADMIN) {
             router.push('/admin/dashboard');
+          } else if (safeReturnTo) {
+            router.push(safeReturnTo);
           } else if (authData.user.role === RoleEnum.INSTRUCTOR) {
-            router.push('/instructor/courses');
+            router.push('/courses');
           } else {
             router.push('/');
           }

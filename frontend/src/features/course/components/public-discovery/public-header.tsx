@@ -6,13 +6,14 @@ import Image from 'next/image';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { RoleEnum } from 'share-lib';
 
-import { useCurrentUserQuery, useLogoutMutation } from '@/features/auth/api/auth.api';
+import { useLogoutMutation } from '@/features/auth/api/auth.api';
 import { buttonVariants } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useIsMounted } from '@/hooks/use-is-mounted';
 import { useSmartHeaderScroll } from '@/hooks/use-smart-header-scroll';
 import { MindlyLogo } from '@/components/brand';
+import { useInstructorApplication } from '@/features/instructor-application/hooks/use-instructor-application';
 
 interface PublicHeaderProps {
   onSearchSubmit?: (query: string) => void;
@@ -29,7 +30,8 @@ export function PublicHeader({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isMounted = useIsMounted();
-  const { data: user } = useCurrentUserQuery();
+  const instructorEntry = useInstructorApplication();
+  const { user } = instructorEntry;
   const logoutMutation = useLogoutMutation({ redirectTo: '/' });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -122,7 +124,7 @@ export function PublicHeader({
           </Link>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden md:flex items-center gap-6 lg:gap-8" aria-label="Điều hướng chính">
+          <nav className="hidden xl:flex items-center gap-6 lg:gap-8 whitespace-nowrap" aria-label="Điều hướng chính">
             <Link
               href="/#featured"
               className="text-[15px] font-medium text-neutral-200 transition-colors hover:text-white"
@@ -271,6 +273,16 @@ export function PublicHeader({
                   </Link>
 
                   {/* Divider */}
+                  {user.role === RoleEnum.STUDENT && (
+                    <Link
+                      href={instructorEntry.href}
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80 transition-colors"
+                    >
+                      <Icon icon="lucide:presentation" className="size-4 shrink-0 text-neutral-400" />
+                      <span>{instructorEntry.menuLabel}</span>
+                    </Link>
+                  )}
                   <div className="my-1 border-t border-neutral-800" />
 
                   {/* 4. Đăng xuất */}
@@ -301,23 +313,25 @@ export function PublicHeader({
                 <Icon icon="lucide:log-in" className="size-4 mr-1.5" />
                 Đăng nhập
               </Link>
-              <Link
-                href="/register"
-                className={buttonVariants({
-                  variant: 'coral',
-                  className: 'hidden sm:inline-flex h-10 px-5 text-[15px] font-bold shadow-none',
-                })}
-              >
-                <Icon icon="lucide:user-plus" className="size-4 mr-1.5" />
-                Tham gia miễn phí
-              </Link>
+              <div className="hidden sm:block">
+                <Link
+                  href="/register"
+                  className={buttonVariants({
+                    variant: 'coral',
+                    className: 'h-10 px-5 text-[15px] font-bold shadow-none',
+                  })}
+                >
+                  <Icon icon="lucide:user-plus" className="size-4 mr-1.5" />
+                  Tham gia miễn phí
+                </Link>
+              </div>
             </div>
           )}
 
           {/* Mobile hamburger button */}
           <button
             type="button"
-            className="md:hidden flex size-10 items-center justify-center rounded-lg border border-neutral-700 text-white hover:bg-neutral-800"
+            className="xl:hidden flex size-10 shrink-0 items-center justify-center rounded-lg border border-neutral-700 text-white hover:bg-neutral-800"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Mở danh mục điều hướng"
             aria-expanded={mobileMenuOpen}
@@ -329,7 +343,7 @@ export function PublicHeader({
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div data-ui="mobile-menu" className="md:hidden border-t border-neutral-800 bg-[#161616] text-white px-5 py-5 space-y-4">
+        <div data-ui="mobile-menu" className="xl:hidden border-t border-neutral-800 bg-[#161616] text-white px-5 py-5 space-y-4">
           <form onSubmit={handleSearch} className="relative w-full">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-neutral-400">
               <Icon icon="lucide:search" className="size-4.5" />
@@ -449,6 +463,16 @@ export function PublicHeader({
                 <span>Cài đặt tài khoản</span>
               </Link>
               <div className="my-1 border-t border-neutral-800" />
+              {user.role === RoleEnum.STUDENT && (
+                <Link
+                  href={instructorEntry.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="min-h-11 flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-neutral-200 hover:text-white hover:bg-neutral-800/80"
+                >
+                  <Icon icon="lucide:presentation" className="size-4 shrink-0 text-neutral-400" />
+                  <span>{instructorEntry.menuLabel}</span>
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={() => {

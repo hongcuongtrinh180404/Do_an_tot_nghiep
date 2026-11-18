@@ -86,8 +86,8 @@ export function PublicFooter(): React.JSX.Element {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/instructor/courses" className="hover:text-white transition-colors">
-                    Dành cho Giảng viên
+                  <Link href="/become-instructor" className="hover:text-white transition-colors">
+                    Trở thành giảng viên
                   </Link>
                 </li>
                 <li>

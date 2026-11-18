@@ -4,8 +4,15 @@ import React from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/icon';
 import { buttonVariants } from '@/components/ui/button';
+import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
+import { useIsMounted } from '@/hooks/use-is-mounted';
 
 export function AiExperienceBanner(): React.JSX.Element {
+  const isMounted = useIsMounted();
+  const { data: user, isLoading, isError } = useCurrentUserQuery();
+  const isCheckingUser = !isMounted || isLoading;
+  const hasUser = isMounted && !!user;
+
   return (
     <section id="ai-experience" className="w-full bg-[#f8f9fa] py-16">
       <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
@@ -189,22 +196,30 @@ export function AiExperienceBanner(): React.JSX.Element {
         <div data-ui="cta-banner" className="mt-14 rounded-xl bg-[#161616] text-white p-8 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="space-y-1 text-center sm:text-left">
             <h3 className="text-xl sm:text-2xl font-bold text-white">
-              Bắt đầu hành trình nâng cao kỹ năng hôm nay
+              {hasUser ? 'Chia sẻ kiến thức cùng Mindly' : 'Bắt đầu hành trình nâng cao kỹ năng hôm nay'}
             </h3>
             <p className="text-base text-neutral-300">
-              Đăng ký tài khoản miễn phí để trải nghiệm toàn bộ tính năng bài giảng video và sơ đồ AI.
+              {hasUser
+                ? 'Mang kinh nghiệm của bạn vào những bài giảng video tương tác dành cho người học.'
+                : 'Đăng ký tài khoản miễn phí để trải nghiệm toàn bộ tính năng bài giảng video và sơ đồ AI.'}
             </p>
           </div>
+          {isCheckingUser ? (
+            <span role="status" className="min-h-12 flex items-center text-base text-neutral-300">
+              Đang tải tài khoản…
+            </span>
+          ) : (
           <Link
-            href="/register"
+            href={hasUser || isError ? '/become-instructor' : '/register'}
             className={buttonVariants({
               variant: 'coral',
               size: 'lg',
-              className: 'font-bold px-6 shrink-0 shadow-none text-base',
+              className: 'min-h-12 h-auto w-full sm:w-auto whitespace-normal text-center py-3 font-bold px-6 shrink-0 shadow-none text-base',
             })}
           >
-            Tạo tài khoản học viên miễn phí
+            {hasUser || isError ? 'Trở thành giảng viên' : 'Tạo tài khoản học viên miễn phí'}
           </Link>
+          )}
         </div>
 
       </div>

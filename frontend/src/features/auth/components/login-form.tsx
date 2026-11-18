@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { RoleEnum } from 'share-lib';
@@ -15,9 +15,12 @@ import { GoogleLoginButton } from './google-login-button';
 import { ForgotPasswordModal } from './forgot-password-modal';
 import { loginSchema, type LoginFormData } from '../schemas/login.schema';
 import { useLoginMutation } from '../api/auth.api';
+import { authPathWithReturn, getAuthReturnPath } from '../utils/auth-return-path';
 
 export function LoginForm(): React.JSX.Element {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = getAuthReturnPath(searchParams.get('next'));
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = React.useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = React.useState('');
   const [forgotPasswordSession, setForgotPasswordSession] = React.useState(0);
@@ -48,7 +51,7 @@ export function LoginForm(): React.JSX.Element {
           if (authData.user.role === RoleEnum.ADMIN) {
             router.push('/admin/dashboard');
           } else {
-            router.push('/');
+            router.push(returnTo ?? '/');
           }
         },
       },
@@ -62,8 +65,13 @@ export function LoginForm(): React.JSX.Element {
         headerDescription="Học dễ dàng, hiểu sâu sắc"
         backButtonLabel="Chưa có tài khoản?"
         backButtonText="Đăng ký ngay"
-        backButtonHref="/register"
+        backButtonHref={authPathWithReturn('/register', returnTo)}
       >
+        {returnTo && (
+          <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+            Đăng nhập để tiếp tục đăng ký giảng viên trên Mindly.
+          </p>
+        )}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
           <div className="space-y-1.5">
             <Label htmlFor="email" className="text-xs font-medium text-foreground/85">
@@ -141,7 +149,7 @@ export function LoginForm(): React.JSX.Element {
             </div>
           </div>
 
-          <GoogleLoginButton text="signin_with" />
+          <GoogleLoginButton text="signin_with" returnTo={returnTo} />
         </form>
       </AuthCardWrapper>
 

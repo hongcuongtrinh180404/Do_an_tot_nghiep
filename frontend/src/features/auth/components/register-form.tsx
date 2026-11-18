@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
@@ -13,8 +14,12 @@ import { PasswordInput } from './password-input';
 import { GoogleLoginButton } from './google-login-button';
 import { registerSchema, type RegisterFormData } from '../schemas/register.schema';
 import { useRegisterMutation, useResendVerificationMutation } from '../api/auth.api';
+import { authPathWithReturn, getAuthReturnPath } from '../utils/auth-return-path';
 
 export function RegisterForm(): React.JSX.Element {
+  const searchParams = useSearchParams();
+  const returnTo = getAuthReturnPath(searchParams.get('next'));
+  const loginHref = authPathWithReturn('/login', returnTo);
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
 
@@ -78,7 +83,7 @@ export function RegisterForm(): React.JSX.Element {
         headerDescription="Chúng tôi đã gửi liên kết kích hoạt đến email của bạn"
         backButtonLabel="Đã kích hoạt tài khoản?"
         backButtonText="Đăng nhập ngay"
-        backButtonHref="/login"
+        backButtonHref={loginHref}
       >
         <div className="space-y-5 text-center py-2">
           {/* Envelope Icon */}
@@ -121,7 +126,7 @@ export function RegisterForm(): React.JSX.Element {
               )}
             </Button>
 
-            <Link href="/login" className="block w-full">
+            <Link href={loginHref} className="block w-full">
               <Button type="button" className="w-full font-semibold shadow-sm hover:shadow transition-all rounded-xl h-10">
                 Chuyển Đến Trang Đăng Nhập
               </Button>
@@ -138,7 +143,7 @@ export function RegisterForm(): React.JSX.Element {
       headerDescription="Tạo tài khoản Mindly để bắt đầu quản lý đồ án"
       backButtonLabel="Đã có tài khoản?"
       backButtonText="Đăng nhập"
-      backButtonHref="/login"
+      backButtonHref={loginHref}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
         <div className="space-y-1.5">
@@ -221,7 +226,7 @@ export function RegisterForm(): React.JSX.Element {
           </div>
         </div>
 
-        <GoogleLoginButton text="signup_with" />
+        <GoogleLoginButton text="signup_with" returnTo={returnTo} />
       </form>
     </AuthCardWrapper>
   );

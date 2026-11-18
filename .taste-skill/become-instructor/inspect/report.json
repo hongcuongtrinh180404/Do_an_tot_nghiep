@@ -1,0 +1,1567 @@
+{
+ "url": "http://localhost:3000/become-instructor",
+ "at": "2026-11-18T07:03:40.936Z",
+ "allow": [],
+ "viewports": [
+  {
+   "width": 1440,
+   "height": 900,
+   "load": "load",
+   "screens": 4,
+   "filled": [
+    0.56,
+    0.53,
+    0.72,
+    0.71
+   ],
+   "motion": {
+    "elements": 20,
+    "css": 18,
+    "transitions": 1,
+    "scripted": 1,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "page": {
+     "height": 3160,
+     "screens": 3.5,
+     "words": 619,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 18,
+     "sections": 6,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 6,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 5,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "Trở thành giảng viên Mindly",
+     "words": 5,
+     "chars": 27,
+     "lines": 2,
+     "size": 61.9,
+     "vw": 4.3,
+     "font": "Roboto",
+     "weight": 700,
+     "tracking": -0.05,
+     "leading": 1.08,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "left",
+     "widthRatio": 0.3,
+     "top": 159,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Trở thành giảng viên Mindly",
+     "words": 5,
+     "lines": 2,
+     "size": 61.9,
+     "font": "Roboto"
+    },
+    "headings": [
+     {
+      "text": "Trở thành giảng viên Mindly",
+      "words": 5,
+      "chars": 27,
+      "lines": 2,
+      "size": 61.9,
+      "vw": 4.3,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.05,
+      "leading": 1.08,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.3,
+      "top": 159,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "Client Components",
+      "words": 2,
+      "chars": 17,
+      "lines": 1,
+      "size": 32,
+      "vw": 2.2,
+      "font": "Roboto",
+      "weight": 600,
+      "tracking": -0.03,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.38,
+      "top": 266,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Dạy theo cách của bạn",
+      "words": 5,
+      "chars": 21,
+      "lines": 1,
+      "size": 40,
+      "vw": 2.8,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.46,
+      "top": 804,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Mang chuyên môn của bạn đến Mindly",
+      "words": 7,
+      "chars": 34,
+      "lines": 2,
+      "size": 40,
+      "vw": 2.8,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.42,
+      "top": 1522,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Bắt đầu như thế nào?",
+      "words": 5,
+      "chars": 20,
+      "lines": 1,
+      "size": 40,
+      "vw": 2.8,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.46,
+      "top": 1867,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Từ kiến thức đến bài giảng.",
+      "words": 6,
+      "chars": 27,
+      "lines": 2,
+      "size": 32,
+      "vw": 2.2,
+      "font": "Roboto",
+      "weight": 500,
+      "tracking": -0.03,
+      "leading": 1.25,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.34,
+      "top": 2420,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Đăng ký giảng dạy",
+      "words": 4,
+      "chars": 17,
+      "lines": 1,
+      "size": 32,
+      "vw": 2.2,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.5,
+      "top": 2420,
+      "tag": "h2",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 7,
+     "maxLines": 2,
+     "over2Lines": 0,
+     "statements": 2,
+     "centered": 0,
+     "medianWords": 5,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Roboto",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      14,
+      16,
+      20,
+      32,
+      40,
+      62
+     ],
+     "sizeCount": 6,
+     "notLoaded": [],
+     "body": {
+      "font": "Roboto",
+      "size": 16,
+      "leading": 1.65,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 16.4
+     },
+     "measureChars": 67,
+     "max": {
+      "size": 61.9,
+      "vw": 4.3,
+      "font": "Roboto",
+      "text": "Trở thànhgiảng viên Mindly"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.02,
+     "smallText": 0
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#ffffff",
+     "bodyBgHsl": {
+      "h": 0,
+      "s": 0,
+      "l": 1
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#ffffff",
+       "top": 0,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 1
+       }
+      },
+      {
+       "color": "#f4f4f2",
+       "top": 105,
+       "hsl": {
+        "h": 60,
+        "s": 0.08,
+        "l": 0.95
+       }
+      },
+      {
+       "color": "#eaeae7",
+       "top": 105,
+       "hsl": {
+        "h": 60,
+        "s": 0.07,
+        "l": 0.91
+       }
+      },
+      {
+       "color": "#161616",
+       "top": 2775,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 0.09
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#161616",
+       "share": 0.52
+      },
+      {
+       "color": "#d4d4d4",
+       "share": 0.21
+      },
+      {
+       "color": "#595959",
+       "share": 0.12
+      },
+      {
+       "color": "#ffffff",
+       "share": 0.06
+      },
+      {
+       "color": "#e1e1e1",
+       "share": 0.05
+      }
+     ],
+     "button": {
+      "bg": "#de2900",
+      "hsl": {
+       "h": 11,
+       "s": 1,
+       "l": 0.44
+      },
+      "fg": "#ffffff"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 5,
+     "inHero": 3,
+     "radius": 0,
+     "height": 40,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Đăng nhập",
+      "Tham gia miễn phí",
+      "Gửi yêu cầu đăng ký"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 1,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 0,
+     "boxRadius": 0,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": [
+      {
+       "count": 3,
+       "iconTopped": false,
+       "rounded": false,
+       "top": 888
+      }
+     ]
+    },
+    "heroMedia": [],
+    "nav": {
+     "links": 6,
+     "fixed": true,
+     "height": 73,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "roboto",
+     "plus jakarta sans"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "pageH": 3160,
+    "margins": {
+     "left": 32,
+     "right": 74
+    },
+    "sections": [
+     {
+      "sel": "main.become-instructor_page__2a0SQ",
+      "tag": "main",
+      "top": 73,
+      "height": 2702,
+      "words": 493,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Trở thành",
+       "size": 62,
+       "tag": "h1"
+      },
+      "left": 32,
+      "right": 74,
+      "textLeft": 32,
+      "textRight": 74,
+      "fullBleed": false,
+      "footer": false,
+      "hero": true,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "footer.w-full.border-t",
+      "tag": "footer",
+      "top": 2775,
+      "height": 386,
+      "words": 125,
+      "media": 0,
+      "middle": 164,
+      "heading": {
+       "text": "Khám phá",
+       "size": 14,
+       "tag": "h4"
+      },
+      "left": 32,
+      "right": 32,
+      "textLeft": 32,
+      "textRight": 32,
+      "fullBleed": false,
+      "footer": true,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     }
+    ],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "Trở thành giảng viên Mindly",
+      "size": 62,
+      "top": 159,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 72,
+      "n": 6
+     },
+     {
+      "x": 56,
+      "n": 5
+     },
+     {
+      "x": 32,
+      "n": 2
+     },
+     {
+      "x": 523,
+      "n": 2
+     },
+     {
+      "x": 652,
+      "n": 2
+     },
+     {
+      "x": 766,
+      "n": 2
+     },
+     {
+      "x": 985,
+      "n": 2
+     },
+     {
+      "x": 744,
+      "n": 1
+     }
+    ],
+    "leftBlocks": 22,
+    "bodySize": 16,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0.11,
+    "voidBox": {
+     "x": 420,
+     "y": 420,
+     "w": 300,
+     "h": 480
+    }
+   },
+   "app": null,
+   "consoleErrors": []
+  },
+  {
+   "width": 768,
+   "height": 1024,
+   "load": "load",
+   "screens": 4,
+   "filled": [
+    0.63,
+    0.63,
+    0.6,
+    0.82
+   ],
+   "motion": {
+    "elements": 20,
+    "css": 18,
+    "transitions": 1,
+    "scripted": 1,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "page": {
+     "height": 3509,
+     "screens": 3.4,
+     "words": 609,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 18,
+     "sections": 6,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 6,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 5,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "Trở thành giảng viên Mindly",
+     "words": 5,
+     "chars": 27,
+     "lines": 2,
+     "size": 42,
+     "vw": 5.5,
+     "font": "Roboto",
+     "weight": 700,
+     "tracking": -0.05,
+     "leading": 1.08,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "left",
+     "widthRatio": 0.39,
+     "top": 129,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Trở thành giảng viên Mindly",
+     "words": 5,
+     "lines": 2,
+     "size": 42,
+     "font": "Roboto"
+    },
+    "headings": [
+     {
+      "text": "Trở thành giảng viên Mindly",
+      "words": 5,
+      "chars": 27,
+      "lines": 2,
+      "size": 42,
+      "vw": 5.5,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.05,
+      "leading": 1.08,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.39,
+      "top": 129,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "Dạy theo cách của bạn",
+      "words": 5,
+      "chars": 21,
+      "lines": 1,
+      "size": 30,
+      "vw": 3.9,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.45,
+      "top": 795,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Mang chuyên môn của bạn đến Mindly",
+      "words": 7,
+      "chars": 34,
+      "lines": 2,
+      "size": 30,
+      "vw": 3.9,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.39,
+      "top": 1807,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Bắt đầu như thế nào?",
+      "words": 5,
+      "chars": 20,
+      "lines": 1,
+      "size": 30,
+      "vw": 3.9,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.45,
+      "top": 2235,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Đăng ký giảng dạy",
+      "words": 4,
+      "chars": 17,
+      "lines": 1,
+      "size": 32,
+      "vw": 4.2,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.46,
+      "top": 2734,
+      "tag": "h2",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 5,
+     "maxLines": 2,
+     "over2Lines": 0,
+     "statements": 0,
+     "centered": 0,
+     "medianWords": 5,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Roboto",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      14,
+      16,
+      20,
+      24,
+      30,
+      32,
+      42
+     ],
+     "sizeCount": 7,
+     "notLoaded": [],
+     "body": {
+      "font": "Roboto",
+      "size": 16,
+      "leading": 1.65,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 16.4
+     },
+     "measureChars": 45,
+     "max": {
+      "size": 42,
+      "vw": 5.5,
+      "font": "Roboto",
+      "text": "Trở thànhgiảng viên Mindly"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.02,
+     "smallText": 0
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#ffffff",
+     "bodyBgHsl": {
+      "h": 0,
+      "s": 0,
+      "l": 1
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#ffffff",
+       "top": 0,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 1
+       }
+      },
+      {
+       "color": "#f4f4f2",
+       "top": 1312,
+       "hsl": {
+        "h": 60,
+        "s": 0.08,
+        "l": 0.95
+       }
+      },
+      {
+       "color": "#161616",
+       "top": 3079,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 0.09
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#161616",
+       "share": 0.52
+      },
+      {
+       "color": "#d4d4d4",
+       "share": 0.21
+      },
+      {
+       "color": "#595959",
+       "share": 0.12
+      },
+      {
+       "color": "#ffffff",
+       "share": 0.07
+      },
+      {
+       "color": "#e1e1e1",
+       "share": 0.05
+      }
+     ],
+     "button": {
+      "bg": "#de2900",
+      "hsl": {
+       "h": 11,
+       "s": 1,
+       "l": 0.44
+      },
+      "fg": "#ffffff"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 5,
+     "inHero": 3,
+     "radius": 0,
+     "height": 40,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Đăng nhập",
+      "Tham gia miễn phí",
+      "Gửi yêu cầu đăng ký"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 1,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 0,
+     "boxRadius": 0,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": {
+     "links": 3,
+     "fixed": true,
+     "height": 73,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "roboto",
+     "plus jakarta sans"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "pageH": 3509,
+    "margins": {
+     "left": 24,
+     "right": 32
+    },
+    "sections": [
+     {
+      "sel": "main.become-instructor_page__2a0SQ",
+      "tag": "main",
+      "top": 73,
+      "height": 3006,
+      "words": 493,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Trở thành",
+       "size": 42,
+       "tag": "h1"
+      },
+      "left": 24,
+      "right": 32,
+      "textLeft": 24,
+      "textRight": 32,
+      "fullBleed": false,
+      "footer": false,
+      "hero": true,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "footer.w-full.border-t",
+      "tag": "footer",
+      "top": 3079,
+      "height": 430,
+      "words": 125,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Khám phá",
+       "size": 14,
+       "tag": "h4"
+      },
+      "left": 24,
+      "right": 24,
+      "textLeft": 24,
+      "textRight": 24,
+      "fullBleed": false,
+      "footer": true,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     }
+    ],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "Trở thành giảng viên Mindly",
+      "size": 42,
+      "top": 129,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 48,
+      "n": 13
+     },
+     {
+      "x": 418,
+      "n": 4
+     },
+     {
+      "x": 24,
+      "n": 2
+     },
+     {
+      "x": 359,
+      "n": 2
+     },
+     {
+      "x": 396,
+      "n": 1
+     }
+    ],
+    "leftBlocks": 22,
+    "bodySize": 16,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0,
+    "voidBox": null
+   },
+   "app": null,
+   "consoleErrors": []
+  },
+  {
+   "width": 390,
+   "height": 844,
+   "load": "load",
+   "screens": 7,
+   "filled": [
+    0.8,
+    0.6,
+    0.67,
+    0.74,
+    0.91,
+    0.87,
+    0.88
+   ],
+   "motion": {
+    "elements": 20,
+    "css": 18,
+    "transitions": 1,
+    "scripted": 1,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "page": {
+     "height": 5121,
+     "screens": 6.1,
+     "words": 605,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 18,
+     "sections": 6,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 6,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 5,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "Trở thành giảng viên Mindly",
+     "words": 5,
+     "chars": 27,
+     "lines": 2,
+     "size": 33.5,
+     "vw": 8.6,
+     "font": "Roboto",
+     "weight": 700,
+     "tracking": -0.05,
+     "leading": 1.08,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "left",
+     "widthRatio": 0.61,
+     "top": 117,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Trở thành giảng viên Mindly",
+     "words": 5,
+     "lines": 2,
+     "size": 33.5,
+     "font": "Roboto"
+    },
+    "headings": [
+     {
+      "text": "Trở thành giảng viên Mindly",
+      "words": 5,
+      "chars": 27,
+      "lines": 2,
+      "size": 33.5,
+      "vw": 8.6,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.05,
+      "leading": 1.08,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.61,
+      "top": 117,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "Client Components",
+      "words": 2,
+      "chars": 17,
+      "lines": 1,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Roboto",
+      "weight": 600,
+      "tracking": -0.03,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.68,
+      "top": 654,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Dạy theo cách của bạn",
+      "words": 5,
+      "chars": 21,
+      "lines": 1,
+      "size": 30,
+      "vw": 7.7,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 1168,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Mang chuyên môn của bạn đến Mindly",
+      "words": 7,
+      "chars": 34,
+      "lines": 2,
+      "size": 30,
+      "vw": 7.7,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.79,
+      "top": 2658,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Bắt đầu như thế nào?",
+      "words": 5,
+      "chars": 20,
+      "lines": 1,
+      "size": 30,
+      "vw": 7.7,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 3264,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Từ kiến thức đến bài giảng.",
+      "words": 6,
+      "chars": 27,
+      "lines": 2,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Roboto",
+      "weight": 500,
+      "tracking": -0.03,
+      "leading": 1.25,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.79,
+      "top": 3800,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Đăng ký giảng dạy",
+      "words": 4,
+      "chars": 17,
+      "lines": 1,
+      "size": 28,
+      "vw": 7.2,
+      "font": "Roboto",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 1.15,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.79,
+      "top": 3978,
+      "tag": "h2",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 7,
+     "maxLines": 2,
+     "over2Lines": 0,
+     "statements": 2,
+     "centered": 0,
+     "medianWords": 5,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Roboto",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      14,
+      16,
+      20,
+      24,
+      28,
+      30,
+      34
+     ],
+     "sizeCount": 7,
+     "notLoaded": [],
+     "body": {
+      "font": "Roboto",
+      "size": 16,
+      "leading": 1.65,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 16.4
+     },
+     "measureChars": 39,
+     "max": {
+      "size": 33.5,
+      "vw": 8.6,
+      "font": "Roboto",
+      "text": "Trở thànhgiảng viên Mindly"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.02,
+     "smallText": 0
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#ffffff",
+     "bodyBgHsl": {
+      "h": 0,
+      "s": 0,
+      "l": 1
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#ffffff",
+       "top": 0,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 1
+       }
+      },
+      {
+       "color": "#f4f4f2",
+       "top": 85,
+       "hsl": {
+        "h": 60,
+        "s": 0.08,
+        "l": 0.95
+       }
+      },
+      {
+       "color": "#eaeae7",
+       "top": 518,
+       "hsl": {
+        "h": 60,
+        "s": 0.07,
+        "l": 0.91
+       }
+      },
+      {
+       "color": "#e8f2f1",
+       "top": 1710,
+       "hsl": {
+        "h": 174,
+        "s": 0.28,
+        "l": 0.93
+       }
+      },
+      {
+       "color": "#161616",
+       "top": 4311,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 0.09
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#161616",
+       "share": 0.53
+      },
+      {
+       "color": "#d4d4d4",
+       "share": 0.21
+      },
+      {
+       "color": "#595959",
+       "share": 0.12
+      },
+      {
+       "color": "#ffffff",
+       "share": 0.06
+      },
+      {
+       "color": "#e1e1e1",
+       "share": 0.05
+      }
+     ],
+     "button": {
+      "bg": "#de2900",
+      "hsl": {
+       "h": 11,
+       "s": 1,
+       "l": 0.44
+      },
+      "fg": "#ffffff"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 4,
+     "inHero": 2,
+     "radius": 0,
+     "height": 50,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Đăng nhập",
+      "Gửi yêu cầu đăng ký"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 1,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 0,
+     "boxRadius": 0,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": {
+     "links": 2,
+     "fixed": true,
+     "height": 69,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "roboto",
+     "plus jakarta sans"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "pageH": 5121,
+    "margins": {
+     "left": 16,
+     "right": 17
+    },
+    "sections": [
+     {
+      "sel": "main.become-instructor_page__2a0SQ",
+      "tag": "main",
+      "top": 69,
+      "height": 4242,
+      "words": 493,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Trở thành",
+       "size": 34,
+       "tag": "h1"
+      },
+      "left": 16,
+      "right": 21,
+      "textLeft": 16,
+      "textRight": 21,
+      "fullBleed": false,
+      "footer": false,
+      "hero": true,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "footer.w-full.border-t",
+      "tag": "footer",
+      "top": 4311,
+      "height": 810,
+      "words": 125,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Khám phá",
+       "size": 14,
+       "tag": "h4"
+      },
+      "left": 16,
+      "right": 17,
+      "textLeft": 16,
+      "textRight": 17,
+      "fullBleed": false,
+      "footer": true,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     }
+    ],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "Trở thành giảng viên Mindly",
+      "size": 34,
+      "top": 117,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 40,
+      "n": 19
+     },
+     {
+      "x": 16,
+      "n": 3
+     }
+    ],
+    "leftBlocks": 22,
+    "bodySize": 16,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0,
+    "voidBox": null
+   },
+   "app": null,
+   "consoleErrors": []
+  }
+ ],
+ "findings": [
+  {
+   "level": "WARN",
+   "id": "no-real-pictures",
+   "width": 1440,
+   "message": "Only 0 real photograph(s) or clip(s); the rest are interface fragments.",
+   "fix": "Add two or more real pictures of the customer's world from scripts/assets.mjs, not stock of people at laptops."
+  },
+  {
+   "level": "WARN",
+   "id": "no-footage",
+   "width": 1440,
+   "message": "No video anywhere on the page.",
+   "fix": "Look for one honest clip with scripts/assets.mjs --video (the place, the material, the process) and use it as a muted loop with a poster frame. Defend its absence only if no clip fits the subject."
+  },
+  {
+   "level": "WARN",
+   "id": "off-centre",
+   "width": 1440,
+   "message": "The margins differ: 32px on the left, 74px on the right, at 1440px.",
+   "fix": "Put the navigation and the content on one pair of margins; check for padding on one side only, a scrollbar gutter, or a header on another inset than the page."
+  },
+  {
+   "level": "WARN",
+   "id": "ragged-edges",
+   "width": 1440,
+   "message": "Left-aligned text starts at 8 different lines (72px, 56px, 32px, 523px, 652px, 766px, 985px); the three most used hold only 59% of it.",
+   "fix": "Pick two or three anchor lines from the grid and start every heading and paragraph on one of them."
+  }
+ ],
+ "images": [
+  {
+   "viewport": "desktop",
+   "width": 1440,
+   "fold": "D:\\Download\\hk1_2027\\project_do_an\\.taste-skill\\become-instructor\\inspect\\desktop-fold.jpg",
+   "pages": [
+    "D:\\Download\\hk1_2027\\project_do_an\\.taste-skill\\become-instructor\\inspect\\desktop-page-01.jpg"
+   ],
+   "film": []
+  },
+  {
+   "viewport": "tablet",
+   "width": 768,
+   "fold": "D:\\Download\\hk1_2027\\project_do_an\\.taste-skill\\become-instructor\\inspect\\tablet-fold.jpg",
+   "pages": [
+    "D:\\Download\\hk1_2027\\project_do_an\\.taste-skill\\become-instructor\\inspect\\tablet-page-01.jpg"
+   ],
+   "film": []
+  },
+  {
+   "viewport": "mobile",
+   "width": 390,
+   "fold": "D:\\Download\\hk1_2027\\project_do_an\\.taste-skill\\become-instructor\\inspect\\mobile-fold.jpg",
+   "pages": [
+    "D:\\Download\\hk1_2027\\project_do_an\\.taste-skill\\become-instructor\\inspect\\mobile-page-01.jpg"
+   ],
+   "film": []
+  }
+ ]
+}

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { LoginForm } from '@/features/auth';
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage(): React.JSX.Element {
-  return <LoginForm />;
+  return (
+    <Suspense fallback={<p role="status">Đang tải trang đăng nhập…</p>}>
+      <LoginForm />
+    </Suspense>
+  );
 }

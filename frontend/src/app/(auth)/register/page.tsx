@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { RegisterForm } from '@/features/auth';
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function RegisterPage(): React.JSX.Element {
-  return <RegisterForm />;
+  return (
+    <Suspense fallback={<p role="status">Đang tải trang đăng ký…</p>}>
+      <RegisterForm />
+    </Suspense>
+  );
 }
