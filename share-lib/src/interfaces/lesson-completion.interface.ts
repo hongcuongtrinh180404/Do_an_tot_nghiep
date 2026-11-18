@@ -17,6 +17,8 @@ export interface IStudentLessonQuiz extends Omit<ILessonQuiz, 'options' | 'expla
   options: Omit<IQuizOption, 'isCorrect'>[];
   answer: ILessonQuizAnswer | null;
   explanation?: string | null;
+  /** Only exposed after a server-confirmed answer, like the explanation text. */
+  explanationTimestamp?: number | null;
 }
 
 export interface ILessonCompletionSummary {

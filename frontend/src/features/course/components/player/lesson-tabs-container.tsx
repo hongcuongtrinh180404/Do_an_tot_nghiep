@@ -4,7 +4,7 @@ import React, { useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icon';
 import { ActionConfirmDialog } from '@/components/shared/dialog/action-confirm-dialog';
 import { useLessonQuizzesQuery } from '../../api/lesson-quiz.api';
-import type { IStudentLessonQuiz } from 'share-lib';
+import type { StudentQuizState } from './tabs/student-lesson-quiz-tab';
 import { LessonMindmapTab } from './tabs/lesson-mindmap-tab';
 import { LessonQuizTab } from './tabs/lesson-quiz-tab';
 import { LessonSummaryTab } from './tabs/lesson-summary-tab';
@@ -49,6 +49,7 @@ const TABS: TabConfig[] = [
 ];
 
 export interface LessonTabsContainerProps {
+  userId?: string;
   courseId: string;
   reviewQuizId?: string;
   lessonId: string;
@@ -58,11 +59,11 @@ export interface LessonTabsContainerProps {
   onSeek?: (timestamp: number) => void;
   onPauseVideo?: () => void;
   onTestGemini?: (tabId: TabConfig['id']) => void;
-  studentQuizzes?: IStudentLessonQuiz[];
-  onOpenQuiz?: (timestamp: number) => void;
+  checkpoints?: StudentQuizState;
 }
 
 export function LessonTabsContainer({
+  userId,
   courseId,
   reviewQuizId,
   lessonId,
@@ -72,8 +73,7 @@ export function LessonTabsContainer({
   onSeek,
   onPauseVideo,
   onTestGemini,
-  studentQuizzes,
-  onOpenQuiz,
+  checkpoints,
 }: LessonTabsContainerProps): React.JSX.Element {
   const [activeTabId, setActiveTabId] = useState<TabConfig['id']>(reviewQuizId ? 'quiz' : 'summary');
   const [hasOpenedMindmap, setHasOpenedMindmap] = useState(false);
@@ -241,6 +241,7 @@ export function LessonTabsContainer({
 
         {activeTabId === 'quiz' && (
           <LessonQuizTab
+            userId={userId}
             courseId={courseId}
             reviewQuizId={reviewQuizId}
             lessonId={lessonId}
@@ -251,8 +252,7 @@ export function LessonTabsContainer({
             onPauseVideo={onPauseVideo}
             onGenerateQuiz={() => requestAiGeneration('quiz')}
             isGenerating={isQuizGenerating}
-            studentQuizzes={studentQuizzes}
-            onOpenQuiz={onOpenQuiz}
+            checkpoints={checkpoints}
           />
         )}
       </div>

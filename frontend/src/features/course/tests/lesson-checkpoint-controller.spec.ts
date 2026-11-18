@@ -75,6 +75,37 @@ describe('Lesson checkpoints', () => {
     assert.equal(h.active(), null);
   });
 
+  it('starts explanation playback from a paused video, including 00:00', () => {
+    const h = harness([question('q1', 192, true)]);
+    h.media.paused = true;
+    h.controller.playFrom(0);
+    assert.equal(h.media.position, 0);
+    assert.equal(h.media.paused, false);
+    assert.equal(h.active(), null);
+  });
+
+  it('preserves mandatory questions before playing an explanation and remembers its destination', () => {
+    const h = harness();
+    h.media.paused = true;
+    h.controller.playFrom(300);
+    assert.equal(h.active()?.quizzes[0].id, 'q1');
+    assert.equal(h.media.paused, true);
+    h.save('q1'); h.controller.close();
+    assert.equal(h.active()?.quizzes[0].id, 'q2');
+    h.save('q2'); h.controller.close();
+    assert.equal(h.media.position, 300);
+    assert.equal(h.media.paused, false);
+  });
+
+  it('waits for confirmed requirements before playing an explanation', () => {
+    const h = harness([], 0, false);
+    h.controller.playFrom(100);
+    assert.equal(h.media.paused, true);
+    h.controller.setData([], true, true);
+    assert.equal(h.media.position, 100);
+    assert.equal(h.media.paused, false);
+  });
+
   it('uses the newest forward seek while questions are open', () => {
     const h = harness();
     h.controller.requestSeek(300);

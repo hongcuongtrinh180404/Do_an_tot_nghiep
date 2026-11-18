@@ -115,6 +115,29 @@ export function useLessonCheckpoints({ userId, courseId, lessonId, player, enabl
     if (enabled) controllerRef.current?.setData(quizzes, ready, enforced);
   }, [enabled, quizzes, ready, enforced]);
 
+  const checkAnswer = useCallback(async (quiz: IStudentLessonQuiz, selectedOptionIds: string[]): Promise<IStudentLessonQuiz> => {
+    if (!enabled || !ready || !enforced || !userId || selectedOptionIds.length === 0) {
+      throw new Error('Chưa thể gửi câu trả lời. Vui lòng tải lại bài học.');
+    }
+    try {
+      const key = lessonCompletionKeys.lesson(userId, courseId, lessonId);
+      await client.cancelQueries({ queryKey: key });
+      const saved = await lessonCompletionApi.submit(courseId, lessonId, {
+        quizId: quiz.id, quizRevision: quiz.revision, selectedOptionIds,
+      });
+      await client.cancelQueries({ queryKey: key });
+      const confirmed = cacheLessonCompletion(client, userId, saved);
+      if (alive.current) controllerRef.current?.setData(confirmed.quizzes, true, true);
+      const answered = confirmed.quizzes.find((item) => item.id === quiz.id && item.revision === quiz.revision);
+      if (!answered?.answer) throw new Error('Câu hỏi đã được cập nhật. Vui lòng trả lời phiên bản mới.');
+      return answered;
+    } catch (failure) {
+      const response = (failure as { response?: { status?: number } }).response;
+      if (response?.status === 409 || response?.status === 404) void query.refetch();
+      throw failure;
+    }
+  }, [enabled, ready, enforced, userId, courseId, lessonId, client, query]);
+
   const submit = useCallback(async (quiz: IStudentLessonQuiz, selectedOptionIds: string[]) => {
     if (!enabled || inFlight.current || selectedOptionIds.length === 0) return;
     if (instructorPreview) {
@@ -138,24 +161,16 @@ export function useLessonCheckpoints({ userId, courseId, lessonId, player, enabl
     setSubmitting(true);
     setError('');
     try {
-      const key = lessonCompletionKeys.lesson(userId, courseId, lessonId);
-      await client.cancelQueries({ queryKey: key });
-      const saved = await lessonCompletionApi.submit(courseId, lessonId, {
-        quizId: quiz.id, quizRevision: quiz.revision, selectedOptionIds,
-      });
-      await client.cancelQueries({ queryKey: key });
-      const confirmed = cacheLessonCompletion(client, userId, saved);
-      if (alive.current) controllerRef.current?.setData(confirmed.quizzes, true, true);
+      await checkAnswer(quiz, selectedOptionIds);
     } catch (failure) {
       if (!alive.current) return;
       const response = (failure as { response?: { status?: number; data?: { message?: string } } }).response;
       setError(response?.data?.message ?? 'Không thể gửi câu trả lời. Vui lòng thử lại.');
-      if (response?.status === 409 || response?.status === 404) void query.refetch();
     } finally {
       inFlight.current = false;
       if (alive.current) setSubmitting(false);
     }
-  }, [enabled, instructorPreview, ready, management.data, enforced, userId, courseId, lessonId, client, query]);
+  }, [enabled, instructorPreview, ready, management.data, enforced, userId, checkAnswer]);
 
   return {
     active, quizzes, submitting, error, ready, enforced,
@@ -165,6 +180,8 @@ export function useLessonCheckpoints({ userId, courseId, lessonId, player, enabl
     isError: enabled && eligibilityReady && quizQuery.isError,
     retry: () => quizQuery.refetch(),
     submit,
+    checkAnswer,
+    playExplanation: (timestamp: number) => { setError(''); controllerRef.current?.playFrom(timestamp); },
     close: () => { setError(''); controllerRef.current?.close(); },
     openCheckpoint: (timestamp: number) => { setError(''); controllerRef.current?.openCheckpoint(timestamp); },
   };

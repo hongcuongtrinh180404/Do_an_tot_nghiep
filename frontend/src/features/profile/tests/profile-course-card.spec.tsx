@@ -26,7 +26,7 @@ describe('read-only profile course cards', () => {
     expect(html).toContain(`aria-valuenow="${percent}"`);
   });
 
-  it('does not invent a percentage for missing duration data', () => {
+  it('does not invent a percentage for a course without video lessons', () => {
     const html = renderToStaticMarkup(<ProfileCourseCard course={{ ...course, progress: { ...course.progress!, percent: null } }} />);
     expect(html).toContain('Chưa xác định tiến độ');
     expect(html).not.toContain('role="progressbar"');

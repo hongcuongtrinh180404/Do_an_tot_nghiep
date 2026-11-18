@@ -13,6 +13,7 @@ import {
 } from '../../api/enrollment.api';
 import { useCreateOrderMutation } from '@/features/payment/api/payment.api';
 import { canManageCourse } from '../../utils/course-access.util';
+import { useCourseLearningProgressQuery } from '../../api/learning-progress.api';
 
 import { CourseDetailHeader } from './course-detail-header';
 import { CourseIntroMedia } from './course-intro-media';
@@ -63,6 +64,7 @@ export function PublicCourseDetailView({
   const createOrderMutation = useCreateOrderMutation();
 
   const isInstructorOwner = canManageCourse(user, course);
+  const learning = useCourseLearningProgressQuery(user?.id, course?.id || courseId, isEnrolled && !isInstructorOwner);
 
   const totalLessonsCount = useMemo(() => {
     if (!course?.sections) return 0;
@@ -259,6 +261,10 @@ export function PublicCourseDetailView({
               isEnrollmentLoading
             }
             totalLessonsCount={totalLessonsCount}
+            progress={learning.data}
+            isProgressLoading={learning.isLoading}
+            isProgressError={learning.isError}
+            onRetryProgress={() => { void learning.refetch(); }}
             onPurchase={handlePurchase}
           />
         </div>

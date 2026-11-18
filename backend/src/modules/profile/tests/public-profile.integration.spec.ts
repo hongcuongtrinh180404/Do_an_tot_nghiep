@@ -1,20 +1,28 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import mongoose, { type Model, Types } from 'mongoose';
 import { ClsService } from 'nestjs-cls';
-import { NotFoundException } from '@nestjs/common';
-import { CourseStatusEnum, LessonContentTypeEnum, RoleEnum, UserStatusEnum } from 'share-lib';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { CourseStatusEnum, LearningStatusEnum, LessonContentTypeEnum, QuizQuestionTypeEnum, RoleEnum, UserStatusEnum } from 'share-lib';
 import { UserEntity, UserSchema } from '../../user/schemas/user.schema.js';
 import { CourseEntity, CourseSchema } from '../../course/schemas/course.schema.js';
 import { CourseCategoryEntity, CourseCategorySchema } from '../../course/schemas/course-category.schema.js';
 import { EnrollmentEntity, EnrollmentSchema } from '../../enrollment/schemas/enrollment.schema.js';
 import { SectionEntity, SectionSchema } from '../../course/schemas/section.schema.js';
 import { LessonEntity, LessonSchema } from '../../course/schemas/lesson.schema.js';
+import { LessonQuizEntity, LessonQuizSchema } from '../../course/schemas/lesson-quiz.schema.js';
 import { LearningProgressEntity, LearningProgressSchema } from '../../learning-progress/schemas/learning-progress.schema.js';
 import { UserService } from '../../user/services/user.service.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { CourseRepository } from '../../course/repositories/course.repository.js';
 import { LessonRepository } from '../../course/repositories/lesson.repository.js';
+import { LessonQuizRepository } from '../../course/repositories/lesson-quiz.repository.js';
+import { SectionRepository } from '../../course/repositories/section.repository.js';
+import { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
 import { LearningProgressRepository } from '../../learning-progress/repositories/learning-progress.repository.js';
+import { LearningProgressService } from '../../learning-progress/services/learning-progress.service.js';
+import { LessonCompletionService } from '../../learning-progress/services/lesson-completion.service.js';
+import { LessonCompletionRepository } from '../../learning-progress/repositories/lesson-completion.repository.js';
+import { LessonQuizAnswerEntity, LessonQuizAnswerSchema, LessonVideoCompletionEntity, LessonVideoCompletionSchema } from '../../learning-progress/schemas/lesson-completion.schema.js';
 import { PublicProfileService } from '../public-profile.service.js';
 import { PublicProfileRepository } from '../public-profile.repository.js';
 
@@ -27,7 +35,11 @@ describe('public profile courses (isolated MongoDB)', () => {
   let sections: Model<SectionEntity>;
   let lessons: Model<LessonEntity>;
   let progress: Model<LearningProgressEntity>;
+  let quizzes: Model<LessonQuizEntity>;
   let service: PublicProfileService;
+  let learning: LearningProgressService;
+  let completion: LessonCompletionService;
+  let completionRepository: LessonCompletionRepository;
   let userService: UserService;
   let courseRepository: CourseRepository;
   let teacherId: Types.ObjectId;
@@ -42,15 +54,24 @@ describe('public profile courses (isolated MongoDB)', () => {
     sections = connection.model(SectionEntity.name, SectionSchema);
     lessons = connection.model(LessonEntity.name, LessonSchema);
     progress = connection.model(LearningProgressEntity.name, LearningProgressSchema);
+    quizzes = connection.model(LessonQuizEntity.name, LessonQuizSchema);
+    const answers = connection.model(LessonQuizAnswerEntity.name, LessonQuizAnswerSchema);
+    const videos = connection.model(LessonVideoCompletionEntity.name, LessonVideoCompletionSchema);
     connection.model(CourseCategoryEntity.name, CourseCategorySchema);
-    await Promise.all([users, courses, enrollments, sections, lessons, progress].map((model) => model.init()));
+    await Promise.all([users, courses, enrollments, sections, lessons, progress, quizzes, answers, videos].map((model) => model.init()));
     userService = new UserService(
       new UserRepository(users), { get: () => 'SYSTEM' } as unknown as ClsService,
     );
     courseRepository = new CourseRepository(courses);
+    const enrollmentRepository = new EnrollmentRepository(enrollments);
+    const lessonRepository = new LessonRepository(lessons);
+    completionRepository = new LessonCompletionRepository(answers, videos);
+    completion = new LessonCompletionService(completionRepository, enrollmentRepository,
+      courseRepository, new SectionRepository(sections), lessonRepository, new LessonQuizRepository(quizzes));
+    learning = new LearningProgressService(new LearningProgressRepository(progress), enrollmentRepository,
+      courseRepository, lessonRepository, completion);
     service = new PublicProfileService(
-      userService, new PublicProfileRepository(courses, enrollments),
-      new LearningProgressRepository(progress), new LessonRepository(lessons),
+      userService, new PublicProfileRepository(courses, enrollments), learning,
     );
   });
 
@@ -131,6 +152,20 @@ describe('public profile courses (isolated MongoDB)', () => {
 
   it('reads the target owner progress, not a different learner progress, without leaking session data', async () => {
     const course = await addCourse();
+    const section = await sections.findOne({ courseId: course._id }).orFail();
+    const firstLesson = await lessons.findOne({ sectionId: section._id }).orFail();
+    await lessons.create([10, 400, 7200].map((duration, index) => ({
+      sectionId: section._id, title: `Bài ${index + 2}`, order: index + 1,
+      content: { type: LessonContentTypeEnum.VIDEO, url: `https://example.test/${index}.mp4`, duration },
+    })));
+    const state = await completion.getLesson(learnerId.toHexString(), course.id, firstLesson.id);
+    await completion.videoEnded(learnerId.toHexString(), course.id, firstLesson.id,
+      { mediaVersion: state.mediaVersion, positionSeconds: 100 });
+    // Another account's completion records must not enter the profile owner's count.
+    const allLessons = await lessons.find({ sectionId: section._id });
+    for (const lesson of allLessons) {
+      await completionRepository.saveVideoEnded(teacherId.toHexString(), course.id, lesson.id, state.mediaVersion);
+    }
     await progress.create({
       userId: learnerId, courseId: course._id, watchedMs: 25000,
       sessionId: 'secret-session', lastPositionSeconds: 80,
@@ -144,13 +179,78 @@ describe('public profile courses (isolated MongoDB)', () => {
     }
   });
 
-  it('keeps unknown progress unknown and clamps actual completion at 100%', async () => {
+  it('keeps documents-only progress unknown and completes only from saved lesson results', async () => {
     const unknown = await addCourse({ video: false });
+    const documentSection = await sections.create({ courseId: unknown._id, title: 'Tài liệu', order: 0 });
+    const document = await lessons.create({ sectionId: documentSection._id, title: 'Tài liệu PDF', order: 0,
+      content: { type: LessonContentTypeEnum.DOCUMENT, url: 'https://example.test/doc.pdf' } });
     const complete = await addCourse();
-    await progress.create({ userId: learnerId, courseId: complete._id, watchedMs: 150000 });
+    const [lesson] = await completion.getLessons(learnerId.toHexString(), complete.id);
+    const state = await completion.getLesson(learnerId.toHexString(), complete.id, lesson.lessonId);
+    await completion.videoEnded(learnerId.toHexString(), complete.id, lesson.lessonId,
+      { mediaVersion: state.mediaVersion, positionSeconds: 100 });
+    const replayed = await addCourse();
+    await progress.create({ userId: learnerId, courseId: replayed._id, watchedMs: 150000 });
     const result = await service.getCourses('learner', { type: 'learning' });
     expect(result.items.find((item) => item.id === unknown.id)?.progress?.percent).toBeNull();
     expect(result.items.find((item) => item.id === complete.id)?.progress?.percent).toBe(100);
+    expect(result.items.find((item) => item.id === replayed.id)?.progress?.percent).toBe(0);
+    await expect(completion.getLesson(learnerId.toHexString(), unknown.id, document.id)).rejects.toThrow(BadRequestException);
+  });
+
+  it('excludes documents, deleted lessons and deleted sections from course counts and recalculates the current curriculum', async () => {
+    const course = await addCourse();
+    const userId = learnerId.toHexString();
+    const section = await sections.findOne({ courseId: course._id }).orFail();
+    const firstLesson = await lessons.findOne({ sectionId: section._id }).orFail();
+    const state = await completion.getLesson(userId, course.id, firstLesson.id);
+    await completion.videoEnded(userId, course.id, firstLesson.id, { mediaVersion: state.mediaVersion, positionSeconds: 100 });
+    const remaining = await lessons.create({ sectionId: section._id, title: 'Video dài', order: 1,
+      content: { type: LessonContentTypeEnum.VIDEO, url: 'https://example.test/long.mp4', duration: 7200, publicId: 'long-video-v1' } });
+    await lessons.create({ sectionId: section._id, title: 'Tài liệu', order: 2,
+      content: { type: LessonContentTypeEnum.DOCUMENT, url: 'https://example.test/doc.pdf' } });
+    await lessons.create({ sectionId: section._id, title: 'Video đã xóa', order: 3, deletedAt: new Date(),
+      content: { type: LessonContentTypeEnum.VIDEO, url: 'https://example.test/deleted.mp4', duration: 90 } });
+    const deletedSection = await sections.create({ courseId: course._id, title: 'Chương đã xóa', order: 1, deletedAt: new Date() });
+    await lessons.create({ sectionId: deletedSection._id, title: 'Video chương đã xóa', order: 0,
+      content: { type: LessonContentTypeEnum.VIDEO, url: 'https://example.test/deleted-section.mp4', duration: 90 } });
+    expect(await learning.getProgress(userId, course.id)).toMatchObject({
+      completedLessons: 1, totalLessons: 2, progressPercent: 50, status: LearningStatusEnum.IN_PROGRESS,
+    });
+    expect((await learning.getMyProgress(userId))[0].progressPercent).toBe(50);
+    expect((await completion.getLessons(userId, course.id)).map((lesson) => lesson.lessonId)).toEqual(
+      expect.arrayContaining([firstLesson.id, remaining.id]));
+    expect(await completion.getLessons(userId, course.id)).toHaveLength(2);
+    await lessons.updateOne({ _id: remaining._id }, { $set: { deletedAt: new Date() } });
+    expect(await learning.getProgress(userId, course.id)).toMatchObject({
+      completedLessons: 1, totalLessons: 1, progressPercent: 100, status: LearningStatusEnum.COMPLETED,
+    });
+    expect((await service.getCourses('learner', { type: 'learning' })).items[0].progress?.percent).toBe(100);
+  });
+
+  it('counts saved wrong quiz answers, not watch time, and revokes completion for changed question content', async () => {
+    const course = await addCourse();
+    const userId = learnerId.toHexString();
+    const [lesson] = await completion.getLessons(userId, course.id);
+    const official = await quizzes.create([20, 50, null].map((timestamp, index) => ({
+      lessonId: lesson.lessonId, timestamp, order: index + 1, question: `Câu hỏi ${index + 1}`,
+      questionType: QuizQuestionTypeEnum.SINGLE,
+      options: [{ id: 'a', label: 'A', text: 'Đúng', isCorrect: true }, { id: 'b', label: 'B', text: 'Sai', isCorrect: false }],
+    })));
+    const state = await completion.getLesson(userId, course.id, lesson.lessonId);
+    expect(state.totalQuestions).toBe(2);
+    await completion.submitAnswer(userId, course.id, lesson.lessonId,
+      { quizId: state.quizzes[0].id, quizRevision: state.quizzes[0].revision, selectedOptionIds: ['b'] });
+    expect((await learning.getProgress(userId, course.id))?.progressPercent).toBe(0);
+    await completion.submitAnswer(userId, course.id, lesson.lessonId,
+      { quizId: state.quizzes[1].id, quizRevision: state.quizzes[1].revision, selectedOptionIds: ['b'] });
+    expect(await learning.getProgress(userId, course.id)).toMatchObject({
+      completedLessons: 1, totalLessons: 1, progressPercent: 100, watchedMs: 0,
+    });
+    await quizzes.updateOne({ _id: official[0]._id }, { $set: { question: 'Câu hỏi đã cập nhật' } });
+    expect((await learning.getProgress(userId, course.id))?.progressPercent).toBe(0);
+    await quizzes.updateOne({ _id: official[0]._id }, { $set: { deletedAt: new Date() } });
+    expect((await learning.getProgress(userId, course.id))?.progressPercent).toBe(100);
   });
 
   it('supports both teaching and learning for an instructor, with independent paging', async () => {

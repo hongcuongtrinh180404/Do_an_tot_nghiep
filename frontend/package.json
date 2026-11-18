@@ -12,6 +12,7 @@
     "test:lesson-doc-dialog:browser": "node scripts/test-lesson-doc-dialog-browser.mjs",
     "test:lesson-create:browser": "node scripts/test-lesson-create-browser.mjs",
     "test:quiz-timing:browser": "node scripts/test-quiz-timing-browser.mjs",
+    "test:lesson-quiz-tab:browser": "node scripts/test-lesson-quiz-tab-browser.mjs",
     "test:instructor-video-quiz:browser": "node scripts/test-instructor-video-quiz-browser.mjs",
     "test:video-quiz-editor:browser": "node scripts/test-video-quiz-editor-browser.mjs",
     "test:profile:browser": "node scripts/test-profile-browser.mjs",

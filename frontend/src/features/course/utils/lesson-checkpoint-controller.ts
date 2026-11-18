@@ -120,6 +120,16 @@ export class LessonCheckpointController {
     this.drain();
   }
 
+  /** Explanation playback is explicit, but must still stop at unanswered checkpoints. */
+  playFrom(seconds: number): void {
+    const duration = this.port.duration();
+    if (!Number.isFinite(seconds) || !Number.isFinite(duration) || duration <= 0) return;
+    this.pendingTarget = Math.max(0, Math.min(seconds, duration));
+    this.resumeAfter = true;
+    if (!this.ready) { this.port.pause(); return; }
+    this.drain();
+  }
+
   seeking(position: number): void {
     if (this.internalTarget !== null && Math.abs(position - this.internalTarget) < 0.05) return;
     this.requestSeek(position);

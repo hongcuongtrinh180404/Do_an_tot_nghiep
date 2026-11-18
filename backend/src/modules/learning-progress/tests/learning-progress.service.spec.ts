@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
-import { LearningStatusEnum, PLAYBACK_LEASE_MS } from 'share-lib';
+import { LearningStatusEnum, PLAYBACK_LEASE_MS, type ILessonCompletionSummary } from 'share-lib';
 import { validate } from 'class-validator';
 import { LearningProgressService } from '../services/learning-progress.service.js';
 import { LearningProgressRepository } from '../repositories/learning-progress.repository.js';
@@ -10,6 +10,7 @@ import { LessonRepository } from '../../course/repositories/lesson.repository.js
 import { PlaybackHeartbeatDto, StartPlaybackSessionDto } from '../dto/playback-session.dto.js';
 import { type LearningProgressState, LearningProgressSchema } from '../schemas/learning-progress.schema.js';
 import { type CourseVideoStats, summarizeProgress } from '../utils/learning-progress.util.js';
+import { LessonCompletionService } from '../services/lesson-completion.service.js';
 
 const userId = 'user-a';
 const courseId = 'course-a';
@@ -34,6 +35,7 @@ function videoStats(course = courseId): CourseVideoStats {
 
 function harness() {
   const states = new Map<string, LearningProgressState>();
+  const completions = new Map<string, ILessonCompletionSummary[]>();
   const stats = [videoStats(), videoStats('course-b')];
   const key = (user: string, course: string) => `${user}:${course}`;
   const repo = {
@@ -55,16 +57,19 @@ function harness() {
   };
   const course = { findById: vi.fn(async () => ({ id: courseId, instructorId: userId })) };
   const lesson = { getCourseVideoStats: vi.fn(async (ids: string[]) => stats.filter((item) => ids.includes(item.courseId))) };
+  const completion = { getSummariesForCourses: vi.fn(async (user: string, courses: CourseVideoStats[]) =>
+    new Map(courses.map((item) => [item.courseId, completions.get(key(user, item.courseId)) ?? []]))) };
   const service = new LearningProgressService(repo as unknown as LearningProgressRepository,
-    enrollment as unknown as EnrollmentRepository, course as unknown as CourseRepository, lesson as unknown as LessonRepository);
-  return { service, repo, enrollment, stats, states, state: () => states.get(key(userId, courseId))! };
+    enrollment as unknown as EnrollmentRepository, course as unknown as CourseRepository,
+    lesson as unknown as LessonRepository, completion as unknown as LessonCompletionService);
+  return { service, repo, enrollment, stats, states, completions, completion, state: () => states.get(key(userId, courseId))! };
 }
 
 describe('Learning progress protocol', () => {
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-11-08T00:00:00Z')); });
   afterEach(() => vi.useRealTimers());
 
-  it('records 30 + 20 replay + 50 minutes, independently of lesson coverage', async () => {
+  it('retains replay time without counting it as completed lessons', async () => {
     const h = harness();
     await h.service.startSession(userId, courseId, { sessionId, lessonId });
     let cumulative = 0;
@@ -77,9 +82,10 @@ describe('Learning progress protocol', () => {
       }
       return h.service.getProgress(userId, courseId);
     };
-    expect((await watch(30))?.progressPercent).toBe(30);
-    expect((await watch(20))?.progressPercent).toBe(50);
-    expect((await watch(50))?.status).toBe(LearningStatusEnum.COMPLETED);
+    expect((await watch(30))?.progressPercent).toBe(0);
+    expect((await watch(20))?.progressPercent).toBe(0);
+    expect((await watch(50))?.status).toBe(LearningStatusEnum.IN_PROGRESS);
+    expect((await h.service.getProgress(userId, courseId))?.completedLessons).toBe(0);
     expect(h.state().watchedMs).toBe(6_000_000);
     expect(h.state().lastPositionSeconds).toBe(10);
   });
@@ -195,34 +201,101 @@ describe('Learning progress protocol', () => {
     expect((await h.service.getProgress(userId, 'course-b'))?.watchedMs).toBe(0);
     expect((await h.service.getMyProgress(userId))[0].watchedMs).toBe(10_000);
   });
+
+  it('uses saved lesson completion even without a playback record, in every read and session response', async () => {
+    const h = harness();
+    h.completions.set(`${userId}:${courseId}`, [
+      { lessonId, status: LearningStatusEnum.COMPLETED, totalQuestions: 1, completedQuestions: 1 },
+    ]);
+    const result = await h.service.getProgress(userId, courseId);
+    expect(result).toMatchObject({ progressPercent: 100, completedLessons: 1, totalLessons: 1,
+      watchedMs: 0, status: LearningStatusEnum.COMPLETED });
+    expect((await h.service.getMyProgress(userId))[0].progressPercent).toBe(100);
+    expect((await h.service.getProgress('user-b', courseId))?.progressPercent).toBe(0);
+    const started = await h.service.startSession(userId, courseId, { sessionId, lessonId });
+    expect(started.progress.progressPercent).toBe(100);
+    const ended = await h.service.heartbeat(userId, courseId,
+      { sessionId, sequence: 1, watchedMs: 0, positionSeconds: 0 }, true);
+    expect(ended.progress.progressPercent).toBe(100);
+  });
+
+  it('batch-reads lesson completion for the full list of courses', async () => {
+    const h = harness();
+    h.enrollment.findUserEnrollments.mockResolvedValue([
+      { courseId, course: { id: courseId } },
+      { courseId: 'course-b', course: { id: 'course-b' } },
+    ]);
+    await h.service.getMyProgress(userId);
+    expect(h.completion.getSummariesForCourses).toHaveBeenCalledExactlyOnceWith(userId, h.stats);
+    expect(h.repo.findForCourses).toHaveBeenCalledExactlyOnceWith(userId, [courseId, 'course-b']);
+  });
 });
 
 describe('Current-curriculum progress', () => {
-  it('recalculates completed learners, retaining uncapped historical watch time', () => {
+  const completed = (id = lessonId): ILessonCompletionSummary => ({
+    lessonId: id, status: LearningStatusEnum.COMPLETED, totalQuestions: 1, completedQuestions: 1,
+  });
+
+  it('recalculates when video lessons are added/deleted, retaining historical watch time', () => {
     const state = { ...emptyState(), watchedMs: 6_000_000 };
     const stats = videoStats();
-    expect(summarizeProgress(courseId, state, stats).status).toBe(LearningStatusEnum.COMPLETED);
-    stats.totalSeconds = 7200;
-    const changed = summarizeProgress(courseId, state, stats);
-    expect(changed.progressPercent).toBe(83.33);
+    expect(summarizeProgress(courseId, state, stats, [completed()]).status).toBe(LearningStatusEnum.COMPLETED);
+    stats.videos.push({ lessonId: 'new-lesson', url: '/new.mp4', durationSeconds: 1200 });
+    stats.videoCount++;
+    const changed = summarizeProgress(courseId, state, stats, [completed()]);
+    expect(changed).toMatchObject({ progressPercent: 50, completedLessons: 1, totalLessons: 2 });
     expect(changed.status).toBe(LearningStatusEnum.IN_PROGRESS);
-    expect(summarizeProgress(courseId, { ...state, watchedMs: 8_000_000 }, stats).progressPercent).toBe(100);
-    stats.totalSeconds = 3000;
-    expect(summarizeProgress(courseId, state, stats).progressPercent).toBe(100);
+    expect(summarizeProgress(courseId, { ...state, watchedMs: 8_000_000 }, stats, [completed()]).progressPercent).toBe(50);
+    stats.videos.pop();
+    stats.videoCount--;
+    expect(summarizeProgress(courseId, state, stats, [completed()]).progressPercent).toBe(100);
     expect(state.watchedMs).toBe(6_000_000);
   });
 
-  it('never displays 100% early due to rounding', () => {
-    expect(summarizeProgress(courseId, { ...emptyState(), watchedMs: 5_999_999 }, videoStats()).progressPercent).toBe(99.99);
+  it('weights every lesson equally, floors percentages, and does not double-count answers or stale lessons', () => {
+    const stats = videoStats();
+    stats.videos.push({ lessonId: 'b', url: '/b.mp4', durationSeconds: 10 },
+      { lessonId: 'c', url: '/c.mp4', durationSeconds: 100 });
+    const result = summarizeProgress(courseId, null, stats, [completed(), completed(), completed('b'), completed('deleted')]);
+    expect(result).toMatchObject({ progressPercent: 66.66, completedLessons: 2, totalLessons: 3 });
+    expect(result.status).not.toBe(LearningStatusEnum.COMPLETED);
+    expect(summarizeProgress(courseId, null, stats, [completed(), completed('b'), completed('c')]).progressPercent).toBe(100);
   });
 
-  it('does not auto-complete a zero-video or incomplete-duration course', () => {
+  it.each([
+    { count: 57, total: 100, percent: 57 },
+    { count: 1, total: 3, percent: 33.33 },
+    { count: 19999, total: 20000, percent: 99.99 },
+  ])('calculates $count/$total without floating-point undercounts or rounding up to 100%', ({ count, total, percent }) => {
+    const stats = { ...videoStats(), videoCount: total,
+      videos: Array.from({ length: total }, (_, index) => ({ lessonId: String(index), url: '/video.mp4' })) };
+    const summaries = Array.from({ length: count }, (_, index) => completed(String(index)));
+    expect(summarizeProgress(courseId, null, stats, summaries).progressPercent).toBe(percent);
+  });
+
+  it('does not auto-complete a zero-video/documents-only course', () => {
     const state = { ...emptyState(), watchedMs: 9_000_000 };
-    for (const stats of [undefined, { ...videoStats(), videoCount: 0 }, { ...videoStats(), missingDurationCount: 1 }, { ...videoStats(), totalSeconds: 0 }]) {
+    for (const stats of [undefined, { ...videoStats(), videoCount: 0, videos: [] }]) {
       const result = summarizeProgress(courseId, state, stats);
       expect(result.progressPercent).toBeNull();
+      expect(result.totalLessons).toBe(0);
       expect(result.status).toBe(LearningStatusEnum.IN_PROGRESS);
     }
+  });
+
+  it('does not depend on video duration to calculate lesson completion percentage', () => {
+    const stats = { ...videoStats(), missingDurationCount: 1, totalSeconds: 0 };
+    const result = summarizeProgress(courseId, null, stats, [completed()]);
+    expect(result.totalDurationMs).toBeNull();
+    expect(result.progressPercent).toBe(100);
+    expect(result.status).toBe(LearningStatusEnum.COMPLETED);
+  });
+
+  it('recognizes partial quiz activity without counting the lesson as completed', () => {
+    const result = summarizeProgress(courseId, null, videoStats(), [
+      { ...completed(), status: LearningStatusEnum.IN_PROGRESS, totalQuestions: 2 },
+    ]);
+    expect(result).toMatchObject({ completedLessons: 0, progressPercent: 0, status: LearningStatusEnum.IN_PROGRESS });
   });
 
   it('drops stale resume pointers after deletion/replacement without dropping watch time', () => {

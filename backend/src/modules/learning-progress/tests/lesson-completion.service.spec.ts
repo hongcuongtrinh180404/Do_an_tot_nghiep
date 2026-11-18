@@ -40,11 +40,20 @@ function harness() {
       .map(([, answer]) => ({ ...answer, lessonId }))),
     findVideoCompletionsForCourse: vi.fn(async (user: string) => [...ended].filter((key) => key.startsWith(`${user}:`))
       .map((key) => ({ lessonId, mediaVersion: key.slice(user.length + 1) }))),
+    findAnswersForCourses: vi.fn(async (user: string) => [...answers.entries()].filter(([key]) => key.startsWith(`${user}:`))
+      .map(([, answer]) => ({ ...answer, courseId, lessonId }))),
+    findVideoCompletionsForCourses: vi.fn(async (user: string) => [...ended].filter((key) => key.startsWith(`${user}:`))
+      .map((key) => ({ courseId, lessonId, mediaVersion: key.slice(user.length + 1) }))),
   };
   const enrollment = { findByUserAndCourse: vi.fn(async () => ({ deletedAt: null })) };
   const courses = { findById: vi.fn(async () => ({ id: courseId, instructorId: userId })) };
   const sections = { findById: vi.fn(async () => ({ courseId })), findByCourseId: vi.fn(async () => [{ id: 'section' }]) };
-  const lessons = { findById: vi.fn(async () => lesson), findBySectionIds: vi.fn(async () => [lesson]) };
+  const lessons = {
+    findById: vi.fn(async () => lesson), findBySectionIds: vi.fn(async () => [lesson]),
+    getCourseVideoStats: vi.fn(async () => [{ courseId, videoCount: 1, missingDurationCount: 0,
+      totalSeconds: lesson.content!.duration!,
+      videos: [{ lessonId, url: lesson.content!.url, publicId: lesson.content!.publicId, durationSeconds: lesson.content!.duration }] }]),
+  };
   const quizzes = {
     findByLessonId: vi.fn(async () => official),
     findByLessonIds: vi.fn(async () => official),
@@ -82,11 +91,21 @@ describe('Lesson completion', () => {
   });
 
   it('does not expose correct options or explanations before a saved answer', async () => {
+    h.official[0].explanationTimestamp = 15;
     const state = await h.service.getLesson(userId, courseId, lessonId);
     expect(state.quizzes[0].answer).toBeNull();
     expect(state.quizzes[0].explanation).toBeNull();
     expect(state.quizzes[0].options.every((option) => !('isCorrect' in option))).toBe(true);
     expect(studentQuiz(h.official[0]).explanation).toBeNull();
+    expect(state.quizzes[0]).not.toHaveProperty('explanationTimestamp');
+  });
+
+  it.each([0, 15, null, undefined])('only exposes the explanation cue after saving an answer: %s', async (timestamp) => {
+    h.official[0].explanationTimestamp = timestamp;
+    expect((await h.service.getLesson(userId, courseId, lessonId)).quizzes[0]).not.toHaveProperty('explanationTimestamp');
+    const saved = await h.submit();
+    expect(saved.quizzes[0].explanationTimestamp).toBe(timestamp ?? null);
+    expect((await h.service.getLesson(userId, courseId, lessonId)).quizzes[0].explanationTimestamp).toBe(timestamp ?? null);
   });
 
   it('retains the first saved answer when the learner submits repeatedly or concurrently', async () => {
@@ -218,6 +237,52 @@ describe('Lesson completion', () => {
     expect(await h.service.getLessons(userId, courseId)).toEqual([
       { lessonId, status: LearningStatusEnum.COMPLETED, totalQuestions: 1, completedQuestions: 1 },
     ]);
+  });
+
+  it('uses the same quiz completion rule for course counts, including wrong answers and changed requirements', async () => {
+    await h.submit(['b']);
+    expect((await h.service.getLessons(userId, courseId))[0].status).toBe(LearningStatusEnum.COMPLETED);
+    h.official.push(question('607f1f77bcf86cd799439014', 254));
+    const summaries = await h.service.getSummariesForCourses(userId, await h.lessons.getCourseVideoStats());
+    expect(summaries.get(courseId)?.[0]).toMatchObject({
+      status: LearningStatusEnum.IN_PROGRESS, totalQuestions: 2, completedQuestions: 1,
+    });
+    h.official.pop();
+    expect((await h.service.getLessons(userId, courseId))[0].status).toBe(LearningStatusEnum.COMPLETED);
+  });
+
+  it('preserves the exact media version, including publicId, in batch video completion', async () => {
+    h.official.length = 0;
+    h.lesson.content!.publicId = 'storage/video-v1';
+    const initial = await h.service.getLesson(userId, courseId, lessonId);
+    await h.service.videoEnded(userId, courseId, lessonId, { mediaVersion: initial.mediaVersion, positionSeconds: 600 });
+    expect((await h.service.getLessons(userId, courseId))[0].status).toBe(LearningStatusEnum.COMPLETED);
+    h.lesson.content!.publicId = 'storage/video-v2';
+    expect((await h.service.getLessons(userId, courseId))[0].status).toBe(LearningStatusEnum.NOT_STARTED);
+  });
+
+  it('counts a video without a playable URL as incomplete rather than silently omitting it', async () => {
+    await h.submit();
+    h.lesson.content!.url = '';
+    expect(await h.service.getLessons(userId, courseId)).toEqual([
+      { lessonId, status: LearningStatusEnum.NOT_STARTED, totalQuestions: 0, completedQuestions: 0 },
+    ]);
+  });
+
+  it('does not read answer collections for courses without video lessons', async () => {
+    expect((await h.service.getSummariesForCourses(userId, [])).size).toBe(0);
+    expect(h.repo.findAnswersForCourses).not.toHaveBeenCalled();
+    expect(h.repo.findVideoCompletionsForCourses).not.toHaveBeenCalled();
+  });
+
+  it('does not support recording completion for a document lesson', async () => {
+    h.lesson.content!.type = LessonContentTypeEnum.DOCUMENT;
+    await expect(h.service.getLesson(userId, courseId, lessonId)).rejects.toThrow(BadRequestException);
+    await expect(h.submit()).rejects.toThrow(BadRequestException);
+    await expect(h.service.videoEnded(userId, courseId, lessonId, { mediaVersion: 'any', positionSeconds: 600 }))
+      .rejects.toThrow(BadRequestException);
+    expect(h.repo.saveVideoEnded).not.toHaveBeenCalled();
+    expect(h.repo.saveAnswer).not.toHaveBeenCalled();
   });
 
   it('enforces unique database keys for repeated answers and video-end deliveries', () => {

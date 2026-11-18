@@ -2,11 +2,15 @@ import type { LearningStatusEnum } from '../enums/learning-status.enum.js';
 
 export interface ICourseLearningProgress {
   courseId: string;
-  /** Monotonic write version; protects clients against late responses in the same millisecond. */
+  /** Monotonic playback-write version; does not order changes to quiz/curriculum requirements. */
   revision: number;
   watchedMs: number;
   /** Null until every current video has a known, positive duration. */
   totalDurationMs: number | null;
+  /** Current video lessons only; documents never participate in completion. */
+  completedLessons: number;
+  totalLessons: number;
+  /** Completed video lessons / total video lessons; null when there are none. */
   progressPercent: number | null;
   status: LearningStatusEnum;
   lastLessonId: string | null;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, type QueryClient } from '@tanstack/react-query';
-import type { IApiResponse, ICourseLearningProgress, IPlaybackHeartbeat, IPlaybackSessionResponse, IStartPlaybackSession } from 'share-lib';
+import { LearningStatusEnum, type IApiResponse, type ICourseLearningProgress, type IPlaybackHeartbeat, type IPlaybackSessionResponse, type IStartPlaybackSession } from 'share-lib';
 import { apiClient, API_BASE_URL } from '@/lib/api-client';
 
 export const learningProgressKeys = {
@@ -15,12 +15,12 @@ const pendingReleases = new Map<string, Promise<unknown>>();
 const pendingStarts = new Map<string, Promise<IPlaybackSessionResponse>>();
 
 export const learningProgressApi = {
-  async getProgress(courseId: string): Promise<ICourseLearningProgress | null> {
-    const res = await apiClient.get<IApiResponse<ICourseLearningProgress | null>>(`/learning-progress/courses/${courseId}`);
+  async getProgress(courseId: string, signal?: AbortSignal): Promise<ICourseLearningProgress | null> {
+    const res = await apiClient.get<IApiResponse<ICourseLearningProgress | null>>(`/learning-progress/courses/${courseId}`, { signal });
     return res.data.data;
   },
-  async getMyProgress(): Promise<ICourseLearningProgress[]> {
-    const res = await apiClient.get<IApiResponse<ICourseLearningProgress[]>>('/learning-progress/my-courses');
+  async getMyProgress(signal?: AbortSignal): Promise<ICourseLearningProgress[]> {
+    const res = await apiClient.get<IApiResponse<ICourseLearningProgress[]>>('/learning-progress/my-courses', { signal });
     return res.data.data;
   },
   start(userId: string, courseId: string, payload: IStartPlaybackSession): Promise<IPlaybackSessionResponse> {
@@ -62,17 +62,26 @@ export const learningProgressApi = {
 };
 
 export function cacheLearningProgress(client: QueryClient, userId: string, progress: ICourseLearningProgress): void {
-  const newer = (old?: ICourseLearningProgress | null) => !old || progress.revision >= old.revision;
+  const mergePlayback = (old?: ICourseLearningProgress | null): ICourseLearningProgress => {
+    if (!old) return progress;
+    if (progress.revision < old.revision) return old;
+    // The revision orders playback writes only. A late heartbeat must not revoke
+    // a newer lesson-completion/curriculum summary fetched after a quiz submission.
+    return { ...progress, completedLessons: old.completedLessons, totalLessons: old.totalLessons,
+      progressPercent: old.progressPercent,
+      status: old.status === LearningStatusEnum.NOT_STARTED && progress.watchedMs > 0
+        ? LearningStatusEnum.IN_PROGRESS : old.status };
+  };
   client.setQueryData<ICourseLearningProgress | null>(learningProgressKeys.course(userId, progress.courseId),
-    (old) => newer(old) ? progress : old);
+    mergePlayback);
   client.setQueryData<ICourseLearningProgress[]>(learningProgressKeys.myCourses(userId),
-    (old) => old?.map((item) => item.courseId === progress.courseId && newer(item) ? progress : item));
+    (old) => old?.map((item) => item.courseId === progress.courseId ? mergePlayback(item) : item));
 }
 
 export function useCourseLearningProgressQuery(userId: string | undefined, courseId: string, enabled = true) {
   return useQuery({
     queryKey: learningProgressKeys.course(userId ?? '', courseId),
-    queryFn: () => learningProgressApi.getProgress(courseId),
+    queryFn: ({ signal }) => learningProgressApi.getProgress(courseId, signal),
     enabled: Boolean(userId && courseId) && enabled,
     staleTime: 10_000, retry: 1,
     refetchInterval: 30_000,
@@ -83,7 +92,7 @@ export function useCourseLearningProgressQuery(userId: string | undefined, cours
 export function useMyLearningProgressQuery(userId: string | undefined) {
   return useQuery({
     queryKey: learningProgressKeys.myCourses(userId ?? ''),
-    queryFn: learningProgressApi.getMyProgress,
+    queryFn: ({ signal }) => learningProgressApi.getMyProgress(signal),
     enabled: Boolean(userId), staleTime: 10_000, retry: 1,
     refetchInterval: 30_000,
     refetchOnWindowFocus: 'always', refetchOnReconnect: 'always',

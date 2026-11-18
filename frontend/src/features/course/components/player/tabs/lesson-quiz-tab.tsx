@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { ILessonQuiz, IStudentLessonQuiz } from 'share-lib';
+import type { ILessonQuiz } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { useDeleteLessonQuizMutation, useLessonQuizzesQuery } from '@/features/course/api/lesson-quiz.api';
@@ -9,8 +9,10 @@ import { DeleteConfirmDialog } from '@/components/shared/dialog/delete-confirm-d
 import { LessonQuizQuestionDialog } from '../lesson-quiz-question-dialog';
 import { useQuizTimingValidation } from '../../../hooks/use-quiz-timing-validation';
 import { isQuizTimestamp } from 'share-lib';
+import { StudentLessonQuizTab, type StudentQuizState } from './student-lesson-quiz-tab';
 
 interface LessonQuizTabProps {
+  userId?: string;
   courseId: string;
   reviewQuizId?: string;
   lessonId: string;
@@ -21,8 +23,7 @@ interface LessonQuizTabProps {
   onPauseVideo?: () => void;
   onGenerateQuiz?: () => void;
   isGenerating?: boolean;
-  studentQuizzes?: IStudentLessonQuiz[];
-  onOpenQuiz?: (timestamp: number) => void;
+  checkpoints?: StudentQuizState;
 }
 
 function formatTime(seconds: number): string {
@@ -33,6 +34,7 @@ function formatTime(seconds: number): string {
 }
 
 export function LessonQuizTab({
+  userId,
   courseId,
   reviewQuizId,
   lessonId,
@@ -43,8 +45,7 @@ export function LessonQuizTab({
   onPauseVideo,
   onGenerateQuiz,
   isGenerating = false,
-  studentQuizzes = [],
-  onOpenQuiz,
+  checkpoints,
 }: LessonQuizTabProps): React.JSX.Element {
   // Lấy câu hỏi chính thức của bài học
   const { data: officialQuizzes = [], isLoading, isError, refetch } = useLessonQuizzesQuery(lessonId, isInstructor);
@@ -82,17 +83,14 @@ export function LessonQuizTab({
 
   if (!isInstructor) {
     return (
-      <div className="mx-auto w-full max-w-4xl space-y-4 p-4 sm:p-6">
-        <h2 className="text-base font-semibold">Câu hỏi trắc nghiệm</h2>
-        {studentQuizzes.length === 0 && <p className="text-sm text-muted-foreground">Bài học chưa có câu hỏi trắc nghiệm.</p>}
-        {studentQuizzes.map((quiz) => (
-          <button key={quiz.id} type="button" onClick={() => onOpenQuiz?.(quiz.timestamp)} className="flex w-full items-start gap-3 rounded-lg border border-border p-4 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <Icon icon={quiz.answer ? 'lucide:circle-check' : 'lucide:circle-help'} className={`mt-0.5 size-4 shrink-0 ${quiz.answer ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`} aria-hidden="true" />
-            <span className="flex-1 leading-relaxed">{quiz.question}</span>
-            <span className="shrink-0 tabular-nums text-muted-foreground">{formatTime(quiz.timestamp)}</span>
-          </button>
-        ))}
-      </div>
+      <StudentLessonQuizTab
+        key={JSON.stringify([userId, courseId, lessonId])}
+        userId={userId}
+        courseId={courseId}
+        lessonId={lessonId}
+        checkpoints={checkpoints}
+        onSeek={onSeek}
+      />
     );
   }
 

@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { RoleEnum, type IPublicProfileCourses, type IPublicProfileCourse } from 'share-lib';
 import { UserService } from '../user/services/user.service.js';
-import { LearningProgressRepository } from '../learning-progress/repositories/learning-progress.repository.js';
-import { LessonRepository } from '../course/repositories/lesson.repository.js';
-import { summarizeProgress } from '../learning-progress/utils/learning-progress.util.js';
+import { LearningProgressService } from '../learning-progress/services/learning-progress.service.js';
 import { PublicProfileRepository, PROFILE_PAGE_SIZE } from './public-profile.repository.js';
 import { ProfileCoursesDto } from './dto/profile-courses.dto.js';
 import { decodeProfileCursor, encodeProfileCursor } from './profile-cursor.util.js';
@@ -13,8 +11,7 @@ export class PublicProfileService {
   constructor(
     private readonly users: UserService,
     private readonly profiles: PublicProfileRepository,
-    private readonly progress: LearningProgressRepository,
-    private readonly lessons: LessonRepository,
+    private readonly progress: LearningProgressService,
   ) {}
 
   async getCourses(username: string, query: ProfileCoursesDto): Promise<IPublicProfileCourses> {
@@ -30,19 +27,13 @@ export class PublicProfileService {
     ]);
     const page = rows.slice(0, PROFILE_PAGE_SIZE);
     const courseIds = page.map((course) => course.id);
-    const [states, stats] = query.type === 'learning' && courseIds.length
-      ? await Promise.all([
-        this.progress.findForCourses(user.id, courseIds),
-        this.lessons.getCourseVideoStats(courseIds),
-      ])
-      : [[], []];
-    const statesByCourse = new Map(states.map((state) => [state.courseId, state]));
-    const statsByCourse = new Map(stats.map((stat) => [stat.courseId, stat]));
+    const progress = query.type === 'learning' && courseIds.length
+      ? await this.progress.getProgressForCourses(user.id, courseIds)
+      : [];
+    const progressByCourse = new Map(progress.map((summary) => [summary.courseId, summary]));
 
     const items: IPublicProfileCourse[] = page.map((course) => {
-      const summary = query.type === 'learning'
-        ? summarizeProgress(course.id, statesByCourse.get(course.id) ?? null, statsByCourse.get(course.id))
-        : null;
+      const summary = progressByCourse.get(course.id);
       // Do not spread a course/enrollment/progress document into this public response.
       return {
         id: course.id, title: course.title, slug: course.slug,

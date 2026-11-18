@@ -9,6 +9,9 @@ import { contentVersion, quizRevision, studentQuiz } from '../../course/utils/le
 import { LessonCompletionRepository } from '../repositories/lesson-completion.repository.js';
 import { CompleteLessonVideoDto, SubmitLessonQuizAnswerDto } from '../dto/lesson-completion.dto.js';
 import { isQuizTimestamp } from 'share-lib';
+import type { CourseVideoStats } from '../../course/interfaces/course-video-stats.interface.js';
+
+type CompletionLesson = Pick<ILesson, 'id' | 'content'>;
 
 @Injectable()
 export class LessonCompletionService {
@@ -41,7 +44,7 @@ export class LessonCompletionService {
     return lesson;
   }
 
-  private mediaVersion(lesson: ILesson): string {
+  private mediaVersion(lesson: CompletionLesson): string {
     return contentVersion({ url: lesson.content?.url, publicId: lesson.content?.publicId ?? null });
   }
 
@@ -55,7 +58,7 @@ export class LessonCompletionService {
     return this.buildState(courseId, lesson, quizzes, answers, videoEnded);
   }
 
-  private buildState(courseId: string, lesson: ILesson, quizzes: ILessonQuiz[], answers: ILessonQuizAnswer[], videoEnded: boolean): ILessonCompletion {
+  private buildState(courseId: string, lesson: CompletionLesson, quizzes: ILessonQuiz[], answers: ILessonQuizAnswer[], videoEnded: boolean): ILessonCompletion {
     quizzes = quizzes.filter((quiz) => isQuizTimestamp(quiz.timestamp, lesson.content?.duration));
     const mediaVersion = this.mediaVersion(lesson);
     const answerMap = new Map(answers.map((answer) => [`${answer.quizId}:${answer.quizRevision}`, answer]));
@@ -78,23 +81,55 @@ export class LessonCompletionService {
 
   async getLessons(userId: string, courseId: string): Promise<ILessonCompletionSummary[]> {
     await this.requireEnrollment(userId, courseId);
-    const sections = await this.sections.findByCourseId(courseId);
-    const lessons = (await this.lessons.findBySectionIds(sections.map((section) => section.id)))
-      .filter((lesson) => lesson.content?.type === LessonContentTypeEnum.VIDEO && lesson.content.url);
-    if (lessons.length === 0) return [];
-    // The sidebar polls this endpoint: batch reads rather than issuing three queries per lesson.
+    const stats = await this.lessons.getCourseVideoStats([courseId]);
+    return (await this.getSummariesForCourses(userId, stats)).get(courseId) ?? [];
+  }
+
+  /** Internal batch read. Callers supply current video stats for already-authorized courses. */
+  async getSummariesForCourses(userId: string, stats: CourseVideoStats[]): Promise<Map<string, ILessonCompletionSummary[]>> {
+    const summaries = new Map<string, ILessonCompletionSummary[]>();
+    const lessonIds = stats.flatMap((course) => course.videos.map((video) => video.lessonId));
+    if (lessonIds.length === 0) return summaries;
+    const courseIds = stats.map((course) => course.courseId);
+    // One read per collection for the entire course list, never one query per lesson/course.
     const [quizzes, answers, videos] = await Promise.all([
-      this.quizzes.findByLessonIds(lessons.map((lesson) => lesson.id)),
-      this.repository.findAnswersForCourse(userId, courseId),
-      this.repository.findVideoCompletionsForCourse(userId, courseId),
+      this.quizzes.findByLessonIds(lessonIds),
+      this.repository.findAnswersForCourses(userId, courseIds),
+      this.repository.findVideoCompletionsForCourses(userId, courseIds),
     ]);
-    const ended = new Set(videos.map((video) => `${video.lessonId}:${video.mediaVersion}`));
-    return lessons.map((lesson) => {
-      const state = this.buildState(courseId, lesson, quizzes.filter((quiz) => quiz.lessonId === lesson.id),
-        answers.filter((answer) => answer.lessonId === lesson.id), ended.has(`${lesson.id}:${this.mediaVersion(lesson)}`));
-      const { lessonId, status, totalQuestions, completedQuestions } = state;
-      return { lessonId, status, totalQuestions, completedQuestions };
-    });
+    const quizzesByLesson = new Map<string, ILessonQuiz[]>();
+    for (const quiz of quizzes) {
+      const group = quizzesByLesson.get(quiz.lessonId) ?? [];
+      group.push(quiz);
+      quizzesByLesson.set(quiz.lessonId, group);
+    }
+    const answersByLesson = new Map<string, ILessonQuizAnswer[]>();
+    for (const answer of answers) {
+      const key = `${answer.courseId}:${answer.lessonId}`;
+      const group = answersByLesson.get(key) ?? [];
+      group.push(answer);
+      answersByLesson.set(key, group);
+    }
+    const ended = new Set(videos.map((video) => `${video.courseId}:${video.lessonId}:${video.mediaVersion}`));
+    for (const course of stats) {
+      summaries.set(course.courseId, course.videos.map((video) => {
+        // An unfinished upload still counts as a video lesson, but cannot be completed.
+        if (!video.url) return {
+          lessonId: video.lessonId, status: LearningStatusEnum.NOT_STARTED, totalQuestions: 0, completedQuestions: 0,
+        };
+        const lesson: CompletionLesson = {
+          id: video.lessonId,
+          content: { type: LessonContentTypeEnum.VIDEO, url: video.url,
+            publicId: video.publicId ?? undefined, duration: video.durationSeconds ?? undefined },
+        };
+        const key = `${course.courseId}:${lesson.id}`;
+        const state = this.buildState(course.courseId, lesson, quizzesByLesson.get(lesson.id) ?? [],
+          answersByLesson.get(key) ?? [], ended.has(`${key}:${this.mediaVersion(lesson)}`));
+        const { lessonId, status, totalQuestions, completedQuestions } = state;
+        return { lessonId, status, totalQuestions, completedQuestions };
+      }));
+    }
+    return summaries;
   }
 
   async submitAnswer(userId: string, courseId: string, lessonId: string, dto: SubmitLessonQuizAnswerDto): Promise<ILessonCompletion> {

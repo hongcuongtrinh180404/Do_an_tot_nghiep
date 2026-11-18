@@ -273,6 +273,7 @@ function LessonPlayerStudioContent({
           className="w-full bg-card border border-border rounded-2xl shadow-xs overflow-hidden flex flex-col min-h-[360px]"
         >
           <LessonTabsContainer
+            userId={userId}
             courseId={courseId}
             reviewQuizId={reviewQuizId}
             lessonId={lesson.id}
@@ -281,8 +282,7 @@ function LessonPlayerStudioContent({
             duration={player.duration || lesson.content?.duration || transcript?.durationSeconds}
             onSeek={player.seek}
             onPauseVideo={() => player.videoRef.current?.pause()}
-            studentQuizzes={checkpoints.quizzes}
-            onOpenQuiz={checkpoints.openCheckpoint}
+            checkpoints={checkpoints}
           />
         </section>
       </div>

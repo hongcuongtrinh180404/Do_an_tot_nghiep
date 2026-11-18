@@ -112,7 +112,8 @@ export class LessonRepository extends BaseMongoRepository<ILesson, LessonEntity>
         totalSeconds: { $sum: { $cond: [validDuration, '$content.duration', 0] } },
         videoCount: { $sum: 1 },
         missingDurationCount: { $sum: { $cond: [validDuration, 0, 1] } },
-        videos: { $push: { lessonId: { $toString: '$_id' }, url: '$content.url', durationSeconds: '$content.duration' } },
+        videos: { $push: { lessonId: { $toString: '$_id' }, url: '$content.url',
+          publicId: { $ifNull: ['$content.publicId', null] }, durationSeconds: '$content.duration' } },
       } },
       { $project: { _id: 0, courseId: { $toString: '$_id' }, totalSeconds: 1, videoCount: 1, missingDurationCount: 1, videos: 1 } },
     ]).exec();

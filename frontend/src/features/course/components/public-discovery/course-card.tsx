@@ -29,18 +29,6 @@ export interface CourseCardProps {
   onInstructorClick?: (instructorId?: string) => void;
 }
 
-function formatWatchedDuration(ms?: number | null): string {
-  if (!ms || ms <= 0) return '0 giây';
-  const seconds = Math.floor(ms / 1000);
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remSec = seconds % 60;
-  if (hours > 0 && minutes > 0) return `${hours} giờ ${minutes} phút`;
-  if (hours > 0) return `${hours} giờ`;
-  if (minutes > 0) return `${minutes} phút ${remSec > 0 ? `${remSec} giây` : ''}`.trim();
-  return `${seconds} giây`;
-}
-
 export function CourseCard({
   course,
   isEnrolled: propIsEnrolled,
@@ -270,32 +258,31 @@ export function CourseCard({
                     minimumFractionDigits: progress.progressPercent % 1 === 0 ? 0 : 2,
                     maximumFractionDigits: 2,
                   })}%`
-                  : '0%'}
+                  : 'Chưa xác định'}
               </span>
             </div>
-            <div
-              role="progressbar"
-              aria-label="Tiến độ học tập"
-              aria-valuenow={progress.progressPercent ?? 0}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              className="h-1.5 w-full bg-neutral-100 rounded-full overflow-hidden"
-            >
+            {progress.progressPercent !== null && (
               <div
-                className="h-full bg-gradient-to-r from-[#027D88] to-[#00a3af] rounded-full transition-all duration-300"
-                style={{
-                  width: `${Math.min(100, Math.max(0, progress.progressPercent ?? 0))}%`,
-                }}
-              />
-            </div>
-            <div className="text-[11px] text-[#666666] tabular-nums">
-              <span>
-                Đã xem {formatWatchedDuration(progress.watchedMs)}
-                {progress.totalDurationMs !== null && progress.totalDurationMs !== undefined && progress.totalDurationMs > 0
-                  ? ` / ${formatWatchedDuration(progress.totalDurationMs)}`
-                  : ''}
-              </span>
-            </div>
+                role="progressbar"
+                aria-label="Tiến độ khóa học theo số bài hoàn thành"
+                aria-valuenow={progress.progressPercent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                className="h-1.5 w-full bg-neutral-100 rounded-full overflow-hidden"
+              >
+                <div
+                  className="h-full bg-gradient-to-r from-[#027D88] to-[#00a3af] rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, progress.progressPercent))}%`,
+                  }}
+                />
+              </div>
+            )}
+            <p className="text-[11px] text-[#666666] tabular-nums">
+              {progress.totalLessons > 0
+                ? `${progress.completedLessons}/${progress.totalLessons} bài học hoàn thành`
+                : 'Khóa học chưa có bài video'}
+            </p>
           </div>
         ) : null}
 

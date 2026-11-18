@@ -5,6 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/icon';
 import type { IPublicCourseDetailResponse } from '../../api/enrollment.api';
+import type { ICourseLearningProgress } from 'share-lib';
+import { LearningProgressSummary } from '../learning-progress-summary';
 
 interface CoursePurchaseCardProps {
   course: IPublicCourseDetailResponse;
@@ -13,6 +15,10 @@ interface CoursePurchaseCardProps {
   isLoggedIn: boolean;
   isPending: boolean;
   totalLessonsCount: number;
+  progress?: ICourseLearningProgress | null;
+  isProgressLoading?: boolean;
+  isProgressError?: boolean;
+  onRetryProgress?: () => void;
   onPurchase: () => void;
 }
 
@@ -31,6 +37,10 @@ export function CoursePurchaseCard({
   isLoggedIn,
   isPending,
   totalLessonsCount,
+  progress,
+  isProgressLoading,
+  isProgressError,
+  onRetryProgress,
   onPurchase,
 }: CoursePurchaseCardProps): React.JSX.Element {
   const isFree = course.price === 0;
@@ -116,19 +126,12 @@ export function CoursePurchaseCard({
                 <span>Bạn đã sở hữu khóa học này</span>
               </div>
 
-              {/* Learning Progress: Initialized cleanly at 0% */}
-              <div className="space-y-1.5 pt-1">
-                <div className="flex items-center justify-between text-xs font-semibold text-emerald-900">
-                  <span>Tiến độ học tập</span>
-                  <span>0%</span>
-                </div>
-                <div className="h-2 w-full rounded-full bg-emerald-200/70 overflow-hidden">
-                  <div className="h-full bg-emerald-600 rounded-full" style={{ width: '0%' }} />
-                </div>
-                <span className="text-[11px] text-emerald-700 block">
-                  0/{totalLessonsCount} bài giảng hoàn thành
-                </span>
-              </div>
+              <LearningProgressSummary
+                progress={progress}
+                isLoading={isProgressLoading}
+                isError={isProgressError}
+                onRetry={onRetryProgress}
+              />
             </div>
           )}
 
@@ -261,4 +264,3 @@ export function CoursePurchaseCard({
     </>
   );
 }
-

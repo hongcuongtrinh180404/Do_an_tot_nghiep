@@ -4,8 +4,7 @@ import { Types } from 'mongoose';
 import { BadRequestException, NotFoundException, ValidationPipe } from '@nestjs/common';
 import { LearningStatusEnum, RoleEnum } from 'share-lib';
 import { UserService } from '../../user/services/user.service.js';
-import { LearningProgressRepository } from '../../learning-progress/repositories/learning-progress.repository.js';
-import { LessonRepository } from '../../course/repositories/lesson.repository.js';
+import { LearningProgressService } from '../../learning-progress/services/learning-progress.service.js';
 import { PublicProfileService } from '../public-profile.service.js';
 import { PublicProfileRepository, type ProfileCourseRow } from '../public-profile.repository.js';
 import { ProfileCoursesDto } from '../dto/profile-courses.dto.js';
@@ -28,11 +27,10 @@ describe('public profile course service', () => {
     findLearning: vi.fn(), findTeaching: vi.fn(),
     countLearning: vi.fn(), countTeaching: vi.fn(),
   };
-  const progress = { findForCourses: vi.fn() };
-  const lessons = { getCourseVideoStats: vi.fn() };
+  const progress = { getProgressForCourses: vi.fn() };
   const service = new PublicProfileService(
     users as unknown as UserService, profiles as unknown as PublicProfileRepository,
-    progress as unknown as LearningProgressRepository, lessons as unknown as LessonRepository,
+    progress as unknown as LearningProgressService,
   );
   const userId = new Types.ObjectId().toHexString();
 
@@ -43,24 +41,24 @@ describe('public profile course service', () => {
     profiles.findTeaching.mockResolvedValue([]);
     profiles.countLearning.mockResolvedValue(7);
     profiles.countTeaching.mockResolvedValue(6);
-    progress.findForCourses.mockResolvedValue([]);
-    lessons.getCourseVideoStats.mockResolvedValue([]);
+    progress.getProgressForCourses.mockImplementation(async (_user: string, ids: string[]) =>
+      ids.map((courseId) => ({ courseId, progressPercent: null, status: LearningStatusEnum.NOT_STARTED })));
   });
 
   it('returns five courses and a cursor, computing progress for the profile owner in one batch', async () => {
     const rows = Array.from({ length: 6 }, (_, index) => row(index + 1));
     profiles.findLearning.mockResolvedValue(rows);
-    progress.findForCourses.mockResolvedValue([{
+    progress.getProgressForCourses.mockResolvedValue([{
       courseId: rows[0].id, watchedMs: 25000, revision: 1,
+      completedLessons: 1, totalLessons: 4, progressPercent: 25, status: LearningStatusEnum.IN_PROGRESS,
       sessionId: 'private-session', lastPositionSeconds: 99,
-    }]);
-    lessons.getCourseVideoStats.mockResolvedValue(rows.slice(0, 5).map((course) => ({
-      courseId: course.id, totalSeconds: 100, videoCount: 1, missingDurationCount: 0, videos: [],
-    })));
+    }, ...rows.slice(1, 5).map((course) => ({
+      courseId: course.id, progressPercent: 0, status: LearningStatusEnum.NOT_STARTED,
+    }))]);
     const result = await service.getCourses('target', { type: 'learning' });
     expect(result.items).toHaveLength(5);
-    expect(progress.findForCourses).toHaveBeenCalledWith(userId, rows.slice(0, 5).map((course) => course.id));
-    expect(progress.findForCourses).toHaveBeenCalledTimes(1);
+    expect(progress.getProgressForCourses).toHaveBeenCalledWith(userId, rows.slice(0, 5).map((course) => course.id));
+    expect(progress.getProgressForCourses).toHaveBeenCalledTimes(1);
     expect(result.items[0].progress).toEqual({ percent: 25, status: LearningStatusEnum.IN_PROGRESS });
     expect(result.items[1].progress).toEqual({ percent: 0, status: LearningStatusEnum.NOT_STARTED });
     expect(decodeProfileCursor(result.nextCursor!, 'learning')?.id).toEqual(rows[4].sortId);
@@ -76,8 +74,7 @@ describe('public profile course service', () => {
     const result = await service.getCourses('target', { type: 'teaching' });
     expect(result.items[0].progress).toBeNull();
     expect(result.nextCursor).toBeNull();
-    expect(progress.findForCourses).not.toHaveBeenCalled();
-    expect(lessons.getCourseVideoStats).not.toHaveBeenCalled();
+    expect(progress.getProgressForCourses).not.toHaveBeenCalled();
   });
 
   it('returns an empty teaching tab for non-instructors', async () => {
@@ -89,7 +86,7 @@ describe('public profile course service', () => {
     expect(profiles.countTeaching).not.toHaveBeenCalled();
   });
 
-  it('does not invent a numeric percentage when duration is unknown', async () => {
+  it('does not invent a numeric percentage for a course without video lessons', async () => {
     profiles.findLearning.mockResolvedValue([row(1)]);
     const result = await service.getCourses('target', { type: 'learning' });
     expect(result.items[0].progress?.percent).toBeNull();
@@ -99,7 +96,7 @@ describe('public profile course service', () => {
     users.findPublicUserByUsername.mockRejectedValue(new NotFoundException());
     await expect(service.getCourses('missing', { type: 'learning' })).rejects.toThrow(NotFoundException);
     expect(profiles.findLearning).not.toHaveBeenCalled();
-    expect(progress.findForCourses).not.toHaveBeenCalled();
+    expect(progress.getProgressForCourses).not.toHaveBeenCalled();
   });
 
   it('rejects malformed/cross-tab cursors before querying course data', async () => {

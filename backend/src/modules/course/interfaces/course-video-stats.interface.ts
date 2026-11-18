@@ -3,5 +3,5 @@ export interface CourseVideoStats {
   totalSeconds: number;
   videoCount: number;
   missingDurationCount: number;
-  videos: { lessonId: string; url: string; durationSeconds?: number | null }[];
+  videos: { lessonId: string; url: string; publicId?: string | null; durationSeconds?: number | null }[];
 }

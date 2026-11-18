@@ -24,5 +24,6 @@ export function studentQuiz(quiz: ILessonQuiz, answer: ILessonQuizAnswer | null 
     question: quiz.question, questionType: quiz.questionType, revision: quizRevision(quiz),
     options: quiz.options.map(({ id, label, text }) => ({ id, label, text })),
     answer, explanation: answer ? quiz.explanation : null,
+    ...(answer ? { explanationTimestamp: quiz.explanationTimestamp ?? null } : {}),
   };
 }

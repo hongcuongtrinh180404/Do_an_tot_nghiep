@@ -3,6 +3,7 @@
 import { useQuery, type QueryClient } from '@tanstack/react-query';
 import { LearningStatusEnum, type IApiResponse, type ILessonCompletion, type ILessonCompletionSummary, type ISubmitLessonQuizAnswer, type ICompleteLessonVideo, type IStudentLessonQuiz } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
+import { learningProgressKeys } from './learning-progress.api';
 
 export const lessonCompletionKeys = {
   course: (userId: string, courseId: string) => ['lesson-completion', userId, courseId] as const,
@@ -36,7 +37,7 @@ export function mergeLessonCompletion(previous: ILessonCompletion | undefined, i
     const old = previousQuizzes.get(quiz.id);
     if (quiz.answer || !old?.answer || old.revision !== quiz.revision) return quiz;
     restored = true;
-    return { ...quiz, answer: old.answer, explanation: old.explanation };
+    return { ...quiz, answer: old.answer, explanation: old.explanation, explanationTimestamp: old.explanationTimestamp };
   });
   if (!restored) return incoming;
   const completedQuestions = quizzes.filter((quiz) => quiz.answer).length;
@@ -56,6 +57,11 @@ export function cacheLessonCompletion(client: QueryClient, userId: string, incom
       completedQuestions: state.completedQuestions, totalQuestions: state.totalQuestions,
     } : item));
   void client.invalidateQueries({ queryKey: lessonCompletionKeys.course(userId, state.courseId), exact: true });
+  // Refresh server-computed counts, including inactive cards cached on other pages.
+  void client.invalidateQueries({ queryKey: learningProgressKeys.course(userId, state.courseId), exact: true, refetchType: 'all' });
+  void client.invalidateQueries({ queryKey: learningProgressKeys.myCourses(userId), exact: true, refetchType: 'all' });
+  void client.invalidateQueries({ queryKey: ['reviews', 'eligibility', state.courseId] });
+  void client.invalidateQueries({ queryKey: ['public-profile-courses'] });
   return state;
 }
 

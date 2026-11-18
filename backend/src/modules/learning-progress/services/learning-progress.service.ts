@@ -5,7 +5,9 @@ import { CourseRepository } from '../../course/repositories/course.repository.js
 import { LessonRepository } from '../../course/repositories/lesson.repository.js';
 import { LearningProgressRepository } from '../repositories/learning-progress.repository.js';
 import { PlaybackHeartbeatDto, StartPlaybackSessionDto } from '../dto/playback-session.dto.js';
-import { summarizeProgress } from '../utils/learning-progress.util.js';
+import { summarizeProgress, type CourseVideoStats } from '../utils/learning-progress.util.js';
+import type { LearningProgressState } from '../schemas/learning-progress.schema.js';
+import { LessonCompletionService } from './lesson-completion.service.js';
 
 @Injectable()
 export class LearningProgressService {
@@ -14,6 +16,7 @@ export class LearningProgressService {
     private readonly enrollmentRepository: EnrollmentRepository,
     private readonly courseRepository: CourseRepository,
     private readonly lessonRepository: LessonRepository,
+    private readonly lessonCompletion: LessonCompletionService,
   ) {}
 
   private async isEnrolled(userId: string, courseId: string): Promise<boolean> {
@@ -34,24 +37,31 @@ export class LearningProgressService {
 
   async getProgress(userId: string, courseId: string): Promise<ICourseLearningProgress | null> {
     if (!await this.isEnrolled(userId, courseId)) return null;
-    const [state, stats] = await Promise.all([
-      this.progressRepository.findForCourse(userId, courseId),
-      this.lessonRepository.getCourseVideoStats([courseId]),
-    ]);
-    return summarizeProgress(courseId, state, stats[0]);
+    return (await this.getProgressForCourses(userId, [courseId]))[0];
   }
 
   async getMyProgress(userId: string): Promise<ICourseLearningProgress[]> {
     const enrollments = await this.enrollmentRepository.findUserEnrollments(userId);
     const courseIds = [...new Set(enrollments.filter((item) => item.course && !item.course.deletedAt).map((item) => item.courseId))];
+    return this.getProgressForCourses(userId, courseIds);
+  }
+
+  /** Internal batch read for enrolled courses, including public-profile course rows. */
+  async getProgressForCourses(userId: string, courseIds: string[]): Promise<ICourseLearningProgress[]> {
     if (courseIds.length === 0) return [];
     const [states, stats] = await Promise.all([
       this.progressRepository.findForCourses(userId, courseIds),
       this.lessonRepository.getCourseVideoStats(courseIds),
     ]);
+    const completions = await this.lessonCompletion.getSummariesForCourses(userId, stats);
     const stateMap = new Map(states.map((state) => [state.courseId, state]));
     const statsMap = new Map(stats.map((item) => [item.courseId, item]));
-    return courseIds.map((id) => summarizeProgress(id, stateMap.get(id) ?? null, statsMap.get(id)));
+    return courseIds.map((id) => summarizeProgress(id, stateMap.get(id) ?? null, statsMap.get(id), completions.get(id)));
+  }
+
+  private async summarizeCourse(userId: string, courseId: string, state: LearningProgressState, stats?: CourseVideoStats): Promise<ICourseLearningProgress> {
+    const completions = await this.lessonCompletion.getSummariesForCourses(userId, stats ? [stats] : []);
+    return summarizeProgress(courseId, state, stats, completions.get(courseId));
   }
 
   async startSession(userId: string, courseId: string, dto: StartPlaybackSessionDto): Promise<IPlaybackSessionResponse> {
@@ -70,7 +80,7 @@ export class LearningProgressService {
           state.sessionLessonId !== dto.lessonId || state.sessionMediaUrl !== video.url) {
           throw new ConflictException('Phiên học đã kết thúc, vui lòng phát video để mở phiên mới');
         }
-        return { sessionId: dto.sessionId, expiresAt: state.sessionExpiresAt, progress: summarizeProgress(courseId, state, stats) };
+        return { sessionId: dto.sessionId, expiresAt: state.sessionExpiresAt, progress: await this.summarizeCourse(userId, courseId, state, stats) };
       }
       if (state.sessionId && !state.sessionClosed && state.sessionExpiresAt && state.sessionExpiresAt > now) {
         throw new ConflictException('Khóa học đang được phát ở tab hoặc thiết bị khác. Hãy dừng phiên đó trước.');
@@ -86,7 +96,7 @@ export class LearningProgressService {
         sessionClosed: false,
       };
       if (await this.progressRepository.compareAndSet(state, changes)) {
-        return { sessionId: dto.sessionId, expiresAt: changes.sessionExpiresAt, progress: summarizeProgress(courseId, { ...state, ...changes, revision: state.revision + 1 }, stats) };
+        return { sessionId: dto.sessionId, expiresAt: changes.sessionExpiresAt, progress: await this.summarizeCourse(userId, courseId, { ...state, ...changes, revision: state.revision + 1 }, stats) };
       }
     }
     throw new ConflictException('Tiến độ vừa thay đổi, vui lòng thử lại');
@@ -104,7 +114,7 @@ export class LearningProgressService {
       }
       // A retry or out-of-order delivery never credits time or overwrites the resume point.
       if (dto.sequence <= state.lastSequence) {
-        return { sessionId: dto.sessionId, expiresAt: state.sessionExpiresAt ?? now, progress: summarizeProgress(courseId, state, stats) };
+        return { sessionId: dto.sessionId, expiresAt: state.sessionExpiresAt ?? now, progress: await this.summarizeCourse(userId, courseId, state, stats) };
       }
       if (state.sessionClosed || !state.sessionExpiresAt || state.sessionExpiresAt <= now) {
         throw new ConflictException('Phiên học đã hết hạn, vui lòng phát lại video');
@@ -130,7 +140,7 @@ export class LearningProgressService {
         updatedAt: now,
       };
       if (await this.progressRepository.compareAndSet(state, changes)) {
-        return { sessionId: dto.sessionId, expiresAt: changes.sessionExpiresAt, progress: summarizeProgress(courseId, { ...state, ...changes, revision: state.revision + 1 }, stats) };
+        return { sessionId: dto.sessionId, expiresAt: changes.sessionExpiresAt, progress: await this.summarizeCourse(userId, courseId, { ...state, ...changes, revision: state.revision + 1 }, stats) };
       }
     }
     throw new ConflictException('Tiến độ vừa thay đổi, vui lòng thử lại');

@@ -7,7 +7,8 @@ import { apiClient } from '../../../lib/api-client';
 import { cacheLearningProgress, learningProgressApi, learningProgressKeys } from '../api/learning-progress.api';
 
 function progress(watchedMs = 0, updatedAt = '2026-11-08T00:00:00Z'): ICourseLearningProgress {
-  return { courseId: 'course', revision: watchedMs, watchedMs, totalDurationMs: 100_000, progressPercent: watchedMs / 1000,
+  return { courseId: 'course', revision: watchedMs, watchedMs, totalDurationMs: 100_000,
+    completedLessons: 1, totalLessons: 4, progressPercent: 25,
     status: LearningStatusEnum.IN_PROGRESS, lastLessonId: 'lesson', lastPositionSeconds: 1, updatedAt };
 }
 
@@ -32,6 +33,37 @@ describe('Learning progress client coordination', () => {
     cacheLearningProgress(client, 'student-a', { ...progress(1000), revision: 2, lastPositionSeconds: 10 });
     assert.equal(client.getQueryData<ICourseLearningProgress>(learningProgressKeys.course('student-a', 'course'))?.lastPositionSeconds, 50);
     client.clear();
+  });
+
+  it('does not overwrite a refreshed completion summary with a delayed heartbeat', () => {
+    const client = new QueryClient();
+    const confirmed = { ...progress(1000), revision: 3, completedLessons: 4, progressPercent: 100, status: LearningStatusEnum.COMPLETED };
+    client.setQueryData(learningProgressKeys.course('student-a', 'course'), confirmed);
+    client.setQueryData(learningProgressKeys.myCourses('student-a'), [confirmed]);
+    cacheLearningProgress(client, 'student-a', { ...progress(2000), revision: 4, completedLessons: 3, progressPercent: 75 });
+    const cached = client.getQueryData<ICourseLearningProgress>(learningProgressKeys.course('student-a', 'course'))!;
+    assert.equal(cached.watchedMs, 2000);
+    assert.equal(cached.completedLessons, 4);
+    assert.equal(cached.progressPercent, 100);
+    assert.equal(cached.status, LearningStatusEnum.COMPLETED);
+    assert.equal(client.getQueryData<ICourseLearningProgress[]>(learningProgressKeys.myCourses('student-a'))?.[0].progressPercent, 100);
+    // A server refresh is allowed to lower progress after current requirements change.
+    client.setQueryData(learningProgressKeys.course('student-a', 'course'),
+      { ...confirmed, completedLessons: 3, progressPercent: 75, status: LearningStatusEnum.IN_PROGRESS });
+    cacheLearningProgress(client, 'student-a', { ...confirmed, revision: 5 });
+    assert.equal(client.getQueryData<ICourseLearningProgress>(learningProgressKeys.course('student-a', 'course'))?.progressPercent, 75);
+    client.clear();
+  });
+
+  it('forwards abort signals for course reads and list refreshes', async () => {
+    const controller = new AbortController();
+    apiClient.defaults.adapter = (async (config) => {
+      assert.equal(config.signal, controller.signal);
+      return { data: { data: config.url?.endsWith('/my-courses') ? [progress()] : progress() },
+        status: 200, statusText: 'OK', headers: {}, config };
+    }) as AxiosAdapter;
+    assert.deepEqual(await learningProgressApi.getProgress('course', controller.signal), progress());
+    assert.deepEqual(await learningProgressApi.getMyProgress(controller.signal), [progress()]);
   });
 
   it('waits for a final save before claiming the same course after lesson navigation', async () => {

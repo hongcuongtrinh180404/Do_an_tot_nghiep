@@ -9,15 +9,6 @@ const statusLabels: Record<LearningStatusEnum, string> = {
   [LearningStatusEnum.COMPLETED]: 'Đã hoàn thành',
 };
 
-function formatTime(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor(seconds % 3600 / 60);
-  if (hours > 0) return `${hours} giờ ${minutes} phút`;
-  if (minutes > 0) return `${minutes} phút ${seconds % 60} giây`;
-  return `${seconds} giây`;
-}
-
 export function LearningProgressSummary({ progress, isLoading, isError, onRetry, saveState, showResume = false }: {
   progress?: ICourseLearningProgress | null;
   isLoading?: boolean;
@@ -45,14 +36,15 @@ export function LearningProgressSummary({ progress, isLoading, isError, onRetry,
         </span>
       </div>
       {progress.progressPercent !== null && (
-        <div role="progressbar" aria-label="Tiến độ khóa học theo thời gian xem" aria-valuemin={0} aria-valuemax={100}
+        <div role="progressbar" aria-label="Tiến độ khóa học theo số bài hoàn thành" aria-valuemin={0} aria-valuemax={100}
           aria-valuenow={progress.progressPercent} className="h-1.5 overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-primary" style={{ width: `${progress.progressPercent}%` }} />
         </div>
       )}
       <p className="text-xs leading-5 text-muted-foreground tabular-nums">
-        Đã xem {formatTime(progress.watchedMs)}
-        {progress.totalDurationMs !== null ? ` / ${formatTime(progress.totalDurationMs)}` : ' · Thời lượng video chưa đầy đủ'}
+        {progress.totalLessons > 0
+          ? `${progress.completedLessons}/${progress.totalLessons} bài học hoàn thành`
+          : 'Khóa học chưa có bài video'}
       </p>
       {saveState && <p role="status" className="text-xs leading-5 text-muted-foreground">{saveState}</p>}
       {isError && (
