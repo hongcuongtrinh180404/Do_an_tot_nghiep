@@ -3,7 +3,7 @@ import type { AdminNavItem } from '../types';
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   {
     title: 'Tổng quan',
-    href: '/admin/dashboard',
+    href: '/admin',
     icon: 'lucide:layout-dashboard',
   },
   {
@@ -42,3 +42,15 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     icon: 'lucide:settings-2',
   },
 ];
+
+/**
+ * The dashboard lives at the admin root, so it only matches exactly.
+ * Every other tab also owns its nested detail routes.
+ */
+export function isAdminNavItemActive(pathname: string | null, href: string): boolean {
+  if (!pathname) return false;
+  const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+  return href === '/admin'
+    ? normalized === href
+    : normalized === href || normalized.startsWith(`${href}/`);
+}

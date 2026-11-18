@@ -32,7 +32,7 @@ export function GoogleLoginButton({
       {
         onSuccess: (authData) => {
           if (authData.user.role === RoleEnum.ADMIN) {
-            router.push('/admin/dashboard');
+            router.push('/admin');
           } else if (safeReturnTo) {
             router.push(safeReturnTo);
           } else if (authData.user.role === RoleEnum.INSTRUCTOR) {

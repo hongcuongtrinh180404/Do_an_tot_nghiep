@@ -37,7 +37,7 @@ export function BecomeInstructorView(): React.JSX.Element {
   const loginHref = authPathWithReturn('/login', `${BECOME_INSTRUCTOR_PATH}#registration`);
   const managementPath = user?.role === RoleEnum.INSTRUCTOR
     ? '/courses'
-    : user?.role === RoleEnum.ADMIN ? '/admin/dashboard' : null;
+    : user?.role === RoleEnum.ADMIN ? '/admin' : null;
 
   useEffect(() => {
     if (managementPath) router.replace(managementPath);
@@ -202,8 +202,24 @@ export function BecomeInstructorView(): React.JSX.Element {
           )}
           <div className={styles.applicationBoard}>
             <div className={styles.invitation} data-reveal>
-              <p>Từ kiến thức<br />đến bài giảng.</p>
-              <span>Mindly · Map Your Mind</span>
+              <div className={styles.invitationTop}>
+                <p>Từ kiến thức<br />đến bài giảng.</p>
+                <div className={styles.invitationSteps}>
+                  <div className={styles.invitationStep}>
+                    <strong>Hồ sơ năng lực</strong>
+                    <p>Cung cấp thông tin chuyên môn, kinh nghiệm thực tế và đính kèm tài liệu CV.</p>
+                  </div>
+                  <div className={styles.invitationStep}>
+                    <strong>Xét duyệt sư phạm</strong>
+                    <p>Ban quản trị xem xét và phản hồi trong 24–48 giờ làm việc.</p>
+                  </div>
+                  <div className={styles.invitationStep}>
+                    <strong>Không gian giảng dạy</strong>
+                    <p>Khai phóng trọn bộ công cụ video tương tác, bài tập và sơ đồ tư duy Mindly.</p>
+                  </div>
+                </div>
+              </div>
+              <span className={styles.invitationBrand}>Mindly · Map Your Mind</span>
             </div>
             <ApplicationPanel
               application={application}
@@ -213,6 +229,7 @@ export function BecomeInstructorView(): React.JSX.Element {
               isPreview={isPreview}
               showDraft={draftKey === accountKey}
               loginHref={loginHref}
+              user={user}
               onRetry={() => { void retry(); }}
               onOpenDraft={() => setDraftKey(accountKey)}
               onCloseDraft={() => setDraftKey(null)}

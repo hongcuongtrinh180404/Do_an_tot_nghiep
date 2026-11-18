@@ -208,7 +208,7 @@ try {
     });
   }
 
-  for (const [role, destination] of [['instructor', '/courses'], ['admin', '/admin/dashboard']]) {
+  for (const [role, destination] of [['instructor', '/courses'], ['admin', '/admin']]) {
     await check(`${role}: routes to existing workspace without a registration form`, async () => {
       const page = await newPage(1440, { ...student, role });
       await waitFor(page, () => location.pathname !== '/become-instructor', 'Role redirect missing');

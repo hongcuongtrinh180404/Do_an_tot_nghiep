@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { chatbotEnvSchema } from '../modules/chatbot/chatbot.config.js';
 
 export const envValidationSchema = Joi.object({
   PORT: Joi.number().default(8000),
@@ -97,5 +98,5 @@ export const envValidationSchema = Joi.object({
   }),
   SEPAY_PAYMENT_PREFIX: Joi.string().trim().uppercase().valid('MD').default('MD'),
   SEPAY_PAYMENT_EXPIRE_MINUTES: Joi.number().integer().min(1).max(1440).default(15),
-});
+}).concat(chatbotEnvSchema);
 

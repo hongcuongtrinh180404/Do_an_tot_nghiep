@@ -13,6 +13,55 @@
 
 ## 2. Technical Notes & Gotchas
 
+### [2026-11-18] - Milestone 68: Tối Ưu Bố Cục Typography SectionIntro Khắc Phục Lỗi Lệch Khối & Ngắt Chữ (/become-instructor)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Khối tiêu đề `.sectionIntro` ("Dạy theo cách của bạn" và câu mô tả "Từ nội dung đầu tiên đến từng khoảnh khắc người học hiểu bài, mọi công cụ ở cùng một nơi.") trước đó sử dụng `grid-template-columns: 1fr 1fr`.
+  - Trên màn hình desktop rộng, cấu trúc 2 cột khiến đoạn văn bị đẩy sang nửa phải màn hình (cách xa tiêu đề), tạo khoảng trống vô lý ở giữa và ngắt dòng cụm từ "người học hiểu / bài" gây cảm giác lỗi layout ("hiển thị lỗi").
+
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Chuyển đổi sang Bố cục Cột Editorial Thống Nhất (`become-instructor.module.css`)**:
+     - Cấu trúc `.sectionIntro` chuyển sang `display: flex; flex-direction: column; align-items: flex-start; gap: 12px; max-width: 68ch;`.
+     - Tiêu đề `h2` đứng trên vững chãi, đoạn mô tả `p` đặt ngay bên dưới với `font-size: 17px; line-height: 1.6; color: var(--muted); max-width: 58ch; text-wrap: pretty;`.
+     - Loại bỏ hoàn toàn tình trạng đứt gãy cụm từ "hiểu bài" và khoảng trắng trống rỗng ở giữa.
+  2. **Kiểm chuẩn**: `lint.mjs` đạt 0 FAIL, 0 WARN; TypeScript & ESLint 0 errors; Vitest 13/13 tests pass.
+
+### [2026-11-18] - Milestone 67: Tái Thiết Kế Toàn Diện Section Hero & Tools (/become-instructor) Sang Chủ Đề Lịch Sử Việt Nam Chuẩn Anti-Slop
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Khối mô phỏng bài giảng (`TeachingPreview`, `CourseOutlinePreview`, `TranscriptPreview`, `QuizPreview`) ban đầu sử dụng chủ đề Next.js mẫu cơ bản, giao diện còn đơn giản và các câu hỏi mẫu chưa gần gũi.
+  - Người dùng yêu cầu tái thiết kế toàn diện các section này bằng skill `/design-taste-frontend`, chuyển đổi câu hỏi và toàn bộ dữ liệu mẫu sang chủ đề **Lịch sử Việt Nam**.
+
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Nội dung mẫu Lịch sử Việt Nam (Chiến dịch Điện Biên Phủ 1954)**:
+     - 3 mốc thời gian: `00:00` (Quyết định lịch sử & Kéo pháo), `02:15` (Trận mở màn Cứ điểm Him Lam), `05:30` (Đồi A1 & Toàn thắng chiến dịch).
+     - Mindmap đồng bộ mốc: Gốc `Điện Biên Phủ` liên kết 3 nhánh chiến lược, tự động active theo tiến trình bài giảng.
+     - Trích đoạn phụ đề AI (`TranscriptPreview`): Đồng bộ thời gian pháo binh khai hỏa và trích dẫn quyết định của Đại tướng Võ Nguyên Giáp.
+     - Câu hỏi trắc nghiệm tương tác (`QuizPreview`): *Cụm cứ điểm nào bị quân ta tiêu diệt trong trận đánh mở màn ngày 13/3/1954?* (Đáp án: Cụm cứ điểm Him Lam) kèm giải thích lịch sử trực quan.
+  2. **Nâng tầm chất lượng mỹ thuật Anti-Slop (`become-instructor.module.css`)**:
+     - Player canvas sang trọng với thanh tiến trình gắn marker câu hỏi tương tác màu đỏ Mindly tại `02:15`.
+     - Phân cấp typography mạnh mẽ, timeline tab trực quan và tương thích mọi kích thước màn hình.
+  3. **Kiểm chuẩn**: `lint.mjs` 0 FAIL, 0 WARN; `tsc --noEmit` & `eslint` 0 errors; Vitest 13/13 tests pass.
+
+### [2026-11-18] - Milestone 66: Tái Thiết Kế Giao Diện Form Đăng Ký Trở Thành Giảng Viên (/become-instructor) Chuẩn Anti-Slop (/design-taste-frontend)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trang `/become-instructor` trước đó chỉ có khung draft placeholder, chưa có form nhập liệu cụ thể cho học viên đăng ký trở thành giảng viên.
+  - Người dùng yêu cầu làm lại giao diện form với 4 phần thông tin chính, chỉ nhận upload CV dạng tài liệu (PDF, DOC, DOCX), cho phép chọn nhiều lĩnh vực giảng dạy dạng tag/chips, mock 3 câu điều khoản, checkbox cam kết và nút gửi đăng ký. Toàn bộ áp dụng kỹ năng `/design-taste-frontend`.
+
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Tách biệt component chuyên trách**:
+     - `cv-file-upload.tsx`: Khu vực tải lên CV chỉ nhận `.pdf, .doc, .docx` (tối đa 10MB), có drag-and-drop, card tệp đính kèm và kiểm tra lỗi tức thì.
+     - `instructor-application-form.tsx`: Form 5 phần hoàn chỉnh: Họ tên (auto-fill), Email (readOnly cố định từ tài khoản), SĐT liên hệ, Lĩnh vực chuyên môn (multi-select chips + thêm tùy chỉnh), Giới thiệu (bio kèm đếm ký tự), Kinh nghiệm (experience), Điều khoản giảng viên (3 câu mock chuẩn Mindly) và Checkbox cam kết.
+  2. **Tích hợp trạng thái thông minh vào `application-panel.tsx`**:
+     - Hỗ trợ xem trước với tư cách Khách (banner cảnh báo và link đăng nhập).
+     - Hỗ trợ chuyển đổi mượt mà sang trạng thái `pending` sau khi gửi thành công (có tóm tắt hồ sơ đã nộp).
+     - Cho phép ứng viên bị từ chối (`rejected`) mở lại form để chỉnh sửa và nộp lại hồ sơ bổ sung.
+  3. **Kiểm chuẩn chất lượng**:
+     - Taste-skill linter: 0 FAIL, 0 WARN.
+     - Vitest suite: 13/13 tests PASS (`application-preview.spec.ts`, `instructor-form.spec.ts`).
+     - TypeScript & ESLint: 0 errors.
+
 ### [2026-11-16] - Milestone 65: Triển Khai Bộ Nhập Thời Gian Dual-Box (Phút : Giây) Chuẩn Mẫu & Loại Bỏ Lấy Mốc Hiện Tại
 
 - **Bối cảnh & Vấn đề (Problem Statement)**:

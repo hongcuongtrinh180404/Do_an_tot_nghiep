@@ -19,6 +19,7 @@ import { TranscriptAnalysisModule } from './modules/transcript-analysis/transcri
 import { LearningProgressModule } from './modules/learning-progress/learning-progress.module.js';
 import { ReviewModule } from './modules/review/review.module.js';
 import { PublicProfileModule } from './modules/profile/public-profile.module.js';
+import { ChatbotModule } from './modules/chatbot/chatbot.module.js';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { PublicProfileModule } from './modules/profile/public-profile.module.js'
     StorageModule,
     AssemblyAiModule,
     GeminiModule,
+    ChatbotModule,
     UserModule,
     SessionModule,
     AuthModule,

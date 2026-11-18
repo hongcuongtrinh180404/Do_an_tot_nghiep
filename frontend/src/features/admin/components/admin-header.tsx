@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/icon';
 import { buttonVariants } from '@/components/ui/button';
 import { useAuth } from '@/features/auth';
-import { ADMIN_NAV_ITEMS } from '../constants/admin-navigation';
+import { ADMIN_NAV_ITEMS, isAdminNavItemActive } from '../constants/admin-navigation';
 
 interface AdminHeaderProps {
   onToggleSidebar: () => void;
@@ -16,8 +16,8 @@ export function AdminHeader({ onToggleSidebar }: AdminHeaderProps): React.JSX.El
   const pathname = usePathname();
   const { user } = useAuth();
 
-  const currentItem = ADMIN_NAV_ITEMS.find(
-    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  const currentItem = ADMIN_NAV_ITEMS.find((item) =>
+    isAdminNavItemActive(pathname, item.href),
   );
 
   const pageTitle = currentItem?.title || 'Quản Trị Hệ Thống';

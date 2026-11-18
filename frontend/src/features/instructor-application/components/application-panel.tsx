@@ -1,9 +1,17 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/icon';
 import type { InstructorApplication } from '../instructor-application';
+import { InstructorApplicationForm } from './instructor-application-form';
 import styles from './become-instructor.module.css';
+
+interface UserLike {
+  id?: string;
+  fullName?: string;
+  email?: string;
+}
 
 interface ApplicationPanelProps {
   application: InstructorApplication;
@@ -11,24 +19,55 @@ interface ApplicationPanelProps {
   isError: boolean;
   isGuest: boolean;
   isPreview: boolean;
-  showDraft: boolean;
+  showDraft?: boolean;
   loginHref: string;
+  user?: UserLike | null;
   onRetry: () => void;
-  onOpenDraft: () => void;
-  onCloseDraft: () => void;
+  onOpenDraft?: () => void;
+  onCloseDraft?: () => void;
 }
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('vi-VN', {
     dateStyle: 'long',
+    timeStyle: 'short',
     timeZone: 'Asia/Ho_Chi_Minh',
   }).format(new Date(value));
 }
 
 export function ApplicationPanel({
-  application, isLoading, isError, isGuest, isPreview, showDraft, loginHref,
-  onRetry, onOpenDraft, onCloseDraft,
+  application: initialApplication,
+  isLoading,
+  isError,
+  isGuest,
+  isPreview,
+  loginHref,
+  user,
+  onRetry,
 }: ApplicationPanelProps): React.JSX.Element {
+  const [localApplication, setLocalApplication] = useState<InstructorApplication | null>(null);
+  const [isEditingAfterReject, setIsEditingAfterReject] = useState(false);
+
+  const activeApplication = localApplication ?? initialApplication;
+
+  function handleSubmitSuccess(
+    submittedData: NonNullable<InstructorApplication['applicantData']>,
+  ): void {
+    setLocalApplication({
+      status: 'pending',
+      submittedAt: new Date().toISOString(),
+      applicantData: submittedData,
+    });
+    setIsEditingAfterReject(false);
+  }
+
+  function handleResetForDemo(): void {
+    setLocalApplication({
+      status: 'not-applied',
+    });
+    setIsEditingAfterReject(false);
+  }
+
   if (isLoading) {
     return (
       <div className={styles.applicationPanel} aria-busy="true">
@@ -44,74 +83,198 @@ export function ApplicationPanel({
         <h2>Chưa tải được tài khoản</h2>
         <p role="alert">Vui lòng thử lại hoặc đăng nhập để tiếp tục đăng ký giảng viên.</p>
         <div className={styles.actions}>
-          <button type="button" className={styles.primaryButton} onClick={onRetry}>Thử lại</button>
-          <Link className={styles.textLink} href={loginHref}>Đăng nhập</Link>
+          <button type="button" className={styles.primaryButton} onClick={onRetry}>
+            Thử lại
+          </button>
+          <Link className={styles.textLink} href={loginHref}>
+            Đăng nhập
+          </Link>
         </div>
       </div>
     );
   }
 
-  if (!isGuest && application.status === 'pending') {
+  // TRẠNG THÁI: CHỜ DUYỆT (PENDING)
+  if (!isGuest && activeApplication.status === 'pending') {
+    const data = activeApplication.applicantData;
     return (
       <div className={styles.applicationPanel} data-application-state="pending">
-        <h2>Yêu cầu đang chờ duyệt</h2>
-        <p>Admin đang xem xét yêu cầu đăng ký giảng viên của bạn. Bạn có thể quay lại đây để theo dõi kết quả.</p>
+        <div className={styles.panelTitleGroup}>
+          <span className={styles.panelBadgePending}>
+            <Icon icon="lucide:clock" /> Đang chờ duyệt
+          </span>
+          <h2>Hồ sơ đăng ký đang được xử lý</h2>
+        </div>
+
+        <p className={styles.panelLead}>
+          Ban quản trị Mindly đang xem xét hồ sơ năng lực giảng dạy của bạn. Chúng tôi sẽ phản hồi kết quả
+          qua email trong vòng 24 - 48 giờ làm việc.
+        </p>
+
         <div className={styles.statusDetail}>
           <Icon icon="lucide:clock-3" className={styles.statusIcon} />
-          <div>
-            <strong>Đang chờ Admin duyệt</strong>
-            {application.submittedAt && <p>Ngày gửi: {formatDate(application.submittedAt)}</p>}
+          <div className={styles.statusDetailContent}>
+            <strong>Thời gian gửi yêu cầu</strong>
+            {activeApplication.submittedAt && (
+              <p>{formatDate(activeApplication.submittedAt)}</p>
+            )}
           </div>
         </div>
-        <p className={styles.secondaryText}>Bạn đã có yêu cầu chờ duyệt nên chưa thể gửi thêm yêu cầu mới.</p>
-        <Link className={styles.secondaryButton} href="/courses?view=catalog">Khám phá khóa học</Link>
-        {isPreview && <p className={styles.previewDisclaimer}>Trạng thái minh họa bằng dữ liệu mẫu.</p>}
+
+        {data && (
+          <div className={styles.submittedSummaryCard}>
+            <h4 className={styles.summaryTitle}>
+              <Icon icon="lucide:clipboard-check" /> Tóm tắt thông tin đã gửi:
+            </h4>
+            <div className={styles.summaryGrid}>
+              <div className={styles.summaryItem}>
+                <span className={styles.summaryLabel}>Họ và tên:</span>
+                <span className={styles.summaryValue}>{data.fullName}</span>
+              </div>
+              <div className={styles.summaryItem}>
+                <span className={styles.summaryLabel}>Email liên hệ:</span>
+                <span className={styles.summaryValue}>{data.email}</span>
+              </div>
+              <div className={styles.summaryItem}>
+                <span className={styles.summaryLabel}>Số điện thoại:</span>
+                <span className={styles.summaryValue}>{data.phone}</span>
+              </div>
+              {data.cvFileName && (
+                <div className={styles.summaryItem}>
+                  <span className={styles.summaryLabel}>Tài liệu CV:</span>
+                  <span className={styles.summaryValue}>
+                    <Icon icon="lucide:file-text" /> {data.cvFileName}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {data.expertises && data.expertises.length > 0 && (
+              <div className={styles.summaryExpertises}>
+                <span className={styles.summaryLabel}>Lĩnh vực đăng ký:</span>
+                <div className={styles.summaryChips}>
+                  {data.expertises.map((exp) => (
+                    <span key={exp} className={styles.summaryChip}>
+                      {exp}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <p className={styles.secondaryText}>
+          Trong thời gian chờ duyệt, bạn không thể gửi thêm yêu cầu mới. Hãy khám phá thư viện bài giảng
+          hoặc tham khảo quy chuẩn bài giảng Mindly.
+        </p>
+
+        <div className={styles.pendingActionsRow}>
+          <Link className={styles.primaryButton} href="/courses?view=catalog">
+            Khám phá khóa học Mindly
+          </Link>
+          {(isPreview || localApplication !== null) && (
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={handleResetForDemo}
+              title="Chế độ thử nghiệm: Mở lại biểu mẫu"
+            >
+              Chỉnh sửa lại (Thử nghiệm)
+            </button>
+          )}
+        </div>
+
+        {isPreview && (
+          <p className={styles.previewDisclaimer}>Trạng thái minh họa bằng dữ liệu mẫu.</p>
+        )}
       </div>
     );
   }
 
-  return (
-    <div className={styles.applicationPanel} data-application-state={isGuest ? 'guest' : application.status}>
-      <h2>{application.status === 'rejected' ? 'Kết quả đăng ký' : 'Đăng ký giảng dạy'}</h2>
+  // TRẠNG THÁI: TỪ CHỐI (REJECTED) & CHƯA MỞ FORM LẠI
+  if (!isGuest && activeApplication.status === 'rejected' && !isEditingAfterReject) {
+    return (
+      <div className={styles.applicationPanel} data-application-state="rejected">
+        <div className={styles.panelTitleGroup}>
+          <span className={styles.panelBadgeRejected}>
+            <Icon icon="lucide:alert-triangle" /> Cần bổ sung hồ sơ
+          </span>
+          <h2>Kết quả đăng ký giảng viên</h2>
+        </div>
 
-      {!isGuest && application.status === 'rejected' ? (
-        <>
-          <p>Yêu cầu của bạn chưa được chấp nhận. Xem góp ý từ Admin trước khi chuẩn bị đăng ký lại.</p>
-          <div className={`${styles.statusDetail} ${styles.rejectedDetail}`}>
-            <Icon icon="lucide:message-square-text" className={styles.statusIcon} />
-            <div>
-              <strong>Lý do từ chối</strong>
-              <p>{application.rejectionReason || 'Chưa có ghi chú từ Admin.'}</p>
-              {application.reviewedAt && <p>Ngày phản hồi: {formatDate(application.reviewedAt)}</p>}
-            </div>
+        <p className={styles.panelLead}>
+          Yêu cầu của bạn chưa được duyệt trong đợt xét này. Vui lòng xem kỹ phản hồi chi tiết từ Ban
+          quản trị Mindly trước khi chuẩn bị cập nhật lại thông tin.
+        </p>
+
+        <div className={`${styles.statusDetail} ${styles.rejectedDetail}`}>
+          <Icon icon="lucide:message-square-warning" className={styles.statusIcon} />
+          <div className={styles.statusDetailContent}>
+            <strong>Ghi chú từ Ban quản trị</strong>
+            <p className={styles.rejectionReasonText}>
+              {activeApplication.rejectionReason || 'Vui lòng bổ sung thêm thông tin về hồ sơ năng lực.'}
+            </p>
+            {activeApplication.reviewedAt && (
+              <span className={styles.reviewDate}>
+                Ngày phản hồi: {formatDate(activeApplication.reviewedAt)}
+              </span>
+            )}
           </div>
-          {isPreview && <p className={styles.previewDisclaimer}>Kết quả và góp ý minh họa bằng dữ liệu mẫu.</p>}
-        </>
-      ) : (
-        <p>Bắt đầu từ tài khoản học viên của bạn. Yêu cầu đăng ký giảng viên sẽ được Admin xem xét trước khi bạn bắt đầu giảng dạy.</p>
-      )}
+        </div>
 
-      {showDraft && !isGuest ? (
-        <div className={styles.registrationDraft} role="status">
-          <h3>{application.status === 'rejected' ? 'Chuẩn bị đăng ký lại' : 'Biểu mẫu đăng ký'}</h3>
-          <p>Biểu mẫu đang được hoàn thiện. Các thông tin cần cung cấp sẽ được bổ sung ở bước tiếp theo.</p>
-          <p>Hiện chưa có yêu cầu nào được gửi từ giao diện này.</p>
-          <button type="button" className={styles.textLink} onClick={onCloseDraft}>
-            {application.status === 'rejected' ? 'Quay lại kết quả' : 'Quay lại'}
-          </button>
-        </div>
-      ) : (
         <div className={styles.actions}>
-          {isGuest ? (
-            <Link href={loginHref} className={styles.primaryButton}>Gửi yêu cầu đăng ký</Link>
-          ) : (
-            <button type="button" className={styles.primaryButton} onClick={onOpenDraft}>
-              {application.status === 'rejected' ? 'Đăng ký lại' : 'Gửi yêu cầu đăng ký'}
-            </button>
-          )}
-          {isGuest && <p className={styles.secondaryText}>Đăng nhập để tiếp tục. Bạn sẽ quay lại trang này.</p>}
+          <button
+            type="button"
+            className={styles.primaryButton}
+            onClick={() => setIsEditingAfterReject(true)}
+          >
+            <span>Cập nhật thông tin & Đăng ký lại</span>
+            <Icon icon="lucide:arrow-right" />
+          </button>
+          <Link className={styles.textLink} href="/courses?view=catalog">
+            Về trang danh mục khóa học
+          </Link>
         </div>
-      )}
+
+        {isPreview && (
+          <p className={styles.previewDisclaimer}>Kết quả và phản hồi minh họa bằng dữ liệu mẫu.</p>
+        )}
+      </div>
+    );
+  }
+
+  // TRẠNG THÁI: HIỂN THỊ BIỂU MẪU ĐĂNG KÝ (NOT-APPLIED, GUEST, HOẶC ĐANG CHỈNH SỬA LẠI SAU KHI REJECT)
+  return (
+    <div
+      className={styles.applicationPanel}
+      data-application-state={isGuest ? 'guest' : activeApplication.status}
+    >
+      <div className={styles.panelHeaderRow}>
+        <div>
+          <h2>
+            {activeApplication.status === 'rejected'
+              ? 'Hoàn thiện lại hồ sơ đăng ký'
+              : 'Đăng ký trở thành giảng viên Mindly'}
+          </h2>
+          <p className={styles.panelSubtext}>
+            {activeApplication.status === 'rejected'
+              ? 'Cập nhật lại các thông tin chuyên môn hoặc tải lên CV mới theo góp ý của Admin.'
+              : 'Chia sẻ chuyên môn của bạn với hàng ngàn học viên. Vui lòng hoàn thành đầy đủ biểu mẫu dưới đây.'}
+          </p>
+        </div>
+      </div>
+
+      <InstructorApplicationForm
+        user={user}
+        isGuest={isGuest}
+        loginHref={loginHref}
+        onSubmitSuccess={handleSubmitSuccess}
+        initialData={activeApplication.applicantData}
+        onCancel={
+          activeApplication.status === 'rejected' ? () => setIsEditingAfterReject(false) : undefined
+        }
+      />
     </div>
   );
 }

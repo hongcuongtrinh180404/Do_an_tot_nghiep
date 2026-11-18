@@ -21,6 +21,8 @@
     "test:payment:integration": "vitest run --config vitest.config.e2e.ts test/payment/",
     "test:gemini": "tsx scripts/test-gemini.ts",
     "test:river": "tsx scripts/test-river.ts",
+    "test:chatbot": "vitest run src/modules/chatbot/tests",
+    "test:chatbot:live": "tsx scripts/test-chatbot.ts",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
