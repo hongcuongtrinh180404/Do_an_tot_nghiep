@@ -19,6 +19,7 @@ import { InstructorTermRepository } from '../repositories/instructor-term.reposi
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { QueryInstructorApplicationsDto } from '../dto/query-instructor-applications.dto.js';
 import { UpdateInstructorTermsDto } from '../dto/update-instructor-terms.dto.js';
+import { ApplyInstructorApplicationDto } from '../dto/apply-instructor-application.dto.js';
 
 export const DEFAULT_INSTRUCTOR_TERMS = [
   {
@@ -47,8 +48,7 @@ export const DEFAULT_INSTRUCTOR_TERMS = [
 @Injectable()
 export class InstructorApplicationService
   extends BaseService<IInstructorApplication, string>
-  implements OnModuleInit
-{
+  implements OnModuleInit {
   constructor(
     private readonly applicationRepository: InstructorApplicationRepository,
     private readonly termRepository: InstructorTermRepository,
@@ -102,7 +102,16 @@ export class InstructorApplicationService
     const reviewedById = Types.ObjectId.isValid(adminId) ? new Types.ObjectId(adminId) : null;
     const now = new Date();
 
-    // 1. Cập nhật hồ sơ ứng viên
+    const historyItem = {
+      action: 'APPROVED',
+      actorId: reviewedById || new Types.ObjectId(),
+      actorName: adminName,
+      actorRole: RoleEnum.ADMIN,
+      comment: 'Hồ sơ đã được phê duyệt và cấp quyền Giảng viên',
+      timestamp: now,
+    };
+
+    // 1. Cập nhật hồ sơ ứng viên kèm lịch sử
     const updatedApplication = await this.applicationRepository.updateStatus(
       id,
       InstructorApplicationStatusEnum.APPROVED,
@@ -112,6 +121,7 @@ export class InstructorApplicationService
         reviewedAt: now,
         rejectionReason: null,
       },
+      historyItem,
     );
 
     if (!updatedApplication) {
@@ -154,6 +164,15 @@ export class InstructorApplicationService
     const reviewedById = Types.ObjectId.isValid(adminId) ? new Types.ObjectId(adminId) : null;
     const now = new Date();
 
+    const historyItem = {
+      action: 'REJECTED',
+      actorId: reviewedById || new Types.ObjectId(),
+      actorName: adminName,
+      actorRole: RoleEnum.ADMIN,
+      comment: trimmedReason,
+      timestamp: now,
+    };
+
     const updatedApplication = await this.applicationRepository.updateStatus(
       id,
       InstructorApplicationStatusEnum.REJECTED,
@@ -163,6 +182,7 @@ export class InstructorApplicationService
         rejectionReason: trimmedReason,
         reviewedAt: now,
       },
+      historyItem,
     );
 
     if (!updatedApplication) {
@@ -174,6 +194,91 @@ export class InstructorApplicationService
     );
 
     return updatedApplication;
+  }
+
+  async applyOrResubmitApplication(
+    userId: string,
+    userEmail: string,
+    userName: string,
+    dto: ApplyInstructorApplicationDto,
+  ): Promise<IInstructorApplication> {
+    const existing = await this.applicationRepository.findByUserId(userId);
+    const now = new Date();
+    const userObjectId = new Types.ObjectId(userId);
+
+    if (existing) {
+      if (existing.status === InstructorApplicationStatusEnum.PENDING) {
+        throw new BadRequestException('Bạn đã có một hồ sơ đăng ký đang chờ xét duyệt');
+      }
+
+      if (existing.status === InstructorApplicationStatusEnum.APPROVED) {
+        throw new BadRequestException('Tài khoản của bạn đã được phê duyệt làm Giảng viên');
+      }
+
+      // If REJECTED -> Allow resubmit
+      const historyItem = {
+        action: 'RESUBMITTED',
+        actorId: userObjectId,
+        actorName: userName,
+        actorRole: RoleEnum.STUDENT,
+        comment: 'Cập nhật lại hồ sơ sau khi bị từ chối',
+        timestamp: now,
+      };
+
+      const resubmitted = await this.applicationRepository.resubmitApplication(
+        existing.id,
+        {
+          applicantName: userName,
+          phone: dto.phone,
+          expertises: dto.expertises,
+          bio: dto.bio,
+          experience: dto.experience,
+          cvFileName: dto.cvFileName || existing.cvFileName,
+          cvFileUrl: dto.cvFileUrl || existing.cvFileUrl,
+        },
+        historyItem,
+      );
+
+      if (!resubmitted) {
+        throw new BadRequestException('Nộp lại hồ sơ thất bại');
+      }
+
+      this.logger.log(`[${this.getCorrelationId()}] User ${userId} nộp lại hồ sơ ${existing.id}`);
+      return resubmitted;
+    }
+
+    // First time application
+    const historyItem = {
+      action: 'SUBMITTED',
+      actorId: userObjectId,
+      actorName: userName,
+      actorRole: RoleEnum.STUDENT,
+      comment: 'Nộp hồ sơ đăng ký giảng viên lần đầu',
+      timestamp: now,
+    };
+
+    const newApp = await this.applicationRepository.createWithHistory(
+      {
+        userId: userObjectId,
+        applicantName: userName,
+        email: userEmail.toLowerCase(),
+        phone: dto.phone,
+        expertises: dto.expertises,
+        bio: dto.bio,
+        experience: dto.experience,
+        cvFileName: dto.cvFileName || null,
+        cvFileUrl: dto.cvFileUrl || null,
+        status: InstructorApplicationStatusEnum.PENDING,
+      },
+      historyItem,
+    );
+
+    this.logger.log(`[${this.getCorrelationId()}] User ${userId} nộp hồ sơ đăng ký mới thành công`);
+    return newApp;
+  }
+
+  async getMyApplication(userId: string): Promise<IInstructorApplication | null> {
+    return this.applicationRepository.findByUserId(userId);
   }
 
   async getTerms(): Promise<IInstructorTerm[]> {
@@ -189,89 +294,178 @@ export class InstructorApplicationService
 
   async seedInitialDataIfEmpty(): Promise<void> {
     try {
-      // 1. Seed Terms
+      // 1. Seed Terms if empty
       const existingTerms = await this.termRepository.findAllOrdered();
       if (existingTerms.length === 0) {
         this.logger.log('Khởi tạo điều khoản giảng viên mặc định...');
         await this.termRepository.replaceAllTerms(DEFAULT_INSTRUCTOR_TERMS);
       }
 
-      // 2. Seed Applications if empty
-      const totalApplications = await this.applicationRepository.countPending();
-      const stats = await this.applicationRepository.getStats();
-      if (stats.totalCount === 0) {
-        this.logger.log('Khởi tạo danh sách hồ sơ ứng viên mẫu...');
-        const mockApplications: Partial<IInstructorApplication>[] = [
-          {
-            userId: new Types.ObjectId().toString(),
-            applicantName: 'Nguyễn Văn Minh',
-            email: 'minh.nguyen@example.com',
-            phone: '0912 345 678',
-            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
-            expertises: ['Công nghệ Thông tin & Lập trình', 'AI & Khoa học Dữ liệu'],
-            bio: 'Kỹ sư phần mềm cao cấp với 6 năm kinh nghiệm phát triển hệ thống phân tán và kiến trúc microservices tại VNG.',
-            experience: 'Đã từng hướng dẫn và đào tạo hơn 500 học viên qua các workshop nội bộ và khóa học lập trình trực tuyến.',
-            cvFileName: 'NguyenVanMinh_SeniorSoftwareEngineer_CV.pdf',
-            status: InstructorApplicationStatusEnum.PENDING,
-          },
-          {
-            userId: new Types.ObjectId().toString(),
-            applicantName: 'Trần Thị Thu Hà',
-            email: 'thuha.tran@example.com',
-            phone: '0988 765 432',
-            avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=160&auto=format&fit=crop&q=80',
-            expertises: ['Thiết kế UI/UX & Đồ họa'],
-            bio: 'Lead Product Designer với 7 năm kinh nghiệm tại các startup EdTech và Fintech hàng đầu Đông Nam Á.',
-            experience: 'Giảng viên thỉnh giảng tại Đại học Kiến trúc và diễn giả tại Vietnam UX/UI Summit 2025.',
-            cvFileName: 'TranThiThuHa_ProductDesignLead_Resume.pdf',
-            status: InstructorApplicationStatusEnum.PENDING,
-          },
-          {
-            userId: new Types.ObjectId().toString(),
-            applicantName: 'Lê Hoàng Long',
-            email: 'hoanglong.le@example.com',
-            phone: '0903 112 233',
-            avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&auto=format&fit=crop&q=80',
-            expertises: ['AI & Khoa học Dữ liệu'],
-            bio: 'Tiến sĩ Khoa học Máy tính chuyên ngành Học sâu (Deep Learning) và Thị giác Máy tính (Computer Vision).',
-            experience: 'Tác giả 4 bài báo khoa học Q1 IEEE/ACM và 3 năm kinh nghiệm giảng dạy môn Xử lý Ảnh & Trí tuệ Nhân tạo.',
-            cvFileName: 'LeHoangLong_PhD_CV.pdf',
-            status: InstructorApplicationStatusEnum.PENDING,
-          },
-          {
-            userId: new Types.ObjectId().toString(),
-            applicantName: 'Phạm Đức Anh',
-            email: 'ducanh.pham@example.com',
-            phone: '0977 889 900',
-            avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&auto=format&fit=crop&q=80',
-            expertises: ['Kinh doanh & Marketing số'],
-            bio: 'Growth Marketing Director với hơn 8 năm dẫn dắt chiến lược tăng trưởng người dùng cho các ứng dụng giáo dục.',
-            experience: 'Đã xây dựng cộng đồng 50.000 marketer và xuất bản 2 cuốn e-book chuyên sâu về Performance Ads.',
-            cvFileName: 'PhamDucAnh_Marketing_Portfolio.pdf',
-            status: InstructorApplicationStatusEnum.APPROVED,
-            reviewedByName: 'Ban Quản Trị DATN',
-            reviewedAt: new Date(Date.now() - 86400000 * 2),
-          },
-          {
-            userId: new Types.ObjectId().toString(),
-            applicantName: 'Vũ Quốc Bảo',
-            email: 'quocbao.vu@example.com',
-            phone: '0933 556 778',
-            avatarUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=160&auto=format&fit=crop&q=80',
-            expertises: ['Dựng Video & Đa phương tiện'],
-            bio: 'Chưa có kinh nghiệm thực tế, muốn thử sức làm khóa học bán kèm.',
-            experience: 'Tự học Premiere Pro qua YouTube được 2 tháng.',
-            cvFileName: 'Bao_CV_moi.docx',
-            status: InstructorApplicationStatusEnum.REJECTED,
-            reviewedByName: 'Ban Quản Trị DATN',
-            reviewedAt: new Date(Date.now() - 86400000 * 4),
-            rejectionReason:
-              'Hồ sơ chuyên môn chưa đáp ứng tiêu chuẩn tối thiểu về số năm kinh nghiệm sư phạm và năng lực chuyên sâu trên nền tảng Mindly.',
-          },
-        ];
+      // 2. Dọn dẹp dữ liệu mock cũ không có tài khoản thật
+      const legacyMockEmails = [
+        'minh.nguyen@example.com',
+        'thuha.tran@example.com',
+        'hoanglong.le@example.com',
+        'ducanh.pham@example.com',
+        'quocbao.vu@example.com',
+      ];
+      await this.applicationRepository.deleteMany({
+        email: { $in: legacyMockEmails },
+      });
 
-        for (const appData of mockApplications) {
-          await this.applicationRepository.create(appData);
+      // 3. Liên kết với các tài khoản học viên thật trong hệ thống nếu chưa có hồ sơ
+      const student1 = await this.userRepository.findByEmail('student1@thc.edu.vn');
+      const student2 = await this.userRepository.findByEmail('student2@thc.edu.vn');
+      const student3 = await this.userRepository.findByEmail('student3@thc.edu.vn');
+      const adminUser = await this.userRepository.findByEmail('sseu1804@gmail.com');
+
+      const adminId = adminUser ? new Types.ObjectId(adminUser.id) : new Types.ObjectId();
+      const adminName = adminUser?.fullName || 'CUONG TRINH';
+
+      // 3.1 student1 -> Chờ duyệt (PENDING)
+      if (student1) {
+        const existingApp1 = await this.applicationRepository.findByUserId(student1.id);
+        if (!existingApp1) {
+          const s1ObjectId = new Types.ObjectId(student1.id);
+          await this.applicationRepository.createWithHistory(
+            {
+              userId: s1ObjectId,
+              applicantName: student1.fullName || 'Phạm Minh Quân',
+              email: student1.email,
+              phone: '0912 345 678',
+              avatarUrl: student1.avatarUrl || null,
+              expertises: ['Công nghệ Thông tin & Lập trình', 'AI & Khoa học Dữ liệu'],
+              bio: 'Sinh viên năm cuối ngành Công Nghệ Thông Tin tại ĐH Bách Khoa, có 2 năm kinh nghiệm thực tập Fullstack và trợ giảng lập trình Web.',
+              experience: 'Đã từng hướng dẫn và trợ giảng hơn 150 học viên qua các workshop nội bộ và dự án mã nguồn mở.',
+              cvFileName: 'PhamMinhQuan_SeniorFullstack_CV.pdf',
+              status: InstructorApplicationStatusEnum.PENDING,
+            },
+            {
+              action: 'SUBMITTED',
+              actorId: s1ObjectId,
+              actorName: student1.fullName || 'Phạm Minh Quân',
+              actorRole: RoleEnum.STUDENT,
+              comment: 'Nộp hồ sơ đăng ký giảng viên lần đầu',
+              timestamp: new Date(Date.now() - 3600000 * 4),
+            },
+          );
+          this.logger.log(`[SEED] Khởi tạo hồ sơ PENDING thật cho student1: ${student1.email}`);
+        }
+      }
+
+      // 3.2 student2 -> Đã duyệt (APPROVED) với lịch sử duyệt thật
+      if (student2) {
+        const existingApp2 = await this.applicationRepository.findByUserId(student2.id);
+        if (!existingApp2) {
+          const s2ObjectId = new Types.ObjectId(student2.id);
+          const approvedAt = new Date(Date.now() - 86400000);
+          const submittedAt = new Date(Date.now() - 86400000 * 2);
+
+          const app2 = await this.applicationRepository.createWithHistory(
+            {
+              userId: s2ObjectId,
+              applicantName: student2.fullName || 'Lê Thùy Dung',
+              email: student2.email,
+              phone: '0988 765 432',
+              avatarUrl: student2.avatarUrl || null,
+              expertises: ['Thiết kế UI/UX & Đồ họa'],
+              bio: 'Product Designer với 3 năm kinh nghiệm thiết kế giao diện ứng dụng di động và trải nghiệm người dùng EdTech.',
+              experience: 'Chủ nhiệm câu lạc bộ thiết kế và giảng viên trợ giảng khóa học Design System cơ bản.',
+              cvFileName: 'LeThuyDung_ProductDesign_CV.pdf',
+              status: InstructorApplicationStatusEnum.APPROVED,
+              reviewedById: adminId,
+              reviewedByName: adminName,
+              reviewedAt: approvedAt,
+            },
+            {
+              action: 'SUBMITTED',
+              actorId: s2ObjectId,
+              actorName: student2.fullName || 'Lê Thùy Dung',
+              actorRole: RoleEnum.STUDENT,
+              comment: 'Nộp hồ sơ xét duyệt năng lực giảng dạy',
+              timestamp: submittedAt,
+            },
+          );
+
+          // Push sự kiện APPROVED vào lịch sử
+          await this.applicationRepository.updateStatus(
+            app2.id,
+            InstructorApplicationStatusEnum.APPROVED,
+            {
+              reviewedById: adminId,
+              reviewedByName: adminName,
+              reviewedAt: approvedAt,
+            },
+            {
+              action: 'APPROVED',
+              actorId: adminId,
+              actorName: adminName,
+              actorRole: RoleEnum.ADMIN,
+              comment: 'Hồ sơ chuyên môn xuất sắc, đủ tiêu chuẩn phát hành khóa học trên Mindly.',
+              timestamp: approvedAt,
+            },
+          );
+          this.logger.log(`[SEED] Khởi tạo hồ sơ APPROVED thật cho student2: ${student2.email}`);
+        }
+      }
+
+      // 3.3 student3 -> Đã từ chối (REJECTED) với lịch sử từ chối thật
+      if (student3) {
+        const existingApp3 = await this.applicationRepository.findByUserId(student3.id);
+        if (!existingApp3) {
+          const s3ObjectId = new Types.ObjectId(student3.id);
+          const rejectedAt = new Date(Date.now() - 86400000 * 3);
+          const submittedAt = new Date(Date.now() - 86400000 * 4);
+          const reason =
+            'Hồ sơ chưa đạt tiêu chuẩn tối thiểu về số năm kinh nghiệm sư phạm và năng lực chuyên sâu trên nền tảng Mindly. Vui lòng bổ sung chứng chỉ hoặc sản phẩm thực tế.';
+
+          const app3 = await this.applicationRepository.createWithHistory(
+            {
+              userId: s3ObjectId,
+              applicantName: student3.fullName || 'Đỗ Hoàng Khang',
+              email: student3.email,
+              phone: '0903 112 233',
+              avatarUrl: student3.avatarUrl || null,
+              expertises: ['Dựng Video & Đa phương tiện'],
+              bio: 'Người học chuyển ngành sang lập trình web, muốn thử sức làm khóa học bán kèm.',
+              experience: 'Tự học Premiere Pro qua YouTube được 2 tháng.',
+              cvFileName: 'DoHoangKhang_CV.docx',
+              status: InstructorApplicationStatusEnum.REJECTED,
+              reviewedById: adminId,
+              reviewedByName: adminName,
+              reviewedAt: rejectedAt,
+              rejectionReason: reason,
+            },
+            {
+              action: 'SUBMITTED',
+              actorId: s3ObjectId,
+              actorName: student3.fullName || 'Đỗ Hoàng Khang',
+              actorRole: RoleEnum.STUDENT,
+              comment: 'Nộp hồ sơ đăng ký giảng viên',
+              timestamp: submittedAt,
+            },
+          );
+
+          // Push sự kiện REJECTED vào lịch sử
+          await this.applicationRepository.updateStatus(
+            app3.id,
+            InstructorApplicationStatusEnum.REJECTED,
+            {
+              reviewedById: adminId,
+              reviewedByName: adminName,
+              reviewedAt: rejectedAt,
+              rejectionReason: reason,
+            },
+            {
+              action: 'REJECTED',
+              actorId: adminId,
+              actorName: adminName,
+              actorRole: RoleEnum.ADMIN,
+              comment: reason,
+              timestamp: rejectedAt,
+            },
+          );
+          this.logger.log(`[SEED] Khởi tạo hồ sơ REJECTED thật cho student3: ${student3.email}`);
         }
       }
     } catch (error) {

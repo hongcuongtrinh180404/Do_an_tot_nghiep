@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/icon';
 import type { InstructorApplication } from '../instructor-application';
@@ -47,6 +47,12 @@ export function ApplicationPanel({
 }: ApplicationPanelProps): React.JSX.Element {
   const [localApplication, setLocalApplication] = useState<InstructorApplication | null>(null);
   const [isEditingAfterReject, setIsEditingAfterReject] = useState(false);
+
+  useEffect(() => {
+    if (localApplication && initialApplication.status !== 'not-applied') {
+      setLocalApplication(null);
+    }
+  }, [initialApplication, localApplication]);
 
   const activeApplication = localApplication ?? initialApplication;
 

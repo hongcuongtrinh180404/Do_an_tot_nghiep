@@ -9,12 +9,12 @@ TranscriptAnalysisModule → GeminiModule → GeminiService → River / Gemini
 ```
 
 `ChatbotModule` export `ChatbotAiClient`; `AppModule` dùng module này thông qua
-`ChatbotSearchModule`.
+`ChatbotSearchModule` bên trong `ChatbotHttpModule`.
 Client dùng package `openai` hiện có, với instance và cấu hình riêng. Mỗi lần
 `complete()` gửi tối đa **một request không streaming** tới provider.
 
 Đã có tool [`search_courses`](./search-courses.md) và lớp điều phối tìm kiếm chỉ
-đọc. HTTP API chat, lưu hội thoại, FAQ và frontend là các bước tiếp theo.
+đọc và [HTTP API chat có JWT](./http-api.md). Lưu hội thoại, FAQ và frontend là các bước tiếp theo.
 Các function nghiệp vụ chỉ được
 **đọc dữ liệu đã kiểm tra quyền sở hữu/quyền truy cập**; không thực hiện giao dịch
 hoặc thay đổi dữ liệu. Kiến trúc này không cần RAG hay vector database.

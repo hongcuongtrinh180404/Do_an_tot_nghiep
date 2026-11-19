@@ -25,6 +25,7 @@ import type {
   IUserProfile,
 } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
+import { broadcastAuthEvent } from '@/lib/auth-sync';
 import { useIsMounted } from '@/hooks/use-is-mounted';
 
 export const authKeys = {
@@ -188,15 +189,7 @@ export function useGoogleAuthMutation() {
       localStorage.setItem('refreshToken', data.tokens.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.user));
 
-      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-        try {
-          const channel = new BroadcastChannel('app_auth_sync');
-          channel.postMessage({ type: 'AUTH_USER_SWITCHED', user: data.user });
-          channel.close();
-        } catch {
-          // ignore error
-        }
-      }
+      broadcastAuthEvent({ type: 'AUTH_USER_SWITCHED', user: data.user });
 
       queryClient.setQueryData(authKeys.me(), data.user);
       toast.success('Đăng nhập Google thành công!', {
@@ -245,15 +238,7 @@ export function useVerifyEmailMutation() {
       localStorage.setItem('refreshToken', data.tokens.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.user));
 
-      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-        try {
-          const channel = new BroadcastChannel('app_auth_sync');
-          channel.postMessage({ type: 'AUTH_USER_SWITCHED', user: data.user });
-          channel.close();
-        } catch {
-          // ignore error
-        }
-      }
+      broadcastAuthEvent({ type: 'AUTH_USER_SWITCHED', user: data.user });
 
       queryClient.setQueryData(authKeys.me(), data.user);
       toast.success('Kích hoạt tài khoản thành công!', {
@@ -309,15 +294,7 @@ export function useResetPasswordMutation() {
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
       }
-      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-        try {
-          const channel = new BroadcastChannel('app_auth_sync');
-          channel.postMessage({ type: 'AUTH_LOGOUT' });
-          channel.close();
-        } catch {
-          // ignore error
-        }
-      }
+      broadcastAuthEvent({ type: 'AUTH_LOGOUT' });
 
       queryClient.clear();
       toast.success('Đặt lại mật khẩu thành công!', {
@@ -345,15 +322,7 @@ export function useVerifyEmailChangeMutation() {
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
 
-        if ('BroadcastChannel' in window) {
-          try {
-            const channel = new BroadcastChannel('app_auth_sync');
-            channel.postMessage({ type: 'AUTH_LOGOUT' });
-            channel.close();
-          } catch {
-            // ignore error
-          }
-        }
+        broadcastAuthEvent({ type: 'AUTH_LOGOUT' });
       }
       queryClient.clear();
       toast.success('Cập nhật email thành công!', {
@@ -381,15 +350,7 @@ export function useLogoutMutation(options?: { redirectTo?: string }) {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
-      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-        try {
-          const channel = new BroadcastChannel('app_auth_sync');
-          channel.postMessage({ type: 'AUTH_LOGOUT' });
-          channel.close();
-        } catch {
-          // ignore error
-        }
-      }
+      broadcastAuthEvent({ type: 'AUTH_LOGOUT' });
 
       queryClient.clear();
       toast.info('Đã đăng xuất khỏi hệ thống');

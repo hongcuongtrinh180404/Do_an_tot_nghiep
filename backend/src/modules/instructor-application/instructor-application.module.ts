@@ -15,6 +15,7 @@ import { InstructorApplicationService } from './services/instructor-application.
 import {
   InstructorApplicationController,
   InstructorTermsController,
+  InstructorApplicationUserController,
 } from './instructor-application.controller.js';
 
 @Module({
@@ -31,7 +32,11 @@ import {
     ]),
     UserModule,
   ],
-  controllers: [InstructorApplicationController, InstructorTermsController],
+  controllers: [
+    InstructorApplicationController,
+    InstructorTermsController,
+    InstructorApplicationUserController,
+  ],
   providers: [
     InstructorApplicationRepository,
     InstructorTermRepository,
@@ -43,4 +48,4 @@ import {
     InstructorTermRepository,
   ],
 })
-export class InstructorApplicationModule {}
+export class InstructorApplicationModule { }

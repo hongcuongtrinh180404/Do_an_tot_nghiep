@@ -57,6 +57,28 @@ export class InstructorApplicationEntity extends BaseAbstractDocument {
 
   @Prop({ type: Date, required: false, default: null })
   reviewedAt?: Date | null;
+
+  @Prop({
+    type: [
+      {
+        action: { type: String, required: true },
+        actorId: { type: MongooseSchema.Types.ObjectId, ref: UserEntity.name, required: true },
+        actorName: { type: String, required: true, trim: true },
+        actorRole: { type: String, required: true },
+        comment: { type: String, required: false, default: null, trim: true },
+        timestamp: { type: Date, required: true, default: Date.now },
+      },
+    ],
+    default: [],
+  })
+  history: Array<{
+    action: string;
+    actorId: Types.ObjectId;
+    actorName: string;
+    actorRole: string;
+    comment?: string | null;
+    timestamp: Date;
+  }>;
 }
 
 export const InstructorApplicationModelSchema =

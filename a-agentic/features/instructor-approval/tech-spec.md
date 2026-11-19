@@ -21,6 +21,14 @@ export class InstructorApplicationEntity extends BaseAbstractDocument {
   reviewedById?: Types.ObjectId;
   reviewedByName?: string;
   reviewedAt?: Date;
+  history: Array<{
+    action: string; // SUBMITTED | APPROVED | REJECTED | RESUBMITTED
+    actorId: Types.ObjectId;
+    actorName: string;
+    actorRole: string; // ADMIN | STUDENT
+    comment?: string;
+    timestamp: Date;
+  }>;
 }
 ```
 
@@ -47,6 +55,9 @@ export class InstructorTermEntity extends BaseAbstractDocument {
 | `PATCH` | `/api/v1/admin/instructor-applications/:id/reject` | `ADMIN` | Từ chối hồ sơ kèm lý do |
 | `GET` | `/api/v1/admin/instructor-terms` | `ADMIN` | Lấy danh sách điều khoản sắp xếp theo order |
 | `PUT` | `/api/v1/admin/instructor-terms` | `ADMIN` | Cập nhật toàn bộ danh sách điều khoản |
+| `POST` | `/api/v1/instructor-applications/apply` | Authenticated | Học viên nộp đơn hoặc nộp lại hồ sơ giảng viên |
+| `GET` | `/api/v1/instructor-applications/my-application` | Authenticated | Học viên tra cứu trạng thái hồ sơ của mình |
+| `GET` | `/api/v1/instructor-applications/terms` | Public | Học viên đọc các điều khoản giảng viên mới nhất |
 
 ## 3. Kiến trúc Frontend (`frontend/src/features/admin/instructors`)
 - `AdminInstructorsView`: View chính với 2 tabs đồng bộ URL query (`tab=PENDING|HISTORY`).

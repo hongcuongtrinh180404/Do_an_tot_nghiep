@@ -19,7 +19,7 @@ import { TranscriptAnalysisModule } from './modules/transcript-analysis/transcri
 import { LearningProgressModule } from './modules/learning-progress/learning-progress.module.js';
 import { ReviewModule } from './modules/review/review.module.js';
 import { PublicProfileModule } from './modules/profile/public-profile.module.js';
-import { ChatbotSearchModule } from './modules/chatbot/chatbot-search.module.js';
+import { ChatbotHttpModule } from './modules/chatbot/chatbot-http.module.js';
 import { InstructorApplicationModule } from './modules/instructor-application/instructor-application.module.js';
 
 @Module({
@@ -45,7 +45,7 @@ import { InstructorApplicationModule } from './modules/instructor-application/in
     StorageModule,
     AssemblyAiModule,
     GeminiModule,
-    ChatbotSearchModule,
+    ChatbotHttpModule,
     UserModule,
     SessionModule,
     AuthModule,

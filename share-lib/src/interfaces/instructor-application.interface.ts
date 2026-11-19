@@ -1,5 +1,14 @@
 import type { InstructorApplicationStatusEnum } from '../enums/instructor-application-status.enum.js';
 
+export interface IInstructorApplicationHistoryItem {
+  action: 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'RESUBMITTED';
+  actorId: string;
+  actorName: string;
+  actorRole: string; // 'ADMIN' | 'STUDENT'
+  comment?: string | null;
+  timestamp: string | Date;
+}
+
 export interface IInstructorApplication {
   id: string;
   userId: string;
@@ -17,6 +26,7 @@ export interface IInstructorApplication {
   reviewedById?: string | null;
   reviewedByName?: string | null;
   reviewedAt?: string | Date | null;
+  history?: IInstructorApplicationHistoryItem[];
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }

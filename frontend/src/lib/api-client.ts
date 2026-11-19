@@ -4,6 +4,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios';
 import type { IApiResponse, IAuthTokens } from 'share-lib';
+import { broadcastAuthEvent } from '@/lib/auth-sync';
 
 interface CustomRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -137,15 +138,7 @@ apiClient.interceptors.response.use(
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
 
-      if ('BroadcastChannel' in window) {
-        try {
-          const channel = new BroadcastChannel('app_auth_sync');
-          channel.postMessage({ type: 'AUTH_LOGOUT', reason: 'EXPIRED' });
-          channel.close();
-        } catch {
-          // ignore error
-        }
-      }
+      broadcastAuthEvent({ type: 'AUTH_LOGOUT', reason: 'EXPIRED' });
 
       const pathname = window.location.pathname;
       if (pathname !== '/' && !pathname.startsWith('/login') && !pathname.startsWith('/register')) {

@@ -4,12 +4,11 @@ import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-
-interface AuthSyncMessage {
-  type: 'AUTH_LOGOUT' | 'AUTH_USER_SWITCHED';
-  reason?: string;
-  user?: unknown;
-}
+import {
+  AUTH_SYNC_CHANNEL,
+  isAuthSyncMessageFromThisTab,
+  type AuthSyncMessage,
+} from '@/lib/auth-sync';
 
 export function AuthSyncHandler(): null {
   const router = useRouter();
@@ -21,11 +20,14 @@ export function AuthSyncHandler(): null {
       return;
     }
 
-    const channel = new BroadcastChannel('app_auth_sync');
+    const channel = new BroadcastChannel(AUTH_SYNC_CHANNEL);
 
     channel.onmessage = (event: MessageEvent<AuthSyncMessage>) => {
       const data = event.data;
       if (!data || typeof data !== 'object') return;
+
+      // The emitting tab already updated its own state and navigation.
+      if (isAuthSyncMessageFromThisTab(data)) return;
 
       if (data.type === 'AUTH_LOGOUT') {
         localStorage.removeItem('accessToken');
@@ -59,4 +61,3 @@ export function AuthSyncHandler(): null {
 
   return null;
 }
-

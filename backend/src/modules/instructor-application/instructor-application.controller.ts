@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Put,
   Param,
@@ -8,6 +9,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import {
   RoleEnum,
@@ -18,10 +20,12 @@ import {
 import { ApiResponse, PaginationResult } from '../base/index.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { InstructorApplicationService } from './services/instructor-application.service.js';
 import { QueryInstructorApplicationsDto } from './dto/query-instructor-applications.dto.js';
 import { RejectInstructorApplicationDto } from './dto/reject-instructor-application.dto.js';
 import { UpdateInstructorTermsDto } from './dto/update-instructor-terms.dto.js';
+import { ApplyInstructorApplicationDto } from './dto/apply-instructor-application.dto.js';
 
 @Controller('admin/instructor-applications')
 @Roles(RoleEnum.ADMIN)
@@ -116,5 +120,47 @@ export class InstructorTermsController {
   ): Promise<ApiResponse<IInstructorTerm[]>> {
     const result = await this.instructorApplicationService.updateTerms(dto);
     return ApiResponse.success(result, 'Cập nhật danh sách điều khoản thành công');
+  }
+}
+
+@Controller('instructor-applications')
+export class InstructorApplicationUserController {
+  constructor(
+    private readonly instructorApplicationService: InstructorApplicationService,
+  ) {}
+
+  @Get('terms')
+  @HttpCode(HttpStatus.OK)
+  async getTerms(): Promise<ApiResponse<IInstructorTerm[]>> {
+    const result = await this.instructorApplicationService.getTerms();
+    return ApiResponse.success(result, 'Lấy danh sách điều khoản giảng viên thành công');
+  }
+
+  @Post('apply')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  async apply(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('email') userEmail: string,
+    @CurrentUser('fullName') userName: string,
+    @Body() dto: ApplyInstructorApplicationDto,
+  ): Promise<ApiResponse<IInstructorApplication>> {
+    const result = await this.instructorApplicationService.applyOrResubmitApplication(
+      userId,
+      userEmail,
+      userName || 'Học viên',
+      dto,
+    );
+    return ApiResponse.success(result, 'Nộp hồ sơ đăng ký giảng viên thành công');
+  }
+
+  @Get('my-application')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async getMyApplication(
+    @CurrentUser('id') userId: string,
+  ): Promise<ApiResponse<IInstructorApplication | null>> {
+    const result = await this.instructorApplicationService.getMyApplication(userId);
+    return ApiResponse.success(result, 'Lấy thông tin hồ sơ của bạn thành công');
   }
 }

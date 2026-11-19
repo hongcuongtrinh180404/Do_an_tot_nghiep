@@ -3,6 +3,7 @@ import { CourseLevelEnum } from 'share-lib';
 import type { PublicCourseSearchResult } from '../../course/interfaces/public-course-search.interface.js';
 import { ChatbotAiClient } from '../chatbot-ai.client.js';
 import { ChatbotAiError } from '../chatbot.errors.js';
+import { CHATBOT_MAX_MESSAGE_LENGTH } from '../chatbot.limits.js';
 import { SearchCoursesTool } from '../tools/search-courses.tool.js';
 import {
   SEARCH_COURSES_NAME,
@@ -61,7 +62,7 @@ export class ChatbotSearchService {
     if (
       typeof question !== 'string' ||
       !question.trim() ||
-      question.length > 2000
+      question.length > CHATBOT_MAX_MESSAGE_LENGTH
     ) {
       throw new ChatbotAiError('CHATBOT_REQUEST_INVALID');
     }

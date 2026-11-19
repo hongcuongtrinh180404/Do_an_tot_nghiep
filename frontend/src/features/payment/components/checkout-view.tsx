@@ -3,10 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Icon } from '@/components/ui/icon';
 import { useCheckoutOrderQuery, useOrderStatusQuery } from '../api/payment.api';
+import { PaymentSuccess } from './payment-success';
 import { enrollmentKeys } from '@/features/course/api/enrollment.api';
 import { courseKeys } from '@/features/course/api/course.api';
 import { OrderStatusEnum } from 'share-lib';
@@ -24,6 +26,7 @@ function formatVND(amount: number): string {
 }
 
 export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Element {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
@@ -175,59 +178,18 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
         {/* SUCCESS STATE WHEN PAID                                        */}
         {/* ============================================================== */}
         {isPaid ? (
-          <div className="rounded-3xl border border-emerald-200 bg-white p-8 sm:p-12 text-center shadow-sm space-y-6 animate-fade-in">
-            <div className="size-20 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
-              <Icon icon="lucide:check-circle-2" className="size-12" />
-            </div>
-
-            <div className="space-y-2 max-w-lg mx-auto">
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-neutral-900">
-                Thanh toán thành công!
-              </h2>
-              <p className="text-sm text-neutral-600">
-                Hệ thống SePay đã ghi nhận giao dịch của bạn. Quyền truy cập khóa học đã được kích hoạt tức thì.
-              </p>
-            </div>
-
-            {course && (
-              <div className="max-w-md mx-auto p-4 rounded-2xl bg-neutral-50 border border-[#e5e7eb] flex items-center gap-4 text-left">
-                <div className="relative size-16 rounded-xl overflow-hidden bg-neutral-200 shrink-0">
-                  {course.thumbnailUrl ? (
-                    <Image
-                      src={course.thumbnailUrl}
-                      alt={course.title}
-                      fill
-                      sizes="64px"
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="size-full flex items-center justify-center text-neutral-400">
-                      <Icon icon="lucide:book-open" className="size-6" />
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="text-xs font-bold text-neutral-900 line-clamp-1">{course.title}</h4>
-                  <p className="text-[11px] text-neutral-500 mt-0.5">Truy cập trọn đời • Đã kích hoạt</p>
-                </div>
-              </div>
-            )}
-
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link
-                href={course ? `/courses/${course.id}` : '/my-courses'}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#027D88] hover:bg-[#02666F] text-white font-bold py-3 px-8 text-sm shadow-sm transition-all"
-              >
-                <Icon icon="lucide:play-circle" className="size-4" />
-                <span>Bắt đầu học ngay</span>
-              </Link>
-              <Link
-                href="/my-courses"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-[#e5e7eb] bg-white hover:bg-neutral-50 text-neutral-700 font-semibold py-3 px-6 text-sm transition-all"
-              >
-                <span>Xem khóa học đã mua</span>
-              </Link>
-            </div>
+          <div className="py-4 flex justify-center">
+            <PaymentSuccess
+              courseTitle={course?.title || 'Khóa học trực tuyến'}
+              orderCode={orderCode}
+              amount={formatVND(status.receivedAmount || checkout.amount)}
+              onStartLearning={() => {
+                router.push(course ? `/courses/${course.id}` : '/my-courses');
+              }}
+              onViewMyCourses={() => {
+                router.push('/my-courses');
+              }}
+            />
           </div>
         ) : isExpired || isCancelled || needsReview ? (
           /* ============================================================== */

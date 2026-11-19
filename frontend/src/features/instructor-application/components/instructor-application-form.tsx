@@ -6,6 +6,10 @@ import { toast } from 'sonner';
 import { Icon } from '@/components/ui/icon';
 import { usePublicCategoriesQuery } from '@/features/course/api/course-category.api';
 import {
+  useApplyInstructorMutation,
+  useInstructorApplicationTermsQuery,
+} from '../api/instructor-application.api';
+import {
   INSTRUCTOR_EXPERTISE_OPTIONS,
   INSTRUCTOR_TERMS_MOCK,
   type InstructorApplication,
@@ -50,6 +54,10 @@ export function InstructorApplicationForm({
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const applyMutation = useApplyInstructorMutation();
+  const { data: termsData } = useInstructorApplicationTermsQuery();
+  const isPendingSubmission = isSubmitting || applyMutation.isPending;
 
   const { data: publicCategories } = usePublicCategoriesQuery();
 
@@ -152,9 +160,6 @@ export function InstructorApplicationForm({
 
     setIsSubmitting(true);
     try {
-      // Simulate frontend submission processing
-      await new Promise((resolve) => setTimeout(resolve, 750));
-
       const payload = {
         fullName: fullName.trim(),
         email: email.trim(),
@@ -165,10 +170,21 @@ export function InstructorApplicationForm({
         cvFileName: cvFile?.name || initialData?.cvFileName || 'Ho-so-giang-vien.pdf',
       };
 
-      toast.success('Gửi yêu cầu đăng ký giảng viên thành công! Admin sẽ xem xét hồ sơ của bạn.');
+      if (!isGuest) {
+        await applyMutation.mutateAsync({
+          phone: payload.phone,
+          expertises: payload.expertises,
+          bio: payload.bio,
+          experience: payload.experience,
+          cvFileName: payload.cvFileName,
+        });
+      } else {
+        toast.success('Gửi yêu cầu đăng ký giảng viên thành công! Admin sẽ xem xét hồ sơ của bạn.');
+      }
+
       onSubmitSuccess(payload);
     } catch {
-      toast.error('Có lỗi xảy ra trong quá trình gửi. Vui lòng thử lại.');
+      // Error is handled inside mutation
     } finally {
       setIsSubmitting(false);
     }
@@ -529,11 +545,18 @@ export function InstructorApplicationForm({
             <strong>Quy định và quyền lợi đối tác Mindly</strong>
           </div>
           <ol className={styles.termsList}>
-            {INSTRUCTOR_TERMS_MOCK.map((term, idx) => (
-              <li key={idx} className={styles.termItem}>
-                <span>{term}</span>
-              </li>
-            ))}
+            {termsData && termsData.length > 0
+              ? termsData.map((term, idx) => (
+                <li key={term.id || idx} className={styles.termItem}>
+                  <strong>{term.title}: </strong>
+                  <span>{term.content}</span>
+                </li>
+              ))
+              : INSTRUCTOR_TERMS_MOCK.map((term, idx) => (
+                <li key={idx} className={styles.termItem}>
+                  <span>{term}</span>
+                </li>
+              ))}
           </ol>
           <p className={styles.termsNote}>
             * Nội dung điều khoản có thể được cập nhật theo từng giai đoạn và hiển thị trong hợp đồng
@@ -587,10 +610,10 @@ export function InstructorApplicationForm({
             <button
               type="submit"
               className={styles.submitButton}
-              disabled={isSubmitting}
-              aria-busy={isSubmitting}
+              disabled={isPendingSubmission}
+              aria-busy={isPendingSubmission}
             >
-              {isSubmitting ? (
+              {isPendingSubmission ? (
                 <>
                   <Icon icon="lucide:loader-2" className={styles.spinnerIcon} />
                   <span>Đang gửi yêu cầu...</span>
@@ -609,7 +632,7 @@ export function InstructorApplicationForm({
               type="button"
               className={styles.cancelButton}
               onClick={onCancel}
-              disabled={isSubmitting}
+              disabled={isPendingSubmission}
             >
               Hủy bỏ
             </button>

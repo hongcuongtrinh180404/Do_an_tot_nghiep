@@ -140,6 +140,16 @@ export function usePendingApplicationsCountQuery() {
   });
 }
 
+export function useAdminInstructorApplicationsStatsQuery() {
+  const isMounted = useIsMounted();
+  return useQuery({
+    queryKey: adminInstructorsKeys.stats(),
+    queryFn: () => adminInstructorsApi.getStats(),
+    enabled: isMounted,
+    staleTime: 1000 * 30,
+  });
+}
+
 export function useInstructorTermsQuery() {
   const isMounted = useIsMounted();
   return useQuery({

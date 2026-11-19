@@ -1,5 +1,12 @@
 # Payment SePay — Development History & Gotchas
 
+## 2026-11-18 — UI PaymentSuccess với pháo hoa canvas-confetti & kiểm soát chuyển trang
+
+- Cài đặt `canvas-confetti`, `@types/canvas-confetti` và `lucide-react` cho frontend.
+- Xây dựng component `PaymentSuccess` với hiệu ứng nảy vòng tròn (`circlePop`), SVG checkmark tự vẽ nét (`drawCheck`), hiệu ứng hào quang lan tỏa (`pulseHalo`) và pháo giấy `canvas-confetti` rực rỡ chào mừng thanh toán thành công.
+- **Tuân thủ chính sách không tự động chuyển trang**: Loại bỏ hoàn toàn bộ đếm ngược countdown tự động điều hướng để học viên chủ động lưu lại mã đơn hàng, xem tóm tắt thông tin thanh toán và tự quyết định thời điểm vào học ("Vào học ngay" hoặc "Xem khóa học đã mua").
+- Tích hợp component vào `CheckoutView` khi trạng thái đơn hàng chuyển sang `PAID`, bổ sung unit test xác thực tại `frontend/src/features/payment/tests/payment-success.spec.tsx`.
+
 ## 2026-11-16 — Hỗ trợ Test send của Dashboard SePay
 
 - DTO webhook chấp nhận `id=0` (payload mẫu của nút **Test send**); ID giao dịch thật vẫn bắt buộc số nguyên dương.

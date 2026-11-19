@@ -12,9 +12,10 @@
 - `share-lib`:
   - `RoleEnum`: Quyền hạn người dùng (`ADMIN`, `INSTRUCTOR`, `STUDENT`).
   - `InstructorApplicationStatusEnum`: `PENDING`, `APPROVED`, `REJECTED`.
-  - `IInstructorApplication`, `IInstructorTerm`, `IAdminInstructorApplicationsStats`.
+  - `IInstructorApplication`, `IInstructorApplicationHistoryItem`, `IInstructorTerm`, `IAdminInstructorApplicationsStats`.
 
 ## 2. Phụ thuộc Giao diện (Frontend Dependencies)
+- `frontend/src/features/instructor-application/`: Cung cấp API và form học viên nộp đơn thật (`/become-instructor`).
 - `@tanstack/react-table`: Quản lý bảng dữ liệu ứng viên.
 - `@tanstack/react-query`: Cache dữ liệu, invalidation và tự động đồng bộ.
 - `components/shared/data-table/`: `BaseDataTable`, `useDataTableUrlState`.

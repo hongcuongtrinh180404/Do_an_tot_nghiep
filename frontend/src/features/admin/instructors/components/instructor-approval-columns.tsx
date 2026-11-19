@@ -11,14 +11,18 @@ interface CreateInstructorApprovalColumnsOptions {
   onViewDetail: (application: IInstructorApplication) => void;
   onApprove: (application: IInstructorApplication) => void;
   onReject: (application: IInstructorApplication) => void;
+  currentTab?: 'PENDING' | 'HISTORY';
 }
 
 export function createInstructorApprovalColumns({
   onViewDetail,
   onApprove,
   onReject,
+  currentTab = 'PENDING',
 }: CreateInstructorApprovalColumnsOptions): ColumnDef<IInstructorApplication>[] {
-  return [
+  const isHistoryTab = currentTab === 'HISTORY';
+
+  const baseColumns: ColumnDef<IInstructorApplication>[] = [
     {
       id: 'applicant',
       header: 'Ứng viên',
@@ -116,7 +120,57 @@ export function createInstructorApprovalColumns({
         );
       },
     },
-    {
+  ];
+
+  if (isHistoryTab) {
+    baseColumns.push(
+      {
+        id: 'reviewedBy',
+        header: 'Người duyệt',
+        cell: ({ row }) => {
+          const app = row.original;
+          const reviewerName = app.reviewedByName || 'Ban Quản Trị';
+
+          return (
+            <div className="flex items-center gap-2 min-w-[140px]">
+              <span className="size-6 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                <Icon icon="lucide:shield-check" className="size-3.5" />
+              </span>
+              <div className="min-w-0">
+                <span className="text-xs font-semibold text-foreground truncate block" title={reviewerName}>
+                  {reviewerName}
+                </span>
+                <span className="text-[10px] text-muted-foreground block">
+                  Quản trị viên
+                </span>
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        id: 'reviewedAt',
+        header: 'Thời gian duyệt',
+        cell: ({ row }) => {
+          const date = row.original.reviewedAt || row.original.updatedAt;
+          if (!date) return <span className="text-xs text-muted-foreground">-</span>;
+
+          return (
+            <div className="text-xs text-muted-foreground">
+              {new Date(date).toLocaleString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </div>
+          );
+        },
+      },
+    );
+  } else {
+    baseColumns.push({
       id: 'submittedAt',
       header: 'Ngày nộp',
       cell: ({ row }) => {
@@ -133,7 +187,10 @@ export function createInstructorApprovalColumns({
           </div>
         );
       },
-    },
+    });
+  }
+
+  baseColumns.push(
     {
       id: 'status',
       header: 'Trạng thái',
@@ -190,5 +247,7 @@ export function createInstructorApprovalColumns({
         );
       },
     },
-  ];
+  );
+
+  return baseColumns;
 }

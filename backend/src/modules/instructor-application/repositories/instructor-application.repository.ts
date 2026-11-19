@@ -51,6 +51,25 @@ export class InstructorApplicationRepository extends BaseMongoRepository<
           : (rawReviewedById as { toString?: () => string })?.toString?.()
         : null;
 
+      const rawHistory = Array.isArray(plain.history) ? plain.history : [];
+      const history = rawHistory.map((h: Record<string, unknown>) => {
+        const actorId = h.actorId
+          ? typeof h.actorId === 'string'
+            ? h.actorId
+            : (h.actorId as { toString?: () => string })?.toString?.() ?? ''
+          : '';
+        return {
+          action: (h.action as 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'RESUBMITTED') || 'SUBMITTED',
+          actorId,
+          actorName: (h.actorName as string) || '',
+          actorRole: (h.actorRole as string) || '',
+          comment: (h.comment as string) || null,
+          timestamp: h.timestamp
+            ? new Date(h.timestamp as string | Date).toISOString()
+            : new Date().toISOString(),
+        };
+      });
+
       return {
         id,
         userId,
@@ -68,6 +87,7 @@ export class InstructorApplicationRepository extends BaseMongoRepository<
         reviewedById: reviewedById || null,
         reviewedByName: (plain.reviewedByName as string) || null,
         reviewedAt: plain.reviewedAt ? new Date(plain.reviewedAt as string | Date).toISOString() : null,
+        history,
         createdAt: plain.createdAt ? new Date(plain.createdAt as string | Date).toISOString() : undefined,
         updatedAt: plain.updatedAt ? new Date(plain.updatedAt as string | Date).toISOString() : undefined,
       };
@@ -98,7 +118,7 @@ export class InstructorApplicationRepository extends BaseMongoRepository<
       filter.status = queryDto.status;
     }
 
-    // Filter by Search text (Họ tên, email, phone, expertises)
+    // Filter by Search text (Họ tên, email, phone, expertises, người duyệt)
     if (queryDto.search?.trim()) {
       const searchRegex = new RegExp(queryDto.search.trim(), 'i');
       filter.$or = [
@@ -106,6 +126,7 @@ export class InstructorApplicationRepository extends BaseMongoRepository<
         { email: searchRegex },
         { phone: searchRegex },
         { expertises: searchRegex },
+        { reviewedByName: searchRegex },
       ];
     }
 
@@ -171,6 +192,22 @@ export class InstructorApplicationRepository extends BaseMongoRepository<
     };
   }
 
+  async findByUserId(
+    userId: string,
+    session?: ClientSession,
+  ): Promise<IInstructorApplication | null> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return null;
+    }
+    const doc = await this.model
+      .findOne({ userId: new Types.ObjectId(userId), deletedAt: null })
+      .sort({ createdAt: -1 })
+      .session(session ?? null)
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
   async updateStatus(
     id: string,
     status: InstructorApplicationStatusEnum,
@@ -180,28 +217,108 @@ export class InstructorApplicationRepository extends BaseMongoRepository<
       rejectionReason?: string | null;
       reviewedAt?: Date;
     },
+    historyItem?: {
+      action: string;
+      actorId: Types.ObjectId;
+      actorName: string;
+      actorRole: string;
+      comment?: string | null;
+      timestamp: Date;
+    },
     session?: ClientSession,
   ): Promise<IInstructorApplication | null> {
-    const updatePayload: Record<string, unknown> = {
+    const updateSet: Record<string, unknown> = {
       status,
       updatedAt: new Date(),
     };
 
     if (reviewMeta) {
-      if (reviewMeta.reviewedById !== undefined) updatePayload.reviewedById = reviewMeta.reviewedById;
-      if (reviewMeta.reviewedByName !== undefined) updatePayload.reviewedByName = reviewMeta.reviewedByName;
-      if (reviewMeta.rejectionReason !== undefined) updatePayload.rejectionReason = reviewMeta.rejectionReason;
-      if (reviewMeta.reviewedAt !== undefined) updatePayload.reviewedAt = reviewMeta.reviewedAt;
+      if (reviewMeta.reviewedById !== undefined) updateSet.reviewedById = reviewMeta.reviewedById;
+      if (reviewMeta.reviewedByName !== undefined) updateSet.reviewedByName = reviewMeta.reviewedByName;
+      if (reviewMeta.rejectionReason !== undefined) updateSet.rejectionReason = reviewMeta.rejectionReason;
+      if (reviewMeta.reviewedAt !== undefined) updateSet.reviewedAt = reviewMeta.reviewedAt;
+    }
+
+    const updateOps: Record<string, unknown> = {
+      $set: updateSet,
+    };
+
+    if (historyItem) {
+      updateOps.$push = { history: historyItem };
     }
 
     const doc = await this.model
       .findOneAndUpdate(
         { _id: new Types.ObjectId(id), deletedAt: null },
-        { $set: updatePayload },
+        updateOps,
         { new: true, session: session ?? null },
       )
       .exec();
 
     return doc ? this.toDomain(doc) : null;
+  }
+
+  async createWithHistory(
+    data: Partial<InstructorApplicationEntity>,
+    historyItem: {
+      action: string;
+      actorId: Types.ObjectId;
+      actorName: string;
+      actorRole: string;
+      comment?: string | null;
+      timestamp: Date;
+    },
+    session?: ClientSession,
+  ): Promise<IInstructorApplication> {
+    const created = new this.model({
+      ...data,
+      history: [historyItem],
+    });
+    const doc = await created.save({ session });
+    return this.toDomain(doc);
+  }
+
+  async resubmitApplication(
+    id: string,
+    updateData: Partial<InstructorApplicationEntity>,
+    historyItem: {
+      action: string;
+      actorId: Types.ObjectId;
+      actorName: string;
+      actorRole: string;
+      comment?: string | null;
+      timestamp: Date;
+    },
+    session?: ClientSession,
+  ): Promise<IInstructorApplication | null> {
+    const updateOps: Record<string, unknown> = {
+      $set: {
+        ...updateData,
+        status: InstructorApplicationStatusEnum.PENDING,
+        rejectionReason: null,
+        reviewedById: null,
+        reviewedByName: null,
+        reviewedAt: null,
+        updatedAt: new Date(),
+      },
+      $push: { history: historyItem },
+    };
+
+    const doc = await this.model
+      .findOneAndUpdate(
+        { _id: new Types.ObjectId(id), deletedAt: null },
+        updateOps,
+        { new: true, session: session ?? null },
+      )
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  async deleteMany(filter: Record<string, unknown>, session?: ClientSession): Promise<number> {
+    const res = await this.model
+      .deleteMany(filter, { ...(session ? { session } : {}) })
+      .exec();
+    return res.deletedCount || 0;
   }
 }

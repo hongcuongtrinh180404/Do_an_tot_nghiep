@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   useReactTable,
   getCoreRowModel,
@@ -19,6 +20,7 @@ import { BaseDataTable, useDataTableUrlState } from '@/components/shared/data-ta
 import {
   useAdminInstructorApplicationsQuery,
   usePendingApplicationsCountQuery,
+  useAdminInstructorApplicationsStatsQuery,
 } from '../api/admin-instructors.api';
 import { createInstructorApprovalColumns } from './instructor-approval-columns';
 import { InstructorApprovalDialog } from './instructor-approval-dialog';
@@ -28,6 +30,10 @@ import { InstructorTermsDialog } from './instructor-terms-dialog';
 import type { InstructorApprovalTabType } from '../types';
 
 export function AdminInstructorsView(): React.JSX.Element {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const {
     page,
     limit,
@@ -35,8 +41,6 @@ export function AdminInstructorsView(): React.JSX.Element {
     setSearchValue,
     setPage,
     setLimit,
-    setFilter,
-    getFilter,
     resetFilters,
     sorting,
     setSorting,
@@ -47,16 +51,23 @@ export function AdminInstructorsView(): React.JSX.Element {
   });
 
   // Selected tab: 'PENDING' | 'HISTORY'
-  const selectedTabArray = getFilter('tab');
-  const currentTab: InstructorApprovalTabType =
-    selectedTabArray.length === 1 && selectedTabArray[0] === 'HISTORY'
-      ? 'HISTORY'
-      : 'PENDING';
+  const urlTab = searchParams.get('tab');
+  const initialTab: InstructorApprovalTabType =
+    urlTab === 'HISTORY' ? 'HISTORY' : 'PENDING';
+  const [currentTab, setCurrentTab] = React.useState<InstructorApprovalTabType>(initialTab);
 
-  // Sub-status filter in History tab
-  const selectedStatusArray = getFilter('status');
-  const currentStatus =
-    selectedStatusArray.length === 1 ? selectedStatusArray[0] : 'ALL';
+  React.useEffect(() => {
+    const tabFromUrl = searchParams.get('tab') === 'HISTORY' ? 'HISTORY' : 'PENDING';
+    setCurrentTab(tabFromUrl);
+  }, [searchParams]);
+
+  // Sub-status filter in History tab: 'ALL' | 'APPROVED' | 'REJECTED'
+  const urlStatus = searchParams.get('status') || 'ALL';
+  const [currentStatus, setCurrentStatus] = React.useState<string>(urlStatus);
+
+  React.useEffect(() => {
+    setCurrentStatus(searchParams.get('status') || 'ALL');
+  }, [searchParams]);
 
   // Modal dialog states
   const [selectedApplication, setSelectedApplication] =
@@ -68,8 +79,18 @@ export function AdminInstructorsView(): React.JSX.Element {
 
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
 
+  // Query general pending count & rich stats overview
+  const statsQuery = useAdminInstructorApplicationsStatsQuery();
+  const pendingCountQuery = usePendingApplicationsCountQuery();
+
+  const pendingTotal =
+    statsQuery.data?.pendingCount ?? pendingCountQuery.data?.pendingCount ?? 0;
+  const approvedTotal = statsQuery.data?.approvedCount ?? 0;
+  const rejectedTotal = statsQuery.data?.rejectedCount ?? 0;
+  const historyTotal = approvedTotal + rejectedTotal;
+
   // Query Backend with real server-side parameters
-  const { data, isLoading, refetch } = useAdminInstructorApplicationsQuery({
+  const { data, isLoading } = useAdminInstructorApplicationsQuery({
     page,
     limit,
     tab: currentTab,
@@ -80,10 +101,6 @@ export function AdminInstructorsView(): React.JSX.Element {
     search: searchValue,
     sort: sortParam,
   });
-
-  // Query general pending count for badge
-  const pendingCountQuery = usePendingApplicationsCountQuery();
-  const pendingTotal = pendingCountQuery.data?.pendingCount ?? 0;
 
   // Pagination state bound to URL
   const pagination: PaginationState = React.useMemo(
@@ -115,8 +132,9 @@ export function AdminInstructorsView(): React.JSX.Element {
         onViewDetail: handleOpenDetail,
         onApprove: handleOpenApprove,
         onReject: handleOpenReject,
+        currentTab,
       }),
-    [],
+    [currentTab],
   );
 
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -146,17 +164,40 @@ export function AdminInstructorsView(): React.JSX.Element {
   });
 
   const handleTabChange = (newTab: InstructorApprovalTabType) => {
-    setFilter('tab', newTab === 'PENDING' ? [] : ['HISTORY']);
-    setPage(1);
+    setCurrentTab(newTab);
+    const params = new URLSearchParams(searchParams.toString());
+    if (newTab === 'HISTORY') {
+      params.set('tab', 'HISTORY');
+    } else {
+      params.delete('tab');
+      params.delete('status');
+      setCurrentStatus('ALL');
+    }
+    params.delete('page');
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
   const handleStatusChange = (statusValue: string) => {
+    setCurrentStatus(statusValue);
+    const params = new URLSearchParams(searchParams.toString());
     if (statusValue === 'ALL') {
-      setFilter('status', []);
+      params.delete('status');
     } else {
-      setFilter('status', [statusValue]);
+      params.set('status', statusValue);
     }
-    setPage(1);
+    params.delete('page');
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const handleResetFilters = () => {
+    resetFilters();
+    if (currentTab === 'HISTORY') {
+      setCurrentStatus('ALL');
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('status');
+      params.delete('page');
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
   };
 
   const isFiltered =
@@ -194,39 +235,19 @@ export function AdminInstructorsView(): React.JSX.Element {
             <Icon icon="lucide:file-text" className="size-3.5 text-primary" />
             <span>Thiết lập điều khoản</span>
           </Button>
-
-          {/* Refresh Button */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              void refetch();
-              void pendingCountQuery.refetch();
-            }}
-            className="text-xs h-9 gap-1.5 cursor-pointer"
-            title="Làm mới danh sách"
-          >
-            <Icon
-              icon="lucide:rotate-cw"
-              className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`}
-            />
-            <span className="hidden sm:inline">Làm mới</span>
-          </Button>
         </div>
       </div>
 
       {/* 2. Main 2 Tabs: Phê duyệt (PENDING) vs Lịch sử phê duyệt (HISTORY) */}
-      <div className="flex items-center justify-between border-b border-border/60 pb-1 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/60 pb-1 shrink-0">
         <div className="flex items-center gap-1 sm:gap-2">
           <button
             type="button"
             onClick={() => handleTabChange('PENDING')}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer border-b-2 ${
-              currentTab === 'PENDING'
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer border-b-2 ${currentTab === 'PENDING'
                 ? 'border-primary text-primary bg-primary/5'
                 : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            }`}
+              }`}
           >
             <Icon icon="lucide:clock" className="size-4" />
             <span>Phê duyệt</span>
@@ -240,53 +261,63 @@ export function AdminInstructorsView(): React.JSX.Element {
           <button
             type="button"
             onClick={() => handleTabChange('HISTORY')}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer border-b-2 ${
-              currentTab === 'HISTORY'
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer border-b-2 ${currentTab === 'HISTORY'
                 ? 'border-primary text-primary bg-primary/5'
                 : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            }`}
+              }`}
           >
             <Icon icon="lucide:history" className="size-4" />
             <span>Lịch sử phê duyệt</span>
+            {historyTotal > 0 && (
+              <span className="ml-1 text-[11px] font-bold px-1.5 py-0.2 rounded-full bg-muted text-muted-foreground">
+                {historyTotal}
+              </span>
+            )}
           </button>
         </div>
 
         {/* Sub-status filter when in HISTORY tab */}
         {currentTab === 'HISTORY' && (
-          <div className="hidden sm:flex items-center gap-1.5 text-xs">
-            <span className="text-muted-foreground">Lọc lịch sử:</span>
+          <div className="flex flex-wrap items-center gap-1.5 text-xs py-1">
+            <span className="text-muted-foreground hidden sm:inline">Lọc:</span>
             <button
               type="button"
               onClick={() => handleStatusChange('ALL')}
-              className={`px-2 py-1 rounded text-xs font-medium cursor-pointer ${
-                currentStatus === 'ALL'
-                  ? 'bg-secondary text-secondary-foreground font-semibold'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`px-2.5 py-1 rounded text-xs font-medium cursor-pointer transition-colors ${currentStatus === 'ALL'
+                  ? 'bg-secondary text-secondary-foreground font-semibold shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                }`}
             >
-              Tất cả
+              <span>Tất cả</span>
+              {historyTotal > 0 && (
+                <span className="ml-1.5 text-[10px] opacity-75 font-mono">({historyTotal})</span>
+              )}
             </button>
             <button
               type="button"
               onClick={() => handleStatusChange(InstructorApplicationStatusEnum.APPROVED)}
-              className={`px-2 py-1 rounded text-xs font-medium cursor-pointer ${
-                currentStatus === InstructorApplicationStatusEnum.APPROVED
+              className={`px-2.5 py-1 rounded text-xs font-medium cursor-pointer transition-colors ${currentStatus === InstructorApplicationStatusEnum.APPROVED
                   ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                }`}
             >
-              Đã duyệt
+              <span>Đã duyệt</span>
+              {approvedTotal > 0 && (
+                <span className="ml-1.5 text-[10px] opacity-75 font-mono">({approvedTotal})</span>
+              )}
             </button>
             <button
               type="button"
               onClick={() => handleStatusChange(InstructorApplicationStatusEnum.REJECTED)}
-              className={`px-2 py-1 rounded text-xs font-medium cursor-pointer ${
-                currentStatus === InstructorApplicationStatusEnum.REJECTED
+              className={`px-2.5 py-1 rounded text-xs font-medium cursor-pointer transition-colors ${currentStatus === InstructorApplicationStatusEnum.REJECTED
                   ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 font-semibold'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                }`}
             >
-              Đã từ chối
+              <span>Đã từ chối</span>
+              {rejectedTotal > 0 && (
+                <span className="ml-1.5 text-[10px] opacity-75 font-mono">({rejectedTotal})</span>
+              )}
             </button>
           </div>
         )}
@@ -321,7 +352,7 @@ export function AdminInstructorsView(): React.JSX.Element {
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => resetFilters()}
+            onClick={handleResetFilters}
             className="text-xs h-9 text-muted-foreground hover:text-foreground cursor-pointer self-start sm:self-auto"
           >
             <Icon icon="lucide:x" className="size-3.5 mr-1" />

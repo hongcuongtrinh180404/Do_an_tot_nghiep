@@ -13,10 +13,11 @@ ChatbotSearchModule
 ```
 
 `ChatbotModule` nền tảng vẫn không phụ thuộc database hoặc Gemini/Mindmap/Summary/Quiz.
-Module tìm kiếm được tích hợp trong `AppModule`, không kéo theo `CourseModule` và
+Module tìm kiếm được tích hợp qua `ChatbotHttpModule` trong `AppModule`, không kéo theo `CourseModule` và
 các dependency enrollment/media/payment. Catalog HTTP hiện tại không bị thay đổi.
 
-**Chưa có HTTP endpoint chat hoặc frontend** ở bước này. Có thể inject service để
+Đã có [HTTP API chat](./http-api.md) yêu cầu JWT qua `ChatbotHttpModule`.
+Frontend và lịch sử hội thoại chưa triển khai. Vẫn có thể inject service để
 sử dụng/test luồng hoàn chỉnh. Không thực hiện đăng ký, thanh toán, ghi dữ liệu
 hoặc tìm nội dung bài học riêng tư.
 

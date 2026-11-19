@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { ClsService } from 'nestjs-cls';
 import { AppModule } from './app.module.js';
 import { AuditContextInterceptor, TransformInterceptor } from './modules/base/index.js';
+import { CHATBOT_HTTP_EXPOSED_HEADERS } from './modules/chatbot/http/chatbot-http.constants.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
@@ -36,6 +37,7 @@ async function bootstrap() {
   app.enableCors({
     origin: corsOrigin,
     credentials: true,
+    exposedHeaders: CHATBOT_HTTP_EXPOSED_HEADERS,
   });
 
   const port = configService.get<number>('PORT', 8000);
