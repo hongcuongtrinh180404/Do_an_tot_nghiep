@@ -3,9 +3,11 @@ import { CourseLevelEnum } from 'share-lib';
 
 export const CHATBOT_MESSAGE_LIMIT = 2000;
 export const CHATBOT_REQUEST_TIMEOUT_MS = 45000;
+export const CHATBOT_CONTEXT_LIMIT = 8192;
 
 const filtersSchema = z.object({
   keyword: z.string().optional(),
+  relatedKeywords: z.array(z.string().min(1).max(100)).max(8).optional(),
   minPrice: z.number().int().nonnegative().optional(),
   maxPrice: z.number().int().nonnegative().optional(),
   maxPriceExclusive: z.boolean(),
@@ -30,6 +32,7 @@ export const chatbotReplySchema = z.object({
   requestId: z.string().uuid(),
   status: z.enum(['found', 'empty', 'page_empty', 'needs_clarification']),
   answer: z.string().min(1),
+  context: z.string().min(1).max(CHATBOT_CONTEXT_LIMIT).optional(),
   result: z.object({
     filtersApplied: filtersSchema,
     items: z.array(courseSchema).max(10),
@@ -60,6 +63,7 @@ export interface ChatbotFailure {
   requiresLogin: boolean;
   retryAt?: number;
   requestId?: string;
+  resetContext?: boolean;
 }
 
 export type ChatbotTurn = {

@@ -57,6 +57,13 @@ export class RevenueTransactionsQueryDto extends RevenueTimeRangeQueryDto {
   @IsString()
   @IsIn(['newest', 'oldest', 'amount_desc', 'amount_asc'])
   sort?: string = 'newest';
+
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : undefined,
+  )
+  status?: string;
 }
 
 export class InstructorsRevenueQueryDto extends RevenueTimeRangeQueryDto {

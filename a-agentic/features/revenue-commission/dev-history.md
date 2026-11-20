@@ -4,6 +4,32 @@
 
 ---
 
+## 2026-11-19: Tái thiết kế giao diện Danh sách giao dịch theo chuẩn design-taste-frontend
+
+- **Yêu cầu**:
+  - Chuyển đổi danh sách giao dịch từ dạng thẻ ngang (Card stack) sang bảng dữ liệu chuẩn (**Transaction Table**) với đúng 6 cột: Mã đơn hàng, Học viên, Khóa học, Số tiền thực nhận, Trạng thái, Thời gian giao dịch.
+  - Hỗ trợ 3 trạng thái giao dịch: **"Thành công"**, **"Thiếu tiền"**, **"Thừa tiền"** (tuân thủ **Purple Ban**, dùng palette Emerald / Amber / Sky).
+  - Tích hợp thanh lọc nhanh theo trạng thái (**Tất cả**, **Thành công**, **Thiếu tiền**, **Thừa tiền**) trên toolbar.
+  - Khi click vào bất kỳ hàng nào (hoặc nút hành động), mở slide-over drawer `TransactionDetailDrawer` chi tiết 5 nhóm thông tin.
+- **Triển khai**:
+  - **Shared Library (`share-lib`)**: Cập nhật `IRevenueTransactionItem` và `RevenueTransactionsParams` bổ sung `receivedAmount`, `status`, `reconciliationStatus`, `studentEmail`.
+  - **Backend (`backend/`)**:
+    - `RevenueTransactionsQueryDto`: Hỗ trợ param lọc `status`.
+    - `OrderRepository.findSuccessfulTransactions`: Mở rộng query để lấy cả các đơn hàng có thanh toán thực nhận (`status: PAID`, `lastPaymentStatus: UNDERPAID`, `receivedAmount > 0`), phân loại chính xác `reconciliationStatus` (`MATCHED`, `UNDERPAID`, `OVERPAID`).
+    - `RevenueService.getTransactions`: Truyền `status` vào repository.
+    - Chạy toàn bộ unit tests `revenue.service.spec.ts` vượt qua 100%.
+  - **Frontend (`frontend/`)**:
+    - Tạo `TransactionTable` (`transaction-table.tsx`): Bảng dữ liệu phẳng 1px tinh tế, căn phải số tiền font mono `tabular-nums`, badge trạng thái với chấm tròn đặc, interactive row với hover và keyboard accessibility (`Enter`/`Space`), thanh lọc nhanh trạng thái, toolbar tìm kiếm và sắp xếp, pagination đầy đủ.
+    - Cập nhật `RevenueView` (`revenue-view.tsx`): Tích hợp `TransactionTable`, quản lý state `statusFilter`.
+    - Cập nhật `TransactionDetailDrawer` (`transaction-detail-drawer.tsx`): Hiển thị badge trạng thái chuẩn màu và hiển thị chi tiết số tiền thiếu / thừa tại Nhóm 4 nếu có chênh lệch.
+    - Viết unit test `transaction-table.spec.ts` kiểm thử phân loại trạng thái, đạt 100% test pass.
+- **Kết quả kiểm thử**:
+  - Backend vitest: 17/17 passed.
+  - Frontend vitest: 4/4 passed.
+  - Frontend typecheck (`tsc --noEmit`): 0 error.
+
+---
+
 ## 2026-11-18: Cập nhật nhãn tab Sidebar Admin
 
 - **Yêu cầu**: Đổi tiêu đề tab trên sidebar Admin từ `"Quản lý Đơn hàng, Giao dịch & Doanh thu"` thành `"Quản Lý Doanh Thu & Hoa Hồng"`.

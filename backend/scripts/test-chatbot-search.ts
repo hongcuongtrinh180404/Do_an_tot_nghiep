@@ -17,6 +17,10 @@ import { SearchCoursesTool } from '../src/modules/chatbot/tools/search-courses.t
 import { PublicCourseSearchService } from '../src/modules/course/services/public-course-search.service.js';
 import { PublicCourseSearchRepository } from '../src/modules/course/repositories/public-course-search.repository.js';
 import {
+  courseTopicPattern,
+  publicCourseDescriptionText,
+} from '../src/modules/course/utils/public-course-search.pipeline.js';
+import {
   CourseEntity,
   CourseSchema,
 } from '../src/modules/course/schemas/course.schema.js';
@@ -71,11 +75,13 @@ async function main(): Promise<void> {
       label: string;
       question: string;
       filters: Record<string, unknown>;
+      expansion?: 'required' | 'forbidden';
     }> = [
       {
         label: 'react',
         question: 'Có khóa học React không?',
         filters: { keyword: 'React' },
+        expansion: 'forbidden',
       },
       {
         label: 'under_500k',
@@ -86,6 +92,7 @@ async function main(): Promise<void> {
         label: 'python_beginner',
         question: 'Tìm khóa Python cho người mới',
         filters: { keyword: 'Python', level: 'beginner' },
+        expansion: 'forbidden',
       },
       {
         label: 'free',
@@ -98,9 +105,40 @@ async function main(): Promise<void> {
         filters: { keyword: 'thiết kế', minPrice: 200000, maxPrice: 500000 },
       },
       {
+        label: 'programming_under_20k',
+        question: 'Có khóa học lập trình dưới 20k không?',
+        filters: {
+          keyword: 'lập trình',
+          maxPrice: 20000,
+          maxPriceExclusive: true,
+        },
+        expansion: 'required',
+      },
+      {
+        label: 'website_under_200k',
+        question: 'Tôi muốn học làm website, có khóa nào dưới 200k không?',
+        filters: {
+          keyword: 'làm website',
+          maxPrice: 200000,
+          maxPriceExclusive: true,
+        },
+        expansion: 'required',
+      },
+      {
+        label: 'backend_under_200k',
+        question: 'Có khóa học backend dưới 200k không?',
+        filters: {
+          keyword: 'backend',
+          maxPrice: 200000,
+          maxPriceExclusive: true,
+        },
+        expansion: 'required',
+      },
+      {
         label: 'empty',
         question: `Tìm khóa học với từ khóa chính xác "${absentKeyword}"`,
         filters: { keyword: absentKeyword },
+        expansion: 'forbidden',
       },
     ];
     // Keep the default run to the five acceptance questions. Run the empty-result
@@ -116,22 +154,34 @@ async function main(): Promise<void> {
     );
     const selected = selectedCase
       ? cases.filter((testCase) => testCase.label === selectedCase)
-      : cases.filter((testCase) => testCase.label !== 'empty');
+      : cases.slice(0, 5);
     const results: Array<{
       case: string;
       status: string;
       total: number;
       displayed: number;
+      expandedTerms: number;
     }> = [];
     for (const testCase of selected) {
       stage = testCase.label;
       const reply = await search.search(testCase.question);
       const actual = reply.result;
       assert.ok(actual);
+      const { relatedKeywords, ...hardAndPrimaryFilters } =
+        actual.filtersApplied;
       assert.deepEqual(
-        actual.filtersApplied,
+        hardAndPrimaryFilters,
         parseSearchCoursesArguments(JSON.stringify(testCase.filters)),
       );
+      if (testCase.expansion === 'required') assert.ok(relatedKeywords?.length);
+      if (testCase.expansion === 'forbidden')
+        assert.equal(relatedKeywords, undefined);
+      assert.ok((relatedKeywords?.length ?? 0) <= 8);
+      for (const term of relatedKeywords ?? []) {
+        assert.ok(
+          !/^(IT|CNTT|công nghệ thông tin|học|phát triển|cơ bản)$/iu.test(term),
+        );
+      }
       const filters = actual.filtersApplied;
       for (const item of actual.items) {
         const doc = await courses
@@ -140,7 +190,7 @@ async function main(): Promise<void> {
             status: CourseStatusEnum.PUBLISHED,
             deletedAt: null,
           })
-          .select('title price level categoryId')
+          .select('title price level categoryId description tags')
           .lean()
           .exec();
         assert.ok(doc);
@@ -159,19 +209,25 @@ async function main(): Promise<void> {
           );
         if (filters.isFree !== undefined)
           assert.equal(doc.price === 0, filters.isFree);
-        if (
-          filters.keyword &&
-          !doc.title.toLowerCase().includes(filters.keyword.toLowerCase())
-        ) {
+        if (filters.keyword) {
           const category = await categories
             .findOne({ _id: doc.categoryId, isActive: true, deletedAt: null })
             .lean()
             .exec();
-          assert.ok(
-            category?.name
-              .toLowerCase()
-              .includes(filters.keyword.toLowerCase()),
+          const pattern = new RegExp(
+            courseTopicPattern([
+              filters.keyword,
+              ...(filters.relatedKeywords ?? []),
+            ]),
+            'iu',
           );
+          const text = [
+            doc.title,
+            ...(doc.tags ?? []),
+            category?.name ?? '',
+            publicCourseDescriptionText(doc.description ?? ''),
+          ];
+          assert.ok(text.some((field) => pattern.test(field)));
         }
       }
       if (testCase.label === 'empty') {
@@ -187,6 +243,7 @@ async function main(): Promise<void> {
         status: reply.status,
         total: actual.total,
         displayed: actual.items.length,
+        expandedTerms: relatedKeywords?.length ?? 0,
       });
       console.log(
         JSON.stringify({ ...results.at(-1), verification: 'passed' }),

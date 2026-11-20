@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type Model, Types } from 'mongoose';
+import { type Model, type PipelineStage, Types } from 'mongoose';
 import { CourseLevelEnum } from 'share-lib';
 import type { CourseEntity } from '../schemas/course.schema.js';
 import type { CourseCategoryEntity } from '../schemas/course-category.schema.js';
@@ -8,96 +8,78 @@ import {
   PUBLIC_COURSE_SEARCH_TIMEOUT_MS,
 } from '../repositories/public-course-search.repository.js';
 import type { PublicCourseSearchFilters } from '../interfaces/public-course-search.interface.js';
-
-function queryChain(value: unknown) {
-  return {
-    select: vi.fn().mockReturnThis(),
-    sort: vi.fn().mockReturnThis(),
-    skip: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-    populate: vi.fn().mockReturnThis(),
-    maxTimeMS: vi.fn().mockReturnThis(),
-    lean: vi.fn().mockReturnThis(),
-    exec: vi.fn().mockResolvedValue(value),
-  };
-}
+import {
+  courseTopicPattern,
+  publicCourseDescriptionText,
+} from '../utils/public-course-search.pipeline.js';
 
 describe('PublicCourseSearchRepository', () => {
   let repository: PublicCourseSearchRepository;
-  let list: ReturnType<typeof queryChain>;
-  let count: ReturnType<typeof queryChain>;
-  let categoryList: ReturnType<typeof queryChain>;
-  let courses: {
-    find: ReturnType<typeof vi.fn>;
-    countDocuments: ReturnType<typeof vi.fn>;
-  };
-  let categories: { find: ReturnType<typeof vi.fn> };
+  const aggregation = { option: vi.fn(), exec: vi.fn() };
+  const courses = { aggregate: vi.fn() };
   const defaults: PublicCourseSearchFilters = {
     page: 1,
     limit: 5,
     maxPriceExclusive: false,
   };
+  const pipeline = () =>
+    courses.aggregate.mock.calls.at(-1)![0] as PipelineStage[];
 
   beforeEach(() => {
-    list = queryChain([]);
-    count = queryChain(0);
-    categoryList = queryChain([]);
-    courses = {
-      find: vi.fn().mockReturnValue(list),
-      countDocuments: vi.fn().mockReturnValue(count),
-    };
-    categories = { find: vi.fn().mockReturnValue(categoryList) };
+    courses.aggregate.mockReset().mockReturnValue(aggregation);
+    aggregation.option.mockReset().mockReturnValue(aggregation);
+    aggregation.exec
+      .mockReset()
+      .mockResolvedValue([{ metadata: [], items: [] }]);
     repository = new PublicCourseSearchRepository(
       courses as unknown as Model<CourseEntity>,
-      categories as unknown as Model<CourseCategoryEntity>,
+      {
+        collection: { name: 'course_categories' },
+      } as Model<CourseCategoryEntity>,
     );
   });
 
-  it('always requires published and non-deleted courses for both rows and total', async () => {
+  it('hard-filters public courses before any lookup/scoring and uses one bounded read-only aggregate', async () => {
     await repository.search(defaults);
-    const query = { status: 'published', deletedAt: null, price: { $gte: 0 } };
-    expect(courses.find).toHaveBeenCalledWith(query);
-    expect(courses.countDocuments).toHaveBeenCalledWith(query);
-    expect(categories.find).not.toHaveBeenCalled();
-    expect(list.select).toHaveBeenCalledWith(
-      '_id title price level categoryId',
+    expect(pipeline()[0]).toEqual({
+      $match: { status: 'published', deletedAt: null, price: { $gte: 0 } },
+    });
+    expect(courses.aggregate).toHaveBeenCalledOnce();
+    expect(aggregation.option).toHaveBeenCalledWith({
+      maxTimeMS: PUBLIC_COURSE_SEARCH_TIMEOUT_MS,
+      allowDiskUse: false,
+    });
+    expect(JSON.stringify(pipeline())).not.toMatch(
+      /\$(?:out|merge|function|where)"/,
     );
-    expect(list.sort).toHaveBeenCalledWith({ createdAt: -1, _id: -1 });
-    expect(list.skip).toHaveBeenCalledWith(0);
-    expect(list.limit).toHaveBeenCalledWith(5);
-    expect(list.maxTimeMS).toHaveBeenCalledWith(
-      PUBLIC_COURSE_SEARCH_TIMEOUT_MS,
-    );
-    expect(count.maxTimeMS).toHaveBeenCalledWith(
-      PUBLIC_COURSE_SEARCH_TIMEOUT_MS,
-    );
+    expect(pipeline()[1]).not.toHaveProperty('$project.description');
+    expect(pipeline().at(-1)).toMatchObject({
+      $facet: {
+        metadata: [{ $count: 'total' }],
+        items: [
+          { $sort: { createdAt: -1, _id: -1 } },
+          { $skip: 0 },
+          { $limit: 5 },
+          { $project: { title: 1, price: 1, level: 1, categoryName: 1 } },
+        ],
+      },
+    });
   });
 
-  it('matches escaped literal keyword in title OR active category name', async () => {
-    const categoryId = new Types.ObjectId();
-    categoryList.exec.mockResolvedValue([{ _id: categoryId }]);
+  it('looks up only active non-deleted category names', async () => {
     await repository.search({ ...defaults, keyword: 'React.js (C++)' });
-    const regex = { $regex: 'React\\.js \\(C\\+\\+\\)', $options: 'i' };
-    expect(categories.find).toHaveBeenCalledWith({
-      name: regex,
-      isActive: true,
-      deletedAt: null,
+    expect(pipeline()).toContainEqual({
+      $lookup: {
+        from: 'course_categories',
+        localField: 'categoryId',
+        foreignField: '_id',
+        pipeline: [
+          { $match: { isActive: true, deletedAt: null } },
+          { $project: { _id: 0, name: 1 } },
+        ],
+        as: '_searchCategory',
+      },
     });
-    expect(categoryList.select).toHaveBeenCalledWith('_id');
-    expect(courses.find).toHaveBeenCalledWith(
-      expect.objectContaining({
-        $or: [{ title: regex }, { categoryId: { $in: [categoryId] } }],
-        status: 'published',
-        deletedAt: null,
-      }),
-    );
-    expect(list.populate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        path: 'categoryId',
-        select: 'name',
-        match: { isActive: true, deletedAt: null },
-      }),
-    );
   });
 
   it.each([
@@ -119,9 +101,7 @@ describe('PublicCourseSearchRepository', () => {
     'applies the precise current-price predicates (%j)',
     async (filters, expected) => {
       await repository.search({ ...defaults, ...filters });
-      expect(courses.find).toHaveBeenCalledWith(
-        expect.objectContaining({ price: expected }),
-      );
+      expect(pipeline()[0]).toHaveProperty('$match.price', expected);
     },
   );
 
@@ -134,36 +114,69 @@ describe('PublicCourseSearchRepository', () => {
       page: 3,
       limit: 10,
     });
-    expect(courses.find).toHaveBeenCalledWith({
-      status: 'published',
-      deletedAt: null,
-      $or: [
-        { title: { $regex: 'Python', $options: 'i' } },
-        { categoryId: { $in: [] } },
-      ],
-      level: 'beginner',
-      price: { $gte: 0, $lte: 500000 },
+    expect(pipeline()[0]).toEqual({
+      $match: {
+        status: 'published',
+        deletedAt: null,
+        level: 'beginner',
+        price: { $gte: 0, $lte: 500000 },
+      },
     });
-    expect(list.skip).toHaveBeenCalledWith(20);
-    expect(list.limit).toHaveBeenCalledWith(10);
+    expect(pipeline()).toContainEqual({ $match: { _searchScore: { $gt: 0 } } });
+    expect(pipeline().at(-1)).toMatchObject({
+      $facet: {
+        items: [
+          { $sort: { _searchScore: -1, createdAt: -1, _id: -1 } },
+          { $skip: 20 },
+          { $limit: 10 },
+          expect.any(Object),
+        ],
+      },
+    });
+  });
+
+  it('scores title/tags/category/public description for the original topic OR alternatives', async () => {
+    await repository.search({
+      ...defaults,
+      keyword: 'backend',
+      relatedKeywords: ['NestJS', 'REST API'],
+    });
+    const text = JSON.stringify(pipeline());
+    for (const field of [
+      '$title',
+      '$_searchTags',
+      '$categoryName',
+      '$_searchDescription',
+    ]) {
+      expect(text).toContain(field);
+    }
+    expect(text).toContain('backend');
+    expect(text).toContain('NestJS|REST');
+    expect(text).toContain('$regexFindAll');
   });
 
   it('constructs a narrow public result and server-owned link, stripping private fields', async () => {
     const id = new Types.ObjectId();
-    list.exec.mockResolvedValue([
+    aggregation.exec.mockResolvedValue([
       {
-        _id: id,
-        title: 'Python — Cơ bản',
-        price: 200000,
-        level: CourseLevelEnum.BEGINNER,
-        categoryId: { name: 'Lập trình', secret: 'category-secret' },
-        description: 'private-description',
-        instructor: { email: 'private@example.com' },
-        reviewedById: 'private-reviewer',
-        url: 'https://malicious.example',
+        metadata: [{ total: 1 }],
+        items: [
+          {
+            _id: id,
+            title: 'Python — Cơ bản',
+            price: 200000,
+            level: CourseLevelEnum.BEGINNER,
+            categoryName: 'Lập trình',
+            description: 'private-description',
+            instructor: { email: 'private@example.com' },
+            reviewedById: 'private-reviewer',
+            url: 'https://malicious.example',
+            _searchScore: 12345,
+            tags: ['private-extra-tag'],
+          },
+        ],
       },
     ]);
-    count.exec.mockResolvedValue(1);
     expect(await repository.search(defaults)).toEqual({
       total: 1,
       items: [
@@ -180,17 +193,72 @@ describe('PublicCourseSearchRepository', () => {
   });
 
   it('represents a hidden/missing category as null without excluding public title matches', async () => {
-    list.exec.mockResolvedValue([
+    aggregation.exec.mockResolvedValue([
       {
-        _id: new Types.ObjectId(),
-        title: 'React',
-        price: 0,
-        level: CourseLevelEnum.ALL_LEVELS,
-        categoryId: null,
+        metadata: [{ total: 1 }],
+        items: [
+          {
+            _id: new Types.ObjectId(),
+            title: 'React',
+            price: 0,
+            level: CourseLevelEnum.ALL_LEVELS,
+            categoryName: null,
+          },
+        ],
       },
     ]);
     expect(
       (await repository.search(defaults)).items[0].categoryName,
     ).toBeNull();
+  });
+
+  it('distinguishes no matches from an empty out-of-range page', async () => {
+    expect(await repository.search(defaults)).toEqual({ items: [], total: 0 });
+    aggregation.exec.mockResolvedValue([
+      { items: [], metadata: [{ total: 11 }] },
+    ]);
+    expect(await repository.search({ ...defaults, page: 5 })).toEqual({
+      items: [],
+      total: 11,
+    });
+  });
+});
+
+describe('Public search literal text helpers', () => {
+  it('escapes regex/operator syntax without matching arbitrary courses', () => {
+    const pattern = new RegExp(
+      courseTopicPattern(['React.js (C++)', '.*', '$title']),
+      'iu',
+    );
+    expect(pattern.test('Học React.js (C++)')).toBe(true);
+    expect(pattern.test('Học ReactXjs C')).toBe(false);
+    expect(pattern.test('Anything')).toBe(false);
+    expect(pattern.test('literal .* topic')).toBe(true);
+    expect(pattern.test('literal $title topic')).toBe(true);
+  });
+
+  it('uses Unicode boundaries, avoiding accidental short-term/substring matches', () => {
+    const pattern = new RegExp(
+      courseTopicPattern(['API', 'Java', 'lập trình']),
+      'iu',
+    );
+    expect(pattern.test('REST API với NestJS')).toBe(true);
+    expect(pattern.test('capital markets')).toBe(false);
+    expect(pattern.test('JavaScript')).toBe(false);
+    expect(pattern.test('Học lập trình')).toBe(true);
+    expect(pattern.test('áAPIá')).toBe(false);
+    expect(
+      new RegExp(courseTopicPattern(['REST API']), 'iu').test('REST \n API'),
+    ).toBe(true);
+  });
+
+  it('extracts description text, not HTML attributes/comments/scripts/styles', () => {
+    const html =
+      '<!-- NestJS --><style>.backend{}</style><script>React()</script>' +
+      '<p title="Django" class="frontend">HTML&nbsp;&amp; CSS</p><p>REST API</p>';
+    const text = publicCourseDescriptionText(html);
+    expect(text).toContain('HTML & CSS');
+    expect(text).toContain('REST API');
+    expect(text).not.toMatch(/NestJS|backend|React|Django|frontend/);
   });
 });

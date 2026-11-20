@@ -4,7 +4,6 @@ import React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { RoleEnum } from 'share-lib';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +14,11 @@ import { GoogleLoginButton } from './google-login-button';
 import { ForgotPasswordModal } from './forgot-password-modal';
 import { loginSchema, type LoginFormData } from '../schemas/login.schema';
 import { useLoginMutation } from '../api/auth.api';
-import { authPathWithReturn, getAuthReturnPath } from '../utils/auth-return-path';
+import {
+  authPathWithReturn,
+  getAuthReturnPath,
+  getPostLoginRedirectPath,
+} from '../utils/auth-return-path';
 
 export function LoginForm(): React.JSX.Element {
   const router = useRouter();
@@ -48,11 +51,7 @@ export function LoginForm(): React.JSX.Element {
       },
       {
         onSuccess: (authData) => {
-          if (authData.user.role === RoleEnum.ADMIN) {
-            router.push('/admin');
-          } else {
-            router.push(returnTo ?? '/');
-          }
+          router.push(getPostLoginRedirectPath(authData.user, returnTo));
         },
       },
     );

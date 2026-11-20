@@ -115,4 +115,72 @@ describe('Chat session lifecycle', () => {
     expect(chat.turns).toEqual([]);
     expect(chat.send('Retry')).toBe(false);
   });
+
+  it('uses only the latest successful signed context for follow-ups, without transmitting history', async () => {
+    vi.mocked(sendChatbotMessage)
+      .mockResolvedValueOnce({ reply: { ...foundReply(), context: 'context-a' } })
+      .mockResolvedValueOnce({ reply: { ...foundReply(), context: 'context-b' } });
+    await act(async () => { chat.send('Backend dưới 200k'); });
+    await act(async () => { chat.send('Chỉ dành cho người mới'); });
+    expect(sendChatbotMessage).toHaveBeenLastCalledWith('Chỉ dành cho người mới', expect.any(AbortSignal), 'context-a');
+    await act(async () => { chat.send('Xem thêm'); });
+    expect(sendChatbotMessage).toHaveBeenLastCalledWith('Xem thêm', expect.any(AbortSignal), 'context-b');
+  });
+
+  it('clearing drops context and ignores a cancelled response that tries to restore it', async () => {
+    vi.mocked(sendChatbotMessage).mockResolvedValueOnce({ reply: { ...foundReply(), context: 'old-context' } });
+    await act(async () => { chat.send('Backend'); });
+    let finish!: (result: Awaited<ReturnType<typeof sendChatbotMessage>>) => void;
+    vi.mocked(sendChatbotMessage).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    act(() => { chat.send('Xem thêm'); });
+    act(() => chat.clear());
+    await act(async () => { finish({ reply: { ...foundReply(), context: 'late-context' } }); });
+    await act(async () => { chat.send('Python'); });
+    expect(sendChatbotMessage).toHaveBeenLastCalledWith('Python', expect.any(AbortSignal));
+    expect(chat.turns).toHaveLength(1);
+  });
+
+  it('does not carry a previous account context into another account', async () => {
+    vi.mocked(sendChatbotMessage).mockResolvedValueOnce({ reply: { ...foundReply(), context: 'account-a-context' } });
+    await act(async () => { chat.send('Backend'); });
+    mount('account-b');
+    await act(async () => { chat.send('Xem thêm'); });
+    expect(sendChatbotMessage).toHaveBeenLastCalledWith('Xem thêm', expect.any(AbortSignal));
+  });
+
+  it('retains context after clarification/provider failure, and retries using the original request context', async () => {
+    vi.mocked(sendChatbotMessage).mockResolvedValueOnce({ reply: { ...foundReply(), context: 'context-a' } });
+    await act(async () => { chat.send('Backend'); });
+    vi.mocked(sendChatbotMessage).mockRejectedValueOnce(new AxiosError('offline', 'ERR_NETWORK'));
+    await act(async () => { chat.send('Xem thêm'); });
+    await act(async () => { chat.retry(chat.turns[1]); });
+    expect(sendChatbotMessage).toHaveBeenLastCalledWith('Xem thêm', expect.any(AbortSignal), 'context-a');
+    vi.mocked(sendChatbotMessage).mockResolvedValueOnce({ reply: {
+      requestId: foundReply().requestId, status: 'needs_clarification', answer: 'Bạn đã xem hết kết quả.',
+    } });
+    await act(async () => { chat.send('Xem thêm'); });
+    await act(async () => { chat.send('Chỉ cho người mới'); });
+    expect(sendChatbotMessage).toHaveBeenLastCalledWith('Chỉ cho người mới', expect.any(AbortSignal), 'context-a');
+  });
+
+  it('drops an expired context without logging out and starts the next question fresh', async () => {
+    vi.mocked(sendChatbotMessage).mockResolvedValueOnce({ reply: { ...foundReply(), context: 'expired-context' } });
+    await act(async () => { chat.send('Backend'); });
+    vi.mocked(sendChatbotMessage).mockRejectedValueOnce({
+      isAxiosError: true, response: { status: 400, data: { code: 'CHATBOT_CONTEXT_INVALID' }, headers: {} },
+    });
+    await act(async () => { chat.send('Xem thêm'); });
+    expect(chat.requiresLogin).toBe(false);
+    await act(async () => { chat.send('Python dưới 200k'); });
+    expect(sendChatbotMessage).toHaveBeenLastCalledWith('Python dưới 200k', expect.any(AbortSignal));
+  });
+
+  it('does not retry an older failed branch after a newer question has been sent', async () => {
+    vi.mocked(sendChatbotMessage).mockRejectedValueOnce(new AxiosError('offline', 'ERR_NETWORK'));
+    await act(async () => { chat.send('Backend'); });
+    const failed = chat.turns[0];
+    await act(async () => { chat.send('Yoga'); });
+    act(() => expect(chat.retry(failed)).toBe(false));
+    expect(sendChatbotMessage).toHaveBeenCalledTimes(2);
+  });
 });

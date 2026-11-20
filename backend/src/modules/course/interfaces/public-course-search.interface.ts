@@ -3,6 +3,8 @@ import type { CourseLevelEnum } from 'share-lib';
 /** Normalized, server-validated filters. Prices are integer VND. */
 export interface PublicCourseSearchFilters {
   keyword?: string;
+  /** AI-expanded alternatives for a broad learning goal; never relax non-topic filters. */
+  relatedKeywords?: readonly string[];
   minPrice?: number;
   maxPrice?: number;
   maxPriceExclusive: boolean;

@@ -94,6 +94,37 @@ describe('Chatbot HTTP client and auth integration', () => {
     expect(result.retryAt).toBeGreaterThanOrEqual(now + 60000);
   });
 
+  it('sends the opaque server context only when continuing a conversation', async () => {
+    adapter.mockImplementationOnce(async (config) => response(config, 200, {
+      success: true, data: { ...foundReply(), context: 'next-server-context' },
+    }));
+    const result = await sendChatbotMessage('Xem thêm', new AbortController().signal, 'previous-server-context');
+    expect(JSON.parse(adapter.mock.calls[0][0].data)).toEqual({
+      message: 'Xem thêm', context: 'previous-server-context',
+    });
+    expect(result.reply.context).toBe('next-server-context');
+  });
+
+  it('accepts bounded AI-expanded filters while rendering only actual returned courses', async () => {
+    const reply = foundReply();
+    reply.result!.filtersApplied = {
+      keyword: 'làm website', relatedKeywords: ['HTML', 'CSS', 'React'],
+      maxPrice: 200000, maxPriceExclusive: true, page: 1, limit: 5,
+    };
+    reply.result!.items[0].price = 150000;
+    adapter.mockImplementationOnce(async (config) => response(config, 200, { success: true, data: reply }));
+    const result = await sendChatbotMessage('Học làm website dưới 200k', new AbortController().signal);
+    expect(result.reply.result?.filtersApplied.relatedKeywords).toEqual(['HTML', 'CSS', 'React']);
+    expect(result.reply.result?.items).toEqual(reply.result!.items);
+  });
+
+  it('rejects overlong/unbounded expanded filter metadata', async () => {
+    const reply = foundReply();
+    reply.result!.filtersApplied.relatedKeywords = Array(9).fill('React');
+    adapter.mockImplementationOnce(async (config) => response(config, 200, { success: true, data: reply }));
+    await expect(sendChatbotMessage('Website', new AbortController().signal)).rejects.toThrow();
+  });
+
   it.each(['javascript:alert(1)', '//external.example', '/courses/another-id', 'https://external.example'])(
     'rejects unsafe or inconsistent course URLs: %s', async (url) => {
       const reply = foundReply();
@@ -124,6 +155,11 @@ describe('Safe error messages and retry hints', () => {
   it('shows authentication action only for Mindly 401, not provider 503', () => {
     expect(chatbotFailure(httpError(401)).requiresLogin).toBe(true);
     expect(chatbotFailure(httpError(503)).requiresLogin).toBe(false);
+  });
+  it('marks invalid context as a fresh-start error, not authentication failure', () => {
+    expect(chatbotFailure(httpError(400, {}, { code: 'CHATBOT_CONTEXT_INVALID' }))).toMatchObject({
+      resetContext: true, requiresLogin: false, retryable: false,
+    });
   });
   it('does not echo arbitrary error bodies, HTML or invalid request IDs', () => {
     expect(JSON.stringify(chatbotFailure(httpError(503, {}, {

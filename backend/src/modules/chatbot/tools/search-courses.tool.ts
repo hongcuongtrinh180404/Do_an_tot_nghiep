@@ -3,10 +3,13 @@ import { PublicCourseSearchService } from '../../course/services/public-course-s
 import type { PublicCourseSearchResult } from '../../course/interfaces/public-course-search.interface.js';
 import { ChatbotAiError } from '../chatbot.errors.js';
 import {
-  parseSearchCoursesArguments,
   SEARCH_COURSES_DEFINITION,
   SearchCoursesError,
 } from './search-courses.contract.js';
+import {
+  resolveSearchCoursesArguments,
+  type ChatbotSearchContext,
+} from './search-courses.context.js';
 
 @Injectable()
 export class SearchCoursesTool {
@@ -20,8 +23,9 @@ export class SearchCoursesTool {
   async execute(
     rawArguments: string,
     signal?: AbortSignal,
+    context?: ChatbotSearchContext,
   ): Promise<PublicCourseSearchResult> {
-    const filters = parseSearchCoursesArguments(rawArguments);
+    const filters = resolveSearchCoursesArguments(rawArguments, context);
     if (signal?.aborted) throw new ChatbotAiError('CHATBOT_CANCELLED');
     try {
       const result = await this.searchService.search(filters);

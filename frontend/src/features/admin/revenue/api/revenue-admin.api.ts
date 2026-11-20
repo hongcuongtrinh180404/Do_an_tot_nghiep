@@ -35,6 +35,7 @@ export interface RevenueTransactionsParams extends RevenueTimeRangeParams {
   limit?: number;
   search?: string;
   sort?: string;
+  status?: string;
 }
 
 export interface InstructorsRevenueParams extends RevenueTimeRangeParams {

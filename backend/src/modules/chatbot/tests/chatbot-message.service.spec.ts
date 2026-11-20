@@ -4,6 +4,8 @@ import { ChatbotAiError } from '../chatbot.errors.js';
 import { ChatbotMessageService } from '../http/chatbot-message.service.js';
 import { CHATBOT_HTTP_TIMEOUT_MS } from '../http/chatbot-http.constants.js';
 import type { ChatbotSearchService } from '../services/chatbot-search.service.js';
+import { ChatbotContextService } from '../http/chatbot-context.service.js';
+import { ConfigService } from '@nestjs/config';
 
 describe('ChatbotMessageService lifecycle', () => {
   let search: ReturnType<typeof vi.fn>;
@@ -12,15 +14,18 @@ describe('ChatbotMessageService lifecycle', () => {
 
   beforeEach(() => {
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
-    search = vi
-      .fn()
-      .mockResolvedValue({
-        status: 'needs_clarification',
-        answer: 'Cần làm rõ.',
-      });
-    service = new ChatbotMessageService({
-      search,
-    } as unknown as ChatbotSearchService);
+    search = vi.fn().mockResolvedValue({
+      status: 'needs_clarification',
+      answer: 'Cần làm rõ.',
+    });
+    service = new ChatbotMessageService(
+      {
+        search,
+      } as unknown as ChatbotSearchService,
+      new ChatbotContextService(
+        new ConfigService({ JWT_SECRET: 'synthetic-context-secret' }),
+      ),
+    );
   });
 
   afterEach(() => {

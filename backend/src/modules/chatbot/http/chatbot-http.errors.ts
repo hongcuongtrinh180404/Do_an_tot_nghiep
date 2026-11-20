@@ -1,10 +1,12 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ChatbotAiError, type ChatbotAiErrorCode } from '../chatbot.errors.js';
+import { ChatbotContextError } from './chatbot-context.service.js';
 
 type ChatbotHttpErrorCode =
   | ChatbotAiErrorCode
   | 'CHATBOT_HTTP_RATE_LIMITED'
   | 'CHATBOT_SEARCH_UNAVAILABLE'
+  | 'CHATBOT_CONTEXT_INVALID'
   | 'CHATBOT_INTERNAL_ERROR';
 
 const UNAVAILABLE =
@@ -65,6 +67,15 @@ export function mapChatbotHttpError(
   error: unknown,
   requestId: string,
 ): HttpException {
+  if (error instanceof ChatbotContextError) {
+    return chatbotHttpException(
+      'CHATBOT_CONTEXT_INVALID',
+      HttpStatus.BAD_REQUEST,
+      'Ngữ cảnh tìm kiếm đã hết hạn hoặc không hợp lệ. Bạn vui lòng nêu lại chủ đề và điều kiện.',
+      false,
+      requestId,
+    );
+  }
   if (!(error instanceof ChatbotAiError)) {
     return chatbotHttpException(
       'CHATBOT_INTERNAL_ERROR',

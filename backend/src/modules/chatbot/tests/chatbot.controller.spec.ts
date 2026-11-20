@@ -33,6 +33,7 @@ describe('ChatbotController connection cleanup', () => {
       { message: 'React' },
       request,
       response as unknown as Response,
+      'account-a',
     );
     expect(signal?.aborted).toBe(false);
     response.emit('close');
@@ -50,6 +51,7 @@ describe('ChatbotController connection cleanup', () => {
         { message: 'React' },
         request,
         response as unknown as Response,
+        'account-a',
       ),
     ).rejects.toThrow('safe test failure');
     expect(response.listenerCount('close')).toBe(0);
@@ -69,6 +71,7 @@ describe('ChatbotController connection cleanup', () => {
       { message: 'React' },
       request,
       response as unknown as Response,
+      'account-a',
     );
     response.writableEnded = true;
     response.emit('close');
@@ -89,6 +92,7 @@ describe('ChatbotController connection cleanup', () => {
       { message: 'React' },
       request,
       response as unknown as Response,
+      'account-a',
     );
     expect((respond.mock.calls[0][2] as AbortSignal).aborted).toBe(true);
   });

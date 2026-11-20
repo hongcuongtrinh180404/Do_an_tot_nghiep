@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { chatbotFailure, sendChatbotMessage } from '../api/chatbot.api';
 import { CHATBOT_MESSAGE_LIMIT, type ChatbotTurn } from '../chatbot.contract';
 
-/** Component-local, stateless requests. The owner keys this hook's component by account ID. */
+/** Ephemeral search context, scoped to the account-keyed component; never persisted. */
 export function useChatbot() {
   const [turns, setTurns] = useState<ChatbotTurn[]>([]);
   const [retryAt, setRetryAt] = useState(0);
@@ -12,6 +12,8 @@ export function useChatbot() {
   const [requiresLogin, setRequiresLogin] = useState(false);
   const active = useRef<AbortController | null>(null);
   const cooldown = useRef(0);
+  const context = useRef<string | undefined>(undefined);
+  const lastRequest = useRef<{ id: string; context?: string } | null>(null);
 
   useEffect(() => () => {
     active.current?.abort();
@@ -33,10 +35,13 @@ export function useChatbot() {
     const message = text.trim();
     if (!message || message.length > CHATBOT_MESSAGE_LIMIT || requiresLogin
       || active.current || cooldown.current > Date.now()) return false;
+    if (retryId && lastRequest.current?.id !== retryId) return false;
 
     const controller = new AbortController();
     active.current = controller;
     const id = retryId ?? crypto.randomUUID();
+    const requestContext = retryId ? lastRequest.current?.context : context.current;
+    lastRequest.current = { id, context: requestContext };
     const pending: ChatbotTurn = { id, message, status: 'pending' };
     setTurns((previous) => retryId
       ? previous.map((turn) => turn.id === retryId ? pending : turn)
@@ -50,17 +55,23 @@ export function useChatbot() {
     };
     void (async () => {
       try {
-        const result = await sendChatbotMessage(message, controller.signal);
+        const result = requestContext
+          ? await sendChatbotMessage(message, controller.signal, requestContext)
+          : await sendChatbotMessage(message, controller.signal);
         if (controller.signal.aborted) return;
+        if (result.reply.context) context.current = result.reply.context;
         applyCooldown(result.retryAt);
         setTurns((previous) => previous.map((turn) =>
           turn.id === id ? { id, message, status: 'success', reply: result.reply } : turn));
       } catch (error) {
         if (controller.signal.aborted) return;
         const failure = chatbotFailure(error);
+        if (failure.resetContext) context.current = undefined;
         applyCooldown(failure.retryAt);
         if (failure.requiresLogin) {
           setRequiresLogin(true);
+          context.current = undefined;
+          lastRequest.current = null;
           setTurns([]);
         } else {
           setTurns((previous) => previous.map((turn) =>
@@ -84,6 +95,8 @@ export function useChatbot() {
     clear: () => {
       active.current?.abort();
       active.current = null;
+      context.current = undefined;
+      lastRequest.current = null;
       setTurns([]);
       // Clearing the display does not reset the account's request quota.
     },

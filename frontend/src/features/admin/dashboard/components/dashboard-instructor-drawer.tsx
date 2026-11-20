@@ -4,8 +4,8 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from '@/components/ui/icon';
 import type { IDashboardInstructor } from '../types';
+import { formatVnd } from '../../revenue/utils/revenue-format.util';
 import {
-  formatVnd,
   formatCompactVnd,
   formatNumber,
 } from '../constants/mock-dashboard-data';

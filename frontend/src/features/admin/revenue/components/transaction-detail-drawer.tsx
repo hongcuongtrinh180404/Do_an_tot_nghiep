@@ -42,6 +42,36 @@ export function TransactionDetailDrawer({
     toast.success(`Đã sao chép ${label}`);
   };
 
+  const getDetailStatus = (d: NonNullable<typeof detail>) => {
+    const isPaid = d.status?.toLowerCase() === 'paid';
+    if (d.amountPaid > 0 && d.amountPaid < d.amountDue) {
+      return {
+        label: 'Thiếu tiền',
+        badgeClass: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25',
+        dotClass: 'bg-amber-500',
+      };
+    }
+    if (d.amountPaid > d.amountDue) {
+      return {
+        label: 'Thừa tiền',
+        badgeClass: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/25',
+        dotClass: 'bg-sky-500',
+      };
+    }
+    if (isPaid || d.amountPaid === d.amountDue) {
+      return {
+        label: 'Thành công',
+        badgeClass: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25',
+        dotClass: 'bg-emerald-500',
+      };
+    }
+    return {
+      label: d.status || 'Chờ xử lý',
+      badgeClass: 'bg-muted text-muted-foreground border-border/60',
+      dotClass: 'bg-muted-foreground',
+    };
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true">
       {/* Backdrop */}
@@ -105,9 +135,17 @@ export function TransactionDetailDrawer({
                       <Icon icon="lucide:file-text" className="size-3.5 text-primary" />
                       1. Thông tin đơn hàng
                     </span>
-                    <Badge variant="outline" className="text-[11px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-medium">
-                      {detail.status === 'paid' ? 'Thanh toán thành công' : detail.status}
-                    </Badge>
+                    {(() => {
+                      const st = getDetailStatus(detail);
+                      return (
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${st.badgeClass}`}
+                        >
+                          <span className={`size-1.5 rounded-full shrink-0 ${st.dotClass}`} />
+                          <span>{st.label}</span>
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs">
@@ -197,10 +235,30 @@ export function TransactionDetailDrawer({
                     </div>
                     <div>
                       <span className="text-muted-foreground block text-[11px]">Thực tế xác nhận:</span>
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                      <span
+                        className={`font-bold ${
+                          detail.amountPaid < detail.amountDue
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : detail.amountPaid > detail.amountDue
+                              ? 'text-sky-600 dark:text-sky-400'
+                              : 'text-emerald-600 dark:text-emerald-400'
+                        }`}
+                      >
                         {formatVnd(detail.amountPaid)}
                       </span>
                     </div>
+                    {detail.amountPaid < detail.amountDue && (
+                      <div className="col-span-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                        <Icon icon="lucide:alert-circle" className="size-3.5 shrink-0" />
+                        <span>Chưa đủ tiền: còn thiếu {formatVnd(detail.amountDue - detail.amountPaid)}</span>
+                      </div>
+                    )}
+                    {detail.amountPaid > detail.amountDue && (
+                      <div className="col-span-2 p-2 rounded-lg bg-sky-500/10 border border-sky-500/20 text-[11px] text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
+                        <Icon icon="lucide:info" className="size-3.5 shrink-0" />
+                        <span>Thừa tiền: học viên chuyển dư {formatVnd(detail.amountPaid - detail.amountDue)}</span>
+                      </div>
+                    )}
                     <div className="col-span-2">
                       <span className="text-muted-foreground block text-[11px]">Thời điểm giao dịch:</span>
                       <span className="text-foreground">{formatDateTimeVn(detail.paymentDate)}</span>

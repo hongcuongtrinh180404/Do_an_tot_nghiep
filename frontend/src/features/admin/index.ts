@@ -12,3 +12,4 @@ export * from './courses';
 export * from './instructors';
 export * from './reviews';
 export * from './revenue';
+export * from './dashboard';

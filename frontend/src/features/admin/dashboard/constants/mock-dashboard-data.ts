@@ -7,6 +7,7 @@ import type {
   IDashboardPendingTask,
   RevenueGroupBy,
 } from '../types';
+import { formatVnd } from '../../revenue/utils/revenue-format.util';
 
 export const PERIOD_LABELS: Record<DashboardPeriodType, string> = {
   today: 'Hôm nay',
@@ -18,10 +19,6 @@ export const PERIOD_LABELS: Record<DashboardPeriodType, string> = {
   this_year: 'Năm nay',
   custom: 'Khoảng ngày tùy chỉnh',
 };
-
-export function formatVnd(amount: number): string {
-  return new Intl.NumberFormat('vi-VN').format(Math.round(amount)) + ' ₫';
-}
 
 export function formatCompactVnd(amount: number): string {
   if (amount >= 1_000_000_000) {
@@ -60,7 +57,7 @@ export function calculateGrowth(
 
   const diff = ((current - previous) / previous) * 100;
   const isUp = diff >= 0;
-  const formattedPercent = (isUp ? '+' : '') + Math.abs(diff).toFixed(1).replace('.', ',') + '%';
+  const formattedPercent = (isUp ? '+' : '-') + Math.abs(diff).toFixed(1).replace('.', ',') + '%';
   const formattedPrevious = isCurrency ? formatCompactVnd(previous) : formatNumber(previous);
 
   return {
@@ -182,7 +179,7 @@ export const INSTRUCTORS_DATA: IDashboardInstructor[] = [
     name: 'Nguyễn Minh Quân',
     email: 'quan.nguyen@mindly.vn',
     specialty: 'Backend & Cloud Architecture',
-    avatarBg: 'bg-primary/10 text-primary',
+    avatarBg: 'bg-indigo-600 text-white',
     initials: 'MQ',
     coursesCount: 8,
     salesCount: 412,
@@ -201,7 +198,7 @@ export const INSTRUCTORS_DATA: IDashboardInstructor[] = [
     name: 'Trần Thị Lan Anh',
     email: 'lananh.tran@mindly.vn',
     specialty: 'AI, Machine Learning & Python',
-    avatarBg: 'bg-emerald-50 text-emerald-700',
+    avatarBg: 'bg-emerald-600 text-white',
     initials: 'LA',
     coursesCount: 6,
     salesCount: 348,
@@ -219,7 +216,7 @@ export const INSTRUCTORS_DATA: IDashboardInstructor[] = [
     name: 'Lê Hoàng Nam',
     email: 'nam.le@mindly.vn',
     specialty: 'Frontend React & Next.js',
-    avatarBg: 'bg-amber-50 text-amber-700',
+    avatarBg: 'bg-amber-600 text-white',
     initials: 'HN',
     coursesCount: 9,
     salesCount: 365,
@@ -238,7 +235,7 @@ export const INSTRUCTORS_DATA: IDashboardInstructor[] = [
     name: 'Phạm Thu Hà',
     email: 'ha.pham@mindly.vn',
     specialty: 'UI/UX Product Design & Figma',
-    avatarBg: 'bg-sky-50 text-sky-700',
+    avatarBg: 'bg-teal-600 text-white',
     initials: 'TH',
     coursesCount: 5,
     salesCount: 244,
@@ -257,7 +254,7 @@ export const INSTRUCTORS_DATA: IDashboardInstructor[] = [
     name: 'Đặng Quốc Bảo',
     email: 'bao.dang@mindly.vn',
     specialty: 'Digital Marketing & Growth',
-    avatarBg: 'bg-teal-50 text-teal-700',
+    avatarBg: 'bg-sky-600 text-white',
     initials: 'QB',
     coursesCount: 7,
     salesCount: 218,

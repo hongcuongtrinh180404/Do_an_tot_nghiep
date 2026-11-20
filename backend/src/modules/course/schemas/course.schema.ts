@@ -18,6 +18,17 @@ export class CourseEntity extends BaseAbstractDocument {
   @Prop({ type: String, required: false, default: null, trim: true })
   description?: string | null;
 
+  /** Optional public search metadata; chatbot never creates or modifies tags. */
+  @Prop({
+    type: [{ type: String, trim: true, maxlength: 100 }],
+    default: [],
+    validate: {
+      validator: (tags: string[]) => tags.length <= 20,
+      message: 'A course can have at most 20 tags',
+    },
+  })
+  tags?: string[];
+
   @Prop({ type: String, required: false, default: null, trim: true })
   thumbnailUrl?: string | null;
 

@@ -3,8 +3,8 @@
 import * as React from 'react';
 import { Icon } from '@/components/ui/icon';
 import type { IDashboardKpiData } from '../types';
+import { formatVnd } from '../../revenue/utils/revenue-format.util';
 import {
-  formatVnd,
   formatNumber,
   calculateGrowth,
 } from '../constants/mock-dashboard-data';

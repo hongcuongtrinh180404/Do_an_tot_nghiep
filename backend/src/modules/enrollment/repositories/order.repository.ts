@@ -290,21 +290,47 @@ export class OrderRepository extends BaseMongoRepository<IOrder, OrderEntity> {
     endDate?: Date;
     search?: string;
     sort?: string;
+    status?: string;
     page: number;
     limit: number;
   }): Promise<PaginationResult<IRevenueTransactionItem>> {
-    const { startDate, endDate, search, sort = 'newest', page = 1, limit = 10 } = params;
+    const { startDate, endDate, search, sort = 'newest', status, page = 1, limit = 10 } = params;
 
     const match: Record<string, unknown> = {
-      status: OrderStatusEnum.PAID,
       deletedAt: null,
     };
 
-    if (startDate && endDate) {
+    if (status && status !== 'ALL') {
+      if (status === 'MATCHED') {
+        match.status = OrderStatusEnum.PAID;
+        match.lastPaymentStatus = { $ne: ReconciliationStatusEnum.OVERPAID };
+      } else if (status === 'UNDERPAID') {
+        match.lastPaymentStatus = ReconciliationStatusEnum.UNDERPAID;
+      } else if (status === 'OVERPAID') {
+        match.lastPaymentStatus = ReconciliationStatusEnum.OVERPAID;
+      }
+    } else {
       match.$or = [
+        { status: OrderStatusEnum.PAID },
+        { lastPaymentStatus: ReconciliationStatusEnum.UNDERPAID },
+        { receivedAmount: { $gt: 0 } },
+      ];
+    }
+
+    if (startDate && endDate) {
+      const dateCondition = [
         { paidAt: { $gte: startDate, $lte: endDate } },
         { paidAt: null, createdAt: { $gte: startDate, $lte: endDate } },
       ];
+      if (match.$or) {
+        match.$and = [
+          { $or: match.$or },
+          { $or: dateCondition },
+        ];
+        delete match.$or;
+      } else {
+        match.$or = dateCondition;
+      }
     }
 
     const sortStage: Record<string, 1 | -1> =
@@ -407,6 +433,7 @@ export class OrderRepository extends BaseMongoRepository<IOrder, OrderEntity> {
                 orderCode: 1,
                 courseTitle: 1,
                 studentName: 1,
+                studentEmail: { $ifNull: ['$student.email', ''] },
                 instructorName: 1,
                 paidAt: {
                   $dateToString: {
@@ -416,6 +443,31 @@ export class OrderRepository extends BaseMongoRepository<IOrder, OrderEntity> {
                   },
                 },
                 amount: 1,
+                receivedAmount: { $ifNull: ['$receivedAmount', '$amount'] },
+                status: 1,
+                reconciliationStatus: {
+                  $ifNull: [
+                    '$lastPaymentStatus',
+                    {
+                      $cond: [
+                        { $gt: ['$receivedAmount', '$amount'] },
+                        ReconciliationStatusEnum.OVERPAID,
+                        {
+                          $cond: [
+                            {
+                              $and: [
+                                { $gt: ['$receivedAmount', 0] },
+                                { $lt: ['$receivedAmount', '$amount'] },
+                              ],
+                            },
+                            ReconciliationStatusEnum.UNDERPAID,
+                            ReconciliationStatusEnum.MATCHED,
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
                 paymentMethod: 1,
               },
             },
@@ -1092,6 +1144,7 @@ export class OrderRepository extends BaseMongoRepository<IOrder, OrderEntity> {
                 orderCode: 1,
                 courseTitle: 1,
                 studentName: 1,
+                studentEmail: { $ifNull: ['$student.email', ''] },
                 instructorName: 1,
                 paidAt: {
                   $dateToString: {
@@ -1101,6 +1154,31 @@ export class OrderRepository extends BaseMongoRepository<IOrder, OrderEntity> {
                   },
                 },
                 amount: 1,
+                receivedAmount: { $ifNull: ['$receivedAmount', '$amount'] },
+                status: 1,
+                reconciliationStatus: {
+                  $ifNull: [
+                    '$lastPaymentStatus',
+                    {
+                      $cond: [
+                        { $gt: ['$receivedAmount', '$amount'] },
+                        ReconciliationStatusEnum.OVERPAID,
+                        {
+                          $cond: [
+                            {
+                              $and: [
+                                { $gt: ['$receivedAmount', 0] },
+                                { $lt: ['$receivedAmount', '$amount'] },
+                              ],
+                            },
+                            ReconciliationStatusEnum.UNDERPAID,
+                            ReconciliationStatusEnum.MATCHED,
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
                 paymentMethod: 1,
               },
             },

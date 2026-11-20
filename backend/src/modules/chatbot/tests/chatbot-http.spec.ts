@@ -157,8 +157,16 @@ describe('Chatbot HTTP — real JWT/validation/limits, mocked external data', ()
           {
             id: '0123456789abcdef01234567',
             title: 'Khóa học từ database',
-            price: 299000,
-            level: CourseLevelEnum.BEGINNER,
+            price:
+              filters.isFree === true
+                ? 0
+                : Math.min(
+                    299000,
+                    filters.maxPrice === undefined
+                      ? 299000
+                      : filters.maxPrice - (filters.maxPriceExclusive ? 1 : 0),
+                  ),
+            level: filters.level ?? CourseLevelEnum.BEGINNER,
             categoryName: 'Lập trình',
             url: '/courses/0123456789abcdef01234567',
             reasoning_content: 'private-extra-item-field',
@@ -187,6 +195,15 @@ describe('Chatbot HTTP — real JWT/validation/limits, mocked external data', ()
     ['Khóa học nào dưới 500k?', { maxPrice: 500000, maxPriceExclusive: true }],
     ['Tìm khóa Python cho người mới', { keyword: 'Python', level: 'beginner' }],
     ['Có khóa học miễn phí không?', { isFree: true }],
+    [
+      'Có khóa học backend dưới 200k không?',
+      {
+        keyword: 'backend',
+        relatedKeywords: ['Node.js', 'NestJS', 'REST API'],
+        maxPrice: 200000,
+        maxPriceExclusive: true,
+      },
+    ],
     [
       'Có khóa học thiết kế nào từ 200k đến 500k?',
       { keyword: 'thiết kế', minPrice: 200000, maxPrice: 500000 },
@@ -229,6 +246,16 @@ describe('Chatbot HTTP — real JWT/validation/limits, mocked external data', ()
     );
     expect(response.body.data).not.toHaveProperty('success');
     expect(JSON.stringify(response.body)).not.toContain('private-');
+  });
+
+  it('rejects caller-injected expansion filters; the HTTP body remains message-only', async () => {
+    const response = await post({
+      message: 'Backend dưới 200k',
+      relatedKeywords: ['React', 'Python'],
+    });
+    expect(response.status).toBe(400);
+    expect(complete).not.toHaveBeenCalled();
+    expect(search).not.toHaveBeenCalled();
   });
 
   it('accepts a message at the 2000-character boundary', async () => {
@@ -290,6 +317,10 @@ describe('Chatbot HTTP — real JWT/validation/limits, mocked external data', ()
     },
     { message: 'React', apiKey: 'injected-key' },
     { message: 'React', maxPrice: 1 },
+    { message: 'React', context: null },
+    { message: 'React', context: {} },
+    { message: 'React', context: '' },
+    { message: 'React', context: 'x'.repeat(8193) },
     ['React'],
     { message: true },
   ])(
@@ -319,6 +350,144 @@ describe('Chatbot HTTP — real JWT/validation/limits, mocked external data', ()
       .send({ message: 'React' });
     expect(response.status).toBe(401);
     expect(complete).not.toHaveBeenCalled();
+  });
+
+  it('inherits topic/budget across beginner and free follow-ups, then starts a new topic cleanly', async () => {
+    complete.mockResolvedValueOnce(
+      toolCompletion({
+        action: 'new_search',
+        keyword: 'backend',
+        relatedKeywords: ['NestJS'],
+        maxPrice: 200000,
+        maxPriceExclusive: true,
+      }),
+    );
+    const initial = await post({ message: 'Backend dưới 200k' });
+    expect(initial.status).toBe(200);
+    expect(initial.body.data.context).toEqual(expect.any(String));
+    complete.mockResolvedValueOnce(
+      toolCompletion({ action: 'refine', level: 'beginner' }),
+    );
+    const beginner = await post({
+      message: 'Chỉ dành cho người mới',
+      context: initial.body.data.context,
+    });
+    expect(beginner.body.data.result.filtersApplied).toMatchObject({
+      keyword: 'backend',
+      relatedKeywords: ['NestJS'],
+      maxPrice: 200000,
+      maxPriceExclusive: true,
+      level: 'beginner',
+      page: 1,
+    });
+    complete.mockResolvedValueOnce(
+      toolCompletion({ action: 'refine', isFree: true }),
+    );
+    const free = await post({
+      message: 'Có khóa miễn phí không?',
+      context: beginner.body.data.context,
+    });
+    expect(free.body.data.result.filtersApplied).toMatchObject({
+      keyword: 'backend',
+      maxPrice: 200000,
+      level: 'beginner',
+      isFree: true,
+    });
+    complete.mockResolvedValueOnce(
+      toolCompletion({ action: 'new_search', keyword: 'Yoga' }),
+    );
+    const yoga = await post({
+      message: 'Tìm khóa Yoga',
+      context: free.body.data.context,
+    });
+    expect(yoga.body.data.result.filtersApplied).toEqual({
+      keyword: 'Yoga',
+      maxPriceExclusive: false,
+      page: 1,
+      limit: 5,
+    });
+  });
+
+  it('increments page with identical criteria and uses actual returned prices for cheaper', async () => {
+    search.mockImplementation((filters) =>
+      Promise.resolve({
+        filtersApplied: filters,
+        items: [
+          {
+            id: '0123456789abcdef01234567',
+            title: 'Backend từ database',
+            price: Math.min(
+              50000,
+              filters.maxPrice - (filters.maxPriceExclusive ? 1 : 0),
+            ),
+            level: CourseLevelEnum.BEGINNER,
+            categoryName: null,
+            url: '/courses/0123456789abcdef01234567',
+          },
+        ],
+        total: 6,
+        page: filters.page,
+        limit: filters.limit,
+        currency: 'VND',
+        hasMore: true,
+      }),
+    );
+    complete.mockResolvedValueOnce(
+      toolCompletion({
+        keyword: 'backend',
+        maxPrice: 200000,
+        maxPriceExclusive: true,
+        limit: 2,
+      }),
+    );
+    const first = await post({ message: 'Backend dưới 200k' });
+    complete.mockResolvedValueOnce(toolCompletion({ action: 'next_page' }));
+    const next = await post({
+      message: 'Xem thêm',
+      context: first.body.data.context,
+    });
+    expect(next.body.data.result.filtersApplied).toEqual({
+      ...first.body.data.result.filtersApplied,
+      page: 2,
+    });
+    complete.mockResolvedValueOnce(toolCompletion({ action: 'cheaper' }));
+    const cheaper = await post({
+      message: 'Rẻ hơn nữa',
+      context: next.body.data.context,
+    });
+    expect(cheaper.body.data.result.filtersApplied).toMatchObject({
+      keyword: 'backend',
+      maxPrice: 50000,
+      maxPriceExclusive: true,
+      page: 1,
+      limit: 2,
+    });
+  });
+
+  it('does not use context after a reset and does not search all courses for a contextless follow-up', async () => {
+    complete.mockResolvedValue(toolCompletion({ action: 'next_page' }));
+    const response = await post({ message: 'Xem thêm' });
+    expect(response.body.data.status).toBe('needs_clarification');
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it('rejects a different account or forged context before calling AI and never returns 401', async () => {
+    const first = await post({ message: 'React' });
+    complete.mockClear();
+    search.mockClear();
+    const stolen = await post(
+      { message: 'Xem thêm', context: first.body.data.context },
+      jwt.sign({ sub: randomUUID() }),
+    );
+    expect(stolen.status).toBe(400);
+    expect(stolen.body.code).toBe('CHATBOT_CONTEXT_INVALID');
+    const forged = await post({
+      message: 'Xem thêm',
+      context: `${first.body.data.context}x`,
+    });
+    expect(forged.status).toBe(400);
+    expect(complete).not.toHaveBeenCalled();
+    expect(search).not.toHaveBeenCalled();
   });
 
   it.each(['malformed', 'expired', 'wrong_signature'])(

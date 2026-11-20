@@ -69,13 +69,21 @@
 3. **Biểu đồ doanh thu**:
    - Nhóm dữ liệu: Tổng doanh thu, Hoa hồng nền tảng, Thu nhập giảng viên.
    - Nhóm theo ngày (khoảng thời gian ngắn) hoặc theo tháng (khoảng thời gian dài).
-4. **Danh sách giao dịch thành công (Card ngang)**:
-   - Không dùng bảng, hiển thị dạng thẻ card ngang xếp dọc.
-   - **Tuyệt đối KHÔNG hiển thị badge trạng thái thanh toán** trên card (vì toàn bộ card đều là giao dịch thành công).
-   - Thông tin trên card: Tên khóa học, Mã đơn, Tên người mua, Tên giảng viên, Ngày & Giờ thanh toán (VN format), Số tiền thanh toán (VND), nút xem chi tiết.
-   - Tìm kiếm tổng hợp 1 ô: Mã đơn, học viên, khóa học, giảng viên.
-   - Sắp xếp: Mới nhất, Cũ nhất, Số tiền cao nhất, Số tiền thấp nhất.
-   - Phân trang: Chuẩn pagination 10/20/50 items/trang.
+4. **Danh sách giao dịch (Transaction Table theo chuẩn design-taste-frontend App Screens)**:
+   - Hiển thị dạng bảng dữ liệu phẳng viền 1px tinh tế, không dùng zebra striping, tuân thủ Purple Ban.
+   - 6 cột trọng tâm:
+     1. Mã đơn hàng (monospace `#ORD-...`, copy nhanh).
+     2. Học viên (tên, avatar initial, email phụ đề).
+     3. Khóa học (tên khóa học, tên giảng viên phụ trách).
+     4. Số tiền thực nhận (căn phải, font mono `tabular-nums`, màu sắc theo trạng thái, hiển thị tiền cần thanh toán nếu lệch).
+     5. Trạng thái (Pill badge có chấm tròn đặc: Thành công / Thiếu tiền / Thừa tiền).
+     6. Thời gian giao dịch (định dạng `dd/MM/yyyy HH:mm`).
+   - Thanh công cụ tích hợp:
+     - Ô tìm kiếm tổng hợp: Mã đơn, học viên, khóa học.
+     - Thanh lọc nhanh trạng thái: Tất cả, Thành công (`MATCHED`), Thiếu tiền (`UNDERPAID`), Thừa tiền (`OVERPAID`).
+     - Sắp xếp: Mới nhất, Cũ nhất, Số tiền cao nhất, Số tiền thấp nhất.
+   - Tương tác: Click bất kỳ hàng nào mở Slide-over Drawer chi tiết giao dịch (hỗ trợ phím Enter/Space).
+   - Phân trang: Chuẩn pagination 10/20/50 dòng/trang.
 5. **Slide-over Drawer chi tiết giao dịch (5 nhóm thông tin)**:
    - Nhóm 1: Mã đơn & thời gian thanh toán.
    - Nhóm 2: Thông tin người mua (Họ tên, email, SĐT).

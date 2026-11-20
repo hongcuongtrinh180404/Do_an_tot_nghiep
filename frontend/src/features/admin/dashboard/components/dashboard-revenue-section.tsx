@@ -8,10 +8,9 @@ import type {
   RevenueGroupBy,
   RevenueChartType,
 } from '../types';
+import { formatVnd } from '../../revenue/utils/revenue-format.util';
 import {
   REVENUE_CHART_SERIES,
-  formatVnd,
-  formatCompactVnd,
 } from '../constants/mock-dashboard-data';
 
 interface DashboardRevenueSectionProps {

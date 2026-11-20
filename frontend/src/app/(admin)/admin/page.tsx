@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
-import React from 'react';
-import { AdminTabPlaceholder } from '@/features/admin';
+import React, { Suspense } from 'react';
+import { AdminDashboardView } from '@/features/admin/dashboard';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Tổng quan | DATN Portal Admin',
@@ -9,17 +11,14 @@ export const metadata: Metadata = {
 
 export default function AdminHomePage(): React.JSX.Element {
   return (
-    <AdminTabPlaceholder
-      title="Tổng quan"
-      description="Trung tâm điều khiển, theo dõi và báo cáo các chỉ số vận hành tổng thể hệ thống."
-      icon="lucide:layout-dashboard"
-      badge="Bảng điều khiển"
-      stats={[
-        { label: 'Tổng doanh thu', value: '--', hint: 'Đang kết nối cổng SePay', icon: 'lucide:dollar-sign' },
-        { label: 'Tổng người dùng', value: '--', hint: 'Theo dõi thời gian thực', icon: 'lucide:users' },
-        { label: 'Khóa học hoạt động', value: '--', hint: 'Đã xuất bản trên sàn', icon: 'lucide:book-open' },
-        { label: 'Giao dịch hôm nay', value: '--', hint: 'Biến động thanh toán', icon: 'lucide:activity' },
-      ]}
-    />
+    <Suspense
+      fallback={
+        <div className="flex-1 p-8 flex items-center justify-center text-xs text-muted-foreground animate-pulse">
+          Đang tải dữ liệu tổng quan quản trị...
+        </div>
+      }
+    >
+      <AdminDashboardView />
+    </Suspense>
   );
 }

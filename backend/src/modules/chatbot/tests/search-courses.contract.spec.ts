@@ -14,11 +14,55 @@ describe('search_courses contract', () => {
       properties: {
         level: { enum: Object.values(CourseLevelEnum) },
         limit: { maximum: 10 },
+        relatedKeywords: { type: 'array', maxItems: 8 },
       },
     });
     expect(
       SEARCH_COURSES_DEFINITION.function.parameters?.properties,
     ).not.toHaveProperty('status');
+  });
+
+  it('normalizes, deduplicates and freezes related terms without changing hard filters', () => {
+    const filters = parseSearchCoursesArguments(
+      JSON.stringify({
+        keyword: ' backend ',
+        relatedKeywords: [' Backend ', ' NestJS ', 'nestjs', 'REST API'],
+        maxPrice: 200000,
+        maxPriceExclusive: true,
+        level: 'beginner',
+        isFree: false,
+      }),
+    );
+    expect(filters).toEqual({
+      keyword: 'backend',
+      relatedKeywords: ['NestJS', 'REST API'],
+      maxPrice: 200000,
+      maxPriceExclusive: true,
+      level: 'beginner',
+      isFree: false,
+      page: 1,
+      limit: 5,
+    });
+    expect(Object.isFrozen(filters.relatedKeywords)).toBe(true);
+  });
+
+  it('omits an empty or entirely redundant expansion and normalizes Unicode', () => {
+    expect(
+      parseSearchCoursesArguments('{"keyword":"React","relatedKeywords":[]}'),
+    ).not.toHaveProperty('relatedKeywords');
+    expect(
+      parseSearchCoursesArguments(
+        '{"keyword":"React","relatedKeywords":["react"]}',
+      ),
+    ).not.toHaveProperty('relatedKeywords');
+    expect(
+      parseSearchCoursesArguments(
+        JSON.stringify({
+          keyword: 'lập trình'.normalize('NFD'),
+          relatedKeywords: ['lập trình', 'Python'],
+        }),
+      ),
+    ).toMatchObject({ keyword: 'lập trình', relatedKeywords: ['Python'] });
   });
 
   it('uses bounded defaults without adding a level/free/keyword filter', () => {
@@ -78,6 +122,16 @@ describe('search_courses contract', () => {
     '{"keyword":{"$ne":null}}',
     '{"keyword":""}',
     '{"keyword":"  "}',
+    '{"relatedKeywords":["React"]}',
+    '{"keyword":"backend","relatedKeywords":"NestJS"}',
+    '{"keyword":"backend","relatedKeywords":[{"$ne":null}]}',
+    '{"keyword":"backend","relatedKeywords":[null]}',
+    '{"keyword":"backend","relatedKeywords":[" "]}',
+    JSON.stringify({ keyword: 'backend', relatedKeywords: ['x'.repeat(101)] }),
+    JSON.stringify({
+      keyword: 'backend',
+      relatedKeywords: Array(9).fill('NestJS'),
+    }),
     JSON.stringify({ keyword: 'a'.repeat(101) }),
     '{"level":"expert"}',
     '{"level":null}',

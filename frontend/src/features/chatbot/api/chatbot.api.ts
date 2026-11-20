@@ -32,12 +32,16 @@ export function chatbotFailure(error: unknown): ChatbotFailure {
   if (!axios.isAxiosError(error)) return fallback;
 
   const status = error.response?.status;
-  const body = error.response?.data as { requestId?: unknown; retryable?: unknown } | undefined;
+  const body = error.response?.data as { code?: unknown; requestId?: unknown; retryable?: unknown } | undefined;
   const requestId = typeof body?.requestId === 'string'
     && /^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i.test(body.requestId)
     ? body.requestId : undefined;
   const base = { ...fallback, requestId };
 
+  if (status === 400 && body?.code === 'CHATBOT_CONTEXT_INVALID') return {
+    ...base, message: 'Ngữ cảnh tìm kiếm đã hết hạn. Bạn vui lòng nêu lại chủ đề và điều kiện.',
+    retryable: false, resetContext: true,
+  };
   if (status === 401) return {
     ...base, message: 'Phiên đăng nhập đã hết hạn. Bạn vui lòng đăng nhập lại.',
     retryable: false, requiresLogin: true,
@@ -69,11 +73,12 @@ export function chatbotFailure(error: unknown): ChatbotFailure {
 export async function sendChatbotMessage(
   message: string,
   signal: AbortSignal,
+  context?: string,
 ): Promise<{ reply: ChatbotReply; retryAt?: number }> {
   // Reuse Mindly's Bearer/refresh interceptors. Only a JWT 401 triggers refresh.
   const response = await apiClient.post<IApiResponse<unknown>>(
     '/chatbot/messages',
-    { message },
+    { message, ...(context ? { context } : {}) },
     { timeout: CHATBOT_REQUEST_TIMEOUT_MS, signal },
   );
   if (!response.data.success) throw new Error('Invalid chatbot response');

@@ -3,7 +3,8 @@
 ## Phạm vi đã triển khai
 
 Một function chỉ đọc xử lý các yêu cầu tìm theo chủ đề, mức giá, miễn phí/trả phí,
-trình độ và phân trang. Tất cả bộ lọc kết hợp bằng **AND**.
+trình độ và phân trang. AI mở rộng các mục tiêu học rộng thành từ khóa liên quan.
+Nhóm chủ đề dùng **OR**; giá/trình độ/miễn phí/phạm vi công khai vẫn kết hợp bằng **AND**.
 
 ```text
 ChatbotSearchModule
@@ -17,15 +18,16 @@ Module tìm kiếm được tích hợp qua `ChatbotHttpModule` trong `AppModule
 các dependency enrollment/media/payment. Catalog HTTP hiện tại không bị thay đổi.
 
 Đã có [HTTP API chat](./http-api.md) yêu cầu JWT qua `ChatbotHttpModule`.
-Frontend và lịch sử hội thoại chưa triển khai. Vẫn có thể inject service để
-sử dụng/test luồng hoàn chỉnh. Không thực hiện đăng ký, thanh toán, ghi dữ liệu
+Đã có [widget frontend](./frontend-widget.md), chưa lưu lịch sử hội thoại trên server.
+Vẫn có thể inject service để sử dụng/test luồng hoàn chỉnh. Không thực hiện đăng ký, thanh toán, ghi dữ liệu
 hoặc tìm nội dung bài học riêng tư.
 
 ## Contract
 
 | Tham số             | Ý nghĩa                                                                                                                               |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `keyword`           | Chuỗi 1–100 ký tự sau trim. Match literal không phân biệt hoa/thường trong **tên khóa học OR tên danh mục đang hoạt động, chưa xóa**. |
+| `keyword`           | Chủ đề/mục tiêu gốc, 1–100 ký tự. Tìm trong tiêu đề, mô tả giới thiệu dạng text, tên danh mục active và tags. |
+| `relatedKeywords`   | Tối đa 8 chuỗi, mỗi chuỗi 1–100 ký tự. Công nghệ/cụm từ liên quan do AI suy luận cho mục tiêu rộng. OR với keyword, cần có keyword. |
 | `minPrice`          | Số nguyên VND ≥ 0; giá bán hiện tại **≥** giá trị này.                                                                                |
 | `maxPrice`          | Số nguyên VND ≥ 0; giá bán hiện tại **≤** giá trị này theo mặc định.                                                                  |
 | `maxPriceExclusive` | `true` chuyển cận trên thành **< maxPrice**. Mặc định `false`; chỉ được `true` khi có `maxPrice`.                                     |
@@ -46,6 +48,14 @@ Ví dụ:
 | Tìm khóa Python cho người mới              | `{"keyword":"Python","level":"beginner"}`                    |
 | Có khóa học miễn phí không?                | `{"isFree":true}`                                            |
 | Có khóa học thiết kế nào từ 200k đến 500k? | `{"keyword":"thiết kế","minPrice":200000,"maxPrice":500000}` |
+| Có khóa học lập trình dưới 20k không? | `{"keyword":"lập trình","relatedKeywords":["Python","JavaScript","HTML","CSS","React","Node.js","NestJS","Java"],"maxPrice":20000,"maxPriceExclusive":true}` |
+| Tôi muốn học làm website, có khóa nào dưới 200k không? | `{"keyword":"làm website","relatedKeywords":["HTML","CSS","JavaScript","React","Next.js","frontend","web development"],"maxPrice":200000,"maxPriceExclusive":true}` |
+| Có khóa học backend dưới 200k không? | `{"keyword":"backend","relatedKeywords":["Node.js","NestJS","Express","REST API"],"maxPrice":200000,"maxPriceExclusive":true}` |
+
+Danh sách mở rộng là ví dụ, không phải bảng alias cố định. Prompt yêu cầu giữ
+keyword gốc, chỉ mở rộng mục tiêu rộng; không mở React thành mọi khóa lập trình,
+không mở từ khóa chính xác/chủ đề không biết. Không dùng cả danh mục CNTT như
+bằng chứng một khóa học dạy backend. Các điều kiện giá/trình độ không được nới.
 
 Backend luôn thêm `status = published`, `deletedAt = null`, kể cả người dùng là
 admin. Model không có tham số thay đổi phạm vi này.
@@ -55,8 +65,32 @@ Sai kiểu, field lạ, giá âm, khoảng giá rỗng hoặc điều kiện mi�
 thuẫn bị từ chối trước khi truy vấn. Không tự chuyển chuỗi `"500000"` thành số,
 không tự bỏ hoặc nới lỏng bộ lọc để có kết quả.
 
-Keyword được escape regex. Phiên bản này không tìm description, không fuzzy,
-không bỏ dấu tiếng Việt, không tự dịch từ khóa hay tìm theo vector.
+Keyword và relatedKeywords được trim/NFC, loại trùng không phân biệt hoa/thường;
+không tự cắt danh sách quá giới hạn. Regex được escape, dùng ranh giới từ Unicode
+(API không khớp "capital", Java không khớp JavaScript), linh hoạt khoảng trắng.
+Không fuzzy/bỏ dấu/vector/RAG. Các cụm từ đồng nghĩa nằm trong relatedKeywords.
+
+## Tìm kiếm và xếp hạng
+
+Một aggregate MongoDB chỉ đọc thực hiện:
+
+1. Lọc `published`, `deletedAt=null`, giá bán hiện tại, trình độ và miễn phí.
+2. Lookup tên danh mục đang active/chưa xóa. Danh mục ẩn không tạo topic match.
+3. Tìm chủ đề trong tiêu đề, tags, tên danh mục và text mô tả giới thiệu.
+   Bỏ HTML tags, attributes, comments, script/style/head và xử lý các HTML entity
+   phổ biến. Đây là trích xuất text để tìm kiếm, không phải bộ sanitizer để render.
+4. Chấm điểm và lọc các khóa có match. Từ khóa gốc luôn ưu tiên hơn toàn bộ
+   các từ khóa mở rộng; trong mỗi nhóm: **tiêu đề > tags > danh mục > mô tả**.
+   Điểm cộng theo field: gốc `8000/6000/3000/1000`, mở rộng `80/60/30/10`.
+5. Dùng chung tập match cho tổng số và phân trang (`$facet`). Sort điểm giảm dần,
+   sau đó `createdAt DESC, _id DESC` để thứ tự ổn định. Không lấy một trang rồi mới rank.
+
+Truy vấn không chủ đề giữ thứ tự mới nhất. Mọi query có deadline 3000 ms,
+không `$out`, `$merge`, server-side JavaScript hoặc ghi cache/index/dữ liệu.
+
+`CourseSchema.tags` là metadata tùy chọn (mặc định `[]`, tối đa 20 tag,
+mỗi tag tối đa 100 ký tự). Dữ liệu cũ không cần backfill để tìm theo các field khác.
+Không tự tạo/gán tag từ chatbot; đợt này chưa bổ sung API/UI quản lý tags.
 
 ## Kết quả và chống bịa dữ liệu
 
@@ -76,9 +110,10 @@ không bỏ dấu tiếng Việt, không tự dịch từ khóa hay tìm theo ve
 }
 ```
 
-`url` được backend dựng từ ID thật dưới `/courses/{id}`. Query chỉ lấy các field
-cần thiết; không gửi mô tả, nội dung trả phí, email giảng viên hoặc audit data tới
-model. Truy vấn lọc trước phân trang, sort `createdAt DESC, _id DESC` ổn định.
+`url` được backend dựng từ ID thật dưới `/courses/{id}`. Mô tả và tags chỉ dùng để
+match/rank trong database; bị loại trước khi trả kết quả. Không gửi mô tả, điểm,
+nội dung trả phí, email giảng viên hoặc audit data tới model/frontend.
+`filtersApplied.relatedKeywords` cho biết các từ khóa mở rộng đã dùng.
 
 `ChatbotSearchService` chỉ dùng **một request model** để trích xuất điều kiện và
 chỉ cho phép **một call `search_courses`**. Tên/giá/link trong câu trả lời được
@@ -124,8 +159,29 @@ export class ExampleService {
 export class ExampleModule {}
 ```
 
-Service hiện stateless: mỗi câu hỏi cần đầy đủ điều kiện, ví dụ “React dưới 500k,
-trang 2”. Hội thoại “còn nữa?” cần lớp lịch sử hội thoại ở bước tiếp theo.
+### Hỏi tiếp có ngữ cảnh
+
+HTTP nhận/trả context ký số theo tài khoản (xem `http-api.md`); không lưu transcript
+hay session trong database. AI nhận bộ lọc đã xác minh, giá nhỏ nhất của trang vừa
+hiển thị và `hasMore`, không nhận raw context token/JWT hoặc lịch sử câu trả lời.
+
+Tool có các intent điều khiển tìm kiếm (không phải thao tác ghi dữ liệu):
+
+- `action=new_search` (mặc định): câu hỏi độc lập/chủ đề mới, không kế thừa điều kiện.
+- `action=refine`: chỉ truyền bộ lọc đổi; backend giữ nguyên các điều kiện còn lại,
+  đặt trang về 1. `clearFilters` chỉ cho phép `keyword`, `minPrice`, `maxPrice`,
+  `isFree`, `level`, dùng khi người dùng yêu cầu bỏ điều kiện.
+- `action=next_page`: không kèm filter; backend giữ nguyên tiêu chí, tăng trang 1.
+  Nếu đã hết trang, trả lời đã xem hết, không tự tìm lại từ đầu hoặc nới bộ lọc.
+- `action=cheaper`: không kèm filter; backend đặt giá **nhỏ hơn giá thấp nhất của
+  trang vừa hiển thị**, giữ các điều kiện khác và quay về trang 1. Không tự đoán
+  số tiền. Nếu kết quả đã có khóa miễn phí hoặc không có giá tham chiếu, yêu cầu làm rõ.
+
+Đổi keyword trong refine loại từ khóa mở rộng cũ. Đổi `maxPrice` không tự kế thừa
+cờ exclusive cũ. Yêu cầu miễn phí thay thế giá tối thiểu dương được kế thừa.
+Các bộ lọc sau khi merge luôn được validate lại, không tự bỏ mâu thuẫn còn lại.
+Không có ngữ cảnh mà chỉ hỏi “xem thêm”/“rẻ hơn”/“chỉ người mới” thì yêu cầu nêu
+chủ đề, không trả bừa mọi khóa học. Service vẫn chỉ dùng một lượt AI mỗi câu hỏi.
 
 `AbortSignal` hủy lượt model và chặn/bỏ kết quả tool khi đã hủy. Query MongoDB đang
 chạy có giới hạn 3000 ms mỗi thao tác; không giả định abort của caller lập tức
@@ -146,7 +202,7 @@ Test MongoDB thực với dữ liệu giả, PowerShell:
 
 ```powershell
 $env:CHATBOT_SEARCH_DB_TESTS='true'
-pnpm --filter backend exec vitest run src/modules/course/tests/public-course-search.integration.spec.ts
+pnpm --filter backend test:chatbot
 Remove-Item Env:CHATBOT_SEARCH_DB_TESTS
 ```
 
@@ -162,10 +218,16 @@ pnpm --filter backend test:chatbot:search:live
 
 # Một ca riêng, ví dụ kiểm tra không có kết quả
 pnpm --filter backend test:chatbot:search:live --case=empty
+
+# Các mục tiêu rộng: mỗi lệnh đúng một request provider
+pnpm --filter backend test:chatbot:search:live --case=programming_under_20k
+pnpm --filter backend test:chatbot:search:live --case=website_under_200k
+pnpm --filter backend test:chatbot:search:live --case=backend_under_200k
 ```
 
 Các case chọn riêng: `react`, `under_500k`, `python_beginner`, `free`,
-`design_price_range`, `empty`. Nếu gặp 429, không tự retry: chạy lại case đó thủ công
+`design_price_range`, `programming_under_20k`, `website_under_200k`,
+`backend_under_200k`, `empty`. Nếu gặp 429, không tự retry: chạy lại case đó thủ công
 sau khi provider khôi phục hạn mức.
 
 Script dùng `CHATBOT_API_KEY` trong `backend/.env`, kiểm tra arguments thực tế model

@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CourseLevelEnum } from 'share-lib';
 import type { ChatbotAiClient } from '../chatbot-ai.client.js';
 import { ChatbotAiError } from '../chatbot.errors.js';
-import { ChatbotSearchService } from '../services/chatbot-search.service.js';
+import {
+  ChatbotSearchService,
+  COURSE_SEARCH_SYSTEM_PROMPT,
+} from '../services/chatbot-search.service.js';
 import { SearchCoursesTool } from '../tools/search-courses.tool.js';
 import {
   SEARCH_COURSES_DEFINITION,
@@ -101,6 +104,33 @@ describe('ChatbotSearchService', () => {
     ['Tìm khóa Python cho người mới', { keyword: 'Python', level: 'beginner' }],
     ['Có khóa học miễn phí không?', { isFree: true }],
     [
+      'Có khóa học lập trình dưới 20k không?',
+      {
+        keyword: 'lập trình',
+        relatedKeywords: ['Python', 'JavaScript', 'React', 'NestJS'],
+        maxPrice: 20000,
+        maxPriceExclusive: true,
+      },
+    ],
+    [
+      'Tôi muốn học làm website, có khóa nào dưới 200k không?',
+      {
+        keyword: 'làm website',
+        relatedKeywords: ['HTML', 'CSS', 'React', 'Next.js'],
+        maxPrice: 200000,
+        maxPriceExclusive: true,
+      },
+    ],
+    [
+      'Có khóa học backend dưới 200k không?',
+      {
+        keyword: 'backend',
+        relatedKeywords: ['Node.js', 'NestJS', 'Express', 'REST API'],
+        maxPrice: 200000,
+        maxPriceExclusive: true,
+      },
+    ],
+    [
       'Có khóa học thiết kế nào từ 200k đến 500k?',
       { keyword: 'thiết kế', minPrice: 200000, maxPrice: 500000 },
     ],
@@ -129,6 +159,19 @@ describe('ChatbotSearchService', () => {
       });
     },
   );
+
+  it('instructs AI to expand broad goals but preserve explicit technologies and every hard filter', () => {
+    expect(COURSE_SEARCH_SYSTEM_PROMPT).toContain('relatedKeywords');
+    expect(COURSE_SEARCH_SYSTEM_PROMPT).toContain(
+      'Không đổi keyword gốc hoặc tự nới giá/trình độ',
+    );
+    expect(COURSE_SEARCH_SYSTEM_PROMPT).toContain(
+      'Không mở rộng khi người dùng yêu cầu công nghệ cụ thể',
+    );
+    expect(COURSE_SEARCH_SYSTEM_PROMPT).toContain(
+      'Một danh mục CNTT không chứng minh khóa học dạy backend',
+    );
+  });
 
   it('uses a fixed empty-result answer even when the model fabricated a course', async () => {
     execute.mockResolvedValue({ ...result, total: 0, items: [] });

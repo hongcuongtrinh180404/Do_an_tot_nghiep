@@ -9,7 +9,7 @@ import {
 } from './revenue-time-filter';
 import { RevenueKpiCards } from './revenue-kpi-cards';
 import { RevenueChart } from './revenue-chart';
-import { TransactionCardsList } from './transaction-cards-list';
+import { TransactionTable, type TransactionStatusFilterType } from './transaction-table';
 import { TransactionDetailDrawer } from './transaction-detail-drawer';
 import { InstructorsRevenueTable } from './instructors-revenue-table';
 import {
@@ -53,6 +53,7 @@ export function RevenueView(): React.JSX.Element {
 
   // Tab 1: Transactions Search & Sort & Pagination
   const [search, setSearch] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<TransactionStatusFilterType>('ALL');
   const [sort, setSort] = React.useState('newest');
   const [page, setPage] = React.useState(1);
   const [limit, setLimit] = React.useState(10);
@@ -69,6 +70,7 @@ export function RevenueView(): React.JSX.Element {
     limit,
     search,
     sort,
+    status: statusFilter !== 'ALL' ? statusFilter : undefined,
   });
 
   const handleTimeFilterChange = (val: RevenueTimeFilterValue) => {
@@ -147,24 +149,26 @@ export function RevenueView(): React.JSX.Element {
             isLoading={chartQuery.isLoading}
           />
 
-          {/* Successful Transactions - Horizontal Cards Stack */}
+          {/* Transactions Table Section */}
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-foreground">
-                  Danh Sách Giao Dịch Thành Công
+                  Danh Sách Giao Dịch
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Tất cả đơn hàng hợp lệ đã thanh toán qua cổng SePay
+                  Theo dõi toàn bộ đơn hàng và trạng thái thanh toán qua cổng SePay
                 </p>
               </div>
             </div>
 
-            <TransactionCardsList
+            <TransactionTable
               data={transactionsQuery.data}
               isLoading={transactionsQuery.isLoading}
               search={search}
               onSearchChange={setSearch}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
               sort={sort}
               onSortChange={setSort}
               page={page}

@@ -19,9 +19,13 @@ export interface IRevenueTransactionItem {
   orderCode: string;
   courseTitle: string;
   studentName: string;
+  studentEmail?: string;
   instructorName: string;
   paidAt: string;
   amount: number;
+  receivedAmount?: number;
+  status?: string;
+  reconciliationStatus?: string;
   paymentMethod?: string;
 }
 

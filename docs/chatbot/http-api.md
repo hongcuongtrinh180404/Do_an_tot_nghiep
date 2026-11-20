@@ -23,10 +23,13 @@ Request:
 ```
 
 - `message`: string không rỗng sau trim, tối đa 2000 ký tự (service giới hạn theo độ dài chuỗi JS).
-- Chỉ có một field `message`. Các field như `messages`, `tools`, `userId`, `model`,
+- `context` tùy chọn: chuỗi tối đa 8192 ký tự, lấy nguyên từ response lần trước.
+  Bỏ field này để bắt đầu lại. Backend xác minh chữ ký, tài khoản và hạn 30 phút.
+  Không cho caller tự truyền object bộ lọc/lịch sử.
+- Các field như `messages`, `tools`, `userId`, `model`,
   `apiKey`, `requestId` hay filter trực tiếp đều bị từ chối với HTTP 400.
-- Mỗi câu hỏi độc lập. Chưa hỗ trợ lưu hội thoại, streaming hoặc tham chiếu câu
-  trước như “còn khóa nào rẻ hơn?”.
+- Có ngữ cảnh: hỗ trợ “chỉ dành cho người mới”, “miễn phí”, “rẻ hơn”, “xem thêm”.
+  Chưa lưu lịch sử server hoặc streaming. Request cũ chỉ có `message` vẫn hợp lệ.
 
 Luồng:
 
@@ -53,9 +56,11 @@ type ChatbotApiResponse = {
     requestId: string; // UUID do server tạo
     status: "found" | "empty" | "page_empty" | "needs_clarification";
     answer: string;
+    context?: string; // ngữ cảnh ký số, chỉ dùng lại với cùng tài khoản
     result?: {
       filtersApplied: {
         keyword?: string;
+        relatedKeywords?: string[]; // AI mở rộng mục tiêu rộng, tối đa 8 từ
         minPrice?: number;
         maxPrice?: number;
         maxPriceExclusive: boolean;
@@ -92,6 +97,15 @@ type ChatbotApiResponse = {
 Tên/giá/link trong `answer` được backend dựng từ dữ liệu thật, không dùng model
 để tự soạn thông tin khóa học. HTTP response dùng allowlist, không trả provider
 response ID, reasoning, raw tool calls, usage, prompt hoặc dữ liệu riêng tư.
+`filtersApplied.relatedKeywords` là metadata tìm kiếm công khai, không phải
+reasoning của provider. Mô tả, tags thô và điểm xếp hạng không được trả trong items.
+
+`context` chỉ chứa bộ lọc, giá nhỏ nhất của trang vừa hiển thị, cờ `hasMore` và
+hạn dùng; không chứa JWT, user ID, transcript hay thông tin khóa học riêng tư.
+Chữ ký HMAC dùng secret JWT hiện có, tách domain `mindly:chatbot-search-context:v1`
+và ràng buộc với user ID do JWT guard xác thực. Không thêm session collection.
+Context sai/hết hạn/khác tài khoản trả 400 `CHATBOT_CONTEXT_INVALID`, không phải
+401 và không gọi provider. Frontend bỏ context và yêu cầu người dùng nêu lại.
 
 Header cho request đi tới handler: `Cache-Control: no-store` và
 `X-Request-Id: <UUID>`. Header `x-request-id`/`x-correlation-id` từ caller không
@@ -140,6 +154,7 @@ Lỗi từ tầng chatbot có response:
 | HTTP | Trường hợp / code                                                                                 |
 | ---- | ------------------------------------------------------------------------------------------------- |
 | 400  | Body sai (`ValidationPipe`); hoặc `CHATBOT_REQUEST_INVALID`.                                      |
+| 400  | `CHATBOT_CONTEXT_INVALID`: context không hợp lệ/hết hạn/khác tài khoản; không retry nguyên request. |
 | 401  | Thiếu/sai/hết hạn JWT Mindly, tài khoản không còn hoạt động.                                      |
 | 408  | Caller hủy request: `CHATBOT_CANCELLED` (thường socket đã đóng).                                  |
 | 422  | Provider không thể xử lý nội dung: `CHATBOT_RESPONSE_BLOCKED`.                                    |
@@ -184,12 +199,20 @@ curl -X POST http://localhost:8000/api/v1/chatbot/messages \
   -d '{"message":"Có khóa học React không?"}'
 ```
 
-Script smoke HTTP dùng backend **đã chạy**, mỗi lần gửi đúng một request:
+Script smoke HTTP dùng backend **đã chạy**, mặc định gửi đúng một request:
 
 ```powershell
 $env:CHATBOT_HTTP_SMOKE_ACCESS_TOKEN='YOUR_MINDLY_ACCESS_TOKEN'
 pnpm --filter backend test:chatbot:http:live
 Remove-Item Env:CHATBOT_HTTP_SMOKE_ACCESS_TOKEN
+```
+
+Thêm `--conversation` để chạy đúng 5 request: lập trình dưới 200k (2 khóa/trang)
+→ xem thêm (không trùng trang) → beginner → miễn phí → đổi sang Yoga (xóa bộ lọc cũ).
+Cần catalog có hơn 2 khóa lập trình; không tự tạo dữ liệu, retry hoặc bỏ quota:
+
+```sh
+pnpm --filter backend test:chatbot:http:live --conversation
 ```
 
 Tùy chọn process env: `CHATBOT_HTTP_SMOKE_URL` (URL đầy đủ, chỉ HTTPS hoặc HTTP

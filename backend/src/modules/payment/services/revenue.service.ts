@@ -156,6 +156,7 @@ export class RevenueService extends BaseService<ICommissionSettingDomain, string
       endDate,
       search: query.search,
       sort: query.sort,
+      status: query.status,
       page: query.page,
       limit: query.limit,
     });

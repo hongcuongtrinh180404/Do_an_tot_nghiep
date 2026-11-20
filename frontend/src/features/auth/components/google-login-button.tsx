@@ -3,10 +3,9 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
-import { RoleEnum } from 'share-lib';
 import { toast } from 'sonner';
 import { useGoogleAuthMutation } from '../api/auth.api';
-import { getAuthReturnPath } from '../utils/auth-return-path';
+import { getAuthReturnPath, getPostLoginRedirectPath } from '../utils/auth-return-path';
 
 interface GoogleLoginButtonProps {
   text?: 'signin_with' | 'signup_with' | 'continue_with';
@@ -31,15 +30,7 @@ export function GoogleLoginButton({
       { idToken: credentialResponse.credential },
       {
         onSuccess: (authData) => {
-          if (authData.user.role === RoleEnum.ADMIN) {
-            router.push('/admin');
-          } else if (safeReturnTo) {
-            router.push(safeReturnTo);
-          } else if (authData.user.role === RoleEnum.INSTRUCTOR) {
-            router.push('/courses');
-          } else {
-            router.push('/');
-          }
+          router.push(getPostLoginRedirectPath(authData.user, safeReturnTo));
         },
       },
     );

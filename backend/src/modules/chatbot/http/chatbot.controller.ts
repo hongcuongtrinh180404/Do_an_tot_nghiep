@@ -20,6 +20,7 @@ import {
   type ChatbotMessageResponse,
 } from './chatbot-message.service.js';
 import { ChatbotRateLimitGuard } from './chatbot-rate-limit.guard.js';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator.js';
 
 @Controller('chatbot')
 @UseGuards(ChatbotRateLimitGuard)
@@ -45,6 +46,7 @@ export class ChatbotController {
     dto: CreateChatbotMessageDto,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
+    @CurrentUser('id') userId: string,
   ): Promise<ApiResponse<ChatbotMessageResponse>> {
     const requestId = randomUUID();
     response.setHeader('X-Request-Id', requestId);
@@ -60,6 +62,7 @@ export class ChatbotController {
           dto.message,
           requestId,
           cancellation.signal,
+          { userId, ...(dto.context ? { context: dto.context } : {}) },
         ),
       );
     } finally {

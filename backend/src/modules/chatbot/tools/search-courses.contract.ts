@@ -8,6 +8,7 @@ export const SEARCH_COURSES_DEFAULT_LIMIT = 5;
 export const SEARCH_COURSES_MAX_LIMIT = 10;
 export const SEARCH_COURSES_MAX_PAGE = 1000;
 export const SEARCH_COURSES_MAX_ARGUMENT_BYTES = 4096;
+export const SEARCH_COURSES_MAX_RELATED_KEYWORDS = 8;
 
 export class SearchCoursesError extends Error {
   constructor(
@@ -29,17 +30,40 @@ export const SEARCH_COURSES_DEFINITION: ChatbotToolDefinition = {
   function: {
     name: SEARCH_COURSES_NAME,
     description:
-      'Search real published, non-deleted courses in the Mindly catalog. Combine all specified filters with AND. Only supply criteria the user requested. Prices are current selling prices in integer VND.',
+      'Search real published, non-deleted courses. Topic matches keyword OR relatedKeywords in title, public description, active category name or tags, ranked by relevance. All price/level/free filters are mandatory AND conditions. Expand only broad learning goals, never substitute an explicitly requested technology. Prices are current selling prices in integer VND.',
     parameters: {
       type: 'object',
       additionalProperties: false,
       properties: {
+        action: {
+          type: 'string',
+          enum: ['new_search', 'refine', 'next_page', 'cheaper'],
+          description:
+            'new_search (default): independent question/new topic, reset old filters. refine: change only explicitly supplied filters, inherit the rest and reset page to 1. next_page: show more with identical filters. cheaper: price strictly below the cheapest last displayed course. next_page/cheaper must have no other arguments.',
+        },
+        clearFilters: {
+          type: 'array',
+          maxItems: 5,
+          items: {
+            type: 'string',
+            enum: ['keyword', 'minPrice', 'maxPrice', 'isFree', 'level'],
+          },
+          description:
+            'Only with refine: remove filters explicitly cancelled by the user. To remove a price range supply minPrice and maxPrice. Do not remove unchanged filters.',
+        },
         keyword: {
           type: 'string',
           minLength: 1,
           maxLength: 100,
           description:
-            'Topic to match literally in the course title OR active category name. Do not include price or level words.',
+            'Original topic or learning goal from the user, not a replacement category. Do not include price or level words.',
+        },
+        relatedKeywords: {
+          type: 'array',
+          maxItems: SEARCH_COURSES_MAX_RELATED_KEYWORDS,
+          items: { type: 'string', minLength: 1, maxLength: 100 },
+          description:
+            'Up to 8 directly relevant technologies or synonymous phrases for a broad goal, e.g. làm website -> HTML, CSS, JavaScript, React, Next.js, frontend, web development; backend -> Node.js, NestJS, Express, REST API. Omit for specific technologies such as React or Python, exact keyword requests, unknown topics and price-only questions. Do not add broad IT/CNTT categories or generic words like course, học, phát triển.',
         },
         minPrice: {
           type: 'integer',
@@ -76,7 +100,7 @@ export const SEARCH_COURSES_DEFINITION: ChatbotToolDefinition = {
           minimum: 1,
           maximum: SEARCH_COURSES_MAX_PAGE,
           description:
-            'Default 1. Requires the full search criteria on each request.',
+            'Default 1 for a new search/refinement. Use action=next_page, without filters, for show more.',
         },
         limit: {
           type: 'integer',
@@ -91,6 +115,9 @@ export const SEARCH_COURSES_DEFINITION: ChatbotToolDefinition = {
 
 const argumentsSchema = Joi.object({
   keyword: Joi.string().min(1).max(100),
+  relatedKeywords: Joi.array()
+    .items(Joi.string().min(1).max(100))
+    .max(SEARCH_COURSES_MAX_RELATED_KEYWORDS),
   minPrice: Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
   maxPrice: Joi.number().integer().min(0).max(Number.MAX_SAFE_INTEGER),
   maxPriceExclusive: Joi.boolean().default(false),
@@ -106,6 +133,7 @@ const argumentsSchema = Joi.object({
 
 const ARGUMENT_KEYS = new Set([
   'keyword',
+  'relatedKeywords',
   'minPrice',
   'maxPrice',
   'maxPriceExclusive',
@@ -142,13 +170,21 @@ export function parseSearchCoursesArguments(
     {
       ...input,
       ...(typeof input.keyword === 'string'
-        ? { keyword: input.keyword.trim() }
+        ? { keyword: input.keyword.trim().normalize('NFC') }
+        : {}),
+      ...(Array.isArray(input.relatedKeywords)
+        ? {
+            relatedKeywords: input.relatedKeywords.map((term: unknown) =>
+              typeof term === 'string' ? term.trim().normalize('NFC') : term,
+            ),
+          }
         : {}),
     },
     { convert: false, abortEarly: false },
   );
   if (error) throw invalid();
   const filters = value as PublicCourseSearchFilters;
+  if (filters.relatedKeywords?.length && !filters.keyword) throw invalid();
   if (filters.maxPriceExclusive && filters.maxPrice === undefined)
     throw invalid();
 
@@ -166,5 +202,19 @@ export function parseSearchCoursesArguments(
       ? Math.min(0, requestedUpperBound)
       : requestedUpperBound;
   if (lowerBound > upperBound) throw invalid();
+  if (filters.relatedKeywords) {
+    const seen = new Set([filters.keyword?.toLowerCase()]);
+    const relatedKeywords = filters.relatedKeywords.filter((term) => {
+      const key = term.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (relatedKeywords.length) {
+      filters.relatedKeywords = Object.freeze(relatedKeywords);
+    } else {
+      delete filters.relatedKeywords;
+    }
+  }
   return Object.freeze({ ...filters });
 }

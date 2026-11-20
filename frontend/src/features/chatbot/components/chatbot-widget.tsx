@@ -232,7 +232,7 @@ function ChatbotSession({ authenticated, loading, courseDetail }: {
                   <Turn
                     key={turn.id}
                     turn={turn}
-                    disabled={blocked}
+                    disabled={blocked || turn.id !== chat.turns[chat.turns.length - 1]?.id}
                     onRetry={() => { stickToBottom.current = true; chat.retry(turn); }}
                     onNavigate={() => setOpen(false)}
                   />
@@ -277,7 +277,7 @@ function ChatbotSession({ authenticated, loading, courseDetail }: {
                   </button>
                 </div>
                 <div className={styles.composerMeta}>
-                  <span id="mindly-chatbot-context">Mỗi câu hỏi được tìm độc lập.</span>
+                  <span id="mindly-chatbot-context">Bạn có thể hỏi tiếp để thu hẹp kết quả.</span>
                   <span id="mindly-chatbot-limit">{draft.length}/{CHATBOT_MESSAGE_LIMIT}</span>
                 </div>
               </form>
