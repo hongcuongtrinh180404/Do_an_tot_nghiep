@@ -256,11 +256,10 @@ export function RevenueChart({
               type="button"
               aria-pressed={chartType === 'line'}
               onClick={() => setChartType('line')}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden ${
-                chartType === 'line'
-                  ? 'bg-card text-foreground shadow-2xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground font-medium'
-              }`}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden ${chartType === 'line'
+                ? 'bg-card text-foreground shadow-2xs font-bold'
+                : 'text-muted-foreground hover:text-foreground font-medium'
+                }`}
               title="Biểu đồ đường"
             >
               <Icon icon="lucide:trending-up" className="size-3.5" />
@@ -270,11 +269,10 @@ export function RevenueChart({
               type="button"
               aria-pressed={chartType === 'bar'}
               onClick={() => setChartType('bar')}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden ${
-                chartType === 'bar'
-                  ? 'bg-card text-foreground shadow-2xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground font-medium'
-              }`}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden ${chartType === 'bar'
+                ? 'bg-card text-foreground shadow-2xs font-bold'
+                : 'text-muted-foreground hover:text-foreground font-medium'
+                }`}
               title="Biểu đồ cột"
             >
               <Icon icon="lucide:bar-chart-2" className="size-3.5" />
@@ -304,11 +302,10 @@ export function RevenueChart({
             type="button"
             aria-pressed={visibleSeries[0]}
             onClick={() => handleToggleSeries(0)}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden ${
-              visibleSeries[0]
-                ? 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800'
-                : 'bg-muted/40 text-muted-foreground border-border/60 opacity-60'
-            }`}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden ${visibleSeries[0]
+              ? 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800'
+              : 'bg-muted/40 text-muted-foreground border-border/60 opacity-60'
+              }`}
           >
             <span className="size-2 rounded-full bg-indigo-600" />
             <span>Tổng doanh thu</span>
@@ -319,11 +316,10 @@ export function RevenueChart({
             type="button"
             aria-pressed={visibleSeries[1]}
             onClick={() => handleToggleSeries(1)}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden ${
-              visibleSeries[1]
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                : 'bg-muted/40 text-muted-foreground border-border/60 opacity-60'
-            }`}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden ${visibleSeries[1]
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+              : 'bg-muted/40 text-muted-foreground border-border/60 opacity-60'
+              }`}
           >
             <span className="size-2 rounded-full bg-emerald-500" />
             <span>Doanh thu nền tảng (Mindly)</span>
@@ -334,11 +330,10 @@ export function RevenueChart({
             type="button"
             aria-pressed={visibleSeries[2]}
             onClick={() => handleToggleSeries(2)}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden ${
-              visibleSeries[2]
-                ? 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
-                : 'bg-muted/40 text-muted-foreground border-border/60 opacity-60'
-            }`}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden ${visibleSeries[2]
+              ? 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+              : 'bg-muted/40 text-muted-foreground border-border/60 opacity-60'
+              }`}
           >
             <span className="size-2 rounded-full bg-amber-500" />
             <span>Doanh thu giảng viên</span>

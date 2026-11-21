@@ -3,6 +3,12 @@
 import * as React from 'react';
 import Chart from 'chart.js/auto';
 import { Icon } from '@/components/ui/icon';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/ui/select';
 import type {
   DashboardPeriodType,
   IDashboardCustomDates,
@@ -318,18 +324,38 @@ export function DashboardRevenueSection({
           </div>
 
           {/* Independent Period Filter */}
-          <select
-            value={periodOverride}
-            onChange={(e) => setPeriodOverride(e.target.value)}
-            className="text-xs px-3 py-1.5 bg-muted/40 border border-border/80 rounded-xl font-medium text-foreground outline-none cursor-pointer"
-          >
-            <option value="default">Thời gian: Theo Dashboard</option>
-            <option value="today">Hôm nay</option>
-            <option value="7d">7 ngày gần nhất</option>
-            <option value="30d">30 ngày gần nhất</option>
-            <option value="this_month">Tháng này</option>
-            <option value="this_year">Năm nay</option>
-          </select>
+          <div className="w-52 shrink-0">
+            <Select<string>
+              value={periodOverride}
+              onValueChange={(val) => {
+                if (val) setPeriodOverride(val);
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
+                <span className="truncate">
+                  {periodOverride === 'today'
+                    ? 'Hôm nay'
+                    : periodOverride === '7d'
+                      ? '7 ngày gần nhất'
+                      : periodOverride === '30d'
+                        ? '30 ngày gần nhất'
+                        : periodOverride === 'this_month'
+                          ? 'Tháng này'
+                          : periodOverride === 'this_year'
+                            ? 'Năm nay'
+                            : 'Thời gian: Theo Dashboard'}
+                </span>
+              </SelectTrigger>
+              <SelectContent align="start" className="min-w-52">
+                <SelectItem value="default" className="text-xs">Thời gian: Theo Dashboard</SelectItem>
+                <SelectItem value="today" className="text-xs">Hôm nay</SelectItem>
+                <SelectItem value="7d" className="text-xs">7 ngày gần nhất</SelectItem>
+                <SelectItem value="30d" className="text-xs">30 ngày gần nhất</SelectItem>
+                <SelectItem value="this_month" className="text-xs">Tháng này</SelectItem>
+                <SelectItem value="this_year" className="text-xs">Năm nay</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Reset Filters Button */}
           {isFilterModified && (

@@ -1,7 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Icon } from '@/components/ui/icon';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/ui/select';
 import type { PublicSortOption } from '../../services/public-courses.service';
 
 export interface CourseCatalogSortProps {
@@ -23,25 +28,29 @@ export function CourseCatalogSort({
 }: CourseCatalogSortProps): React.JSX.Element {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs sm:text-sm font-medium text-neutral-500 whitespace-nowrap hidden sm:inline">
+      <span className="text-xs sm:text-sm font-medium text-muted-foreground whitespace-nowrap hidden sm:inline">
         Sắp xếp theo:
       </span>
-      <div className="relative">
-        <select
+      <div className="w-48 shrink-0">
+        <Select<PublicSortOption>
           value={currentSort}
-          onChange={(e) => onSortChange(e.target.value as PublicSortOption)}
-          aria-label="Sắp xếp danh sách khóa học"
-          className="appearance-none h-9 pl-3 pr-8 rounded-lg border border-neutral-300 bg-white text-xs sm:text-sm font-medium text-neutral-800 hover:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#027D88]/30 focus:border-[#027D88] transition-colors cursor-pointer"
+          onValueChange={(val) => {
+            if (val) onSortChange(val);
+          }}
         >
-          {SORT_OPTIONS.map((opt) => (
-            <option key={opt.id} value={opt.id}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        <div className="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none text-neutral-500">
-          <Icon icon="lucide:chevron-down" className="size-4" />
-        </div>
+          <SelectTrigger aria-label="Sắp xếp danh sách khóa học" className="h-9 text-xs sm:text-sm px-3 bg-background">
+            <span className="truncate">
+              {SORT_OPTIONS.find((opt) => opt.id === currentSort)?.label || 'Mới nhất'}
+            </span>
+          </SelectTrigger>
+          <SelectContent align="end" className="min-w-48">
+            {SORT_OPTIONS.map((opt) => (
+              <SelectItem key={opt.id} value={opt.id} className="text-xs sm:text-sm">
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

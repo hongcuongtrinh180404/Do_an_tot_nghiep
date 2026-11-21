@@ -3,6 +3,12 @@
 import React, { useState } from 'react';
 import { CourseLevelEnum } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/ui/select';
 import { CourseCard } from './course-card';
 import { usePublicCoursesCatalogQuery } from '../../api/public-courses.api';
 import type { PublicSortOption } from '../../services/public-courses.service';
@@ -100,16 +106,30 @@ export function RecentCourses({
 
             {/* Sort Selector */}
             <div className="flex items-center gap-1.5 text-xs">
-              <span className="text-[#666666] hidden sm:inline">Sắp xếp:</span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="h-8 rounded-lg border border-border bg-background px-2.5 text-xs text-[#161616] focus:outline-none focus:ring-1 focus:ring-[#313131]"
-              >
-                <option value="newest">Mới nhất</option>
-                <option value="rating">Đánh giá cao nhất</option>
-                <option value="students">Nhiều học viên nhất</option>
-              </select>
+              <span className="text-muted-foreground hidden sm:inline">Sắp xếp:</span>
+              <div className="w-40 shrink-0">
+                <Select<SortOption>
+                  value={sortBy}
+                  onValueChange={(val) => {
+                    if (val) setSortBy(val);
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-xs px-2.5 bg-background">
+                    <span className="truncate">
+                      {sortBy === 'rating'
+                        ? 'Đánh giá cao nhất'
+                        : sortBy === 'students'
+                          ? 'Nhiều học viên nhất'
+                          : 'Mới nhất'}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent align="end" className="min-w-40">
+                    <SelectItem value="newest" className="text-xs">Mới nhất</SelectItem>
+                    <SelectItem value="rating" className="text-xs">Đánh giá cao nhất</SelectItem>
+                    <SelectItem value="students" className="text-xs">Nhiều học viên nhất</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>

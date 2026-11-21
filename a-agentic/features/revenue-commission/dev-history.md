@@ -4,6 +4,38 @@
 
 ---
 
+## 2026-11-21: Chuẩn hóa toàn diện Dropdown Select theo mẫu UI Base UI
+
+- **Yêu cầu**:
+  - Dựa trên giao diện mẫu từ ảnh thực tế trên trang Quản Lý Doanh Thu & Hoa Hồng (`/admin/revenue`), chuẩn hóa toàn bộ Dropdown Select trong hệ thống:
+    - Popup dropdown bo góc lớn `rounded-2xl`, bóng đổ mềm `shadow-xl`, viền mỏng tinh tế `border-border/60`.
+    - Tự động highlight mục đang chọn bằng màu xanh chủ đạo (`data-selected:text-primary data-selected:font-semibold`) kèm icon tick `✓` (`lucide:check`) nằm ở cạnh phải (`absolute right-2.5`).
+    - Nút Trigger bo góc `rounded-xl`, chiều cao chuẩn `h-9` hoặc `h-8`, mũi tên `lucide:chevron-down` tự xoay 180° khi mở menu.
+  - Đồng bộ hóa toàn bộ các trang khác trong hệ thống để thay thế hoàn toàn các thẻ HTML `<select>` nguyên bản cũ còn sót lại.
+- **Triển khai**:
+  1. **Core Component (`frontend/src/components/ui/select.tsx`)**:
+     - Cập nhật `SelectTrigger` bo góc `rounded-xl`, viền và hover tinh tế.
+     - Cập nhật `SelectContent` bo góc `rounded-2xl`, shadow `shadow-xl`, padding `p-1.5`.
+     - Cập nhật `SelectItem` có class `data-selected:text-primary data-selected:font-semibold`, padding `py-2 pl-3 pr-8`, indicator icon `lucide:check` bên phải `size-4`.
+  2. **Trang Doanh Thu & Hoa Hồng (`/admin/revenue`)**:
+     - `transaction-time-filter.tsx`: Thay thế thẻ `<select>` nguyên bản bằng `@/components/ui/select`, giữ nguyên toàn bộ logic xử lý ngày và lọc tùy chỉnh.
+  3. **Trang Dashboard Admin (`/admin/dashboard`)**:
+     - `dashboard-header.tsx`: Thay thế `<select>` kỳ báo cáo thời gian bằng `Select`.
+     - `dashboard-revenue-section.tsx`: Thay thế `<select>` kỳ ghi đè bằng `Select`.
+     - `dashboard-courses-section.tsx`: Thay thế 3 `<select>` (thời gian, danh mục, giảng viên) bằng `Select`.
+     - `dashboard-instructors-section.tsx`: Thay thế 3 `<select>` (thời gian, tiêu chí sắp xếp, giới hạn hiển thị) bằng `Select`.
+     - `dashboard-reviews-section.tsx`: Thay thế 3 `<select>` (thời gian, danh mục, ngưỡng tối thiểu) bằng `Select`.
+  4. **Trang Khóa học & Catalog**:
+     - `course-management-content.tsx`: Thay thế `<select>` sắp xếp danh sách bằng `Select`.
+     - `course-catalog-sort.tsx`: Thay thế `<select>` sắp xếp bằng `Select`.
+     - `recent-courses.tsx`: Thay thế `<select>` sắp xếp bằng `Select`.
+- **Kết quả kiểm thử**:
+  - `tsc --noEmit`: 0 lỗi typecheck trên toàn bộ project frontend.
+  - Vitest: 18/18 tests pass (`transaction-time-filter.spec.ts`, `transaction-table.spec.ts`, `revenue-instructors-ranking.spec.ts`).
+  - Đã loại bỏ 100% các thẻ `<select>` HTML thô trên toàn codebase.
+
+---
+
 ## 2026-11-20: Khắc phục lỗi hiển thị Biểu Đồ Doanh Thu & Hoa Hồng theo chuẩn design-taste-frontend & web-design-guidelines
 
 - **Nguyên nhân lỗi (Root Cause)**:

@@ -3,6 +3,12 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from '@/components/ui/icon';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/ui/select';
 import type { DashboardPeriodType, IDashboardCoursePerformance } from '../types';
 import { formatNumber } from '../constants/mock-dashboard-data';
 
@@ -80,48 +86,80 @@ export function DashboardReviewsSection({
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Period Filter */}
-          <select
-            value={periodOverride}
-            onChange={(e) => setPeriodOverride(e.target.value)}
-            className="text-xs px-3 py-1.5 bg-muted/40 border border-border/80 rounded-xl font-medium text-foreground outline-none cursor-pointer"
-          >
-            <option value="default">Thời gian: Theo Dashboard</option>
-            <option value="7d">7 ngày gần nhất</option>
-            <option value="this_month">Tháng này</option>
-            <option value="this_year">Năm nay</option>
-          </select>
+          <div className="w-52 shrink-0">
+            <Select<string>
+              value={periodOverride}
+              onValueChange={(val) => {
+                if (val) setPeriodOverride(val);
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
+                <span className="truncate">
+                  {periodOverride === '7d'
+                    ? '7 ngày gần nhất'
+                    : periodOverride === 'this_month'
+                      ? 'Tháng này'
+                      : periodOverride === 'this_year'
+                        ? 'Năm nay'
+                        : 'Thời gian: Theo Dashboard'}
+                </span>
+              </SelectTrigger>
+              <SelectContent align="start" className="min-w-52">
+                <SelectItem value="default" className="text-xs">Thời gian: Theo Dashboard</SelectItem>
+                <SelectItem value="7d" className="text-xs">7 ngày gần nhất</SelectItem>
+                <SelectItem value="this_month" className="text-xs">Tháng này</SelectItem>
+                <SelectItem value="this_year" className="text-xs">Năm nay</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Category Filter */}
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="text-xs px-3 py-1.5 bg-muted/40 border border-border/80 rounded-xl font-medium text-foreground outline-none cursor-pointer"
-          >
-            <option value="all">Danh mục: Tất cả</option>
-            {availableCategories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
+          <div className="w-48 shrink-0">
+            <Select<string>
+              value={categoryFilter}
+              onValueChange={(val) => {
+                if (val) setCategoryFilter(val);
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
+                <span className="truncate">
+                  {categoryFilter === 'all' ? 'Danh mục: Tất cả' : `Danh mục: ${categoryFilter}`}
+                </span>
+              </SelectTrigger>
+              <SelectContent align="start" className="min-w-48">
+                <SelectItem value="all" className="text-xs">Danh mục: Tất cả</SelectItem>
+                {availableCategories.map((cat) => (
+                  <SelectItem key={cat} value={cat} className="text-xs">
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Threshold Minimum Count */}
-          <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-1.5">
-            <Icon icon="lucide:filter" className="size-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-            <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">
-              Ngưỡng tối thiểu:
-            </span>
-            <select
-              value={minReviews}
-              onChange={(e) => setMinReviews(Number(e.target.value))}
-              className="bg-transparent text-xs font-bold text-amber-800 dark:text-amber-300 outline-none cursor-pointer"
+          <div className="w-48 shrink-0">
+            <Select<string>
+              value={String(minReviews)}
+              onValueChange={(val) => {
+                if (val) setMinReviews(Number(val));
+              }}
             >
-              <option value="0">Tất cả đánh giá (≥ 0)</option>
-              <option value="1">Tối thiểu 1 đánh giá</option>
-              <option value="5">Tối thiểu 5 đánh giá</option>
-              <option value="10">Tối thiểu 10 đánh giá</option>
-              <option value="20">Tối thiểu 20 đánh giá</option>
-            </select>
+              <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
+                <span className="truncate">
+                  {minReviews === 0
+                    ? 'Tất cả đánh giá (≥ 0)'
+                    : `Tối thiểu ${minReviews} đánh giá`}
+                </span>
+              </SelectTrigger>
+              <SelectContent align="start" className="min-w-48">
+                <SelectItem value="0" className="text-xs">Tất cả đánh giá (≥ 0)</SelectItem>
+                <SelectItem value="1" className="text-xs">Tối thiểu 1 đánh giá</SelectItem>
+                <SelectItem value="5" className="text-xs">Tối thiểu 5 đánh giá</SelectItem>
+                <SelectItem value="10" className="text-xs">Tối thiểu 10 đánh giá</SelectItem>
+                <SelectItem value="20" className="text-xs">Tối thiểu 20 đánh giá</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Reset button */}

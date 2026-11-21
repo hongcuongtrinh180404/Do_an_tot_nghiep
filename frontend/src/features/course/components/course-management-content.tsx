@@ -5,6 +5,12 @@ import { buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icon';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/ui/select';
 import { CourseStatusEnum } from 'share-lib';
 import { useMyCoursesQuery } from '../api/course.api';
 import { CourseHeader } from './course-header';
@@ -366,22 +372,31 @@ export function CourseManagementContent(): React.JSX.Element {
               </div>
 
               {/* Sort Dropdown */}
-              <div className="relative">
-                <select
+              <div className="w-44 shrink-0">
+                <Select<SortOption>
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  aria-label="Sắp xếp danh sách khóa học"
-                  className="h-8 px-3 pr-8 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-xs font-medium text-neutral-800 dark:text-neutral-200 cursor-pointer appearance-none shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                  onValueChange={(val) => {
+                    if (val) setSortBy(val);
+                  }}
                 >
-                  <option value="created-desc">Mới nhất trước</option>
-                  <option value="created-asc">Cũ nhất trước</option>
-                  <option value="students-desc">Nhiều học viên nhất</option>
-                  <option value="title-asc">Tên A-Z</option>
-                </select>
-                <Icon
-                  icon="lucide:chevron-down"
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-neutral-400 pointer-events-none"
-                />
+                  <SelectTrigger aria-label="Sắp xếp danh sách khóa học" className="h-8 text-xs px-2.5">
+                    <span className="truncate">
+                      {sortBy === 'created-asc'
+                        ? 'Cũ nhất trước'
+                        : sortBy === 'students-desc'
+                          ? 'Nhiều học viên nhất'
+                          : sortBy === 'title-asc'
+                            ? 'Tên A-Z'
+                            : 'Mới nhất trước'}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent align="end" className="min-w-44">
+                    <SelectItem value="created-desc" className="text-xs">Mới nhất trước</SelectItem>
+                    <SelectItem value="created-asc" className="text-xs">Cũ nhất trước</SelectItem>
+                    <SelectItem value="students-desc" className="text-xs">Nhiều học viên nhất</SelectItem>
+                    <SelectItem value="title-asc" className="text-xs">Tên A-Z</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Reset Filter Button (if active) */}

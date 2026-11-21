@@ -2,6 +2,12 @@
 
 import * as React from 'react';
 import { Icon } from '@/components/ui/icon';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/ui/select';
 import type { DashboardPeriodType } from '../types';
 import { formatVnd } from '../../revenue/utils/revenue-format.util';
 import {
@@ -104,41 +110,59 @@ export function DashboardInstructorsSection({
           {/* Row 1: Period + Sort Criteria */}
           <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
             {/* Dropdown 1: Thời gian */}
-            <div className="relative inline-flex items-center bg-card border border-border/80 hover:border-border rounded-xl px-3 py-1.5 text-xs font-medium text-foreground shadow-2xs transition">
-              <select
+            <div className="w-52 shrink-0">
+              <Select<string>
                 value={periodOverride}
-                onChange={(e) => setPeriodOverride(e.target.value)}
-                className="bg-transparent text-xs font-medium text-foreground outline-none cursor-pointer pr-5 appearance-none"
+                onValueChange={(val) => {
+                  if (val) setPeriodOverride(val);
+                }}
               >
-                <option value="default">Thời gian: Theo bộ lọc chung</option>
-                <option value="today">Hôm nay</option>
-                <option value="7d">7 ngày gần nhất</option>
-                <option value="this_month">Tháng này</option>
-                <option value="this_year">Năm nay</option>
-              </select>
-              <Icon
-                icon="lucide:chevron-down"
-                className="size-3.5 text-muted-foreground absolute right-2.5 pointer-events-none"
-              />
+                <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
+                  <span className="truncate">
+                    {periodOverride === 'today'
+                      ? 'Hôm nay'
+                      : periodOverride === '7d'
+                        ? '7 ngày gần nhất'
+                        : periodOverride === 'this_month'
+                          ? 'Tháng này'
+                          : periodOverride === 'this_year'
+                            ? 'Năm nay'
+                            : 'Thời gian: Theo bộ lọc chung'}
+                  </span>
+                </SelectTrigger>
+                <SelectContent align="start" className="min-w-52">
+                  <SelectItem value="default" className="text-xs">Thời gian: Theo bộ lọc chung</SelectItem>
+                  <SelectItem value="today" className="text-xs">Hôm nay</SelectItem>
+                  <SelectItem value="7d" className="text-xs">7 ngày gần nhất</SelectItem>
+                  <SelectItem value="this_month" className="text-xs">Tháng này</SelectItem>
+                  <SelectItem value="this_year" className="text-xs">Năm nay</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Dropdown 2: Xếp hạng */}
-            <div className="relative inline-flex items-center bg-card border border-border/80 hover:border-border rounded-xl px-3 py-1.5 text-xs font-medium text-foreground shadow-2xs transition">
-              <select
+            <div className="w-56 shrink-0">
+              <Select<'grossRevenue' | 'salesCount' | 'netRevenue'>
                 value={sortKey}
-                onChange={(e) =>
-                  setSortKey(e.target.value as 'grossRevenue' | 'salesCount' | 'netRevenue')
-                }
-                className="bg-transparent text-xs font-medium text-foreground outline-none cursor-pointer pr-5 appearance-none"
+                onValueChange={(val) => {
+                  if (val) setSortKey(val);
+                }}
               >
-                <option value="grossRevenue">Xếp hạng: Tổng doanh thu</option>
-                <option value="salesCount">Xếp hạng: Lượt bán thành công</option>
-                <option value="netRevenue">Xếp hạng: Doanh thu thực nhận</option>
-              </select>
-              <Icon
-                icon="lucide:chevron-down"
-                className="size-3.5 text-muted-foreground absolute right-2.5 pointer-events-none"
-              />
+                <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
+                  <span className="truncate">
+                    {sortKey === 'salesCount'
+                      ? 'Xếp hạng: Lượt bán thành công'
+                      : sortKey === 'netRevenue'
+                        ? 'Xếp hạng: Doanh thu thực nhận'
+                        : 'Xếp hạng: Tổng doanh thu'}
+                  </span>
+                </SelectTrigger>
+                <SelectContent align="start" className="min-w-56">
+                  <SelectItem value="grossRevenue" className="text-xs">Xếp hạng: Tổng doanh thu</SelectItem>
+                  <SelectItem value="salesCount" className="text-xs">Xếp hạng: Lượt bán thành công</SelectItem>
+                  <SelectItem value="netRevenue" className="text-xs">Xếp hạng: Doanh thu thực nhận</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -156,19 +180,23 @@ export function DashboardInstructorsSection({
             )}
 
             {/* Dropdown 3: Hiển thị */}
-            <div className="relative inline-flex items-center bg-card border border-border/80 hover:border-border rounded-xl px-3 py-1.5 text-xs font-medium text-foreground shadow-2xs transition">
-              <select
-                value={limit}
-                onChange={(e) => setLimit(Number(e.target.value))}
-                className="bg-transparent text-xs font-medium text-foreground outline-none cursor-pointer pr-5 appearance-none"
+            <div className="w-36 shrink-0">
+              <Select<string>
+                value={String(limit)}
+                onValueChange={(val) => {
+                  if (val) setLimit(Number(val));
+                }}
               >
-                <option value="5">Hiển thị: Top 5</option>
-                <option value="10">Hiển thị: Top 10</option>
-              </select>
-              <Icon
-                icon="lucide:chevron-down"
-                className="size-3.5 text-muted-foreground absolute right-2.5 pointer-events-none"
-              />
+                <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
+                  <span className="truncate">
+                    {`Hiển thị: Top ${limit}`}
+                  </span>
+                </SelectTrigger>
+                <SelectContent align="end" className="min-w-36">
+                  <SelectItem value="5" className="text-xs">Hiển thị: Top 5</SelectItem>
+                  <SelectItem value="10" className="text-xs">Hiển thị: Top 10</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

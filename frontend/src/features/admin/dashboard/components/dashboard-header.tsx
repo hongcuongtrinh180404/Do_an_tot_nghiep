@@ -2,6 +2,12 @@
 
 import * as React from 'react';
 import { Icon } from '@/components/ui/icon';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/ui/select';
 import type { DashboardPeriodType, IDashboardCustomDates } from '../types';
 import { PERIOD_LABELS } from '../constants/mock-dashboard-data';
 
@@ -82,25 +88,35 @@ export function DashboardHeader({
 
       {/* Global Filter Bar */}
       <div className="flex flex-wrap items-center gap-2.5">
-        <div className="flex items-center gap-2 bg-muted/40 border border-border/80 rounded-xl px-3 py-1.5">
-          <Icon icon="lucide:calendar" className="size-4 text-primary shrink-0" />
-          <span className="text-xs font-medium text-muted-foreground hidden sm:inline">
-            Khoảng thời gian:
-          </span>
-          <select
-            value={period}
-            onChange={(e) => onPeriodChange(e.target.value as DashboardPeriodType)}
-            className="bg-transparent text-xs font-bold text-foreground outline-none cursor-pointer pr-1"
-          >
-            <option value="today">Hôm nay</option>
-            <option value="yesterday">Hôm qua</option>
-            <option value="7d">7 ngày gần nhất</option>
-            <option value="30d">30 ngày gần nhất</option>
-            <option value="this_month">Tháng này</option>
-            <option value="last_month">Tháng trước</option>
-            <option value="this_year">Năm nay</option>
-            <option value="custom">Tùy chỉnh khoảng ngày</option>
-          </select>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground whitespace-nowrap">
+            <Icon icon="lucide:calendar" className="size-4 text-primary shrink-0" />
+            <span className="hidden sm:inline">Khoảng thời gian:</span>
+          </div>
+          <div className="w-52 shrink-0">
+            <Select<DashboardPeriodType>
+              value={period}
+              onValueChange={(val) => {
+                if (val) onPeriodChange(val);
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
+                <span className="truncate">
+                  {PERIOD_LABELS[period] || '30 ngày gần nhất'}
+                </span>
+              </SelectTrigger>
+              <SelectContent align="start" className="min-w-52">
+                <SelectItem value="today" className="text-xs">Hôm nay</SelectItem>
+                <SelectItem value="yesterday" className="text-xs">Hôm qua</SelectItem>
+                <SelectItem value="7d" className="text-xs">7 ngày gần nhất</SelectItem>
+                <SelectItem value="30d" className="text-xs">30 ngày gần nhất</SelectItem>
+                <SelectItem value="this_month" className="text-xs">Tháng này</SelectItem>
+                <SelectItem value="last_month" className="text-xs">Tháng trước</SelectItem>
+                <SelectItem value="this_year" className="text-xs">Năm nay</SelectItem>
+                <SelectItem value="custom" className="text-xs">Tùy chỉnh khoảng ngày</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Custom date range pickers */}

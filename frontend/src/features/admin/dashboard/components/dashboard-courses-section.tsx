@@ -2,6 +2,12 @@
 
 import * as React from 'react';
 import { Icon } from '@/components/ui/icon';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/ui/select';
 import type { DashboardPeriodType, IDashboardCoursePerformance } from '../types';
 import { formatVnd } from '../../revenue/utils/revenue-format.util';
 import { formatNumber } from '../constants/mock-dashboard-data';
@@ -134,45 +140,83 @@ export function DashboardCoursesSection({
         <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-border/60">
           <div className="flex flex-wrap items-center gap-2">
             {/* Period */}
-            <select
-              value={periodOverride}
-              onChange={(e) => setPeriodOverride(e.target.value)}
-              className="text-xs px-3 py-1.5 bg-muted/40 border border-border/80 rounded-xl font-medium text-foreground outline-none cursor-pointer"
-            >
-              <option value="default">Thời gian: Theo Dashboard</option>
-              <option value="today">Hôm nay</option>
-              <option value="7d">7 ngày gần nhất</option>
-              <option value="this_month">Tháng này</option>
-              <option value="this_year">Năm nay</option>
-            </select>
+            <div className="w-52 shrink-0">
+              <Select<string>
+                value={periodOverride}
+                onValueChange={(val) => {
+                  if (val) setPeriodOverride(val);
+                }}
+              >
+                <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
+                  <span className="truncate">
+                    {periodOverride === 'today'
+                      ? 'Hôm nay'
+                      : periodOverride === '7d'
+                        ? '7 ngày gần nhất'
+                        : periodOverride === 'this_month'
+                          ? 'Tháng này'
+                          : periodOverride === 'this_year'
+                            ? 'Năm nay'
+                            : 'Thời gian: Theo Dashboard'}
+                  </span>
+                </SelectTrigger>
+                <SelectContent align="start" className="min-w-52">
+                  <SelectItem value="default" className="text-xs">Thời gian: Theo Dashboard</SelectItem>
+                  <SelectItem value="today" className="text-xs">Hôm nay</SelectItem>
+                  <SelectItem value="7d" className="text-xs">7 ngày gần nhất</SelectItem>
+                  <SelectItem value="this_month" className="text-xs">Tháng này</SelectItem>
+                  <SelectItem value="this_year" className="text-xs">Năm nay</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Category */}
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="text-xs px-3 py-1.5 bg-muted/40 border border-border/80 rounded-xl font-medium text-foreground outline-none cursor-pointer"
-            >
-              <option value="all">Danh mục: Tất cả</option>
-              {availableCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+            <div className="w-48 shrink-0">
+              <Select<string>
+                value={categoryFilter}
+                onValueChange={(val) => {
+                  if (val) setCategoryFilter(val);
+                }}
+              >
+                <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
+                  <span className="truncate">
+                    {categoryFilter === 'all' ? 'Danh mục: Tất cả' : `Danh mục: ${categoryFilter}`}
+                  </span>
+                </SelectTrigger>
+                <SelectContent align="start" className="min-w-48">
+                  <SelectItem value="all" className="text-xs">Danh mục: Tất cả</SelectItem>
+                  {availableCategories.map((cat) => (
+                    <SelectItem key={cat} value={cat} className="text-xs">
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Instructor */}
-            <select
-              value={instructorFilter}
-              onChange={(e) => setInstructorFilter(e.target.value)}
-              className="text-xs px-3 py-1.5 bg-muted/40 border border-border/80 rounded-xl font-medium text-foreground outline-none cursor-pointer"
-            >
-              <option value="all">Giảng viên: Tất cả</option>
-              {availableInstructors.map((inst) => (
-                <option key={inst} value={inst}>
-                  {inst}
-                </option>
-              ))}
-            </select>
+            <div className="w-48 shrink-0">
+              <Select<string>
+                value={instructorFilter}
+                onValueChange={(val) => {
+                  if (val) setInstructorFilter(val);
+                }}
+              >
+                <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
+                  <span className="truncate">
+                    {instructorFilter === 'all' ? 'Giảng viên: Tất cả' : `Giảng viên: ${instructorFilter}`}
+                  </span>
+                </SelectTrigger>
+                <SelectContent align="start" className="min-w-48">
+                  <SelectItem value="all" className="text-xs">Giảng viên: Tất cả</SelectItem>
+                  {availableInstructors.map((inst) => (
+                    <SelectItem key={inst} value={inst} className="text-xs">
+                      {inst}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Reset */}
             {isModified && (

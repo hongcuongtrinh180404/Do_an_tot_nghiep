@@ -13,9 +13,14 @@ import {
 } from '../api/categories-admin.api';
 import { CategoriesTable } from './categories-table';
 import { CategoryModal, type SaveCategoryFormData } from './category-modal';
+import {
+  CategoryStatsCards,
+  type CategoryStatusFilter,
+} from './category-stats-cards';
 
 export function CategoriesView(): React.JSX.Element {
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<CategoryStatusFilter>('ALL');
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [editingCategory, setEditingCategory] = React.useState<ICourseCategory | null>(null);
   const [deletingCategory, setDeletingCategory] = React.useState<ICourseCategory | null>(null);
@@ -26,16 +31,38 @@ export function CategoriesView(): React.JSX.Element {
 
   const categories = React.useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
 
+  const activeCount = React.useMemo(
+    () => categories.filter((category) => category.isActive).length,
+    [categories],
+  );
+
+  const inactiveCount = React.useMemo(
+    () => categories.length - activeCount,
+    [categories, activeCount],
+  );
+
+  const totalCoursesCount = React.useMemo(
+    () => categories.reduce((sum, category) => sum + (category.courseCount ?? 0), 0),
+    [categories],
+  );
+
   const filteredCategories = React.useMemo(() => {
-    if (!searchQuery.trim()) return categories;
+    let result = categories;
+    if (statusFilter === 'ACTIVE') {
+      result = result.filter((category) => category.isActive);
+    } else if (statusFilter === 'INACTIVE') {
+      result = result.filter((category) => !category.isActive);
+    }
+
+    if (!searchQuery.trim()) return result;
     const query = searchQuery.trim().toLowerCase();
-    return categories.filter(
+    return result.filter(
       (category) =>
         category.name.toLowerCase().includes(query) ||
         category.slug.toLowerCase().includes(query) ||
         (category.description ?? '').toLowerCase().includes(query),
     );
-  }, [categories, searchQuery]);
+  }, [categories, statusFilter, searchQuery]);
 
   const openCreateModal = () => {
     setEditingCategory(null);
@@ -104,50 +131,67 @@ export function CategoriesView(): React.JSX.Element {
         </button>
       </div>
 
-      {/* 2. Bảng Danh Mục */}
+      {/* 2. Thống kê Card KPI Danh Mục */}
+      <CategoryStatsCards
+        totalCount={categories.length}
+        activeCount={activeCount}
+        inactiveCount={inactiveCount}
+        totalCoursesCount={totalCoursesCount}
+        currentStatus={statusFilter}
+        onStatusChange={setStatusFilter}
+        isLoading={categoriesQuery.isLoading}
+      />
+
+      {/* 3. Bảng Danh Mục */}
       <div className="bg-card text-card-foreground rounded-2xl border border-border/80 shadow-xs overflow-hidden">
         {/* Toolbar Tìm kiếm & Đếm số lượng */}
         <div className="p-4 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="relative w-full sm:w-72">
-            <Icon
-              icon="lucide:search"
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground size-3.5 pointer-events-none"
-            />
-            <Input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Tìm kiếm danh mục..."
-              className="w-full text-xs pl-8 pr-3 py-2 bg-muted/40 border border-input rounded-xl outline-none focus:ring-2 focus:ring-foreground h-9"
-            />
-            {searchQuery && (
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div className="relative w-full sm:w-72">
+              <Icon
+                icon="lucide:search"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground size-3.5 pointer-events-none"
+              />
+              <Input
+                type="text"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Tìm kiếm danh mục..."
+                className="w-full text-xs pl-8 pr-3 py-2 bg-muted/40 border border-input rounded-xl outline-none focus:ring-2 focus:ring-foreground h-9"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                  aria-label="Xóa tìm kiếm"
+                >
+                  <Icon icon="lucide:x" className="size-3.5" />
+                </button>
+              )}
+            </div>
+
+            {statusFilter !== 'ALL' && (
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
-                aria-label="Xóa tìm kiếm"
+                onClick={() => setStatusFilter('ALL')}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground transition border border-border/60 cursor-pointer"
+                title="Bấm để xóa lọc trạng thái"
               >
-                <Icon icon="lucide:x" className="size-3.5" />
+                <span>Lọc: {statusFilter === 'ACTIVE' ? 'Đang hiển thị' : 'Đang tạm ẩn'}</span>
+                <Icon icon="lucide:x" className="size-3 text-muted-foreground" />
               </button>
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-medium">
-            <div className="flex min-w-[16.5rem] items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-4 py-2">
-              <Icon icon="lucide:layers" className="size-4 shrink-0" />
-              <div>
-                <span className="block">Tổng danh mục</span>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl sm:text-3xl font-extrabold leading-none tabular-nums text-foreground">
-                    {categoriesQuery.isLoading || categoriesQuery.isError ? '—' : categories.length}
-                  </span>
-                  <span>danh mục</span>
-                </div>
-              </div>
-            </div>
-            {searchQuery.trim() && !categoriesQuery.isLoading && !categoriesQuery.isError && (
-              <span>{filteredCategories.length} kết quả tìm kiếm</span>
-            )}
+          <div className="flex items-center gap-3 text-xs text-muted-foreground font-medium">
+            <span>
+              Tổng cộng: {filteredCategories.length} danh mục
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              {activeCount} đang hiển thị
+            </span>
           </div>
         </div>
 
@@ -188,7 +232,7 @@ export function CategoriesView(): React.JSX.Element {
         )}
       </div>
 
-      {/* 3. Dialog / Modal Thêm Hoặc Sửa Danh Mục */}
+      {/* 4. Dialog / Modal Thêm Hoặc Sửa Danh Mục */}
       {isModalOpen ? (
         <CategoryModal
           isOpen={isModalOpen}
@@ -199,7 +243,7 @@ export function CategoriesView(): React.JSX.Element {
         />
       ) : null}
 
-      {/* 4. Dialog Xác nhận xóa */}
+      {/* 5. Dialog Xác nhận xóa */}
       <DeleteConfirmDialog
         open={Boolean(deletingCategory)}
         onOpenChange={(open) => {

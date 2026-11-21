@@ -2,6 +2,12 @@
 
 import * as React from 'react';
 import { Icon } from '@/components/ui/icon';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/ui/select';
 import type { RevenueTimeFilterValue } from './revenue-time-filter';
 
 export interface TransactionTimeFilterProps {
@@ -143,26 +149,43 @@ export function TransactionTimeFilter({
   return (
     <div className={`flex flex-wrap items-center gap-2.5 ${className}`}>
       {/* Dropdown Lọc Ngày / Tháng */}
-      <div className="flex items-center gap-2 bg-muted/40 border border-border/80 rounded-xl px-3 py-1.5 shadow-2xs">
-        <Icon icon="lucide:calendar" className="size-4 text-primary shrink-0" />
-        <span className="text-xs font-medium text-muted-foreground hidden sm:inline">
-          Khoảng thời gian:
-        </span>
-        <select
-          value={currentRange}
-          onChange={(e) => handlePeriodSelect(e.target.value)}
-          aria-label="Chọn khoảng thời gian lọc giao dịch"
-          className="bg-transparent text-xs font-bold text-foreground outline-none cursor-pointer pr-1"
-        >
-          {globalPeriodValue && (
-            <option value="default">Thời gian: Theo bộ lọc trang</option>
-          )}
-          {TRANSACTION_PERIOD_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground whitespace-nowrap">
+          <Icon icon="lucide:calendar" className="size-4 text-primary shrink-0" />
+          <span className="hidden sm:inline">Khoảng thời gian:</span>
+        </div>
+        <div className="w-56 shrink-0">
+          <Select<string>
+            value={currentRange}
+            onValueChange={(val) => {
+              if (val) handlePeriodSelect(val);
+            }}
+          >
+            <SelectTrigger
+              aria-label="Chọn khoảng thời gian lọc giao dịch"
+              className="h-9 text-xs px-3 font-medium bg-background"
+            >
+              <span className="truncate">
+                {currentRange === 'default'
+                  ? 'Thời gian: Theo bộ lọc trang'
+                  : TRANSACTION_PERIOD_OPTIONS.find((opt) => opt.value === currentRange)?.label ||
+                    '30 ngày gần nhất'}
+              </span>
+            </SelectTrigger>
+            <SelectContent align="start" className="min-w-56">
+              {globalPeriodValue && (
+                <SelectItem value="default" className="text-xs">
+                  Thời gian: Theo bộ lọc trang
+                </SelectItem>
+              )}
+              {TRANSACTION_PERIOD_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Bộ chọn khoảng ngày tùy chỉnh (khi chọn 'custom') */}
