@@ -7,6 +7,7 @@ import {
   type CategoryRevenueItem,
   type IDashboardPendingTask,
   type IDashboardCoursePerformance,
+  type IDashboardInstructor,
   type IAdminDashboardAggregateResponse,
 } from 'share-lib';
 import { BaseService } from '../../base/index.js';
@@ -14,6 +15,7 @@ import { AdminDashboardRepository } from '../repositories/admin-dashboard.reposi
 import {
   AdminDashboardQueryDto,
   AdminCoursesPerformanceQueryDto,
+  AdminInstructorsRankingQueryDto,
 } from '../dto/admin-dashboard.dto.js';
 import {
   parseRevenueTimeRange,
@@ -57,6 +59,7 @@ export class AdminDashboardService extends BaseService<IOrder, string> {
       categoryRevenue,
       pendingTasks,
       courses,
+      instructors,
     ] = await Promise.all([
       this.dashboardRepository.getRevenueKpi(startDate, endDate),
       this.dashboardRepository.getRevenueKpi(prevStartDate, prevEndDate),
@@ -76,6 +79,12 @@ export class AdminDashboardService extends BaseService<IOrder, string> {
         startDate,
         endDate,
         limit: 50,
+      }),
+      this.dashboardRepository.getInstructorsRanking({
+        startDate,
+        endDate,
+        sortBy: 'grossRevenue',
+        limit: 10,
       }),
     ]);
 
@@ -111,7 +120,26 @@ export class AdminDashboardService extends BaseService<IOrder, string> {
       categoryRevenue,
       pendingTasks,
       courses,
+      instructors,
     };
+  }
+
+  async getInstructorsRanking(
+    query: AdminInstructorsRankingQueryDto,
+  ): Promise<IDashboardInstructor[]> {
+    const period = query.period || 'this_month';
+    const { startDate, endDate } = this.resolveDateRange(
+      period,
+      query.startDate,
+      query.endDate,
+    );
+
+    return this.dashboardRepository.getInstructorsRanking({
+      startDate,
+      endDate,
+      sortBy: query.sortBy || 'grossRevenue',
+      limit: query.limit || 5,
+    });
   }
 
   async getChart(query: AdminDashboardQueryDto): Promise<IDashboardRevenueChartPoint[]> {

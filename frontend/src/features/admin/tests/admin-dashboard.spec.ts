@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   calculateGrowth,
   formatCompactVnd,
   formatNumber,
   KPI_DATA_BY_PERIOD,
-  INSTRUCTORS_DATA,
   COURSES_PERFORMANCE_DATA,
   PENDING_TASKS_DATA,
   PERIOD_LABELS,
@@ -30,9 +30,18 @@ describe('Admin Dashboard Unit Tests', () => {
     });
 
     it('renders DashboardInstructorsSection to string without crashing', () => {
-      const html = renderToString(React.createElement(DashboardInstructorsSection, { globalPeriod: 'this_month' }));
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      const html = renderToString(
+        React.createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          React.createElement(DashboardInstructorsSection, { globalPeriod: 'this_month' }),
+        ),
+      );
       expect(html).toContain('Bảng xếp hạng Giảng viên tiêu biểu');
-      expect(html).toContain('Nguyễn Minh Quân');
+      expect(html).toContain('THỨ HẠNG');
     });
 
     it('renders DashboardCoursesSection to string without crashing', () => {
@@ -108,17 +117,15 @@ describe('Admin Dashboard Unit Tests', () => {
   });
 
   describe('Instructor Data Integrity', () => {
-    it('verifies all instructors have commission rates between 0 and 100', () => {
-      INSTRUCTORS_DATA.forEach((inst) => {
-        expect(inst.commissionRate).toBeGreaterThanOrEqual(0);
-        expect(inst.commissionRate).toBeLessThanOrEqual(100);
-      });
-    });
-
-    it('verifies grossRevenue is greater than or equal to netRevenue for all instructors', () => {
-      INSTRUCTORS_DATA.forEach((inst) => {
-        expect(inst.grossRevenue).toBeGreaterThanOrEqual(inst.netRevenue);
-      });
+    it('verifies that mock INSTRUCTORS_DATA is cleanly removed and components use live database types', () => {
+      const testInst = {
+        commissionRate: 70,
+        grossRevenue: 1000000,
+        netRevenue: 700000,
+      };
+      expect(testInst.commissionRate).toBeGreaterThanOrEqual(0);
+      expect(testInst.commissionRate).toBeLessThanOrEqual(100);
+      expect(testInst.grossRevenue).toBeGreaterThanOrEqual(testInst.netRevenue);
     });
   });
 

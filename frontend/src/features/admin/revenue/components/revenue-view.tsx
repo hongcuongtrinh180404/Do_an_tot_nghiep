@@ -161,7 +161,14 @@ export function RevenueView(): React.JSX.Element {
           />
 
           {/* Bảng xếp hạng Giảng viên tiêu biểu */}
-          <DashboardInstructorsSection globalPeriod={timeFilter.timeRange} />
+          <DashboardInstructorsSection
+            globalPeriod={timeFilter.timeRange}
+            customDates={
+              timeFilter.timeRange === 'custom' && timeFilter.startDate && timeFilter.endDate
+                ? { startDate: timeFilter.startDate, endDate: timeFilter.endDate }
+                : undefined
+            }
+          />
 
           {/* Transactions Table Section */}
           <div className="space-y-3 pt-2">

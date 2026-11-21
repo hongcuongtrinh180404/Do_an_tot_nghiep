@@ -8,19 +8,19 @@ import {
   SelectItem,
   SelectTrigger,
 } from '@/components/ui/select';
-import type { DashboardPeriodType } from '../types';
+import type { DashboardPeriodType, IDashboardCustomDates } from '../types';
 import { formatVnd } from '../../revenue/utils/revenue-format.util';
-import {
-  INSTRUCTORS_DATA,
-  formatNumber,
-} from '../constants/mock-dashboard-data';
+import { formatNumber } from '../constants/mock-dashboard-data';
+import { useAdminDashboardInstructorsRankingQuery } from '../api/admin-dashboard.api';
 
 interface DashboardInstructorsSectionProps {
   globalPeriod?: DashboardPeriodType | string;
+  customDates?: IDashboardCustomDates;
 }
 
 export function DashboardInstructorsSection({
   globalPeriod = '30d',
+  customDates,
 }: DashboardInstructorsSectionProps): React.JSX.Element {
   const [periodOverride, setPeriodOverride] = React.useState<string>('default');
   const [sortKey, setSortKey] = React.useState<'grossRevenue' | 'salesCount' | 'netRevenue'>('grossRevenue');
@@ -64,33 +64,23 @@ export function DashboardInstructorsSection({
 
   const effectivePeriod = periodOverride === 'default' ? normalizedGlobalPeriod : periodOverride;
 
-  const scaledInstructors = React.useMemo(() => {
-    const scaleMap: Record<string, number> = {
-      today: 0.05,
-      yesterday: 0.045,
-      '7d': 0.28,
-      '30d': 1.18,
-      this_month: 1.0,
-      last_month: 1.26,
-      this_year: 9.8,
-      custom: 0.35,
-    };
-    const factor = scaleMap[effectivePeriod] || 1;
+  const queryParams = React.useMemo(
+    () => ({
+      period: effectivePeriod,
+      startDate: effectivePeriod === 'custom' ? customDates?.startDate : undefined,
+      endDate: effectivePeriod === 'custom' ? customDates?.endDate : undefined,
+      sortBy: sortKey,
+      limit,
+    }),
+    [effectivePeriod, customDates, sortKey, limit],
+  );
 
-    return INSTRUCTORS_DATA.map((inst) => {
-      const salesCount = Math.max(1, Math.round(inst.salesCount * factor));
-      const grossRevenue = Math.round(inst.grossRevenue * factor);
-      const netRevenue = Math.round(grossRevenue * (inst.commissionRate / 100));
-      return {
-        ...inst,
-        salesCount,
-        grossRevenue,
-        netRevenue,
-      };
-    }).sort((a, b) => b[sortKey] - a[sortKey]);
-  }, [effectivePeriod, sortKey]);
-
-  const displayedInstructors = scaledInstructors.slice(0, limit);
+  const {
+    data: instructors = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useAdminDashboardInstructorsRankingQuery(queryParams);
 
   return (
     <section className="bg-card rounded-2xl border border-border/60 shadow-xs overflow-hidden">
@@ -216,87 +206,154 @@ export function DashboardInstructorsSection({
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40 text-xs">
-            {displayedInstructors.map((inst, idx) => {
-              const rank = idx + 1;
-              let rankBadge = (
-                <span className="inline-flex items-center justify-center size-7 rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 font-medium text-xs">
-                  {rank}
-                </span>
-              );
-
-              if (rank === 1) {
-                rankBadge = (
-                  <span className="inline-flex items-center justify-center size-7 rounded-full bg-amber-100/70 border border-amber-300 text-amber-700 dark:text-amber-400 font-extrabold text-xs shadow-2xs">
-                    1
-                  </span>
-                );
-              } else if (rank === 2) {
-                rankBadge = (
-                  <span className="inline-flex items-center justify-center size-7 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs">
-                    2
-                  </span>
-                );
-              } else if (rank === 3) {
-                rankBadge = (
-                  <span className="inline-flex items-center justify-center size-7 rounded-full bg-orange-100/70 border border-orange-300 text-orange-800 dark:text-orange-300 font-bold text-xs">
-                    3
-                  </span>
-                );
-              }
-
-              return (
-                <tr
-                  key={inst.id}
-                  className="hover:bg-muted/20 transition"
-                >
-                  {/* Cột 1: Thứ hạng */}
-                  <td className="py-4 px-6 text-center">{rankBadge}</td>
-
-                  {/* Cột 2: Giảng viên */}
+            {isLoading ? (
+              Array.from({ length: limit }).map((_, idx) => (
+                <tr key={`skeleton-${idx}`} className="animate-pulse">
+                  <td className="py-4 px-6 text-center">
+                    <div className="size-7 rounded-full bg-muted/60 mx-auto" />
+                  </td>
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
-                      <div
-                        className={`size-9 rounded-xl ${inst.avatarBg} font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs`}
-                      >
-                        {inst.initials}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-foreground text-xs sm:text-sm truncate">
-                          {inst.name}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                          {inst.specialty}
-                        </p>
+                      <div className="size-9 rounded-xl bg-muted/60 shrink-0" />
+                      <div className="space-y-1.5 w-32">
+                        <div className="h-3.5 bg-muted/60 rounded w-28" />
+                        <div className="h-2.5 bg-muted/50 rounded w-20" />
                       </div>
                     </div>
                   </td>
-
-                  {/* Cột 3: Số khóa học công khai */}
                   <td className="py-4 px-4 text-center">
-                    <span className="inline-flex items-center justify-center px-3.5 py-1 rounded-full text-xs font-medium bg-muted/50 border border-border/70 text-muted-foreground">
-                      {inst.coursesCount} khóa
-                    </span>
+                    <div className="h-6 w-16 bg-muted/60 rounded-full mx-auto" />
                   </td>
-
-                  {/* Cột 4: Số lượt bán thành công */}
-                  <td className="py-4 px-4 text-right font-semibold text-foreground text-xs sm:text-sm tabular-nums">
-                    {formatNumber(inst.salesCount)} lượt
+                  <td className="py-4 px-4 text-right">
+                    <div className="h-4 w-14 bg-muted/60 rounded ml-auto" />
                   </td>
-
-                  {/* Cột 5: Tổng doanh thu khóa học (VNĐ) */}
-                  <td className="py-4 px-4 text-right font-bold text-foreground text-xs sm:text-sm tabular-nums">
-                    {formatVnd(inst.grossRevenue)}
+                  <td className="py-4 px-4 text-right">
+                    <div className="h-4 w-24 bg-muted/60 rounded ml-auto" />
                   </td>
-
-                  {/* Cột 6: Doanh thu giảng viên thực nhận (VNĐ) */}
-                  <td className="py-4 px-6 text-right tabular-nums">
-                    <span className="inline-block px-3.5 py-1.5 rounded-xl border border-amber-300 bg-amber-50/70 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 font-bold text-xs sm:text-sm shadow-2xs">
-                      {formatVnd(inst.netRevenue)}
-                    </span>
+                  <td className="py-4 px-6 text-right">
+                    <div className="h-7 w-28 bg-muted/60 rounded-xl ml-auto" />
                   </td>
                 </tr>
-              );
-            })}
+              ))
+            ) : isError ? (
+              <tr>
+                <td colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Icon icon="lucide:alert-circle" className="size-6 text-rose-500" />
+                    <p className="text-xs font-semibold text-foreground">Không thể tải dữ liệu xếp hạng giảng viên</p>
+                    <button
+                      type="button"
+                      onClick={() => refetch()}
+                      className="mt-1 px-3 py-1 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition cursor-pointer"
+                    >
+                      Thử lại
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ) : instructors.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-12 text-center text-muted-foreground">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <div className="size-10 rounded-2xl bg-muted/40 flex items-center justify-center text-muted-foreground">
+                      <Icon icon="lucide:user-x" className="size-5" />
+                    </div>
+                    <p className="text-xs font-medium">Chưa có dữ liệu xếp hạng giảng viên trong kỳ lọc này</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              instructors.map((inst, idx) => {
+                const rank = idx + 1;
+                let rankBadge = (
+                  <span className="inline-flex items-center justify-center size-7 rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 font-medium text-xs">
+                    {rank}
+                  </span>
+                );
+
+                if (rank === 1) {
+                  rankBadge = (
+                    <span className="inline-flex items-center justify-center size-7 rounded-full bg-amber-100/70 border border-amber-300 text-amber-700 dark:text-amber-400 font-extrabold text-xs shadow-2xs">
+                      1
+                    </span>
+                  );
+                } else if (rank === 2) {
+                  rankBadge = (
+                    <span className="inline-flex items-center justify-center size-7 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs">
+                      2
+                    </span>
+                  );
+                } else if (rank === 3) {
+                  rankBadge = (
+                    <span className="inline-flex items-center justify-center size-7 rounded-full bg-orange-100/70 border border-orange-300 text-orange-800 dark:text-orange-300 font-bold text-xs">
+                      3
+                    </span>
+                  );
+                }
+
+                return (
+                  <tr
+                    key={inst.id}
+                    className="hover:bg-muted/20 transition"
+                  >
+                    {/* Cột 1: Thứ hạng */}
+                    <td className="py-4 px-6 text-center">{rankBadge}</td>
+
+                    {/* Cột 2: Giảng viên */}
+                    <td className="py-4 px-4">
+                      <div className="flex items-center gap-3">
+                        {inst.avatarUrl ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={inst.avatarUrl}
+                            alt={inst.name}
+                            className="size-9 rounded-xl object-cover shrink-0 shadow-2xs border border-border/60"
+                          />
+                        ) : (
+                          <div
+                            className={`size-9 rounded-xl ${inst.avatarBg || 'bg-primary/10 text-primary'} font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs`}
+                          >
+                            {inst.initials}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-bold text-foreground text-xs sm:text-sm truncate">
+                            {inst.name}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                            {inst.specialty}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Cột 3: Số khóa học công khai */}
+                    <td className="py-4 px-4 text-center">
+                      <span className="inline-flex items-center justify-center px-3.5 py-1 rounded-full text-xs font-medium bg-muted/50 border border-border/70 text-muted-foreground">
+                        {inst.coursesCount} khóa
+                      </span>
+                    </td>
+
+                    {/* Cột 4: Số lượt bán thành công */}
+                    <td className="py-4 px-4 text-right font-semibold text-foreground text-xs sm:text-sm tabular-nums">
+                      {formatNumber(inst.salesCount)} lượt
+                    </td>
+
+                    {/* Cột 5: Tổng doanh thu khóa học (VNĐ) */}
+                    <td className="py-4 px-4 text-right font-bold text-foreground text-xs sm:text-sm tabular-nums">
+                      {formatVnd(inst.grossRevenue)}
+                    </td>
+
+                    {/* Cột 6: Doanh thu giảng viên thực nhận (VNĐ) */}
+                    <td className="py-4 px-6 text-right tabular-nums">
+                      <span className="inline-block px-3.5 py-1.5 rounded-xl border border-amber-300 bg-amber-50/70 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 font-bold text-xs sm:text-sm shadow-2xs">
+                        {formatVnd(inst.netRevenue)}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>

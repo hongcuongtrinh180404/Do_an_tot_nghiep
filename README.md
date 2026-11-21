@@ -5,7 +5,7 @@
 > **Sinh viên thực hiện:** Trịnh Hồng Cường – **MSSV:** 28211151710  
 > **Giảng viên hướng dẫn:** ThS. Nguyễn Hữu Phúc  
 > **Thời gian:** 28/9/2026 – 22/12/2026 (3 tháng)  
-> **Kiến trúc:** **NestJS 11**, **Next.js 16 (App Router)**, **RabbitMQ**, **AssemblyAI**, **Gemini API**, **Markmap**, và **SePay**.
+> **Kiến trúc:** **NestJS 12 (ESM)**, **Next.js 16 (App Router)**, **MongoDB 7 (Replica Set rs0)**, **RabbitMQ 4.4**, **AssemblyAI**, **Gemini API**, **Markmap**, và **SePay**.
 
 ---
 
@@ -27,7 +27,7 @@ Hệ thống học trực tuyến hiện đại tích hợp **video đa tương 
 ```
 Do_an_tot_nghiep/ (Root)
 ├── 📦 share-lib/            --> Thư viện dùng chung (Types, Enums, DTOs, Constants)
-├── ⚙️ backend/              --> REST API Server (NestJS 11, Mongoose, MongoDB, CLS Context)
+├── ⚙️ backend/              --> REST API Server & Standalone Worker (NestJS 12 ESM, Mongoose 9, MongoDB rs0, CLS Context)
 ├── 💻 frontend/             --> Web Client Portal (Next.js 16 App Router, Shadcn UI, TanStack Query)
 ├── 📚 docs/                 --> Toàn bộ tài liệu kiến trúc, hướng dẫn và kế hoạch phát triển
 ├── 📜 package.json          --> Cấu hình scripts Turborepo cấp Root
@@ -40,9 +40,9 @@ Do_an_tot_nghiep/ (Root)
 ## 🚀 Quick Start (Khởi chạy nhanh)
 
 ### 1. Yêu cầu môi trường
-* **Node.js**: Phiên bản `>= 20.0.0` (khuyên dùng Node 20 LTS hoặc Node 22 LTS).
+* **Node.js**: Phiên bản `>= 22.0.0` (khuyên dùng Node 22 LTS hoặc Node 24 LTS; tương thích `amqp-connection-manager 5.x` và OpenAI SDK).
 * **Package Manager**: `pnpm` phiên bản `>= 9.x` (khuyên dùng `pnpm@11.x`).
-* **Cơ sở dữ liệu**: MongoDB Server cục bộ (port 27017) hoặc MongoDB Docker Container.
+* **Cơ sở dữ liệu**: MongoDB 7.0 Replica Set `rs0` (`localhost:27017` qua Docker `mongo:7.0`).
 
 ### 2. Cài đặt dependencies
 Tại thư mục gốc của dự án:

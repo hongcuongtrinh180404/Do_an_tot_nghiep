@@ -67,10 +67,39 @@ export interface CategoryRevenueItem {
   revenue: number;
 }
 
+export interface IDashboardInstructorCourse {
+  id: string;
+  title: string;
+  price: number;
+  isFree: boolean;
+  totalStudents: number;
+  rating: number;
+  reviewCount: number;
+  revenue: number;
+}
+
+export interface IDashboardInstructor {
+  id: string;
+  name: string;
+  email: string;
+  specialty: string;
+  avatarBg?: string;
+  avatarUrl?: string | null;
+  initials: string;
+  coursesCount: number;
+  salesCount: number;
+  grossRevenue: number;
+  netRevenue: number;
+  commissionRate: number;
+  avgRating?: number;
+  courses?: IDashboardInstructorCourse[];
+}
+
 export interface IAdminDashboardAggregateResponse {
   kpis: IDashboardKpiData;
   chartSeries: IDashboardRevenueChartPoint[];
   categoryRevenue: CategoryRevenueItem[];
   pendingTasks: IDashboardPendingTask[];
   courses: IDashboardCoursePerformance[];
+  instructors?: IDashboardInstructor[];
 }

@@ -11,9 +11,18 @@ import type {
   CategoryRevenueItem,
   IDashboardPendingTask,
   IDashboardCoursePerformance,
+  IDashboardInstructor,
   DashboardPeriodType,
 } from 'share-lib';
 import type { IDashboardCustomDates } from '../types';
+
+export interface AdminInstructorsRankingParams {
+  period?: string;
+  startDate?: string;
+  endDate?: string;
+  sortBy?: 'grossRevenue' | 'salesCount' | 'netRevenue';
+  limit?: number;
+}
 
 export const adminDashboardKeys = {
   all: ['admin-dashboard'] as const,
@@ -24,6 +33,8 @@ export const adminDashboardKeys = {
     groupBy: 'day' | 'month',
     customDates?: IDashboardCustomDates,
   ) => [...adminDashboardKeys.all, 'chart', period, groupBy, customDates] as const,
+  instructorsRanking: (params: AdminInstructorsRankingParams) =>
+    [...adminDashboardKeys.all, 'instructors-ranking', params] as const,
 };
 
 export interface AdminDashboardAggregateResult {
@@ -32,6 +43,7 @@ export interface AdminDashboardAggregateResult {
   categoryRevenue: CategoryRevenueItem[];
   pendingTasks: IDashboardPendingTask[];
   courses: IDashboardCoursePerformance[];
+  instructors: IDashboardInstructor[];
   isBackendConnected: boolean;
 }
 
@@ -69,6 +81,7 @@ export async function fetchAdminDashboardData(
         categoryRevenue: payload.categoryRevenue || [],
         pendingTasks: payload.pendingTasks || [],
         courses: payload.courses || [],
+        instructors: payload.instructors || [],
         isBackendConnected: true,
       };
     }
@@ -79,6 +92,7 @@ export async function fetchAdminDashboardData(
       categoryRevenue: [],
       pendingTasks: [],
       courses: [],
+      instructors: [],
       isBackendConnected: true,
     };
   } catch (error) {
@@ -89,6 +103,7 @@ export async function fetchAdminDashboardData(
       categoryRevenue: [],
       pendingTasks: [],
       courses: [],
+      instructors: [],
       isBackendConnected: false,
     };
   }
@@ -119,6 +134,22 @@ export async function fetchAdminDashboardChartData(
   }
 }
 
+export async function fetchAdminDashboardInstructorsRanking(
+  params: AdminInstructorsRankingParams,
+): Promise<IDashboardInstructor[]> {
+  try {
+    const res = await apiClient.get<IApiResponse<IDashboardInstructor[]>>(
+      '/admin/dashboard/instructors/ranking',
+      { params },
+    );
+
+    return res.data?.data || [];
+  } catch (error) {
+    console.error('Failed to fetch admin dashboard instructors ranking:', error);
+    return [];
+  }
+}
+
 export function useAdminDashboardQuery(
   period: DashboardPeriodType,
   customDates?: IDashboardCustomDates,
@@ -143,6 +174,19 @@ export function useAdminDashboardChartQuery(
   return useQuery({
     queryKey: adminDashboardKeys.chart(period, groupBy, customDates),
     queryFn: () => fetchAdminDashboardChartData(period, groupBy, customDates),
+    enabled: isMounted,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useAdminDashboardInstructorsRankingQuery(
+  params: AdminInstructorsRankingParams,
+) {
+  const isMounted = useIsMounted();
+
+  return useQuery({
+    queryKey: adminDashboardKeys.instructorsRanking(params),
+    queryFn: () => fetchAdminDashboardInstructorsRanking(params),
     enabled: isMounted,
     staleTime: 60 * 1000,
   });

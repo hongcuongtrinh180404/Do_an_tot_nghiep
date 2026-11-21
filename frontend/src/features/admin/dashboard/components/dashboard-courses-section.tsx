@@ -103,33 +103,30 @@ export function DashboardCoursesSection({
             <button
               type="button"
               onClick={() => setActiveTab('revenue')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                activeTab === 'revenue'
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${activeTab === 'revenue'
                   ? 'bg-card text-foreground shadow-2xs font-bold'
                   : 'text-muted-foreground hover:text-foreground font-medium'
-              }`}
+                }`}
             >
               Tab A: Top 10 Doanh thu cao nhất
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('enrollment')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                activeTab === 'enrollment'
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${activeTab === 'enrollment'
                   ? 'bg-card text-foreground shadow-2xs font-bold'
                   : 'text-muted-foreground hover:text-foreground font-medium'
-              }`}
+                }`}
             >
               Tab B: Top 10 Nhiều lượt đăng ký nhất
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('completion')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                activeTab === 'completion'
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${activeTab === 'completion'
                   ? 'bg-card text-foreground shadow-2xs font-bold'
                   : 'text-muted-foreground hover:text-foreground font-medium'
-              }`}
+                }`}
             >
               Tab C: Top Tỷ lệ hoàn thành cao
             </button>

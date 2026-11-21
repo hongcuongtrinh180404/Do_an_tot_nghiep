@@ -54,15 +54,16 @@ export interface IDashboardInstructor {
   name: string;
   email: string;
   specialty: string;
-  avatarBg: string;
+  avatarBg?: string;
+  avatarUrl?: string | null;
   initials: string;
   coursesCount: number;
   salesCount: number;
   grossRevenue: number;
   netRevenue: number;
   commissionRate: number;
-  avgRating: number;
-  courses: IDashboardInstructorCourse[];
+  avgRating?: number;
+  courses?: IDashboardInstructorCourse[];
 }
 
 export interface IDashboardCoursePerformance {

@@ -169,7 +169,7 @@ export function TransactionTimeFilter({
                 {currentRange === 'default'
                   ? 'Thời gian: Theo bộ lọc trang'
                   : TRANSACTION_PERIOD_OPTIONS.find((opt) => opt.value === currentRange)?.label ||
-                    '30 ngày gần nhất'}
+                  '30 ngày gần nhất'}
               </span>
             </SelectTrigger>
             <SelectContent align="start" className="min-w-56">

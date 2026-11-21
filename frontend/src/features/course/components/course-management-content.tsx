@@ -142,8 +142,8 @@ export function CourseManagementContent(): React.JSX.Element {
               }}
               onClick={() => setSelectedStatus('ALL')}
               className={`cursor-pointer p-4 rounded-xl border transition-all select-none bg-white dark:bg-card flex flex-col justify-between ${selectedStatus === 'ALL'
-                  ? 'border-neutral-900 dark:border-white ring-1 ring-neutral-900/10'
-                  : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
+                ? 'border-neutral-900 dark:border-white ring-1 ring-neutral-900/10'
+                : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
                 }`}
             >
               <div className="flex items-center justify-between gap-2">
@@ -169,8 +169,8 @@ export function CourseManagementContent(): React.JSX.Element {
               }}
               onClick={() => setSelectedStatus(CourseStatusEnum.PUBLISHED)}
               className={`cursor-pointer p-4 rounded-xl border transition-all select-none bg-white dark:bg-card flex flex-col justify-between ${selectedStatus === CourseStatusEnum.PUBLISHED
-                  ? 'border-emerald-500 ring-1 ring-emerald-500/20'
-                  : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
+                ? 'border-emerald-500 ring-1 ring-emerald-500/20'
+                : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
                 }`}
             >
               <div className="flex items-center justify-between gap-2">
@@ -198,8 +198,8 @@ export function CourseManagementContent(): React.JSX.Element {
               }}
               onClick={() => setSelectedStatus(CourseStatusEnum.PENDING_APPROVAL)}
               className={`cursor-pointer p-4 rounded-xl border transition-all select-none bg-white dark:bg-card flex flex-col justify-between ${selectedStatus === CourseStatusEnum.PENDING_APPROVAL
-                  ? 'border-sky-500 ring-1 ring-sky-500/20'
-                  : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
+                ? 'border-sky-500 ring-1 ring-sky-500/20'
+                : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
                 }`}
             >
               <div className="flex items-center justify-between gap-2">
@@ -227,8 +227,8 @@ export function CourseManagementContent(): React.JSX.Element {
               }}
               onClick={() => setSelectedStatus(CourseStatusEnum.DRAFT)}
               className={`cursor-pointer p-4 rounded-xl border transition-all select-none bg-white dark:bg-card flex flex-col justify-between ${selectedStatus === CourseStatusEnum.DRAFT
-                  ? 'border-amber-500 ring-1 ring-amber-500/20'
-                  : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
+                ? 'border-amber-500 ring-1 ring-amber-500/20'
+                : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
                 }`}
             >
               <div className="flex items-center justify-between gap-2">
@@ -256,8 +256,8 @@ export function CourseManagementContent(): React.JSX.Element {
               }}
               onClick={() => setSelectedStatus(CourseStatusEnum.ARCHIVED)}
               className={`cursor-pointer p-4 rounded-xl border transition-all select-none bg-white dark:bg-card flex flex-col justify-between ${selectedStatus === CourseStatusEnum.ARCHIVED
-                  ? 'border-neutral-600 ring-1 ring-neutral-600/20'
-                  : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
+                ? 'border-neutral-600 ring-1 ring-neutral-600/20'
+                : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300'
                 }`}
             >
               <div className="flex items-center justify-between gap-2">
@@ -315,8 +315,8 @@ export function CourseManagementContent(): React.JSX.Element {
                   aria-selected={selectedStatus === 'ALL'}
                   onClick={() => setSelectedStatus('ALL')}
                   className={`px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${selectedStatus === 'ALL'
-                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
+                    ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
                     }`}
                 >
                   Tất cả ({stats.total})
@@ -327,8 +327,8 @@ export function CourseManagementContent(): React.JSX.Element {
                   aria-selected={selectedStatus === CourseStatusEnum.PUBLISHED}
                   onClick={() => setSelectedStatus(CourseStatusEnum.PUBLISHED)}
                   className={`px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${selectedStatus === CourseStatusEnum.PUBLISHED
-                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
+                    ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
                     }`}
                 >
                   Đã xuất bản ({stats.published})
@@ -339,8 +339,8 @@ export function CourseManagementContent(): React.JSX.Element {
                   aria-selected={selectedStatus === CourseStatusEnum.PENDING_APPROVAL}
                   onClick={() => setSelectedStatus(CourseStatusEnum.PENDING_APPROVAL)}
                   className={`px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${selectedStatus === CourseStatusEnum.PENDING_APPROVAL
-                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
+                    ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
                     }`}
                 >
                   Chờ duyệt ({stats.pending})
@@ -351,8 +351,8 @@ export function CourseManagementContent(): React.JSX.Element {
                   aria-selected={selectedStatus === CourseStatusEnum.DRAFT}
                   onClick={() => setSelectedStatus(CourseStatusEnum.DRAFT)}
                   className={`px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${selectedStatus === CourseStatusEnum.DRAFT
-                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
+                    ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
                     }`}
                 >
                   Bản nháp ({stats.draft})
@@ -363,8 +363,8 @@ export function CourseManagementContent(): React.JSX.Element {
                   aria-selected={selectedStatus === CourseStatusEnum.ARCHIVED}
                   onClick={() => setSelectedStatus(CourseStatusEnum.ARCHIVED)}
                   className={`px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${selectedStatus === CourseStatusEnum.ARCHIVED
-                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
+                    ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs'
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
                     }`}
                 >
                   Ngừng bán ({stats.archived})

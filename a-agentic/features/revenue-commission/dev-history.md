@@ -4,6 +4,50 @@
 
 ---
 
+## 2026-11-21: Chuyển đổi "Bảng xếp hạng Giảng viên tiêu biểu" sang dữ liệu thật MongoDB và loại bỏ mock data
+
+- **Yêu cầu**:
+  - Tại 2 trang Quản Trị:
+    - **Tổng quan** (`/admin/dashboard`)
+    - **Quản Lý Doanh Thu & Hoa Hồng** (`/admin/revenue`)
+  - Bảng "Bảng xếp hạng Giảng viên tiêu biểu" (`DashboardInstructorsSection`) đang dùng mock data tĩnh `INSTRUCTORS_DATA` và công thức giả lập `scaleMap`.
+  - Chuyển sang truy vấn dữ liệu thực tế từ database MongoDB, loại bỏ mock data ở frontend. Không kích hoạt tương tác mở Drawer khi click hàng.
+- **Triển khai**:
+  1. **Shared Library (`share-lib`)**:
+     - Bổ sung interface `IDashboardInstructor` và `IDashboardInstructorCourse` vào `share-lib/src/interfaces/admin-dashboard.interface.ts`.
+     - Cập nhật `IAdminDashboardAggregateResponse` hỗ trợ `instructors?: IDashboardInstructor[]`.
+     - Build `share-lib`.
+  2. **Backend NestJS (`backend/src/modules/admin-dashboard`)**:
+     - `admin-dashboard.dto.ts`: Tạo `AdminInstructorsRankingQueryDto` hỗ trợ `period`, `startDate`, `endDate`, `sortBy` (`grossRevenue`, `salesCount`, `netRevenue`), `limit`.
+     - `admin-dashboard.repository.ts`: Triển khai pipeline aggregation `getInstructorsRanking()`:
+       - Lọc giảng viên hợp lệ từ collection `users` (`role: instructor`, `deletedAt: null`).
+       - `$lookup` khóa học đã công khai từ `courses` (`status: published`, `deletedAt: null`) để đếm `coursesCount`.
+       - `$lookup` đơn hàng thành công từ `orders` (`status: paid`, `deletedAt: null`, lọc theo `paidAt`/`createdAt` trong kỳ) để tính `salesCount`, `grossRevenue`, `netRevenue` (`instructorEarnings`).
+       - Sắp xếp linh hoạt theo `sortBy` (`grossRevenue`, `salesCount`, `netRevenue`) và giới hạn theo `limit`.
+     - `admin-dashboard.service.ts`: Thêm `getInstructorsRanking()` và tích hợp vào `getAggregate()`.
+     - `admin-dashboard.controller.ts`: Thêm endpoint `GET /admin/dashboard/instructors/ranking` kèm `@Header('Cache-Control', 'no-store')`.
+     - `admin-dashboard.service.spec.ts`: Bổ sung unit tests cho phương thức `getInstructorsRanking` và `getAggregate`.
+  3. **Frontend Next.js (`frontend/src/features/admin`)**:
+     - `admin-dashboard.api.ts`: Bổ sung `fetchAdminDashboardInstructorsRanking` và query hook `useAdminDashboardInstructorsRankingQuery`.
+     - `mock-dashboard-data.ts`: Xóa bỏ hoàn toàn mảng mock `INSTRUCTORS_DATA`.
+     - `dashboard-instructors-section.tsx`:
+       - Tích hợp hook `useAdminDashboardInstructorsRankingQuery`.
+       - Hỗ trợ lọc theo thời gian (`period`, `customDates`), tiêu chí sắp xếp (`grossRevenue`, `salesCount`, `netRevenue`), và số lượng hiển thị (`Top 5`, `Top 10`).
+       - Thêm Skeleton loading state khi đang tải dữ liệu.
+       - Thêm Empty state khi chưa có dữ liệu xếp hạng trong kỳ lọc.
+       - Thêm Error state kèm nút thử lại khi kết nối gián đoạn.
+       - Hỗ trợ hiển thị ảnh đại diện thật từ `avatarUrl`, tự động fallback về initials badge kèm màu sắc theo palette.
+       - Giữ nguyên trạng thái không kích hoạt drawer khi click dòng theo yêu cầu người dùng.
+     - `revenue-view.tsx` & `admin-dashboard-view.tsx`: Đồng bộ truyền `globalPeriod` và `customDates` sang `DashboardInstructorsSection`.
+     - `revenue-instructors-ranking.spec.ts` & `admin-dashboard.spec.ts`: Cập nhật unit tests kiểm tra bảng xếp hạng với dữ liệu thực tế và mock API.
+- **Kết quả kiểm thử**:
+  - Backend tests: 22/22 unit tests pass (`admin-dashboard.service.spec.ts`, `revenue.service.spec.ts`).
+  - Backend build: `nest build` thành công 100%.
+  - Frontend tests: 30/30 unit tests pass (`revenue-instructors-ranking.spec.ts`, `admin-dashboard.spec.ts`).
+  - Toàn bộ feature tests của revenue: 24/24 tests pass.
+
+---
+
 ## 2026-11-21: Chuẩn hóa toàn diện Dropdown Select theo mẫu UI Base UI
 
 - **Yêu cầu**:

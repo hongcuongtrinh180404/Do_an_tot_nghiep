@@ -3,12 +3,6 @@
 import * as React from 'react';
 import Chart from 'chart.js/auto';
 import { Icon } from '@/components/ui/icon';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from '@/components/ui/select';
 import type {
   DashboardPeriodType,
   IDashboardCustomDates,
@@ -32,7 +26,6 @@ export function DashboardRevenueSection({
 }: DashboardRevenueSectionProps): React.JSX.Element {
   const [groupBy, setGroupBy] = React.useState<RevenueGroupBy>('day');
   const [chartType, setChartType] = React.useState<RevenueChartType>('line');
-  const [periodOverride, setPeriodOverride] = React.useState<string>('default');
   const [visibleSeries, setVisibleSeries] = React.useState<[boolean, boolean, boolean]>([
     true,
     true,
@@ -51,7 +44,6 @@ export function DashboardRevenueSection({
   const isFilterModified =
     groupBy !== 'day' ||
     chartType !== 'line' ||
-    periodOverride !== 'default' ||
     !visibleSeries[0] ||
     !visibleSeries[1] ||
     !visibleSeries[2];
@@ -59,7 +51,6 @@ export function DashboardRevenueSection({
   const handleResetFilters = () => {
     setGroupBy('day');
     setChartType('line');
-    setPeriodOverride('default');
     setVisibleSeries([true, true, true]);
     const chart = chartInstanceRef.current;
     if (chart) {
@@ -71,11 +62,14 @@ export function DashboardRevenueSection({
   };
 
   const chartData: IDashboardRevenueChartPoint[] = React.useMemo(() => {
-    if (groupBy === 'day' && periodOverride === 'default' && initialChartData?.length) {
+    if (remoteChartData && remoteChartData.length > 0) {
+      return remoteChartData;
+    }
+    if (groupBy === 'day' && initialChartData?.length) {
       return initialChartData;
     }
     const base = REVENUE_CHART_SERIES[groupBy];
-    const effectivePeriod = periodOverride === 'default' ? globalPeriod : periodOverride;
+    const effectivePeriod = globalPeriod;
 
     const scaleMap: Record<string, number> = {
       today: 0.08,
@@ -96,7 +90,7 @@ export function DashboardRevenueSection({
       instructorRevenue: Math.round(item.instructorRevenue * factor),
       orderCount: Math.round(item.orderCount * factor),
     }));
-  }, [groupBy, periodOverride, globalPeriod, initialChartData]);
+  }, [groupBy, globalPeriod, initialChartData, remoteChartData]);
 
   const totalGross = React.useMemo(() => {
     return chartData.reduce((acc, curr) => acc + curr.grossRevenue, 0);
@@ -321,40 +315,6 @@ export function DashboardRevenueSection({
               <Icon icon="lucide:bar-chart-2" className="size-3.5" />
               <span>Bar</span>
             </button>
-          </div>
-
-          {/* Independent Period Filter */}
-          <div className="w-52 shrink-0">
-            <Select<string>
-              value={periodOverride}
-              onValueChange={(val) => {
-                if (val) setPeriodOverride(val);
-              }}
-            >
-              <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
-                <span className="truncate">
-                  {periodOverride === 'today'
-                    ? 'Hôm nay'
-                    : periodOverride === '7d'
-                      ? '7 ngày gần nhất'
-                      : periodOverride === '30d'
-                        ? '30 ngày gần nhất'
-                        : periodOverride === 'this_month'
-                          ? 'Tháng này'
-                          : periodOverride === 'this_year'
-                            ? 'Năm nay'
-                            : 'Thời gian: Theo Dashboard'}
-                </span>
-              </SelectTrigger>
-              <SelectContent align="start" className="min-w-52">
-                <SelectItem value="default" className="text-xs">Thời gian: Theo Dashboard</SelectItem>
-                <SelectItem value="today" className="text-xs">Hôm nay</SelectItem>
-                <SelectItem value="7d" className="text-xs">7 ngày gần nhất</SelectItem>
-                <SelectItem value="30d" className="text-xs">30 ngày gần nhất</SelectItem>
-                <SelectItem value="this_month" className="text-xs">Tháng này</SelectItem>
-                <SelectItem value="this_year" className="text-xs">Năm nay</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Reset Filters Button */}

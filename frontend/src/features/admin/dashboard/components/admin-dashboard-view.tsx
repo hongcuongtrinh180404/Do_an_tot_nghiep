@@ -144,7 +144,10 @@ export function AdminDashboardView(): React.JSX.Element {
       />
 
       {/* 5. Section: Top Instructors Ranking */}
-      <DashboardInstructorsSection globalPeriod={globalPeriod} />
+      <DashboardInstructorsSection
+        globalPeriod={globalPeriod}
+        customDates={globalPeriod === 'custom' ? customDates : undefined}
+      />
 
       {/* 6. Section: Course Performance (3 Tabs) */}
       <DashboardCoursesSection

@@ -14,6 +14,7 @@ describe('AdminDashboardService', () => {
     getCategoryRevenue: ReturnType<typeof vi.fn>;
     getRecentPendingTasks: ReturnType<typeof vi.fn>;
     getCoursesPerformance: ReturnType<typeof vi.fn>;
+    getInstructorsRanking: ReturnType<typeof vi.fn>;
   };
   let cls: ClsService;
 
@@ -27,6 +28,7 @@ describe('AdminDashboardService', () => {
       getCategoryRevenue: vi.fn(),
       getRecentPendingTasks: vi.fn(),
       getCoursesPerformance: vi.fn(),
+      getInstructorsRanking: vi.fn(),
     };
 
     cls = {
@@ -121,6 +123,23 @@ describe('AdminDashboardService', () => {
         },
       ]);
 
+      repo.getInstructorsRanking.mockResolvedValue([
+        {
+          id: 'inst-1',
+          name: 'Nguyễn Văn A',
+          email: 'gv.a@mindly.vn',
+          specialty: 'Backend NodeJS',
+          avatarBg: 'bg-blue-600 text-white',
+          avatarUrl: null,
+          initials: 'NA',
+          coursesCount: 3,
+          salesCount: 25,
+          grossRevenue: 12500000,
+          netRevenue: 8750000,
+          commissionRate: 70,
+        },
+      ]);
+
       // Act
       const result = await service.getAggregate({ period: 'this_month' });
 
@@ -137,6 +156,7 @@ describe('AdminDashboardService', () => {
       expect(result.categoryRevenue).toHaveLength(2);
       expect(result.courses).toHaveLength(1);
       expect(result.pendingTasks).toHaveLength(1);
+      expect(result.instructors).toHaveLength(1);
     });
 
     it('returns zero metrics gracefully when database has 0 records', async () => {
@@ -159,6 +179,7 @@ describe('AdminDashboardService', () => {
       repo.getCategoryRevenue.mockResolvedValue([]);
       repo.getRecentPendingTasks.mockResolvedValue([]);
       repo.getCoursesPerformance.mockResolvedValue([]);
+      repo.getInstructorsRanking.mockResolvedValue([]);
 
       // Act
       const result = await service.getAggregate({ period: 'today' });
@@ -172,6 +193,44 @@ describe('AdminDashboardService', () => {
       expect(result.categoryRevenue).toEqual([]);
       expect(result.pendingTasks).toEqual([]);
       expect(result.courses).toEqual([]);
+      expect(result.instructors).toEqual([]);
+    });
+  });
+
+  describe('getInstructorsRanking', () => {
+    it('calls repository with resolved dates, sortBy and limit', async () => {
+      // Arrange
+      const mockRanking = [
+        {
+          id: 'inst-1',
+          name: 'Giảng viên 1',
+          email: 'gv1@mindly.vn',
+          specialty: 'AI',
+          initials: 'G1',
+          coursesCount: 2,
+          salesCount: 10,
+          grossRevenue: 5000000,
+          netRevenue: 3500000,
+          commissionRate: 70,
+        },
+      ];
+      repo.getInstructorsRanking.mockResolvedValue(mockRanking);
+
+      // Act
+      const result = await service.getInstructorsRanking({
+        period: '7d',
+        sortBy: 'salesCount',
+        limit: 5,
+      });
+
+      // Assert
+      expect(result).toEqual(mockRanking);
+      expect(repo.getInstructorsRanking).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sortBy: 'salesCount',
+          limit: 5,
+        }),
+      );
     });
   });
 

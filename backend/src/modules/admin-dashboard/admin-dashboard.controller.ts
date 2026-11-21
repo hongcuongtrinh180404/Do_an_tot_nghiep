@@ -8,11 +8,13 @@ import {
   type IAdminDashboardAggregateResponse,
   type IDashboardRevenueChartPoint,
   type IDashboardCoursePerformance,
+  type IDashboardInstructor,
 } from 'share-lib';
 import { AdminDashboardService } from './services/admin-dashboard.service.js';
 import {
   AdminDashboardQueryDto,
   AdminCoursesPerformanceQueryDto,
+  AdminInstructorsRankingQueryDto,
 } from './dto/admin-dashboard.dto.js';
 
 @Controller('admin/dashboard')
@@ -45,5 +47,14 @@ export class AdminDashboardController {
   ): Promise<ApiResponse<IDashboardCoursePerformance[]>> {
     const courses = await this.dashboardService.getCoursesPerformance(query);
     return ApiResponse.success(courses, 'Lấy hiệu suất khóa học thành công');
+  }
+
+  @Get('instructors/ranking')
+  @Header('Cache-Control', 'no-store')
+  async getInstructorsRanking(
+    @Query() query: AdminInstructorsRankingQueryDto,
+  ): Promise<ApiResponse<IDashboardInstructor[]>> {
+    const instructors = await this.dashboardService.getInstructorsRanking(query);
+    return ApiResponse.success(instructors, 'Lấy bảng xếp hạng giảng viên thành công');
   }
 }

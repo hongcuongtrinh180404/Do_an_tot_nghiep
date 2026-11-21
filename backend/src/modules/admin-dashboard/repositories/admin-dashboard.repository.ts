@@ -12,6 +12,7 @@ import {
   type CategoryRevenueItem,
   type IDashboardPendingTask,
   type IDashboardCoursePerformance,
+  type IDashboardInstructor,
 } from 'share-lib';
 import { BaseMongoRepository } from '../../base/index.js';
 import { OrderEntity } from '../../enrollment/schemas/order.schema.js';
@@ -765,6 +766,191 @@ export class AdminDashboardRepository extends BaseMongoRepository<IOrder, OrderE
         completionRate,
         rating: Number(r.ratingAvg) || 0,
         reviewCount: Number(r.reviewCount) || 0,
+      };
+    });
+  }
+
+  async getInstructorsRanking(params: {
+    startDate?: Date;
+    endDate?: Date;
+    sortBy?: 'grossRevenue' | 'salesCount' | 'netRevenue' | string;
+    limit?: number;
+  }): Promise<IDashboardInstructor[]> {
+    const { startDate, endDate, sortBy = 'grossRevenue', limit = 5 } = params;
+
+    const userMatch: Record<string, unknown> = {
+      role: RoleEnum.INSTRUCTOR,
+      deletedAt: null,
+    };
+
+    const sortField: Record<string, 1 | -1> =
+      sortBy === 'salesCount'
+        ? { salesCount: -1, grossRevenue: -1, coursesCount: -1, _id: 1 }
+        : sortBy === 'netRevenue'
+          ? { netRevenue: -1, grossRevenue: -1, coursesCount: -1, _id: 1 }
+          : { grossRevenue: -1, salesCount: -1, coursesCount: -1, _id: 1 };
+
+    const pipeline: PipelineStage[] = [
+      { $match: userMatch },
+      {
+        $lookup: {
+          from: 'courses',
+          let: { instructorId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$instructorId', '$$instructorId'] },
+                    { $eq: ['$deletedAt', null] },
+                    { $eq: ['$status', CourseStatusEnum.PUBLISHED] },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                title: 1,
+                price: 1,
+                ratingAvg: 1,
+                reviewCount: 1,
+              },
+            },
+          ],
+          as: 'publishedCourses',
+        },
+      },
+      {
+        $lookup: {
+          from: 'orders',
+          let: {
+            instructorId: '$_id',
+            courseIds: '$publishedCourses._id',
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$status', OrderStatusEnum.PAID] },
+                    { $eq: ['$deletedAt', null] },
+                    {
+                      $or: [
+                        { $eq: ['$instructorId', '$$instructorId'] },
+                        { $in: ['$courseId', '$$courseIds'] },
+                      ],
+                    },
+                    ...(startDate && endDate
+                      ? [
+                          {
+                            $or: [
+                              {
+                                $and: [
+                                  { $gte: [{ $ifNull: ['$paidAt', '$createdAt'] }, startDate] },
+                                  { $lte: [{ $ifNull: ['$paidAt', '$createdAt'] }, endDate] },
+                                ],
+                              },
+                            ],
+                          },
+                        ]
+                      : []),
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                amount: 1,
+                platformEarnings: {
+                  $ifNull: [
+                    '$platformEarnings',
+                    {
+                      $round: [
+                        {
+                          $multiply: [
+                            '$amount',
+                            { $divide: [{ $ifNull: ['$platformCommissionRate', 30] }, 100] },
+                          ],
+                        },
+                        0,
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                amount: 1,
+                instructorEarnings: { $subtract: ['$amount', '$platformEarnings'] },
+              },
+            },
+          ],
+          as: 'periodOrders',
+        },
+      },
+      {
+        $project: {
+          id: { $toString: '$_id' },
+          fullName: { $ifNull: ['$fullName', '$email'] },
+          email: 1,
+          bio: { $ifNull: ['$bio', ''] },
+          avatarUrl: { $ifNull: ['$avatarUrl', null] },
+          commissionRate: { $ifNull: ['$commissionRate', 30] },
+          coursesCount: { $size: '$publishedCourses' },
+          salesCount: { $size: '$periodOrders' },
+          grossRevenue: { $sum: '$periodOrders.amount' },
+          netRevenue: { $sum: '$periodOrders.instructorEarnings' },
+        },
+      },
+      { $sort: sortField },
+      { $limit: limit },
+    ];
+
+    const rows = await this.model.db
+      .collection('users')
+      .aggregate<Record<string, unknown>>(pipeline)
+      .toArray();
+
+    const colorPalettes = [
+      'bg-blue-600 text-white',
+      'bg-indigo-600 text-white',
+      'bg-teal-600 text-white',
+      'bg-emerald-600 text-white',
+      'bg-amber-600 text-white',
+      'bg-rose-600 text-white',
+      'bg-sky-600 text-white',
+      'bg-purple-600 text-white',
+    ];
+
+    return rows.map((r, index) => {
+      const name = String(r.fullName || r.email || 'Giảng viên');
+      const words = name.trim().split(/\s+/).filter(Boolean);
+      let initials = 'GV';
+      if (words.length >= 2) {
+        initials = `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+      } else if (words.length === 1 && words[0].length >= 1) {
+        initials = words[0].slice(0, 2).toUpperCase();
+      }
+
+      const avatarBg = colorPalettes[index % colorPalettes.length];
+      const platformRate = Number(r.commissionRate) || 30;
+      const instructorCommissionRate = Math.max(0, 100 - platformRate);
+
+      return {
+        id: String(r.id || r._id),
+        name,
+        email: String(r.email || ''),
+        specialty: String(r.bio || 'Giảng viên Mindly'),
+        avatarBg,
+        avatarUrl: r.avatarUrl ? String(r.avatarUrl) : null,
+        initials,
+        coursesCount: Number(r.coursesCount) || 0,
+        salesCount: Number(r.salesCount) || 0,
+        grossRevenue: Number(r.grossRevenue) || 0,
+        netRevenue: Number(r.netRevenue) || 0,
+        commissionRate: instructorCommissionRate,
       };
     });
   }
