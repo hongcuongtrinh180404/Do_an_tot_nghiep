@@ -1,0 +1,1 @@
+export declare const CHATBOT_MAX_MESSAGE_LENGTH = 2000;

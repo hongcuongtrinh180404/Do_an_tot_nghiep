@@ -1,0 +1,134 @@
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+import { Module, forwardRef } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { CourseEntity, CourseSchema } from './schemas/course.schema.js';
+import { CourseApprovalHistoryEntity, CourseApprovalHistorySchema, } from './schemas/course-approval-history.schema.js';
+import { CourseCategoryEntity, CourseCategorySchema, } from './schemas/course-category.schema.js';
+import { SectionEntity, SectionSchema } from './schemas/section.schema.js';
+import { LessonEntity, LessonSchema } from './schemas/lesson.schema.js';
+import { CourseMindmapEntity, CourseMindmapSchema } from './schemas/course-mindmap.schema.js';
+import { LessonTranscriptEntity, LessonTranscriptSchema } from './schemas/lesson-transcript.schema.js';
+import { LessonQuizEntity, LessonQuizSchema } from './schemas/lesson-quiz.schema.js';
+import { LessonMindmapEntity, LessonMindmapSchema } from './schemas/lesson-mindmap.schema.js';
+import { LessonSummaryEntity, LessonSummarySchema } from './schemas/lesson-summary.schema.js';
+import { LessonQuizDraftEntity, LessonQuizDraftSchema } from './schemas/lesson-quiz-draft.schema.js';
+import { CourseController } from './course.controller.js';
+import { CourseApprovalController } from './course-approval.controller.js';
+import { CourseApprovalService } from './services/course-approval.service.js';
+import { CourseCategoryController } from './course-category.controller.js';
+import { CourseMindmapController } from './course-mindmap.controller.js';
+import { LessonController } from './lesson.controller.js';
+import { LessonsController } from './lessons.controller.js';
+import { LessonContentController } from './lesson-content.controller.js';
+import { LessonQuizController } from './lesson-quiz.controller.js';
+import { LessonManagementGuard } from './guards/lesson-management.guard.js';
+import { LessonAccessGuard } from './guards/lesson-access.guard.js';
+import { CourseRepository } from './repositories/course.repository.js';
+import { CourseApprovalHistoryRepository } from './repositories/course-approval-history.repository.js';
+import { CourseCategoryRepository } from './repositories/course-category.repository.js';
+import { SectionRepository } from './repositories/section.repository.js';
+import { LessonRepository } from './repositories/lesson.repository.js';
+import { CourseMindmapRepository } from './repositories/course-mindmap.repository.js';
+import { LessonTranscriptRepository } from './repositories/lesson-transcript.repository.js';
+import { LessonQuizRepository } from './repositories/lesson-quiz.repository.js';
+import { LessonMindmapRepository } from './repositories/lesson-mindmap.repository.js';
+import { LessonSummaryRepository } from './repositories/lesson-summary.repository.js';
+import { LessonQuizDraftRepository } from './repositories/lesson-quiz-draft.repository.js';
+import { CourseService } from './services/course.service.js';
+import { CourseCategoryService } from './services/course-category.service.js';
+import { LessonService } from './services/lesson.service.js';
+import { CourseMindmapService } from './services/course-mindmap.service.js';
+import { LessonTranscriptService } from './services/lesson-transcript.service.js';
+import { LessonQuizService } from './services/lesson-quiz.service.js';
+import { AudioExtractorService } from './services/audio-extractor.service.js';
+import { UserModule } from '../user/user.module.js';
+import { StorageModule } from '../storage/storage.module.js';
+import { AssemblyAiModule } from '../assemblyai/assemblyai.module.js';
+import { EnrollmentModule } from '../enrollment/enrollment.module.js';
+let CourseModule = class CourseModule {
+};
+CourseModule = __decorate([
+    Module({
+        imports: [
+            MongooseModule.forFeature([
+                { name: CourseEntity.name, schema: CourseSchema },
+                { name: CourseApprovalHistoryEntity.name, schema: CourseApprovalHistorySchema },
+                { name: CourseCategoryEntity.name, schema: CourseCategorySchema },
+                { name: SectionEntity.name, schema: SectionSchema },
+                { name: LessonEntity.name, schema: LessonSchema },
+                { name: CourseMindmapEntity.name, schema: CourseMindmapSchema },
+                { name: LessonTranscriptEntity.name, schema: LessonTranscriptSchema },
+                { name: LessonQuizEntity.name, schema: LessonQuizSchema },
+                { name: LessonMindmapEntity.name, schema: LessonMindmapSchema },
+                { name: LessonSummaryEntity.name, schema: LessonSummarySchema },
+                { name: LessonQuizDraftEntity.name, schema: LessonQuizDraftSchema },
+            ]),
+            UserModule,
+            StorageModule,
+            AssemblyAiModule,
+            forwardRef(() => EnrollmentModule),
+        ],
+        controllers: [
+            CourseController,
+            CourseApprovalController,
+            CourseCategoryController,
+            CourseMindmapController,
+            LessonController,
+            LessonsController,
+            LessonContentController,
+            LessonQuizController,
+        ],
+        providers: [
+            LessonAccessGuard,
+            LessonManagementGuard,
+            CourseApprovalService,
+            CourseRepository,
+            CourseApprovalHistoryRepository,
+            CourseCategoryRepository,
+            SectionRepository,
+            LessonRepository,
+            CourseMindmapRepository,
+            LessonTranscriptRepository,
+            LessonQuizRepository,
+            LessonMindmapRepository,
+            LessonSummaryRepository,
+            LessonQuizDraftRepository,
+            CourseService,
+            CourseCategoryService,
+            LessonService,
+            CourseMindmapService,
+            LessonTranscriptService,
+            LessonQuizService,
+            AudioExtractorService,
+        ],
+        exports: [
+            LessonAccessGuard,
+            LessonManagementGuard,
+            CourseRepository,
+            CourseApprovalHistoryRepository,
+            CourseCategoryRepository,
+            SectionRepository,
+            LessonRepository,
+            CourseMindmapRepository,
+            LessonTranscriptRepository,
+            LessonQuizRepository,
+            LessonMindmapRepository,
+            LessonSummaryRepository,
+            LessonQuizDraftRepository,
+            CourseService,
+            CourseCategoryService,
+            LessonService,
+            CourseMindmapService,
+            LessonTranscriptService,
+            LessonQuizService,
+            AudioExtractorService,
+        ],
+    })
+], CourseModule);
+export { CourseModule };
+//# sourceMappingURL=course.module.js.map

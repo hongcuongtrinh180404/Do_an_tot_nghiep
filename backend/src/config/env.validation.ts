@@ -98,5 +98,19 @@ export const envValidationSchema = Joi.object({
   }),
   SEPAY_PAYMENT_PREFIX: Joi.string().trim().uppercase().valid('MD').default('MD'),
   SEPAY_PAYMENT_EXPIRE_MINUTES: Joi.number().integer().min(1).max(1440).default(15),
+
+  // RabbitMQ Configuration
+  RABBITMQ_URL: Joi.string().default('amqp://mindly:mindly_dev_password@localhost:5672/mindly'),
+  RABBITMQ_EXCHANGE: Joi.string().default('mindly.tasks.v1'),
+  RABBITMQ_AI_QUEUE: Joi.string().default('mindly.ai.v1'),
+  RABBITMQ_DEAD_EXCHANGE: Joi.string().default('mindly.dead.v1'),
+  RABBITMQ_AI_DLQ: Joi.string().default('mindly.ai.dead.v1'),
+  RABBITMQ_HEARTBEAT_SECONDS: Joi.number().default(30),
+  RABBITMQ_RECONNECT_SECONDS: Joi.number().default(5),
+  RABBITMQ_PUBLISH_TIMEOUT_MS: Joi.number().default(10000),
+
+  AI_WORKER_CONCURRENCY: Joi.number().default(1),
+  AI_PREFETCH: Joi.number().default(1),
+  AI_ASYNC_TYPES: Joi.string().allow('').default(''),
 }).concat(chatbotEnvSchema);
 

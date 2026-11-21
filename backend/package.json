@@ -8,6 +8,8 @@
   "type": "module",
   "scripts": {
     "build": "nest build",
+    "build:worker": "tsc -p tsconfig.worker.json",
+    "dev:worker": "tsx watch src/worker.ts",
     "deploy": "nest deploy",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",

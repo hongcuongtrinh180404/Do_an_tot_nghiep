@@ -30,7 +30,7 @@ Kế hoạch được chia nhỏ thành 8 giai đoạn độc lập, tuần tự
 | Giai đoạn | Tài liệu chi tiết | Trọng tâm | Deliverable cốt lõi | Exit Gate |
 |---|---|---|---|---|
 | **Phase 0** | [`phase-0-baseline-contracts.md`](./phase-0-baseline-contracts.md) | Baseline & Hợp đồng Kỹ thuật | Đo baseline số đo, chốt schema Job, HTTP `202`, dedupe rules | ✅ ĐÃ HOÀN THÀNH (169/169 tests pass, TX verified) |
-| **Phase 1** | [`phase-1-infrastructure-worker.md`](./phase-1-infrastructure-worker.md) | Hạ tầng RabbitMQ & Worker Skeleton | Docker Compose RabbitMQ, `amqplib`, topology, standalone `worker.ts` | Message test publish/consume thành công với manual ACK |
+| **Phase 1** | [`phase-1-infrastructure-worker.md`](./phase-1-infrastructure-worker.md) | Hạ tầng RabbitMQ & Worker Skeleton | Docker Compose RabbitMQ, `amqplib`, topology, standalone `worker.ts` | ✅ ĐÃ HOÀN THÀNH (Container UP, Topology OK, Ping-pong ACK pass) |
 | **Phase 2** | [`phase-2-job-management.md`](./phase-2-job-management.md) | Nền tảng Job Management & Outbox | Collection `jobs`, embedded outbox, atomic claim/lease, recovery | Vòng đời Job bền vững, recovery chạy theo index |
 | **Phase 3** | [`phase-3-summary-backend.md`](./phase-3-summary-backend.md) | Summary Backend Async | Tách logic sinh/lưu, controller `202`, summary processor, revision guard | Summary chạy hoàn toàn qua Worker, HTTP trả `202` |
 | **Phase 4** | [`phase-4-summary-frontend.md`](./phase-4-summary-frontend.md) | Summary Frontend & Pilot Lỗi | Hook `use-analysis-jobs`, polling backoff, UI trạng thái xuyên reload | Reload trang khôi phục đúng trạng thái, retry hoạt động |

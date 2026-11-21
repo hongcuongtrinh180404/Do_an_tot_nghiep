@@ -1,0 +1,31 @@
+import { Logger } from '@nestjs/common';
+import { ClsService } from 'nestjs-cls';
+import { ILessonQuiz } from 'share-lib';
+import { BaseService } from '../../base/index.js';
+import { LessonQuizRepository } from '../repositories/lesson-quiz.repository.js';
+import { LessonRepository } from '../repositories/lesson.repository.js';
+import { SectionRepository } from '../repositories/section.repository.js';
+import { CourseRepository } from '../repositories/course.repository.js';
+import { SyncLessonQuizzesAtTimestampDto } from '../dto/sync-lesson-quizzes.dto.js';
+import { MoveMergeLessonQuizzesDto } from '../dto/move-merge-lesson-quizzes.dto.js';
+import { SaveLessonQuizDto } from '../dto/save-lesson-quiz.dto.js';
+export declare class LessonQuizService extends BaseService<ILessonQuiz, string> {
+    private readonly lessonQuizRepo;
+    private readonly lessonRepo;
+    private readonly sectionRepo?;
+    private readonly courseRepo?;
+    protected readonly logger: Logger;
+    constructor(lessonQuizRepo: LessonQuizRepository, lessonRepo: LessonRepository, cls: ClsService, sectionRepo?: SectionRepository | undefined, courseRepo?: CourseRepository | undefined);
+    private assertNotPendingApproval;
+    getQuizzesByLessonId(lessonId: string): Promise<ILessonQuiz[]>;
+    private normalizeQuiz;
+    private validateTimestamp;
+    private getNextQuizOrder;
+    createQuiz(lessonId: string, dto: SaveLessonQuizDto): Promise<ILessonQuiz>;
+    updateQuiz(quizId: string, dto: SaveLessonQuizDto): Promise<ILessonQuiz>;
+    updateTimestamp(quizId: string, timestamp: number | null): Promise<ILessonQuiz>;
+    syncQuizzesAtTimestamp(lessonId: string, dto: SyncLessonQuizzesAtTimestampDto): Promise<ILessonQuiz[]>;
+    deleteQuiz(quizId: string): Promise<boolean>;
+    deleteQuizzesAtTimestamp(lessonId: string, timestamp: number): Promise<number>;
+    moveOrMergeQuizCluster(lessonId: string, dto: MoveMergeLessonQuizzesDto): Promise<ILessonQuiz[]>;
+}

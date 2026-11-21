@@ -1,0 +1,64 @@
+import { UnprocessableEntityException } from '@nestjs/common';
+import { QuizQuestionTypeEnum, isQuizTimestamp } from 'share-lib';
+export class QuizValidator {
+    static validate(quizzes, maxDurationSeconds, maxCount = 10) {
+        const errors = [];
+        if (!Array.isArray(quizzes)) {
+            errors.push('Dữ liệu quizzes phải là một mảng câu hỏi.');
+            return { isValid: false, errors };
+        }
+        if (quizzes.length > maxCount) {
+            errors.push(`Số lượng câu hỏi (${quizzes.length}) vượt quá giới hạn tối đa cho phép (${maxCount} câu).`);
+        }
+        quizzes.forEach((item, index) => {
+            const qIndex = index + 1;
+            if (!item.question || typeof item.question !== 'string' || !item.question.trim()) {
+                errors.push(`Câu hỏi số ${qIndex} thiếu nội dung "question" hoặc bị rỗng.`);
+            }
+            if (item.timestamp !== null) {
+                errors.push(`Câu hỏi số ${qIndex} phải để trống thời điểm xuất hiện (timestamp = null).`);
+            }
+            if (!isQuizTimestamp(item.explanationTimestamp, maxDurationSeconds)) {
+                errors.push(`Câu hỏi số ${qIndex} có explanationTimestamp không hợp lệ hoặc vượt quá thời lượng video.`);
+            }
+            const qType = (item.questionType || '').toString().toLowerCase();
+            if (qType && qType !== QuizQuestionTypeEnum.SINGLE) {
+                errors.push(`Câu hỏi số ${qIndex} có questionType không hợp lệ (yêu cầu "${QuizQuestionTypeEnum.SINGLE}").`);
+            }
+            if (!Array.isArray(item.options) || item.options.length !== 4) {
+                errors.push(`Câu hỏi số ${qIndex} phải có đúng 4 lựa chọn (options). Hiện tại có: ${item.options?.length ?? 0}.`);
+            }
+            else {
+                let correctCount = 0;
+                item.options.forEach((opt, optIdx) => {
+                    if (!opt.text || typeof opt.text !== 'string' || !opt.text.trim()) {
+                        errors.push(`Câu hỏi số ${qIndex}, lựa chọn thứ ${optIdx + 1} (${opt.label || 'unknown'}) thiếu nội dung "text".`);
+                    }
+                    const isCorrect = opt.isCorrect === true ||
+                        opt.isCorrect === 'true' ||
+                        opt.isCorrect === 1;
+                    if (isCorrect) {
+                        correctCount++;
+                    }
+                });
+                if (correctCount !== 1) {
+                    errors.push(`Câu hỏi số ${qIndex} phải có đúng 1 đáp án chính xác (isCorrect = true). Hiện có: ${correctCount}.`);
+                }
+            }
+            if (!item.explanation || typeof item.explanation !== 'string' || !item.explanation.trim()) {
+                errors.push(`Câu hỏi số ${qIndex} thiếu phần giải thích "explanation".`);
+            }
+        });
+        return {
+            isValid: errors.length === 0,
+            errors,
+        };
+    }
+    static validateOrFail(quizzes, maxDurationSeconds, maxCount = 10) {
+        const result = this.validate(quizzes, maxDurationSeconds, maxCount);
+        if (!result.isValid) {
+            throw new UnprocessableEntityException(`Danh sách câu hỏi trắc nghiệm không hợp lệ: ${result.errors.join('; ')}`);
+        }
+    }
+}
+//# sourceMappingURL=quiz.validator.js.map

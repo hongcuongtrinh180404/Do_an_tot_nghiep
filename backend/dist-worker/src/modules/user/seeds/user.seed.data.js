@@ -1,0 +1,61 @@
+import { RoleEnum, UserStatusEnum } from 'share-lib';
+export const DEFAULT_SEED_PASSWORD = 'Password123@';
+export const USER_SEED_DATA = [
+    {
+        email: 'sseu1804@gmail.com',
+        fullName: 'CUONG TRINH',
+        role: RoleEnum.ADMIN,
+        status: UserStatusEnum.ACTIVE,
+        bio: 'Quản trị viên cấp cao phụ trách hệ thống Mindly.',
+        avatarUrl: null,
+    },
+    {
+        email: 'instructor1@thc.edu.vn',
+        fullName: 'TS. Nguyễn Văn Hùng',
+        role: RoleEnum.INSTRUCTOR,
+        status: UserStatusEnum.ACTIVE,
+        bio: 'Tiến sĩ Khoa học Máy tính, chuyên gia Trí tuệ Nhân tạo và Machine Learning.',
+        avatarUrl: null,
+    },
+    {
+        email: 'instructor2@thc.edu.vn',
+        fullName: 'ThS. Trần Thị Mai',
+        role: RoleEnum.INSTRUCTOR,
+        status: UserStatusEnum.ACTIVE,
+        bio: 'Thạc sĩ Kỹ thuật Phần mềm, 8 năm kinh nghiệm giảng dạy Web & Cloud Architecture.',
+        avatarUrl: null,
+    },
+    {
+        email: 'instructor3@thc.edu.vn',
+        fullName: 'KTS. Lê Hoàng Nam',
+        role: RoleEnum.INSTRUCTOR,
+        status: UserStatusEnum.ACTIVE,
+        bio: 'Kiến trúc sư giải pháp hệ thống phân tán và bảo mật ứng dụng cấp doanh nghiệp.',
+        avatarUrl: null,
+    },
+    {
+        email: 'student1@thc.edu.vn',
+        fullName: 'Phạm Minh Quân',
+        role: RoleEnum.STUDENT,
+        status: UserStatusEnum.ACTIVE,
+        bio: 'Sinh viên chuyên ngành Công Nghệ Thông Tin đam mê Fullstack Development.',
+        avatarUrl: null,
+    },
+    {
+        email: 'student2@thc.edu.vn',
+        fullName: 'Lê Thùy Dung',
+        role: RoleEnum.STUDENT,
+        status: UserStatusEnum.ACTIVE,
+        bio: 'Học viên năng động, tích cực tham gia các khóa học lập trình tương tác.',
+        avatarUrl: null,
+    },
+    {
+        email: 'student3@thc.edu.vn',
+        fullName: 'Đỗ Hoàng Khang',
+        role: RoleEnum.STUDENT,
+        status: UserStatusEnum.ACTIVE,
+        bio: 'Người học chuyển ngành sang lập trình web, mục tiêu trở thành Software Engineer.',
+        avatarUrl: null,
+    },
+];
+//# sourceMappingURL=user.seed.data.js.map

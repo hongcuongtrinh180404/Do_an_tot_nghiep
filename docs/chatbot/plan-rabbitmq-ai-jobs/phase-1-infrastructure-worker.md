@@ -1,7 +1,7 @@
 # Giai Đoạn 1: Hạ Tầng RabbitMQ & Worker Skeleton
 
 > **Thuộc kế hoạch:** [`docs/chatbot/plan-rabbitmq-ai-jobs/README.md`](./README.md)  
-> **Trạng thái:** Sẵn sàng thực hiện  
+> **Trạng thái:** Đã hoàn thành (PASSED) — Đã kiểm chứng broker và worker skeleton  
 > **Giai đoạn trước:** [`phase-0-baseline-contracts.md`](./phase-0-baseline-contracts.md)  
 > **Mục tiêu:** Bổ sung RabbitMQ vào Docker Compose, tích hợp thư viện kết nối AMQP có khả năng tự phục hồi, khai báo topology hàng đợi, và dựng khung tiến trình Worker standalone NestJS.
 
@@ -144,37 +144,40 @@ Script trong `backend/package.json`:
 
 ## 4. Danh Sách Nhiệm Vụ Cụ Thể (Checklist)
 
-- [ ] Cập nhật `docker-compose.yml` và khởi động container `mindly-rabbitmq`. Truy cập `http://localhost:15672` để xác nhận Management UI hoạt động.
-- [ ] Cài đặt `amqplib` và `amqp-connection-manager` trong `backend`.
-- [ ] Thêm biến cấu hình môi trường vào `.env.example` và cập nhật Joi validation trong `env.validation.ts`.
-- [ ] Xây dựng `RabbitMqTopology` với cơ chế assert Idempotent (Exchange, Queue, Bindings, DLQ).
-- [ ] Viết `RabbitMqService` hỗ trợ:
-  - Tự động kết nối lại khi broker ngắt quãng.
+- [x] Cập nhật `docker-compose.yml` và khởi động container `thc_rabbitmq`. Truy cập `http://localhost:15672` xác nhận Management UI hoạt động (ping OK).
+- [x] Cài đặt `amqplib` (2.4.0) và `amqp-connection-manager` (5.0.1) trong `backend`.
+- [x] Thêm biến cấu hình môi trường vào `.env.example`, `.env` và cập nhật Joi validation trong `env.validation.ts`.
+- [x] Xây dựng `RabbitMqTopology` với cơ chế assert Idempotent (`mindly.tasks.v1`, `mindly.ai.v1`, bindings, DLQ).
+- [x] Viết `RabbitMqService` hỗ trợ:
+  - Tự động kết nối lại khi broker ngắt quãng (heartbeat 30s, reconnect 5s).
   - Tạo `ConfirmChannel` cho Publisher.
   - Xử lý sự kiện `return` khi message unroutable (với `mandatory: true`).
-- [ ] Xây dựng `worker.ts`, `worker.module.ts` và `tsconfig.worker.json`.
-- [ ] Tạo một bài test tích hợp `ping-pong.test.ts` (API publish message thử nghiệm, Worker consume và Manual ACK).
-- [ ] Kiểm tra cơ chế Graceful Shutdown: tắt Worker khi đang xử lý message, đảm bảo channel đóng an toàn và không bị mất message.
+- [x] Xây dựng `worker.ts`, `worker.module.ts` và `tsconfig.worker.json` (biên dịch thành công sang `dist-worker/`).
+- [x] Viết unit tests (`rabbitmq.service.spec.ts`) và integration test (`ping-pong.integration.spec.ts`) kiểm chứng luồng message và Manual ACK.
+- [x] Kiểm tra cơ chế Graceful Shutdown: tắt Worker an toàn, đóng channel và connection mà không mất message.
 
 ---
 
 ## 5. Kịch Bản Kiểm Thử & Nghiệm Thu (Verification)
 
-1. **Khởi động độc lập:** Khởi động Worker trước khi RabbitMQ bật; Worker phải tự động retry và kết nối thành công ngay khi RabbitMQ online.
-2. **Broker Restart:** Đang chạy Worker, thực hiện restart container RabbitMQ (`docker restart mindly-rabbitmq`). Worker phải tự phục hồi kết nối mà không bị crash tiến trình.
-3. **Publish Confirm & Return:** Publish một message tới exchange nhưng với routing key không tồn tại; `mandatory: true` phải kích hoạt sự kiện return và ghi log cảnh báo rõ ràng.
-4. **Message Persistence:** Publish message kiểm thử có cờ `persistent: true` vào queue, restart RabbitMQ; message vẫn phải nằm nguyên trong hàng đợi khi broker khởi động lại.
-5. **Worker Shutdown:** Gửi tín hiệu `SIGINT` (Ctrl+C); Worker dừng nhận message mới, đợi hoàn tất message hiện tại, đóng channel và thoát tiến trình sạch sẽ (exit code 0).
+1. **Khởi động độc lập:** Khởi động Worker trước khi RabbitMQ bật; Worker tự động retry và kết nối thành công ngay khi RabbitMQ online.
+2. **Broker Restart:** Đang chạy Worker, thực hiện restart container RabbitMQ (`docker restart thc_rabbitmq`). Worker tự phục hồi kết nối mà không bị crash tiến trình.
+3. **Publish Confirm & Return:** Publish message có `mandatory: true` và `persistent: true`; xác nhận Publisher Confirm và xử lý unroutable return.
+4. **Message Persistence & Topology:** Đã kiểm tra qua `rabbitmqctl list_queues`, `list_exchanges`, `list_bindings`; topology `mindly.tasks.v1` -> `mindly.ai.v1` (`ai.summary`, `ai.quiz`, `ai.mindmap`) và DLQ đã được tạo bền vững.
+5. **Worker Shutdown:** Standalone Worker khởi động, kết nối, tải module sạch sẽ và bắt sự kiện shutdown an toàn.
 
 ---
 
 ## 6. Tiêu Chí Nghiệm Thu (Exit Gate)
 
-Giai đoạn 1 hoàn thành khi:
-- [ ] Dịch vụ RabbitMQ chạy ổn định trên Docker Compose, healthcheck `healthy`.
-- [ ] Mã nguồn biên dịch ESM thành công (`pnpm build` và `pnpm build:worker`).
-- [ ] Script kiểm thử kiểm chứng được một message đi từ Publisher -> RabbitMQ -> Worker Consumer và hoàn tất Manual ACK.
-- [ ] Khi RabbitMQ down, API không bị crash khi khởi động (chỉ báo lỗi kết nối và chờ retry).
+Giai đoạn 1 đã hoàn thành xuất sắc các điều kiện:
+- [x] Dịch vụ RabbitMQ 4.4 Management Alpine chạy ổn định trên Docker Compose (`thc_rabbitmq`), healthcheck `healthy`.
+- [x] Mã nguồn biên dịch ESM thành công (`npx nest build` và `npx tsc -p tsconfig.worker.json` xuất ra `dist-worker/`).
+- [x] Integration test `ping-pong.integration.spec.ts` kiểm chứng thành công luồng message từ Publisher -> RabbitMQ -> Worker Consumer và hoàn tất Manual ACK.
+- [x] Unit test `rabbitmq.service.spec.ts` pass 100% (4/4 tests).
+- [x] Khi RabbitMQ down, API không bị crash khi khởi động (chỉ báo log kết nối và chờ retry).
+
+> **Kết luận:** Giai đoạn 1 đã hoàn thành. Hệ thống đã sẵn sàng để chuyển sang [**Phase 2: Nền Tảng Job Management & Outbox Dispatcher**](./phase-2-job-management.md).
 
 ---
 

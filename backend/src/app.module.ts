@@ -22,6 +22,7 @@ import { PublicProfileModule } from './modules/profile/public-profile.module.js'
 import { ChatbotHttpModule } from './modules/chatbot/chatbot-http.module.js';
 import { InstructorApplicationModule } from './modules/instructor-application/instructor-application.module.js';
 import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module.js';
+import { RabbitMqModule } from './modules/messaging/rabbitmq.module.js';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.
       global: true,
       middleware: { mount: true },
     }),
+    RabbitMqModule,
     BaseModule,
     StorageModule,
     AssemblyAiModule,
