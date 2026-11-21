@@ -102,7 +102,7 @@ export class ChatbotConversationService {
   async respond(question: string, options: {
     userId: string; signal?: AbortSignal; requestId?: string; context?: ChatbotConversationContext;
   }): Promise<ChatbotConversationReply> {
-    if (!question?.trim() || question.length > CHATBOT_MAX_MESSAGE_LENGTH || !options.userId) {
+    if (typeof question !== 'string' || !question.trim() || question.length > CHATBOT_MAX_MESSAGE_LENGTH || !options.userId) {
       throw new ChatbotAiError('CHATBOT_REQUEST_INVALID');
     }
     if (options.signal?.aborted) throw new ChatbotAiError('CHATBOT_CANCELLED');

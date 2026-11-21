@@ -40,6 +40,7 @@ export class GetMyLearningProgressTool {
       keyword = context.list.keyword;
       page = context.list.page + 1;
       limit = context.list.limit;
+      if (page > 1000) throw new ChatbotLearningError('CHATBOT_TOOL_ARGUMENTS_INVALID');
     }
     if (keyword) {
       const candidates = await this.learning.candidates(userId, keyword, page, limit, signal);
@@ -58,11 +59,14 @@ export class GetMyLearningProgressTool {
     }
     if (!id) throw new LearningFollowUpError('missing_course');
     const result = await this.learning.detail(userId, id, signal);
+    const continuesList = args.position !== undefined || args.current || context?.list?.ids.includes(id);
     return {
       result,
       nextContext: {
         mode: 'learning_progress',
-        ...(context?.list ? { list: context.list } : {}),
+        // Keep the originating list for references or a named course on that page,
+        // but never reuse unrelated filters when an explicit selector changes topic.
+        ...(continuesList && context?.list ? { list: context.list } : {}),
         ...(result.scope === 'course' ? { selectedCourseId: result.course.id } : {}),
       },
     };

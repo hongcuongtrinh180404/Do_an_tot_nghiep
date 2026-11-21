@@ -11,6 +11,8 @@ import {
   type LearningOverview, type LearningResult, type MyCoursesFilters, type MyCoursesResult,
 } from '../tools/my-learning.types.js';
 
+export const CHATBOT_LEARNING_BUDGET_MS = 8000;
+
 function ownedCourse(row: OwnedCourseRow, progress: ICourseLearningProgress): ChatbotOwnedCourse {
   return {
     id: row.id, title: row.title, enrolledAt: row.enrolledAt.toISOString(),
@@ -35,20 +37,37 @@ export class ChatbotLearningReadService {
 
   private async read<T>(userId: string, signal: AbortSignal | undefined, operation: (check: () => void) => Promise<T>): Promise<T> {
     if (!/^[a-f\d]{24}$/i.test(userId)) throw new ChatbotAiError('CHATBOT_REQUEST_INVALID');
-    const deadline = Date.now() + 8000;
+    const deadline = Date.now() + CHATBOT_LEARNING_BUDGET_MS;
+    let timedOut = false;
+    let onAbort: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const check = () => {
       if (signal?.aborted) throw new ChatbotAiError('CHATBOT_CANCELLED');
-      if (Date.now() >= deadline) throw new ChatbotLearningError('CHATBOT_LEARNING_UNAVAILABLE');
+      if (timedOut || Date.now() >= deadline) throw new ChatbotLearningError('CHATBOT_LEARNING_UNAVAILABLE');
     };
     try {
       check();
-      const result = await operation(check);
+      const interrupted = new Promise<never>((_resolve, reject) => {
+        onAbort = () => reject(new ChatbotAiError('CHATBOT_CANCELLED'));
+        signal?.addEventListener('abort', onAbort, { once: true });
+        timer = setTimeout(() => {
+          timedOut = true;
+          reject(new ChatbotLearningError('CHATBOT_LEARNING_UNAVAILABLE'));
+        }, CHATBOT_LEARNING_BUDGET_MS);
+        timer.unref();
+      });
+      // Bound the whole scan, not just the individual Mongo queries. An in-flight
+      // read may finish under maxTimeMS; check() prevents starting the next batch.
+      const result = await Promise.race([operation(check), interrupted]);
       check();
       return result;
     } catch (error) {
       if (signal?.aborted) throw new ChatbotAiError('CHATBOT_CANCELLED');
       if (error instanceof ChatbotAiError) throw error;
       throw new ChatbotLearningError('CHATBOT_LEARNING_UNAVAILABLE');
+    } finally {
+      if (timer) clearTimeout(timer);
+      if (onAbort) signal?.removeEventListener('abort', onAbort);
     }
   }
 
@@ -132,6 +151,7 @@ export class ChatbotLearningReadService {
       if (!state) throw new ChatbotLearningError('CHATBOT_LEARNING_UNAVAILABLE');
       check();
       const title = state.lastLessonId ? await this.courses.resumeTitle(row.id, state.lastLessonId) : null;
+      check();
       // A signed selection does not grant access; also recheck after the progress reads.
       if (!(await this.courses.batch(userId, { courseId })).length) return { scope: 'not_owned' };
       const course = ownedCourse(row, state);

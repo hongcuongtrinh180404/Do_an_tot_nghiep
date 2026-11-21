@@ -13,11 +13,11 @@ export const CHATBOT_CONTEXT_TTL_MS = 30 * 60 * 1000;
 
 export class ChatbotContextError extends Error {
   constructor() {
-    super('The chatbot search context is invalid or expired.');
+    super('The chatbot conversation context is invalid or expired.');
   }
 }
 
-/** Signed, account-bound public search state. No database/session/history persistence. */
+/** Signed, account-bound navigation state. No database/session/history persistence. */
 @Injectable()
 export class ChatbotContextService {
   constructor(@Inject(ConfigService) private readonly config: ConfigService) {}

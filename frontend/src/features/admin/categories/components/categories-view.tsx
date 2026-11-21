@@ -37,11 +37,6 @@ export function CategoriesView(): React.JSX.Element {
     );
   }, [categories, searchQuery]);
 
-  const activeCount = React.useMemo(
-    () => categories.filter((category) => category.isActive).length,
-    [categories],
-  );
-
   const openCreateModal = () => {
     setEditingCategory(null);
     setIsModalOpen(true);
@@ -138,7 +133,7 @@ export function CategoriesView(): React.JSX.Element {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-medium">
-            <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3.5 py-2">
+            <div className="flex min-w-[16.5rem] items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-4 py-2">
               <Icon icon="lucide:layers" className="size-4 shrink-0" />
               <div>
                 <span className="block">Tổng danh mục</span>
@@ -153,11 +148,6 @@ export function CategoriesView(): React.JSX.Element {
             {searchQuery.trim() && !categoriesQuery.isLoading && !categoriesQuery.isError && (
               <span>{filteredCategories.length} kết quả tìm kiếm</span>
             )}
-            <span className="h-7 w-px bg-border" aria-hidden="true" />
-            <span className="inline-flex items-center gap-1">
-              <span className="size-1.5 rounded-full bg-emerald-500" />
-              {categoriesQuery.isLoading || categoriesQuery.isError ? '—' : activeCount} đang hiển thị
-            </span>
           </div>
         </div>
 

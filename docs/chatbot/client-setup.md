@@ -13,8 +13,11 @@ TranscriptAnalysisModule → GeminiModule → GeminiService → River / Gemini
 Client dùng package `openai` hiện có, với instance và cấu hình riêng. Mỗi lần
 `complete()` gửi tối đa **một request không streaming** tới provider.
 
-Đã có tool [`search_courses`](./search-courses.md) và lớp điều phối tìm kiếm chỉ
-đọc và [HTTP API chat có JWT](./http-api.md). Lưu hội thoại, FAQ và frontend là các bước tiếp theo.
+Đã có [`search_courses`](./search-courses.md), hai tool cá nhân
+[`get_my_courses` / `get_my_learning_progress`](./my-learning.md),
+[HTTP API có JWT](./http-api.md) và [widget](./frontend-widget.md).
+Điều phối HTTP dùng một lượt model để chọn đúng một tool, backend tự dựng trả lời;
+không dùng luồng hai lượt bên dưới để gửi dữ liệu học cá nhân cho provider.
 Các function nghiệp vụ chỉ được
 **đọc dữ liệu đã kiểm tra quyền sở hữu/quyền truy cập**; không thực hiện giao dịch
 hoặc thay đổi dữ liệu. Kiến trúc này không cần RAG hay vector database.
@@ -104,7 +107,7 @@ Input hỗ trợ:
 Output có `assistantMessage`, `finishReason`, `model`, `requestId`,
 `providerResponseId`, `durationMs` và token `usage` nếu hợp lệ.
 
-Luồng hai lượt:
+Khả năng protocol hai lượt ở client nền tảng (không phải luồng HTTP chatbot):
 
 1. Gọi `complete({ messages, tools })`.
 2. Đọc `assistantMessage.tool_calls`. `content: null` là hợp lệ khi có tool calls.
@@ -122,8 +125,8 @@ Các tool call có thể xuất hiện đồng thời trong một response.
 `assistantMessage.reasoning_content` được giữ khi provider trả về để phục vụ
 continuation của DeepSeek. Trường này **chỉ dùng nội bộ backend**, không phải nội
 dung trả về HTTP/frontend. Kết quả client là contract nội bộ, không dùng trực tiếp
-làm response DTO. Lớp điều phối sau này cần giới hạn số lượt gọi model và tổng thời
-gian của một cuộc hội thoại.
+làm response DTO. Điều phối HTTP hiện giới hạn một lượt model và timeout tổng
+40 giây; không trả các trường nội bộ này tới widget.
 
 ## Lỗi và log
 

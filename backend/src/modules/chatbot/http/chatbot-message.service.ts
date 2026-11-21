@@ -70,13 +70,13 @@ export class ChatbotMessageService {
       };
     } catch (error) {
       const safeError = mapChatbotHttpError(
-              callerSignal?.aborted
-                ? new ChatbotAiError('CHATBOT_CANCELLED')
-                : timedOut
-                  ? new ChatbotAiError('CHATBOT_TIMEOUT')
-                  : error,
-              requestId,
-            );
+        callerSignal?.aborted
+          ? new ChatbotAiError('CHATBOT_CANCELLED')
+          : timedOut
+            ? new ChatbotAiError('CHATBOT_TIMEOUT')
+            : error,
+        requestId,
+      );
       const body = safeError.getResponse() as { code: string };
       this.logger.warn(JSON.stringify({ requestId, code: body.code }));
       throw safeError;

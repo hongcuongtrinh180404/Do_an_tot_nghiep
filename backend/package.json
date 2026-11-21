@@ -25,6 +25,7 @@
     "test:chatbot:live": "tsx scripts/test-chatbot.ts",
     "test:chatbot:search:live": "tsx scripts/test-chatbot-search.ts",
     "test:chatbot:http:live": "tsx scripts/test-chatbot-http.ts",
+    "test:chatbot:learning:live": "tsx scripts/test-chatbot-learning-http.ts",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",

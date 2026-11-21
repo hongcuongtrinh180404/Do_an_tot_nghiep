@@ -110,7 +110,7 @@ describe.skipIf(process.env.CHATBOT_SEARCH_DB_TESTS !== 'true')('Personal learni
     expect(result.items[4].url).toBe('/my-courses');
     expect(JSON.stringify(result)).not.toContain('private-description');
     expect(JSON.stringify(result)).not.toContain('https://media.example');
-    expect(result.items[0].resumeUrl).toBe(`/courses/${courseIds[0]}/lessons/${lessonIds[0]}`);
+    expect(result.items[0].resumeUrl).toBe(`/courses/${String(courseIds[0])}/lessons/${String(lessonIds[0])}`);
   });
   it('uses exact shared progress rules, including answers without any playback record', async () => {
     const result = await service.list(String(a), { page: 1, limit: 10 });

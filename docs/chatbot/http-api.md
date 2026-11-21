@@ -11,8 +11,9 @@ Content-Type: application/json
 `api/v1` là prefix mặc định; backend dùng `API_PREFIX` khi được cấu hình khác.
 Endpoint yêu cầu đăng nhập bằng **JWT của Mindly**, không phải River API key.
 Sử dụng global `JwtAuthGuard`/`JwtStrategy` hiện có: token phải hợp lệ, chưa hết
-hạn và tài khoản vẫn hoạt động. Student, instructor và admin đều chỉ tìm được
-khóa học công khai.
+hạn và tài khoản vẫn hoạt động. Student, instructor và admin đều tìm catalog công
+khai; hai tool cá nhân chỉ đọc enrollment/tiến độ của chính tài khoản đăng nhập,
+không có quyền xem người khác theo role.
 
 Request:
 
@@ -28,7 +29,8 @@ Request:
   Không cho caller tự truyền object bộ lọc/lịch sử.
 - Các field như `messages`, `tools`, `userId`, `model`,
   `apiKey`, `requestId` hay filter trực tiếp đều bị từ chối với HTTP 400.
-- Có ngữ cảnh: hỗ trợ “chỉ dành cho người mới”, “miễn phí”, “rẻ hơn”, “xem thêm”.
+- Có ngữ cảnh: hỗ trợ “chỉ dành cho người mới”, “miễn phí”, “rẻ hơn”, “xem thêm”,
+  “khóa thứ hai”, “khóa đó”, “chỉ những khóa chưa bắt đầu”.
   Chưa lưu lịch sử server hoặc streaming. Request cũ chỉ có `message` vẫn hợp lệ.
 
 Luồng:
@@ -36,28 +38,34 @@ Luồng:
 ```text
 JWT guard → giới hạn lượt gọi → validate body
           → ChatbotMessageService
-          → ChatbotSearchService → search_courses → đọc catalog
-          → chiếu các field công khai → ApiResponse
+          → ChatbotConversationService → một request model, đúng một tool:
+              search_courses → catalog công khai
+              get_my_courses → enrollment đang hiệu lực + tiến độ hiện tại
+              get_my_learning_progress → tổng quan / chọn khóa / chi tiết
+          → backend dựng câu trả lời + chiếu allowlist → ApiResponse
 ```
 
 `AppModule` import `ChatbotHttpModule`. `ChatbotModule` AI nền tảng và
 `ChatbotSearchModule` không tự khai báo HTTP endpoint hoặc phụ thuộc xác thực.
+Không gửi kết quả cá nhân cho model để viết lại câu trả lời, không có lượt gọi
+model thứ hai. Xem đầy đủ [hợp đồng hai tool cá nhân](./my-learning.md).
 Không thay đổi allocation key: chatbot tiếp tục dùng riêng credential trước đây
 là River key 3 trong `CHATBOT_API_KEY`.
 
 ## Response thành công — HTTP 200
 
-Giữ envelope `ApiResponse` hiện có:
+Giữ envelope `ApiResponse` hiện có. Ví dụ hợp đồng nhánh catalog:
 
 ```ts
-type ChatbotApiResponse = {
+type ChatbotCatalogApiResponse = {
   success: true;
   data: {
     requestId: string; // UUID do server tạo
-    status: "found" | "empty" | "page_empty" | "needs_clarification";
+    kind: "course_search";
+    status: "found" | "empty" | "page_empty";
     answer: string;
     context?: string; // ngữ cảnh ký số, chỉ dùng lại với cùng tài khoản
-    result?: {
+    result: {
       filtersApplied: {
         keyword?: string;
         relatedKeywords?: string[]; // AI mở rộng mục tiêu rộng, tối đa 8 từ
@@ -92,18 +100,37 @@ type ChatbotApiResponse = {
 - `empty`: không có khóa học thỏa bộ lọc; `items=[]`, `total=0`, câu trả lời cố định.
 - `page_empty`: trang yêu cầu không có dữ liệu dù vẫn có khóa học phù hợp.
 - `needs_clarification`: yêu cầu chưa rõ, arguments mâu thuẫn hoặc model không
-  gọi đúng tool; không hiển thị danh sách do model tự viết.
+  gọi đúng tool (`kind=clarification`, không có `result`); hoặc cần chọn khóa trùng
+  tên (`kind=learning_progress`, `result.scope=selection`).
+
+Các nhánh khác dùng cùng `requestId`, `status`, `answer`, `context?`:
+
+| `kind` | `result` |
+| --- | --- |
+| `my_courses` | Danh sách sở hữu có `filtersApplied`, `items`, `total`, `page`, `limit`, `hasMore` |
+| `learning_progress` | `scope=overview`, `selection`, `course` hoặc `not_owned` |
+| `clarification` | Không có `result`; chỉ `status=needs_clarification` |
+
+Các field/giá trị hợp lệ được định nghĩa ở
+`backend/src/modules/chatbot/tools/my-learning.types.ts` và được frontend kiểm tra
+qua Zod. Không diễn giải mọi `result` như kết quả catalog.
 
 Tên/giá/link trong `answer` được backend dựng từ dữ liệu thật, không dùng model
 để tự soạn thông tin khóa học. HTTP response dùng allowlist, không trả provider
-response ID, reasoning, raw tool calls, usage, prompt hoặc dữ liệu riêng tư.
+response ID, reasoning, raw tool calls, usage, prompt, giao dịch hay playback session.
+Nhánh cá nhân chỉ trả thông tin học của caller đã xác thực.
 `filtersApplied.relatedKeywords` là metadata tìm kiếm công khai, không phải
 reasoning của provider. Mô tả, tags thô và điểm xếp hạng không được trả trong items.
 
-`context` chỉ chứa bộ lọc, giá nhỏ nhất của trang vừa hiển thị, cờ `hasMore` và
-hạn dùng; không chứa JWT, user ID, transcript hay thông tin khóa học riêng tư.
-Chữ ký HMAC dùng secret JWT hiện có, tách domain `mindly:chatbot-search-context:v1`
-và ràng buộc với user ID do JWT guard xác thực. Không thêm session collection.
+`context` v2 chứa mode, bộ lọc/trang của danh sách gần nhất, các course ID theo thứ
+tự hiển thị, course ID đang chọn (nếu có), cờ `hasMore`, giá nhỏ nhất của trang
+catalog và hạn dùng. Không chứa JWT, user ID, transcript, tên khóa trả về, phần
+trăm hay thời gian học. Đây là token **ký HMAC, không mã hóa**; chỉ giữ trong bộ nhớ,
+không log hoặc đưa vào URL. Context không cấp quyền truy cập.
+Chữ ký dùng secret JWT hiện có, tách domain
+`mindly:chatbot-conversation-context:v2`, ràng buộc user ID do JWT guard xác thực.
+Vẫn nhận context catalog v1 hợp lệ tới hết hạn; lượt trả dữ liệu sau đó cấp v2.
+Không thêm session collection.
 Context sai/hết hạn/khác tài khoản trả 400 `CHATBOT_CONTEXT_INVALID`, không phải
 401 và không gọi provider. Frontend bỏ context và yêu cầu người dùng nêu lại.
 
@@ -131,6 +158,9 @@ CORS expose `X-Request-Id`, `Retry-After` và các header `X-RateLimit-*` để 
   hình client (mặc định 30 giây).
 - Socket client đóng sẽ hủy signal tới client AI. MongoDB đang chạy có deadline
   riêng của query; kết quả hoàn tất sau hủy bị bỏ.
+- Đọc cá nhân theo batch 50 khóa, `maxTimeMS=1500` mỗi query và budget tổng
+  adapter 8 giây. Lọc trạng thái/đếm toàn bộ trước phân trang; scan không hoàn tất
+  trả lỗi, tuyệt đối không trả tổng bị thiếu.
 - Không tự retry, đổi model hoặc dùng River key 1/2 để dự phòng.
 
 Khi nối frontend, đặt timeout riêng của request chat lớn hơn 40 giây (ví dụ
@@ -160,7 +190,7 @@ Lỗi từ tầng chatbot có response:
 | 422  | Provider không thể xử lý nội dung: `CHATBOT_RESPONSE_BLOCKED`.                                    |
 | 429  | Quota API theo user: `CHATBOT_HTTP_RATE_LIMITED`; hoặc River trả 429: `CHATBOT_RATE_LIMITED`.     |
 | 502  | `CHATBOT_PROVIDER_ERROR`, `CHATBOT_RESPONSE_INVALID`, `CHATBOT_RESPONSE_INCOMPLETE`.              |
-| 503  | Chatbot tắt, config/key provider lỗi, provider không khả dụng, hoặc `CHATBOT_SEARCH_UNAVAILABLE`. |
+| 503  | Chatbot tắt, config/key provider lỗi, provider không khả dụng, `CHATBOT_SEARCH_UNAVAILABLE` hoặc `CHATBOT_LEARNING_UNAVAILABLE`. |
 | 504  | Timeout: `CHATBOT_TIMEOUT`.                                                                       |
 | 500  | Lỗi không xác định đã làm sạch: `CHATBOT_INTERNAL_ERROR`.                                         |
 
@@ -214,6 +244,19 @@ Cần catalog có hơn 2 khóa lập trình; không tự tạo dữ liệu, retr
 ```sh
 pnpm --filter backend test:chatbot:http:live --conversation
 ```
+
+Smoke hai tool cá nhân dùng đúng 5 request chatbot và hai lượt GET đối chiếu
+với API học tập, bằng tài khoản kiểm thử đã có enrollment:
+
+```powershell
+$env:CHATBOT_HTTP_SMOKE_ACCESS_TOKEN='YOUR_EXISTING_TEST_ACCOUNT_TOKEN'
+pnpm --filter backend test:chatbot:learning:live
+Remove-Item Env:CHATBOT_HTTP_SMOKE_ACCESS_TOKEN
+```
+
+Luồng: danh sách (2 khóa/trang) → tiến độ khóa đầu → “khóa đó” → lọc chưa bắt
+đầu → tổng quan. Không tự đăng nhập/tạo JWT, không ghi enrollment hoặc tiến độ;
+không log kết quả cá nhân. Đợi quota hồi phục trước khi chạy một smoke 5 lượt khác.
 
 Tùy chọn process env: `CHATBOT_HTTP_SMOKE_URL` (URL đầy đủ, chỉ HTTPS hoặc HTTP
 loopback), `CHATBOT_HTTP_SMOKE_MESSAGE`. Mặc định script đọc PORT/API_PREFIX

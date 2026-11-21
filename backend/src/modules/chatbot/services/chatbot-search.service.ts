@@ -157,36 +157,35 @@ export class ChatbotSearchService {
 
 /** Shared by standalone search and the three-tool conversation dispatcher. */
 export function formatCourseSearchResult(result: PublicCourseSearchResult): ChatbotSearchReply & { result: PublicCourseSearchResult } {
-    if (result.total === 0) {
-      return {
-        status: 'empty',
-        answer:
-          'Hiện chưa tìm thấy khóa học công khai phù hợp với các điều kiện bạn yêu cầu.',
-        result,
-      };
-    }
-    if (result.items.length === 0) {
-      return {
-        status: 'page_empty',
-        answer:
-          'Trang này không có khóa học. Bạn vui lòng chọn trang trước đó.',
-        result,
-      };
-    }
-    const courses = result.items.map((course, index) => {
-      const price =
-        course.price === 0
-          ? 'Miễn phí'
-          : `${course.price.toLocaleString('vi-VN')} ₫`;
-      return `${index + 1}. [${escapeMarkdownTitle(course.title)}](${course.url}) — ${price} — ${LEVEL_LABELS[course.level]}`;
-    });
+  if (result.total === 0) {
     return {
-      status: 'found',
-      answer: [
-        `Tìm thấy ${result.total} khóa học công khai phù hợp. Trang ${result.page}, hiển thị ${result.items.length} khóa học:`,
-        ...courses,
-        ...(result.hasMore ? ['Còn kết quả ở trang tiếp theo.'] : []),
-      ].join('\n'),
+      status: 'empty',
+      answer:
+        'Hiện chưa tìm thấy khóa học công khai phù hợp với các điều kiện bạn yêu cầu.',
       result,
     };
+  }
+  if (result.items.length === 0) {
+    return {
+      status: 'page_empty',
+      answer: 'Trang này không có khóa học. Bạn vui lòng chọn trang trước đó.',
+      result,
+    };
+  }
+  const courses = result.items.map((course, index) => {
+    const price =
+      course.price === 0
+        ? 'Miễn phí'
+        : `${course.price.toLocaleString('vi-VN')} ₫`;
+    return `${index + 1}. [${escapeMarkdownTitle(course.title)}](${course.url}) — ${price} — ${LEVEL_LABELS[course.level]}`;
+  });
+  return {
+    status: 'found',
+    answer: [
+      `Tìm thấy ${result.total} khóa học công khai phù hợp. Trang ${result.page}, hiển thị ${result.items.length} khóa học:`,
+      ...courses,
+      ...(result.hasMore ? ['Còn kết quả ở trang tiếp theo.'] : []),
+    ].join('\n'),
+    result,
+  };
 }

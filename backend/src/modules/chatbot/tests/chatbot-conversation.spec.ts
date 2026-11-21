@@ -71,6 +71,25 @@ describe('Three-tool conversation and account-bound resolution', () => {
     expect(complete.mock.calls[0][0].tools.map((tool: { function: { name: string } }) => tool.function.name))
       .toEqual(['search_courses', 'get_my_courses', 'get_my_learning_progress']);
   });
+  it.each([0, 2, 3])('does not execute %i tool calls or display model-written facts', async (count) => {
+    const response = completion('get_my_courses', {});
+    response.assistantMessage.tool_calls = Array.from({ length: count }, (_value, index) => ({
+      ...response.assistantMessage.tool_calls[0], id: `call-${index}`,
+    }));
+    complete.mockResolvedValueOnce(response);
+    const reply = await service.respond('Khóa của tôi', { userId });
+    expect(reply.kind).toBe('clarification');
+    expect(reply.answer).not.toContain('FAKE');
+    expect(list).not.toHaveBeenCalled();
+    expect(detail).not.toHaveBeenCalled();
+    expect(search).not.toHaveBeenCalled();
+  });
+  it('rejects unknown functions without executing any business operation', async () => {
+    expect((await ask('register_free_course', { courseId })).kind).toBe('clarification');
+    expect(list).not.toHaveBeenCalled();
+    expect(detail).not.toHaveBeenCalled();
+    expect(search).not.toHaveBeenCalled();
+  });
   it('resolves a position to the last page and preserves the originating list after detail/refinement', async () => {
     const first = await ask('get_my_courses', { limit: 2, keyword: 'Python' });
     const selected = await ask('get_my_learning_progress', { scope: 'course', position: 1 }, first.nextContext);
@@ -125,6 +144,36 @@ describe('Three-tool conversation and account-bound resolution', () => {
     expect(reply.nextContext?.mode).toBe('catalog');
     expect((await ask('get_my_learning_progress', { scope: 'overview' }, reply.nextContext)).nextContext)
       .toEqual({ mode: 'learning_progress' });
+  });
+  it('does not paginate an unrelated old list after a newly named course', async () => {
+    const first = await ask('get_my_courses', { keyword: 'Python', limit: 2 });
+    candidates.mockResolvedValueOnce({ scope: 'selection', keyword: 'Yoga', items: [
+      { id: otherId, title: 'Yoga' },
+    ], total: 1, page: 1, limit: 5, hasMore: false });
+    detail.mockResolvedValueOnce({ scope: 'course', course: { ...course, id: otherId },
+      remainingLessons: 3, lastLessonTitle: null });
+    const next = await ask('get_my_learning_progress', { scope: 'course', courseName: 'Yoga' }, first.nextContext);
+    expect(next.nextContext?.list).toBeUndefined();
+    expect(next.nextContext?.selectedCourseId).toBe(otherId);
+    list.mockClear();
+    expect((await ask('get_my_courses', { action: 'next_page' }, next.nextContext)).kind).toBe('clarification');
+    expect(list).not.toHaveBeenCalled();
+  });
+  it('does not run a selection page outside the validated pagination bounds', async () => {
+    const context: ChatbotConversationContext = { mode: 'learning_progress', list: {
+      kind: 'selection', keyword: 'Python', page: 1000, limit: 1, hasMore: true, ids: [courseId],
+    } };
+    expect((await ask('get_my_learning_progress', { scope: 'next_page' }, context)).kind).toBe('clarification');
+    expect(candidates).not.toHaveBeenCalled();
+  });
+  it('keeps a compatible originating list when a course on that page is chosen by name', async () => {
+    const first = await ask('get_my_courses', { keyword: 'Python', limit: 2 });
+    candidates.mockResolvedValueOnce({ scope: 'selection', keyword: 'Python cơ bản', items: [
+      { id: courseId, title: 'Python cơ bản' },
+    ], total: 1, page: 1, limit: 5, hasMore: false });
+    const next = await ask('get_my_learning_progress', { scope: 'course', courseName: 'Python cơ bản' }, first.nextContext);
+    expect(next.nextContext?.list).toEqual(first.nextContext?.list);
+    expect(next.nextContext?.selectedCourseId).toBe(courseId);
   });
   it('does not turn DB errors into empty lists and does not execute after cancellation', async () => {
     list.mockRejectedValueOnce(new ChatbotLearningError('CHATBOT_LEARNING_UNAVAILABLE'));
