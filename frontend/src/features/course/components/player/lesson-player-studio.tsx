@@ -65,6 +65,7 @@ export function LessonPlayerStudio({
       mode={mode}
       reviewQuizId={reviewQuizId}
       canEdit={canEdit}
+      isAdminPreview={mode === 'learn' && user?.role === RoleEnum.ADMIN}
       courseTitle={activeCourse?.title}
       sections={sections}
       userId={user?.id}
@@ -77,6 +78,7 @@ const timelineMarkers: TimelineMarker[] = [];
 
 interface LessonPlayerStudioContentProps extends LessonPlayerStudioProps {
   canEdit: boolean;
+  isAdminPreview: boolean;
   courseTitle?: string;
   sections?: ISection[];
   userId?: string;
@@ -88,6 +90,7 @@ function LessonPlayerStudioContent({
   backUrl,
   mode = 'learn',
   canEdit,
+  isAdminPreview,
   courseTitle,
   sections,
   userId,
@@ -142,7 +145,7 @@ function LessonPlayerStudioContent({
     lessonId: lesson.id,
     videoUrl: lesson.content?.url,
     videoRef: player.videoRef,
-    enabled: mode === 'learn' && lesson.content?.type === LessonContentTypeEnum.VIDEO,
+    enabled: mode === 'learn' && !isAdminPreview && lesson.content?.type === LessonContentTypeEnum.VIDEO,
     onRestorePosition: player.seek,
   });
   const checkpoints = useLessonCheckpoints({

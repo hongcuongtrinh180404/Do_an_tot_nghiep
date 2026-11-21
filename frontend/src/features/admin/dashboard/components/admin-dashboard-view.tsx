@@ -8,11 +8,22 @@ import { useAdminDashboardQuery } from '../api/admin-dashboard.api';
 import { DashboardHeader } from './dashboard-header';
 import { DashboardKpiCards } from './dashboard-kpi-cards';
 import { DashboardRevenueSection } from './dashboard-revenue-section';
+import { CategoryRevenueBreakdown } from './category-revenue-breakdown';
+import { DashboardPendingSection } from './dashboard-pending-section';
 import { DashboardInstructorsSection } from './dashboard-instructors-section';
 import { DashboardCoursesSection } from './dashboard-courses-section';
 import { DashboardReviewsSection } from './dashboard-reviews-section';
 import { DashboardPendingDrawer } from './dashboard-pending-drawer';
 import { PERIOD_LABELS } from '../constants/mock-dashboard-data';
+
+const EMPTY_KPIS = {
+  grossRevenue: { cur: 0, prev: 0 },
+  platformRevenue: { cur: 0, prev: 0 },
+  instructorRevenue: { cur: 0, prev: 0 },
+  newStudents: { cur: 0, prev: 0 },
+  enrollments: { cur: 0, prev: 0, paid: 0, free: 0 },
+  pendingTasks: { cur: 0, courses: 0, instructors: 0, reviews: 0 },
+};
 
 export function AdminDashboardView(): React.JSX.Element {
   const [globalPeriod, setGlobalPeriod] = React.useState<DashboardPeriodType>('this_month');
@@ -55,6 +66,13 @@ export function AdminDashboardView(): React.JSX.Element {
 
   const hasError = isError || isSimulatedError;
 
+  const timeframeLabel = React.useMemo(() => {
+    if (globalPeriod === 'custom') {
+      return customDates ? `${customDates.startDate} đến ${customDates.endDate}` : 'Khoảng ngày tùy chỉnh';
+    }
+    return PERIOD_LABELS[globalPeriod] || 'Tháng này';
+  }, [globalPeriod, customDates]);
+
   return (
     <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] w-full mx-auto">
       {/* Global Error Banner */}
@@ -96,37 +114,57 @@ export function AdminDashboardView(): React.JSX.Element {
 
       {/* 2. 6 KPI Cards (3x2 Grid) */}
       <DashboardKpiCards
-        kpis={dashboardData?.kpis ?? {
-          grossRevenue: { cur: 1284500000, prev: 1096200000 },
-          platformRevenue: { cur: 385350000, prev: 328860000 },
-          instructorRevenue: { cur: 899150000, prev: 767340000 },
-          newStudents: { cur: 3490, prev: 2980 },
-          enrollments: { cur: 7860, prev: 6790, paid: 2140, free: 5720 },
-          pendingTasks: { cur: 16, courses: 5, instructors: 3, reviews: 8 },
-        }}
+        kpis={dashboardData?.kpis ?? EMPTY_KPIS}
         onOpenPendingDrawer={() => setIsPendingDrawerOpen(true)}
         isLoading={isLoading}
       />
 
-      {/* 3. Section: Revenue Analysis & Commission Breakdown */}
-      <DashboardRevenueSection
-        globalPeriod={globalPeriod}
-        initialChartData={dashboardData?.chartSeries}
+      {/* 3. Hàng Biểu đồ Doanh thu (Grid 12 Cột) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="lg:col-span-8">
+          <DashboardRevenueSection
+            globalPeriod={globalPeriod}
+            initialChartData={dashboardData?.chartSeries}
+            customDates={customDates}
+          />
+        </div>
+        <div className="lg:col-span-4">
+          <CategoryRevenueBreakdown
+            categories={dashboardData?.categoryRevenue ?? []}
+            timeframeLabel={timeframeLabel}
+            isLoading={isLoading}
+          />
+        </div>
+      </div>
+
+      {/* 4. Section: Trung tâm Công việc Chờ Xử Lý (Strict Read-Only) */}
+      <DashboardPendingSection
+        pendingTasks={dashboardData?.kpis.pendingTasks}
+        isLoading={isLoading}
       />
 
-      {/* 4. Section: Top Instructors Ranking */}
+      {/* 5. Section: Top Instructors Ranking */}
       <DashboardInstructorsSection globalPeriod={globalPeriod} />
 
-      {/* 5. Section: Course Performance (3 Tabs) */}
-      <DashboardCoursesSection globalPeriod={globalPeriod} />
+      {/* 6. Section: Course Performance (3 Tabs) */}
+      <DashboardCoursesSection
+        globalPeriod={globalPeriod}
+        courses={dashboardData?.courses}
+        isLoading={isLoading}
+      />
 
-      {/* 6. Section: Course Quality & Ratings (2 Equal Columns) */}
-      <DashboardReviewsSection globalPeriod={globalPeriod} />
+      {/* 7. Section: Course Quality & Ratings (2 Equal Columns) */}
+      <DashboardReviewsSection
+        globalPeriod={globalPeriod}
+        courses={dashboardData?.courses}
+        isLoading={isLoading}
+      />
 
       {/* Drawer 1: Pending Tasks (NO SePay) */}
       <DashboardPendingDrawer
         isOpen={isPendingDrawerOpen}
         onClose={() => setIsPendingDrawerOpen(false)}
+        tasks={dashboardData?.pendingTasks}
       />
     </div>
   );

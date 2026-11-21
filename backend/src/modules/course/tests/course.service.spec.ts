@@ -172,6 +172,7 @@ describe('CourseService', () => {
       mockEnrollmentRepository as unknown as EnrollmentRepository,
       mockUserRepository as unknown as UserRepository,
       mockStorageService as unknown as StorageService,
+      { createHistory: vi.fn(), findAdminHistoriesWithPagination: vi.fn(), getStats: vi.fn(), findByCourseId: vi.fn() } as unknown as any,
       mockCls as unknown as ClsService,
       { findByLessonIds: vi.fn().mockResolvedValue([]) } as unknown as LessonQuizRepository,
     );

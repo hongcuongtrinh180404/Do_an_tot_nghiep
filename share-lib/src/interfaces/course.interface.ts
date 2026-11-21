@@ -11,6 +11,15 @@ export interface ICourseInstructorSummary {
   bio?: string | null;
 }
 
+/** Global statistics for courses that have not been soft-deleted. */
+export interface IAdminCourseStats {
+  total: number;
+  published: number;
+  draft: number;
+  archived: number;
+  pendingApproval: number;
+}
+
 export interface ICourse {
   id: string;
   title: string;

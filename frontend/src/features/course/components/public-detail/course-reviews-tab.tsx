@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Icon } from '@/components/ui/icon';
 import { RatingStars } from '@/components/shared/rating/rating-stars';
 import { DeleteConfirmDialog } from '@/components/shared/dialog/delete-confirm-dialog';
+import { AdminReviewReplyDisplay } from '@/components/shared/review/admin-review-reply-display';
 import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
 import {
   useCourseReviewStatsQuery,
@@ -270,6 +271,9 @@ export function CourseReviewsTab({
                 {myReview.comment}
               </p>
             )}
+            {myReview.adminReply && (
+              <AdminReviewReplyDisplay reply={myReview.adminReply} />
+            )}
           </div>
         ) : isEditingMyReview && myReview ? (
           /* Đang ở chế độ chỉnh sửa đánh giá */
@@ -434,6 +438,12 @@ export function CourseReviewsTab({
                     <p className="mt-2.5 text-xs sm:text-sm text-[#161616] leading-relaxed whitespace-pre-line">
                       {review.comment}
                     </p>
+                  )}
+
+                  {review.adminReply && (
+                    <div className="mt-3">
+                      <AdminReviewReplyDisplay reply={review.adminReply} />
+                    </div>
                   )}
 
                   {/* Instructor Reply */}

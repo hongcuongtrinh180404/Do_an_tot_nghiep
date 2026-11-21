@@ -34,11 +34,13 @@ export class LessonCompletionRepository {
     return docs.map((doc) => ({ lessonId: String(doc.lessonId), mediaVersion: doc.mediaVersion }));
   }
 
-  async findAnswersForCourses(userId: string, courseIds: string[]): Promise<Array<ILessonQuizAnswer & { courseId: string; lessonId: string }>> {
+  async findAnswersForCourses(userId: string, courseIds: string[], maxTimeMS?: number): Promise<Array<ILessonQuizAnswer & { courseId: string; lessonId: string }>> {
     if (courseIds.length === 0) return [];
-    const docs = await this.answers.find({ userId, courseId: { $in: courseIds }, deletedAt: null })
+    const query = this.answers.find({ userId, courseId: { $in: courseIds }, deletedAt: null })
       .select({ courseId: 1, lessonId: 1, quizId: 1, quizRevision: 1, selectedOptionIds: 1,
-        isCorrect: 1, correctOptionIds: 1, submittedAt: 1 }).lean().exec();
+        isCorrect: 1, correctOptionIds: 1, submittedAt: 1 }).lean();
+    if (maxTimeMS) query.maxTimeMS(maxTimeMS);
+    const docs = await query.exec();
     return docs.map((doc) => ({
       courseId: String(doc.courseId), lessonId: String(doc.lessonId),
       quizId: String(doc.quizId), quizRevision: doc.quizRevision,
@@ -47,10 +49,12 @@ export class LessonCompletionRepository {
     }));
   }
 
-  async findVideoCompletionsForCourses(userId: string, courseIds: string[]): Promise<Array<{ courseId: string; lessonId: string; mediaVersion: string }>> {
+  async findVideoCompletionsForCourses(userId: string, courseIds: string[], maxTimeMS?: number): Promise<Array<{ courseId: string; lessonId: string; mediaVersion: string }>> {
     if (courseIds.length === 0) return [];
-    const docs = await this.videos.find({ userId, courseId: { $in: courseIds }, deletedAt: null })
-      .select({ courseId: 1, lessonId: 1, mediaVersion: 1 }).lean().exec();
+    const query = this.videos.find({ userId, courseId: { $in: courseIds }, deletedAt: null })
+      .select({ courseId: 1, lessonId: 1, mediaVersion: 1 }).lean();
+    if (maxTimeMS) query.maxTimeMS(maxTimeMS);
+    const docs = await query.exec();
     return docs.map((doc) => ({
       courseId: String(doc.courseId), lessonId: String(doc.lessonId), mediaVersion: doc.mediaVersion,
     }));

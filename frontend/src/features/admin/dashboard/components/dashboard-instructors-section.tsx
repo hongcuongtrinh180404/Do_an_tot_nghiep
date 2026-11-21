@@ -10,11 +10,11 @@ import {
 } from '../constants/mock-dashboard-data';
 
 interface DashboardInstructorsSectionProps {
-  globalPeriod: DashboardPeriodType;
+  globalPeriod?: DashboardPeriodType | string;
 }
 
 export function DashboardInstructorsSection({
-  globalPeriod,
+  globalPeriod = '30d',
 }: DashboardInstructorsSectionProps): React.JSX.Element {
   const [periodOverride, setPeriodOverride] = React.useState<string>('default');
   const [sortKey, setSortKey] = React.useState<'grossRevenue' | 'salesCount' | 'netRevenue'>('grossRevenue');
@@ -28,7 +28,35 @@ export function DashboardInstructorsSection({
     setLimit(5);
   };
 
-  const effectivePeriod = periodOverride === 'default' ? globalPeriod : periodOverride;
+  const normalizedGlobalPeriod = React.useMemo(() => {
+    switch (globalPeriod) {
+      case 'today':
+        return 'today';
+      case 'yesterday':
+        return 'yesterday';
+      case '7days':
+      case '7d':
+        return '7d';
+      case '30days':
+      case '30d':
+        return '30d';
+      case 'thismonth':
+      case 'this_month':
+        return 'this_month';
+      case 'lastmonth':
+      case 'last_month':
+        return 'last_month';
+      case 'thisyear':
+      case 'this_year':
+        return 'this_year';
+      case 'custom':
+        return 'custom';
+      default:
+        return '30d';
+    }
+  }, [globalPeriod]);
+
+  const effectivePeriod = periodOverride === 'default' ? normalizedGlobalPeriod : periodOverride;
 
   const scaledInstructors = React.useMemo(() => {
     const scaleMap: Record<string, number> = {

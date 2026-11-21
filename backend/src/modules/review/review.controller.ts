@@ -66,6 +66,17 @@ export class ReviewController {
     return ApiResponse.success(review, 'Lấy chi tiết đánh giá thành công');
   }
 
+  @Post('admin/:id/reply')
+  @Roles(RoleEnum.ADMIN)
+  async adminReplyToReview(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser('id') adminId: string,
+    @Body() dto: ReplyReviewDto,
+  ): Promise<ApiResponse<IReview>> {
+    const review = await this.reviewService.adminReplyToReview(adminId, id, dto);
+    return ApiResponse.success(review, 'Gửi phản hồi từ ban quản trị thành công');
+  }
+
   @Patch('admin/:id/hide')
   @Roles(RoleEnum.ADMIN)
   async adminHideReview(

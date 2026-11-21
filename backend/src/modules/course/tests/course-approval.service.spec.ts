@@ -54,7 +54,7 @@ describe('CourseApprovalService', () => {
       lessonRepository as unknown as LessonRepository,
       {} as CourseMindmapRepository,
       { countByCourseId: vi.fn().mockResolvedValue(0), countByCourseIds: vi.fn().mockResolvedValue(new Map()) } as unknown as EnrollmentRepository,
-      {} as UserRepository, {} as StorageService, { get: vi.fn() } as unknown as ClsService,
+      {} as UserRepository, {} as StorageService, { createHistory: vi.fn(), findAdminHistoriesWithPagination: vi.fn(), getStats: vi.fn(), findByCourseId: vi.fn() } as unknown as any, { get: vi.fn() } as unknown as ClsService,
       quizRepository as unknown as LessonQuizRepository,
     );
     service = new CourseApprovalService(

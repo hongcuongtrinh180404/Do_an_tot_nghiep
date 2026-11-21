@@ -1,26 +1,28 @@
 'use client';
 
 import * as React from 'react';
+import Chart from 'chart.js/auto';
 import { Icon } from '@/components/ui/icon';
 import type {
   DashboardPeriodType,
+  IDashboardCustomDates,
   IDashboardRevenueChartPoint,
   RevenueGroupBy,
   RevenueChartType,
 } from '../types';
-import { formatVnd } from '../../revenue/utils/revenue-format.util';
-import {
-  REVENUE_CHART_SERIES,
-} from '../constants/mock-dashboard-data';
+import { useAdminDashboardChartQuery } from '../api/admin-dashboard.api';
+import { REVENUE_CHART_SERIES } from '../constants/mock-dashboard-data';
 
 interface DashboardRevenueSectionProps {
   globalPeriod: DashboardPeriodType;
   initialChartData?: IDashboardRevenueChartPoint[];
+  customDates?: IDashboardCustomDates;
 }
 
 export function DashboardRevenueSection({
   globalPeriod,
   initialChartData,
+  customDates,
 }: DashboardRevenueSectionProps): React.JSX.Element {
   const [groupBy, setGroupBy] = React.useState<RevenueGroupBy>('day');
   const [chartType, setChartType] = React.useState<RevenueChartType>('line');
@@ -30,15 +32,36 @@ export function DashboardRevenueSection({
     true,
     true,
   ]);
-  const [hoveredPoint, setHoveredPoint] = React.useState<IDashboardRevenueChartPoint | null>(null);
+
+  const { data: remoteChartData } = useAdminDashboardChartQuery(
+    globalPeriod,
+    groupBy === 'year' ? 'month' : groupBy,
+    globalPeriod === 'custom' ? customDates : undefined,
+  );
+
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+  const chartInstanceRef = React.useRef<Chart | null>(null);
 
   const isFilterModified =
-    groupBy !== 'day' || chartType !== 'line' || periodOverride !== 'default';
+    groupBy !== 'day' ||
+    chartType !== 'line' ||
+    periodOverride !== 'default' ||
+    !visibleSeries[0] ||
+    !visibleSeries[1] ||
+    !visibleSeries[2];
 
   const handleResetFilters = () => {
     setGroupBy('day');
     setChartType('line');
     setPeriodOverride('default');
+    setVisibleSeries([true, true, true]);
+    const chart = chartInstanceRef.current;
+    if (chart) {
+      chart.setDatasetVisibility(0, true);
+      chart.setDatasetVisibility(1, true);
+      chart.setDatasetVisibility(2, true);
+      chart.update();
+    }
   };
 
   const chartData: IDashboardRevenueChartPoint[] = React.useMemo(() => {
@@ -49,9 +72,9 @@ export function DashboardRevenueSection({
     const effectivePeriod = periodOverride === 'default' ? globalPeriod : periodOverride;
 
     const scaleMap: Record<string, number> = {
-      today: 0.1,
-      yesterday: 0.08,
-      '7d': 0.35,
+      today: 0.08,
+      yesterday: 0.07,
+      '7d': 0.38,
       '30d': 1.15,
       this_month: 1.0,
       last_month: 1.25,
@@ -73,15 +96,170 @@ export function DashboardRevenueSection({
     return chartData.reduce((acc, curr) => acc + curr.grossRevenue, 0);
   }, [chartData]);
 
-  // Max value for scaling chart
-  const maxValue = React.useMemo(() => {
-    if (!chartData.length) return 1000000;
-    const max = Math.max(...chartData.map((d) => d.grossRevenue), 0);
-    return max > 0 ? max * 1.15 : 1000000;
+  const formatVndNumber = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN').format(Math.round(amount)) + ' ₫';
+  };
+
+  // Initialize or re-create chart when chartType changes
+  React.useEffect(() => {
+    if (!canvasRef.current) return;
+
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.destroy();
+      chartInstanceRef.current = null;
+    }
+
+    const isBar = chartType === 'bar';
+    const labels = chartData.map((d) => d.label);
+    const gross = chartData.map((d) => d.grossRevenue);
+    const platform = chartData.map((d) => d.platformRevenue);
+    const instructor = chartData.map((d) => d.instructorRevenue);
+
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
+
+    chartInstanceRef.current = new Chart(ctx, {
+      type: chartType,
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Tổng doanh thu',
+            data: gross,
+            borderColor: '#4f46e5',
+            backgroundColor: isBar ? 'rgba(79, 70, 229, 0.85)' : 'rgba(79, 70, 229, 0.08)',
+            borderWidth: isBar ? 0 : 2.5,
+            borderRadius: isBar ? 6 : 0,
+            tension: 0.35,
+            fill: !isBar,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            hidden: !visibleSeries[0],
+          },
+          {
+            label: 'Doanh thu nền tảng (Mindly)',
+            data: platform,
+            borderColor: '#10b981',
+            backgroundColor: isBar ? 'rgba(16, 185, 129, 0.85)' : 'rgba(16, 185, 129, 0.08)',
+            borderWidth: isBar ? 0 : 2.5,
+            borderRadius: isBar ? 6 : 0,
+            tension: 0.35,
+            fill: false,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            hidden: !visibleSeries[1],
+          },
+          {
+            label: 'Doanh thu giảng viên',
+            data: instructor,
+            borderColor: '#f59e0b',
+            backgroundColor: isBar ? 'rgba(245, 158, 11, 0.85)' : 'rgba(245, 158, 11, 0.08)',
+            borderWidth: isBar ? 0 : 2.5,
+            borderRadius: isBar ? 6 : 0,
+            tension: 0.35,
+            fill: false,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            hidden: !visibleSeries[2],
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0f172a',
+            titleColor: '#ffffff',
+            bodyColor: '#f8fafc',
+            borderColor: '#334155',
+            borderWidth: 1,
+            titleFont: { family: 'Inter', size: 12, weight: 'bold' },
+            bodyFont: { family: 'Inter', size: 12 },
+            padding: 12,
+            cornerRadius: 12,
+            callbacks: {
+              label: (context) =>
+                ` ${context.dataset.label}: ${formatVndNumber(Number(context.parsed.y || 0))}`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' },
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(148, 163, 184, 0.12)' },
+            ticks: {
+              font: { family: 'Inter', size: 11 },
+              color: '#64748b',
+              callback: (val) => {
+                const num = typeof val === 'number' ? val : Number(val);
+                if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(1) + ' tỷ';
+                if (num >= 1_000_000) return (num / 1_000_000).toFixed(0) + ' tr';
+                return new Intl.NumberFormat('vi-VN').format(num);
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return () => {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.destroy();
+        chartInstanceRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartType]);
+
+  // In-place smooth update when chartData changes (labels & data)
+  React.useEffect(() => {
+    const chart = chartInstanceRef.current;
+    if (!chart) return;
+
+    chart.data.labels = chartData.map((d) => d.label);
+    if (chart.data.datasets[0]) {
+      chart.data.datasets[0].data = chartData.map((d) => d.grossRevenue);
+    }
+    if (chart.data.datasets[1]) {
+      chart.data.datasets[1].data = chartData.map((d) => d.platformRevenue);
+    }
+    if (chart.data.datasets[2]) {
+      chart.data.datasets[2].data = chartData.map((d) => d.instructorRevenue);
+    }
+
+    chart.update('default');
   }, [chartData]);
 
+  // Dynamic series visibility toggles
+  const handleToggleSeries = (index: 0 | 1 | 2) => {
+    setVisibleSeries((prev) => {
+      const next: [boolean, boolean, boolean] = [...prev];
+      next[index] = !next[index];
+
+      const chart = chartInstanceRef.current;
+      if (chart) {
+        chart.setDatasetVisibility(index, next[index]);
+        chart.update();
+      }
+
+      return next;
+    });
+  };
+
+  const allSeriesHidden = !visibleSeries[0] && !visibleSeries[1] && !visibleSeries[2];
+
   return (
-    <section className="bg-card rounded-2xl border border-border/60 shadow-xs p-5 space-y-4">
+    <section
+      id="revenue-section"
+      className="bg-card rounded-2xl border border-border/60 shadow-xs p-5 space-y-4 h-full flex flex-col justify-between"
+    >
       {/* Header & Independent Controls */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-4 border-b border-border/60">
         <div>
@@ -94,34 +272,33 @@ export function DashboardRevenueSection({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Group By Switcher */}
+          {/* Group By Switcher: Ngày / Tháng / Năm */}
           <div className="inline-flex bg-muted/60 p-0.5 rounded-xl border border-border/60">
             {(['day', 'month', 'year'] as const).map((g) => (
               <button
                 key={g}
                 type="button"
                 onClick={() => setGroupBy(g)}
-                className={`px-3 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer ${
-                  groupBy === g
-                    ? 'bg-card text-foreground shadow-2xs font-bold'
-                    : 'text-muted-foreground hover:text-foreground font-medium'
-                }`}
+                className={`px-3 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer ${groupBy === g
+                  ? 'bg-card text-foreground shadow-2xs font-bold'
+                  : 'text-muted-foreground hover:text-foreground font-medium'
+                  }`}
               >
                 {g === 'day' ? 'Ngày' : g === 'month' ? 'Tháng' : 'Năm'}
               </button>
             ))}
           </div>
 
-          {/* Chart Type Switcher */}
+          {/* Chart Type Switcher: Line / Bar */}
           <div className="inline-flex bg-muted/60 p-0.5 rounded-xl border border-border/60">
             <button
               type="button"
               onClick={() => setChartType('line')}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer ${
-                chartType === 'line'
-                  ? 'bg-card text-foreground shadow-2xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground font-medium'
-              }`}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer ${chartType === 'line'
+                ? 'bg-card text-foreground shadow-2xs font-bold'
+                : 'text-muted-foreground hover:text-foreground font-medium'
+                }`}
+              title="Biểu đồ đường"
             >
               <Icon icon="lucide:trending-up" className="size-3.5" />
               <span>Line</span>
@@ -129,18 +306,18 @@ export function DashboardRevenueSection({
             <button
               type="button"
               onClick={() => setChartType('bar')}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer ${
-                chartType === 'bar'
-                  ? 'bg-card text-foreground shadow-2xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground font-medium'
-              }`}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer ${chartType === 'bar'
+                ? 'bg-card text-foreground shadow-2xs font-bold'
+                : 'text-muted-foreground hover:text-foreground font-medium'
+                }`}
+              title="Biểu đồ cột"
             >
               <Icon icon="lucide:bar-chart-2" className="size-3.5" />
               <span>Bar</span>
             </button>
           </div>
 
-          {/* Independent Period Select */}
+          {/* Independent Period Filter */}
           <select
             value={periodOverride}
             onChange={(e) => setPeriodOverride(e.target.value)}
@@ -174,46 +351,37 @@ export function DashboardRevenueSection({
           {/* Toggle Series 0: Gross Revenue */}
           <button
             type="button"
-            onClick={() =>
-              setVisibleSeries(([s0, s1, s2]) => [!s0, s1, s2])
-            }
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-              visibleSeries[0]
-                ? 'bg-primary/10 text-primary border-primary/20'
-                : 'bg-muted/40 text-muted-foreground border-border/60 opacity-60'
-            }`}
+            onClick={() => handleToggleSeries(0)}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${visibleSeries[0]
+              ? 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800'
+              : 'bg-muted/40 text-muted-foreground border-border/60 opacity-60'
+              }`}
           >
-            <span className="size-2 rounded-full bg-primary" />
+            <span className="size-2 rounded-full bg-indigo-600" />
             <span>Tổng doanh thu</span>
           </button>
 
           {/* Toggle Series 1: Platform Revenue */}
           <button
             type="button"
-            onClick={() =>
-              setVisibleSeries(([s0, s1, s2]) => [s0, !s1, s2])
-            }
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-              visibleSeries[1]
-                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                : 'bg-muted/40 text-muted-foreground border-border/60 opacity-60'
-            }`}
+            onClick={() => handleToggleSeries(1)}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${visibleSeries[1]
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+              : 'bg-muted/40 text-muted-foreground border-border/60 opacity-60'
+              }`}
           >
             <span className="size-2 rounded-full bg-emerald-500" />
-            <span>Doanh thu nền tảng</span>
+            <span>Doanh thu nền tảng (Mindly)</span>
           </button>
 
           {/* Toggle Series 2: Instructor Revenue */}
           <button
             type="button"
-            onClick={() =>
-              setVisibleSeries(([s0, s1, s2]) => [s0, s1, !s2])
-            }
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-              visibleSeries[2]
-                ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20'
-                : 'bg-muted/40 text-muted-foreground border-border/60 opacity-60'
-            }`}
+            onClick={() => handleToggleSeries(2)}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${visibleSeries[2]
+              ? 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+              : 'bg-muted/40 text-muted-foreground border-border/60 opacity-60'
+              }`}
           >
             <span className="size-2 rounded-full bg-amber-500" />
             <span>Doanh thu giảng viên</span>
@@ -223,127 +391,22 @@ export function DashboardRevenueSection({
         <div className="text-xs text-muted-foreground font-medium">
           Tổng giá trị kỳ biểu đồ:{' '}
           <strong className="text-foreground font-bold tabular-nums">
-            {formatVnd(totalGross)}
+            {formatVndNumber(totalGross)}
           </strong>
         </div>
       </div>
 
-      {/* SVG Interactive Chart Canvas */}
-      <div className="relative">
-        {/* Tooltip Card when hovering point */}
-        <div className="min-h-10 mb-2 px-3 py-1.5 bg-muted/30 border border-border/60 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs">
-          {hoveredPoint ? (
-            <>
-              <span className="font-bold text-foreground">
-                Mốc: {hoveredPoint.label} ({hoveredPoint.orderCount} đơn)
-              </span>
-              <div className="flex flex-wrap items-center gap-4 text-xs font-semibold">
-                {visibleSeries[0] && (
-                  <span className="text-primary tabular-nums">
-                    Tổng: {formatVnd(hoveredPoint.grossRevenue)}
-                  </span>
-                )}
-                {visibleSeries[1] && (
-                  <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">
-                    Nền tảng: {formatVnd(hoveredPoint.platformRevenue)}
-                  </span>
-                )}
-                {visibleSeries[2] && (
-                  <span className="text-amber-600 dark:text-amber-400 tabular-nums">
-                    Giảng viên: {formatVnd(hoveredPoint.instructorRevenue)}
-                  </span>
-                )}
-              </div>
-            </>
-          ) : (
-            <span className="text-muted-foreground italic text-[11px]">
-              Rê chuột vào các cột hoặc điểm mốc để xem chi tiết doanh thu từng giai đoạn
-            </span>
-          )}
-        </div>
-
-        {/* Chart Viewport */}
-        <div className="h-64 sm:h-72 w-full overflow-x-auto overflow-y-hidden">
-          <div
-            className="h-full flex items-end gap-2 pb-6 min-w-[340px]"
-            style={{ width: `${Math.max(100, chartData.length * 48)}px` }}
-          >
-            {chartData.map((item) => {
-              const grossHeightPct = Math.min(
-                100,
-                Math.max(item.grossRevenue > 0 ? 6 : 2, (item.grossRevenue / maxValue) * 100),
-              );
-              const platformHeightPct = Math.min(
-                100,
-                Math.max(item.platformRevenue > 0 ? 4 : 1, (item.platformRevenue / maxValue) * 100),
-              );
-              const instructorHeightPct = Math.min(
-                100,
-                Math.max(item.instructorRevenue > 0 ? 4 : 1, (item.instructorRevenue / maxValue) * 100),
-              );
-
-              const isHovered = hoveredPoint?.date === item.date;
-
-              return (
-                <div
-                  key={item.date}
-                  className="flex-1 flex flex-col items-center h-full justify-end group cursor-pointer"
-                  onMouseEnter={() => setHoveredPoint(item)}
-                  onClick={() => setHoveredPoint(item)}
-                >
-                  {/* Bars/Columns Column */}
-                  <div className="w-full flex justify-center items-end h-48 relative">
-                    {chartType === 'bar' ? (
-                      <div className="w-full flex items-end justify-center gap-0.5 h-full">
-                        {visibleSeries[0] && (
-                          <div
-                            className={`w-3.5 rounded-t-sm transition-all duration-150 ${
-                              isHovered
-                                ? 'bg-primary ring-2 ring-primary/40'
-                                : 'bg-primary/80 hover:bg-primary'
-                            }`}
-                            style={{ height: `${grossHeightPct}%` }}
-                          />
-                        )}
-                        {visibleSeries[1] && (
-                          <div
-                            className="w-2.5 rounded-t-sm bg-emerald-500/80 hover:bg-emerald-500 transition-all duration-150"
-                            style={{ height: `${platformHeightPct}%` }}
-                          />
-                        )}
-                        {visibleSeries[2] && (
-                          <div
-                            className="w-2.5 rounded-t-sm bg-amber-500/80 hover:bg-amber-500 transition-all duration-150"
-                            style={{ height: `${instructorHeightPct}%` }}
-                          />
-                        )}
-                      </div>
-                    ) : (
-                      /* Line Mode Column representation */
-                      <div className="w-full flex flex-col justify-end items-center h-full relative">
-                        {/* Background subtle column */}
-                        <div
-                          className={`w-full max-w-[28px] rounded-t-md transition-all duration-150 flex flex-col justify-end ${
-                            isHovered ? 'bg-primary/20 ring-1 ring-primary/40' : 'bg-muted/30 hover:bg-muted/60'
-                          }`}
-                          style={{ height: `${grossHeightPct}%` }}
-                        >
-                          {/* Marker Dot on top */}
-                          <div className="size-2 rounded-full bg-primary mx-auto -mt-1 ring-2 ring-background" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* X-axis label */}
-                  <div className="text-[10px] font-semibold text-muted-foreground text-center mt-2 truncate w-full select-none">
-                    {item.label}
-                  </div>
-                </div>
-              );
-            })}
+      {/* Chart Canvas Viewport */}
+      <div className="relative h-72 sm:h-80 w-full">
+        {allSeriesHidden && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-2xs rounded-xl z-10 pointer-events-none">
+            <div className="px-4 py-2 rounded-xl bg-card border border-border/80 shadow-xs text-xs font-medium text-muted-foreground flex items-center gap-2">
+              <Icon icon="lucide:info" className="size-4 text-primary" />
+              <span>Tất cả chuỗi dữ liệu đang bị ẩn. Nhấn vào các nút bên trên để hiển thị lại.</span>
+            </div>
           </div>
-        </div>
+        )}
+        <canvas ref={canvasRef} id="revenueChart" />
       </div>
 
       {/* Historical Commission Rule Footnote */}

@@ -3,49 +3,62 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from '@/components/ui/icon';
-import type { DashboardPeriodType } from '../types';
-import {
-  COURSES_PERFORMANCE_DATA,
-  formatNumber,
-} from '../constants/mock-dashboard-data';
+import type { DashboardPeriodType, IDashboardCoursePerformance } from '../types';
+import { formatNumber } from '../constants/mock-dashboard-data';
 
 interface DashboardReviewsSectionProps {
   globalPeriod: DashboardPeriodType;
+  courses?: IDashboardCoursePerformance[];
+  isLoading?: boolean;
 }
 
 export function DashboardReviewsSection({
   globalPeriod,
+  courses = [],
+  isLoading = false,
 }: DashboardReviewsSectionProps): React.JSX.Element {
   const router = useRouter();
   const [periodOverride, setPeriodOverride] = React.useState<string>('default');
   const [categoryFilter, setCategoryFilter] = React.useState<string>('all');
-  const [minReviews, setMinReviews] = React.useState<number>(10);
-
-  const effectivePeriod = periodOverride === 'default' ? globalPeriod : periodOverride;
+  const [minReviews, setMinReviews] = React.useState<number>(1);
 
   const isModified =
-    periodOverride !== 'default' || categoryFilter !== 'all' || minReviews !== 10;
+    periodOverride !== 'default' || categoryFilter !== 'all' || minReviews !== 1;
 
   const handleReset = () => {
     setPeriodOverride('default');
     setCategoryFilter('all');
-    setMinReviews(10);
+    setMinReviews(1);
   };
 
+  const availableCategories = React.useMemo(() => {
+    const set = new Set<string>();
+    courses.forEach((c) => {
+      if (c.category) set.add(c.category);
+    });
+    return Array.from(set);
+  }, [courses]);
+
   const eligibleCourses = React.useMemo(() => {
-    return COURSES_PERFORMANCE_DATA.filter((course) => {
+    return courses.filter((course) => {
       if (course.reviewCount < minReviews) return false;
       if (categoryFilter !== 'all' && course.category !== categoryFilter) return false;
       return true;
     });
-  }, [minReviews, categoryFilter, effectivePeriod]);
+  }, [courses, minReviews, categoryFilter]);
 
   const topRated = React.useMemo(() => {
-    return [...eligibleCourses].sort((a, b) => b.rating - a.rating).slice(0, 5);
+    return [...eligibleCourses]
+      .filter((c) => c.rating > 0)
+      .sort((a, b) => b.rating - a.rating)
+      .slice(0, 5);
   }, [eligibleCourses]);
 
   const lowRated = React.useMemo(() => {
-    return [...eligibleCourses].sort((a, b) => a.rating - b.rating).slice(0, 5);
+    return [...eligibleCourses]
+      .filter((c) => c.rating > 0)
+      .sort((a, b) => a.rating - b.rating)
+      .slice(0, 5);
   }, [eligibleCourses]);
 
   const handleInspectReview = (courseId: string) => {
@@ -85,10 +98,11 @@ export function DashboardReviewsSection({
             className="text-xs px-3 py-1.5 bg-muted/40 border border-border/80 rounded-xl font-medium text-foreground outline-none cursor-pointer"
           >
             <option value="all">Danh mục: Tất cả</option>
-            <option value="Lập trình Web & Backend">Lập trình Web & Backend</option>
-            <option value="AI & Khoa học Dữ liệu">AI & Khoa học Dữ liệu</option>
-            <option value="Thiết kế UI/UX & Đồ họa">Thiết kế UI/UX & Đồ họa</option>
-            <option value="Kinh doanh & Marketing">Kinh doanh & Marketing</option>
+            {availableCategories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
           </select>
 
           {/* Threshold Minimum Count */}
@@ -102,10 +116,11 @@ export function DashboardReviewsSection({
               onChange={(e) => setMinReviews(Number(e.target.value))}
               className="bg-transparent text-xs font-bold text-amber-800 dark:text-amber-300 outline-none cursor-pointer"
             >
+              <option value="0">Tất cả đánh giá (≥ 0)</option>
+              <option value="1">Tối thiểu 1 đánh giá</option>
               <option value="5">Tối thiểu 5 đánh giá</option>
               <option value="10">Tối thiểu 10 đánh giá</option>
               <option value="20">Tối thiểu 20 đánh giá</option>
-              <option value="50">Tối thiểu 50 đánh giá</option>
             </select>
           </div>
 
@@ -148,7 +163,13 @@ export function DashboardReviewsSection({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40 bg-card text-xs">
-                {topRated.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-xs text-muted-foreground animate-pulse">
+                      Đang tải xếp hạng đánh giá...
+                    </td>
+                  </tr>
+                ) : topRated.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="py-8 text-center text-xs text-muted-foreground">
                       Không có khóa học nào đạt ngưỡng ≥ {minReviews} đánh giá hợp lệ
@@ -209,7 +230,13 @@ export function DashboardReviewsSection({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40 bg-card text-xs">
-                {lowRated.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-xs text-muted-foreground animate-pulse">
+                      Đang tải xếp hạng đánh giá...
+                    </td>
+                  </tr>
+                ) : lowRated.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-xs text-muted-foreground">
                       Không có khóa học nào đạt ngưỡng ≥ {minReviews} đánh giá hợp lệ

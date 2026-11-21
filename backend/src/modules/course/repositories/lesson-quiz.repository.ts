@@ -99,11 +99,13 @@ export class LessonQuizRepository extends BaseMongoRepository<
     return (result.deletedCount ?? 0) > 0;
   }
 
-  async findByLessonIds(lessonIds: string[]): Promise<ILessonQuiz[]> {
+  async findByLessonIds(lessonIds: string[], maxTimeMS?: number): Promise<ILessonQuiz[]> {
     if (lessonIds.length === 0) return [];
-    const docs = await this.model.find({
+    const query = this.model.find({
       lessonId: { $in: lessonIds.map((id) => new Types.ObjectId(id)) }, deletedAt: null,
-    } as Record<string, unknown>).sort({ timestamp: 1, order: 1, _id: 1 }).exec();
+    } as Record<string, unknown>).sort({ timestamp: 1, order: 1, _id: 1 });
+    if (maxTimeMS) query.maxTimeMS(maxTimeMS);
+    const docs = await query.exec();
     return docs.map((doc) => this.toDomain(doc));
   }
 

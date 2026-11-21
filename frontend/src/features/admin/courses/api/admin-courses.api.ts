@@ -2,9 +2,17 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import type { IApiResponse, ICourse, CourseStatusEnum } from 'share-lib';
+import type {
+  IAdminCourseStats,
+  IApiResponse,
+  ICourse,
+  CourseStatusEnum,
+  ICourseApprovalHistory,
+  IAdminCourseApprovalHistoryStats,
+} from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 import { useIsMounted } from '@/hooks/use-is-mounted';
+import type { AdminCourseApprovalHistoriesQueryParams } from '../types';
 
 export interface AdminCoursesPaginationResult<T> {
   items: T[];
@@ -28,11 +36,23 @@ export interface AdminCoursesQueryParams {
 
 export const adminCoursesKeys = {
   all: ['admin-courses'] as const,
+  stats: () => [...adminCoursesKeys.all, 'stats'] as const,
   list: (params: AdminCoursesQueryParams) => [...adminCoursesKeys.all, 'list', params] as const,
   detail: (courseId: string) => [...adminCoursesKeys.all, 'detail', courseId] as const,
+  approvalHistories: (params: AdminCourseApprovalHistoriesQueryParams) =>
+    [...adminCoursesKeys.all, 'approval-histories', params] as const,
+  approvalHistoryStats: () =>
+    [...adminCoursesKeys.all, 'approval-histories', 'stats'] as const,
+  courseApprovalHistory: (courseId: string) =>
+    [...adminCoursesKeys.all, 'approval-histories', 'course', courseId] as const,
 };
 
 export const adminCoursesApi = {
+  async getStats(): Promise<IAdminCourseStats> {
+    const response = await apiClient.get<IApiResponse<IAdminCourseStats>>('/courses/admin/stats');
+    return response.data.data;
+  },
+
   async getCourses(params: AdminCoursesQueryParams): Promise<AdminCoursesPaginationResult<ICourse>> {
     const queryParams: Record<string, string | number> = {
       page: params.page || 1,
@@ -80,7 +100,63 @@ export const adminCoursesApi = {
     );
     return response.data.data;
   },
+
+  async getApprovalHistories(
+    params: AdminCourseApprovalHistoriesQueryParams,
+  ): Promise<AdminCoursesPaginationResult<ICourseApprovalHistory>> {
+    const queryParams: Record<string, string | number> = {
+      page: params.page || 1,
+      limit: params.limit || 10,
+    };
+
+    if (params.search?.trim()) {
+      queryParams.search = params.search.trim();
+    }
+
+    if (params.action) {
+      queryParams.action = params.action;
+    }
+
+    if (params.courseId) {
+      queryParams.courseId = params.courseId;
+    }
+
+    if (params.sort) {
+      queryParams.sort = params.sort;
+    }
+
+    const response = await apiClient.get<IApiResponse<AdminCoursesPaginationResult<ICourseApprovalHistory>>>(
+      '/courses/admin/approval-history',
+      { params: queryParams },
+    );
+    return response.data.data;
+  },
+
+  async getApprovalHistoryStats(): Promise<IAdminCourseApprovalHistoryStats> {
+    const response = await apiClient.get<IApiResponse<IAdminCourseApprovalHistoryStats>>(
+      '/courses/admin/approval-history/stats',
+    );
+    return response.data.data;
+  },
+
+  async getCourseApprovalHistory(courseId: string): Promise<ICourseApprovalHistory[]> {
+    const response = await apiClient.get<IApiResponse<ICourseApprovalHistory[]>>(
+      `/courses/${courseId}/approval-history`,
+    );
+    return response.data.data;
+  },
 };
+
+export function useAdminCourseStatsQuery() {
+  const isMounted = useIsMounted();
+  return useQuery({
+    queryKey: adminCoursesKeys.stats(),
+    queryFn: () => adminCoursesApi.getStats(),
+    enabled: isMounted,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
+}
 
 export function useAdminCoursesQuery(params: AdminCoursesQueryParams) {
   const isMounted = useIsMounted();
@@ -88,6 +164,40 @@ export function useAdminCoursesQuery(params: AdminCoursesQueryParams) {
     queryKey: adminCoursesKeys.list(params),
     queryFn: () => adminCoursesApi.getCourses(params),
     enabled: isMounted,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useAdminCourseApprovalHistoriesQuery(params: AdminCourseApprovalHistoriesQueryParams) {
+  const isMounted = useIsMounted();
+  return useQuery({
+    queryKey: adminCoursesKeys.approvalHistories(params),
+    queryFn: () => adminCoursesApi.getApprovalHistories(params),
+    enabled: isMounted,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useAdminCourseApprovalHistoryStatsQuery() {
+  const isMounted = useIsMounted();
+  return useQuery({
+    queryKey: adminCoursesKeys.approvalHistoryStats(),
+    queryFn: () => adminCoursesApi.getApprovalHistoryStats(),
+    enabled: isMounted,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useCourseApprovalHistoryQuery(courseId: string | null) {
+  const isMounted = useIsMounted();
+  return useQuery({
+    queryKey: courseId ? adminCoursesKeys.courseApprovalHistory(courseId) : ['null-course-history'],
+    queryFn: () => (courseId ? adminCoursesApi.getCourseApprovalHistory(courseId) : Promise.resolve([])),
+    enabled: isMounted && Boolean(courseId),
+    staleTime: 0,
   });
 }
 

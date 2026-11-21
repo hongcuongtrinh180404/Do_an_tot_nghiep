@@ -47,13 +47,13 @@ export class LearningProgressService {
   }
 
   /** Internal batch read for enrolled courses, including public-profile course rows. */
-  async getProgressForCourses(userId: string, courseIds: string[]): Promise<ICourseLearningProgress[]> {
+  async getProgressForCourses(userId: string, courseIds: string[], maxTimeMS?: number): Promise<ICourseLearningProgress[]> {
     if (courseIds.length === 0) return [];
     const [states, stats] = await Promise.all([
-      this.progressRepository.findForCourses(userId, courseIds),
-      this.lessonRepository.getCourseVideoStats(courseIds),
+      this.progressRepository.findForCourses(userId, courseIds, ...(maxTimeMS ? [maxTimeMS] : [])),
+      this.lessonRepository.getCourseVideoStats(courseIds, ...(maxTimeMS ? [maxTimeMS] : [])),
     ]);
-    const completions = await this.lessonCompletion.getSummariesForCourses(userId, stats);
+    const completions = await this.lessonCompletion.getSummariesForCourses(userId, stats, ...(maxTimeMS ? [maxTimeMS] : []));
     const stateMap = new Map(states.map((state) => [state.courseId, state]));
     const statsMap = new Map(stats.map((item) => [item.courseId, item]));
     return courseIds.map((id) => summarizeProgress(id, stateMap.get(id) ?? null, statsMap.get(id), completions.get(id)));

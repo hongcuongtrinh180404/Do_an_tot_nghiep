@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession, Types } from 'mongoose';
 import {
+  IAdminCourseStats,
   ICourse,
   ICourseCategorySummary,
   ICourseInstructorSummary,
@@ -333,6 +334,26 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
     return doc ? this.toDomain(doc) : null;
   }
 
+  async getAdminCourseStats(session?: ClientSession): Promise<IAdminCourseStats> {
+    // One aggregation keeps all counts in the same result, independent of table filters.
+    const rows = await this.model
+      .aggregate<{ _id: CourseStatusEnum; count: number }>([
+        { $match: { deletedAt: null } },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ])
+      .session(session ?? null)
+      .exec();
+    const counts = new Map(rows.map((row) => [row._id, row.count]));
+
+    return {
+      total: rows.reduce((sum, row) => sum + row.count, 0),
+      published: counts.get(CourseStatusEnum.PUBLISHED) ?? 0,
+      draft: counts.get(CourseStatusEnum.DRAFT) ?? 0,
+      archived: counts.get(CourseStatusEnum.ARCHIVED) ?? 0,
+      pendingApproval: counts.get(CourseStatusEnum.PENDING_APPROVAL) ?? 0,
+    };
+  }
+
   async findAdminCoursesWithPagination(
     queryDto: QueryCoursesAdminDto,
     session?: ClientSession,
@@ -549,10 +570,11 @@ export class CourseRepository extends BaseMongoRepository<ICourse, CourseEntity>
   async findPublicCourseDetail(
     idOrSlug: string,
     session?: ClientSession,
+    includeUnpublished = false,
   ): Promise<ICourse | null> {
     const isObjectId = /^[0-9a-fA-F]{24}$/.test(idOrSlug);
     const filterQuery: Record<string, unknown> = {
-      status: CourseStatusEnum.PUBLISHED,
+      ...(!includeUnpublished ? { status: CourseStatusEnum.PUBLISHED } : {}),
       deletedAt: null,
       ...(isObjectId ? { $or: [{ _id: idOrSlug }, { slug: idOrSlug }] } : { slug: idOrSlug }),
     };

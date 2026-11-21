@@ -48,8 +48,10 @@ export class LearningProgressRepository extends BaseMongoRepository<LearningProg
     return this.findOne({ userId, courseId });
   }
 
-  async findForCourses(userId: string, courseIds: string[]): Promise<LearningProgressState[]> {
-    const docs = await this.model.find({ userId, courseId: { $in: courseIds }, deletedAt: null }).exec();
+  async findForCourses(userId: string, courseIds: string[], maxTimeMS?: number): Promise<LearningProgressState[]> {
+    const query = this.model.find({ userId, courseId: { $in: courseIds }, deletedAt: null });
+    if (maxTimeMS) query.maxTimeMS(maxTimeMS);
+    const docs = await query.exec();
     return docs.map((doc) => this.toDomain(doc));
   }
 

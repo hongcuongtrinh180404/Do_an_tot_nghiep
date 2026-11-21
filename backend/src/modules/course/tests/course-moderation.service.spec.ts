@@ -49,6 +49,7 @@ describe('Course Moderation & Concurrency Control', () => {
       approveCourse: vi.fn(),
       rejectCourse: vi.fn(),
       findAdminCoursesWithPagination: vi.fn(),
+      getAdminCourseStats: vi.fn(),
       requestApproval: vi.fn(),
       update: vi.fn(),
       updateStatus: vi.fn(),
@@ -89,6 +90,7 @@ describe('Course Moderation & Concurrency Control', () => {
       { countByCourseId: vi.fn().mockResolvedValue(0), countByCourseIds: vi.fn().mockResolvedValue(new Map()) } as unknown as EnrollmentRepository,
       mockUserRepo as UserRepository,
       mockStorageService as StorageService,
+      { createHistory: vi.fn(), findAdminHistoriesWithPagination: vi.fn(), getStats: vi.fn(), findByCourseId: vi.fn() } as unknown as any,
       mockCls as ClsService,
       quizzes as unknown as LessonQuizRepository,
     );
@@ -334,6 +336,14 @@ describe('Course Moderation & Concurrency Control', () => {
   });
 
   describe('Admin Query Danh Sách Khóa Học', () => {
+    it('lấy thống kê toàn bộ khóa học mà không truyền bộ lọc hay phân trang', async () => {
+      const stats = { total: 24, published: 15, draft: 3, archived: 2, pendingApproval: 4 };
+      vi.mocked(mockCourseRepo.getAdminCourseStats!).mockResolvedValue(stats);
+
+      expect(await courseService.getAdminCourseStats()).toEqual(stats);
+      expect(mockCourseRepo.getAdminCourseStats).toHaveBeenCalledExactlyOnceWith(undefined);
+    });
+
     it('gọi repository với đúng tham số phân trang và bộ lọc', async () => {
       const query: QueryCoursesAdminDto = {
         page: 2,

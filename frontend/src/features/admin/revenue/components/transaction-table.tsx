@@ -22,6 +22,7 @@ import type { IRevenueTransactionItem } from 'share-lib';
 import { toast } from 'sonner';
 import { formatVnd, formatDateVn, formatTimeVn } from '../utils/revenue-format.util';
 import type { RevenuePaginationResult } from '../api/revenue-admin.api';
+import type { RevenueTimeFilterValue } from './revenue-time-filter';
 
 export type TransactionStatusFilterType = 'ALL' | 'MATCHED' | 'UNDERPAID' | 'OVERPAID';
 
@@ -34,6 +35,8 @@ interface TransactionTableProps {
   onStatusFilterChange: (val: TransactionStatusFilterType) => void;
   sort: string;
   onSortChange: (val: string) => void;
+  timeFilter?: RevenueTimeFilterValue;
+  onResetTimeFilter?: () => void;
   page: number;
   onPageChange: (val: number) => void;
   limit: number;
@@ -103,6 +106,8 @@ export function TransactionTable({
   onStatusFilterChange,
   sort,
   onSortChange,
+  timeFilter,
+  onResetTimeFilter,
   page,
   onPageChange,
   limit,
@@ -110,6 +115,20 @@ export function TransactionTable({
   onSelectTransaction,
 }: TransactionTableProps): React.JSX.Element {
   const [localSearch, setLocalSearch] = React.useState(search);
+
+  const isTimeFilterActive =
+    timeFilter &&
+    timeFilter.timeRange !== 'all' &&
+    timeFilter.timeRange !== '30days';
+  const hasAnyFilterActive = Boolean(search || statusFilter !== 'ALL' || isTimeFilterActive);
+
+  const handleResetAllFilters = () => {
+    handleClearSearch();
+    onStatusFilterChange('ALL');
+    if (onResetTimeFilter) {
+      onResetTimeFilter();
+    }
+  };
 
   // Sync prop changes
   React.useEffect(() => {
@@ -301,18 +320,15 @@ export function TransactionTable({
                     </div>
                     <p className="text-sm font-semibold text-foreground">Không tìm thấy giao dịch nào</p>
                     <p className="text-xs text-muted-foreground max-w-sm">
-                      {search || statusFilter !== 'ALL'
-                        ? 'Không có giao dịch nào khớp với bộ lọc hiện tại. Hãy thử tìm kiếm hoặc chọn bộ lọc khác.'
+                      {hasAnyFilterActive
+                        ? 'Không có giao dịch nào khớp với bộ lọc hiện tại. Hãy thử tìm kiếm hoặc chọn khoảng thời gian khác.'
                         : 'Chưa phát sinh giao dịch nào trong khoảng thời gian đã chọn.'}
                     </p>
-                    {(search || statusFilter !== 'ALL') && (
+                    {hasAnyFilterActive && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          handleClearSearch();
-                          onStatusFilterChange('ALL');
-                        }}
+                        onClick={handleResetAllFilters}
                         className="h-8 text-xs mt-2"
                       >
                         Đặt lại bộ lọc

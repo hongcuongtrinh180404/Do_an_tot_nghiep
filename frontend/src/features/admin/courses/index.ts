@@ -1,6 +1,9 @@
+export * from './types';
 export * from './api/admin-courses.api';
 export * from './components/admin-courses-view';
 export * from './components/admin-course-columns';
+export * from './components/admin-course-approval-history-columns';
 export * from './components/course-approval-dialog';
 export * from './components/course-rejection-dialog';
-
+export * from './components/course-approval-history-detail-dialog';
+export * from './components/course-timeline-history-dialog';

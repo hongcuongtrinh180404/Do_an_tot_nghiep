@@ -10,6 +10,7 @@ interface CourseCurriculumTabProps {
   courseId: string;
   isEnrolled: boolean;
   isInstructorOwner: boolean;
+  isAdminPreview?: boolean;
   totalLessonsCount: number;
   totalDurationFormatted: string;
 }
@@ -26,9 +27,11 @@ export function CourseCurriculumTab({
   courseId,
   isEnrolled,
   isInstructorOwner,
+  isAdminPreview = false,
   totalLessonsCount,
   totalDurationFormatted,
 }: CourseCurriculumTabProps): React.JSX.Element {
+  const hasFullAccess = isEnrolled || isInstructorOwner || isAdminPreview;
   // State: expanded section ids (all expanded by default)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -102,7 +105,11 @@ export function CourseCurriculumTab({
       </div>
 
       {/* 2. Access state banner */}
-      {isEnrolled || isInstructorOwner ? (
+      {isAdminPreview ? (
+        <p className="rounded-xl bg-[#f3fcfc] p-3.5 text-sm text-[#027D88]">
+          Toàn bộ <strong>{totalLessonsCount} bài giảng</strong> được mở để kiểm duyệt. Bạn đang xem ở chế độ học viên, không thể chỉnh sửa nội dung.
+        </p>
+      ) : hasFullAccess ? (
         <div className="flex items-center gap-2.5 rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 text-xs sm:text-sm text-emerald-900 font-medium">
           <Icon icon="lucide:unlock" className="size-4.5 text-emerald-600 shrink-0" />
           <span>
@@ -158,7 +165,6 @@ export function CourseCurriculumTab({
                   <div data-ui="lessons-list" className="divide-y divide-[#f2f2f2]">
                     {section.lessons && section.lessons.length > 0 ? (
                       section.lessons.map((lesson, lIdx) => {
-                        const hasFullAccess = isEnrolled || isInstructorOwner;
                         const canPlay = hasFullAccess || lesson.isPreview;
                         const lessonId = lesson.id || (lesson as unknown as { _id?: string })._id;
                         const lessonHref = `/courses/${courseId}/lessons/${lessonId}`;
@@ -266,4 +272,3 @@ export function CourseCurriculumTab({
     </div>
   );
 }
-

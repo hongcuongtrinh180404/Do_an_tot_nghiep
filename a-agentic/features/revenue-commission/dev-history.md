@@ -4,6 +4,56 @@
 
 ---
 
+## 2026-11-20: Khắc phục lỗi hiển thị Biểu Đồ Doanh Thu & Hoa Hồng theo chuẩn design-taste-frontend & web-design-guidelines
+
+- **Nguyên nhân lỗi (Root Cause)**:
+  1. *Unmount Canvas khi Loading/Empty*: Component cũ sử dụng `if (isLoading) return <Skeleton />` và `if (isEmpty) return <EmptyState />`. Khi component mount lúc đang load dữ liệu (`isLoading = true`), thẻ `<canvas ref={canvasRef} />` chưa có trong DOM (`canvasRef.current === null`). Khi query hoàn tất và `isLoading` chuyển về `false`, thẻ canvas mới được render nhưng `useEffect([chartType, isEmpty])` không chạy lại (do dependency không chứa `isLoading`), dẫn đến Chart.js không bao giờ được khởi tạo trên canvas mới.
+  2. *Xung đột Canvas Registry trong Chart.js*: Khi Fast Refresh hoặc React re-render, canvas cũ chưa được giải phóng qua `Chart.getChart(canvas)?.destroy()`, có thể gây lỗi "Canvas is already in use".
+  3. *Lỗi kiểu dữ liệu trong dashboard-revenue-section.tsx*: `groupBy` kiểu `RevenueGroupBy` ('day' | 'month' | 'year') truyền vào `useAdminDashboardChartQuery` vốn chỉ nhận `'day' | 'month'`.
+- **Giải pháp áp dụng chuẩn `design-taste-frontend` & `web-design-guidelines`**:
+  1. *Khung cố định ổn định (Keep its frame)*: Thẻ `<section>` và khung `<canvas>` luôn được giữ cố định trong DOM từ khi mount, triệt tiêu hoàn toàn layout shift (CLS).
+  2. *Trạng thái Loading dạng Overlay*: Khi `isLoading = true`, hiển thị overlay mờ phủ lên khung biểu đồ (`bg-card/75 backdrop-blur-2xs`) với spinner, không unmount canvas.
+  3. *Trạng thái Rỗng trung thực (Honest data state)*: Dữ liệu trống hoặc bằng 0 vẫn vẽ đường baseline 0 rõ ràng, kèm badge thông báo nhẹ nhàng giữa biểu đồ.
+  4. *Quản lý Lifecycle Chart.js an toàn*: Kiểm tra và hủy `Chart.getChart(canvas)` trước khi khởi tạo instance mới, cleanup triệt để khi unmount.
+  5. *Khả năng tiếp cận (Accessibility - a11y)*: Bổ sung `aria-label`, `role="group"`, `aria-pressed` cho các nút bật/tắt chuỗi dữ liệu, hiệu ứng focus ring rõ ràng (`focus-visible:ring-2 focus-visible:ring-primary`).
+  6. Sửa type `groupBy === 'year' ? 'month' : groupBy` trong `dashboard-revenue-section.tsx`.
+- **Kết quả kiểm thử**:
+  - `audit-ui.mjs`: Pass 100% không vi phạm Web Interface Guidelines.
+  - Vitest: 21/21 passed toàn bộ test suite revenue.
+  - TypeScript (`tsc --noEmit`): 0 error trên toàn bộ dự án frontend.
+  - ESLint: 0 warning, 0 error.
+
+---
+
+## 2026-11-20: Tái thiết kế Biểu Đồ Doanh Thu & Hoa Hồng theo chuẩn Chart.js của Dashboard
+
+- **Yêu cầu**:
+  - Dựa trên code biểu đồ "Phân tích doanh thu & phân chia hoa hồng" tại `/admin/dashboard` để làm hiển thị bắt mắt, chuyên nghiệp cho "Biểu Đồ Doanh Thu & Hoa Hồng" tại `/admin/revenue`.
+  - Giữ bảng màu Phương án 2 (Đồng bộ tuyệt đối với Dashboard: Indigo `#4f46e5` cho Tổng doanh thu, Emerald `#10b981` cho Doanh thu nền tảng, Amber `#f59e0b` cho Doanh thu giảng viên).
+  - Giữ Tooltip gọn gàng, hiển thị nhãn mốc thời gian, số lượng đơn hàng và số tiền VNĐ tương ứng của từng chuỗi.
+- **Triển khai**:
+  - **Component (`frontend/src/features/admin/revenue/components/revenue-chart.tsx`)**:
+    - Thay thế toàn bộ SVG/CSS bar thủ công bằng **Chart.js** (`chart.js/auto`) trên thẻ `<canvas>`.
+    - Bộ điều khiển linh hoạt: Cho phép chuyển đổi dạng biểu đồ Đường (**Line**) và Cột (**Bar**), kèm nút **Khôi phục mặc định** (`rotate-ccw`) khi trạng thái hiển thị bị thay đổi.
+    - Bộ lọc chuỗi dữ liệu độc lập: 3 nút Badge bật/tắt hiển thị từng chuỗi: Tổng doanh thu, Doanh thu nền tảng (Mindly), Doanh thu giảng viên.
+    - Floating dark tooltip (`#0f172a`, bo tròn `cornerRadius: 12`, đệm 12px) định dạng chuẩn tiền tệ VNĐ và số lượng đơn hàng.
+    - Trục tung (Y-axis) tự động quy đổi đơn vị theo thói quen người dùng Việt Nam (`tỷ`, `tr`, `₫`), bắt đầu từ 0.
+    - Badge tóm tắt tổng giá trị kỳ biểu đồ và tổng số đơn hàng thành công.
+    - Overlay cảnh báo khi tất cả chuỗi dữ liệu bị ẩn.
+    - Thẻ ghi chú chân trang giải thích nguyên tắc ghi nhận tỷ lệ hoa hồng cố định theo lịch sử giao dịch.
+    - Quản lý lifecycle Chart.js chặt chẽ: Hủy instance cũ khi unmount/đổi dạng biểu đồ, cập nhật dữ liệu in-place mượt mà tránh giật lag canvas.
+  - **Unit Tests (`frontend/src/features/admin/revenue/tests/revenue-chart.spec.ts`)**:
+    - Mock class `Chart` từ `chart.js/auto` trong môi trường Vitest / SSR.
+    - Kiểm thử trạng thái loading skeleton.
+    - Kiểm thử trạng thái không có dữ liệu (Empty state).
+    - Kiểm thử render đầy đủ các nút Line/Bar, nút bật/tắt 3 chuỗi, tổng giá trị kỳ và chú thích chân trang.
+- **Kết quả kiểm thử**:
+  - Vitest: 3/3 passed (`revenue-chart.spec.ts`), 10/10 passed toàn bộ feature `revenue`.
+  - TypeScript type check (`tsc --noEmit`): 0 error.
+  - ESLint: 0 warning, 0 error.
+
+---
+
 ## 2026-11-19: Tái thiết kế giao diện Danh sách giao dịch theo chuẩn design-taste-frontend
 
 - **Yêu cầu**:

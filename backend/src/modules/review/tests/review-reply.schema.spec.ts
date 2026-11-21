@@ -51,3 +51,45 @@ describe('Review instructor reply schema', () => {
     });
   });
 });
+
+describe('Review admin reply schema', () => {
+  const connection = createConnection();
+  const model = connection.model(ReviewEntity.name, ReviewSchema);
+  const fields = { userId: new Types.ObjectId(), courseId: new Types.ObjectId(), rating: 2 };
+  const reply = {
+    content: '  Chúng tôi đang kiểm tra lỗi hệ thống.  ',
+    adminId: new Types.ObjectId(),
+    adminName: 'Quản trị viên',
+  };
+
+  afterAll(async () => { await connection.close(); });
+
+  it('defaults to null for reviews created before admin replies existed', async () => {
+    const review = new model(fields);
+    await expect(review.validate()).resolves.toBeUndefined();
+    expect(review.adminReply).toBeNull();
+  });
+
+  it('stores a trimmed reply with independent timestamps and editor metadata', async () => {
+    const review = new model({ ...fields, adminReply: reply });
+    await expect(review.validate()).resolves.toBeUndefined();
+    expect(review.toObject().adminReply).toEqual({
+      ...reply,
+      content: 'Chúng tôi đang kiểm tra lỗi hệ thống.',
+      repliedAt: expect.any(Date),
+      updatedAt: null,
+      updatedById: null,
+      updatedByName: null,
+    });
+  });
+
+  it.each(['', '   ', 'x'.repeat(2001)])('rejects empty or oversized content (%#)', async (content) => {
+    await expect(new model({ ...fields, adminReply: { ...reply, content } }).validate())
+      .rejects.toMatchObject({ errors: { 'adminReply.content': expect.any(Object) } });
+  });
+
+  it('requires the original admin ID', async () => {
+    await expect(new model({ ...fields, adminReply: { content: 'Phản hồi' } }).validate())
+      .rejects.toMatchObject({ errors: { 'adminReply.adminId': expect.any(Object) } });
+  });
+});

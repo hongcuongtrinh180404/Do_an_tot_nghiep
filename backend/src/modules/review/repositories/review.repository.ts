@@ -10,6 +10,7 @@ import {
   IReviewModerationEntry,
   IReviewReportEntry,
   IInstructorReviewReply,
+  IAdminReviewReply,
 } from 'share-lib';
 import { BaseMongoRepository, PaginationResult } from '../../base/index.js';
 import { ReviewEntity, ReviewDocument } from '../schemas/review.schema.js';
@@ -130,6 +131,30 @@ export class ReviewRepository extends BaseMongoRepository<IReview, ReviewDocumen
         };
       }
 
+      const rawAdminReply = plain.adminReply as unknown;
+      let adminReply: IAdminReviewReply | null = null;
+
+      if (rawAdminReply && typeof rawAdminReply === 'object' && 'content' in rawAdminReply) {
+        const reply = rawAdminReply as {
+          content?: string;
+          adminId?: Types.ObjectId | string;
+          adminName?: string | null;
+          repliedAt?: Date;
+          updatedAt?: Date | null;
+          updatedById?: Types.ObjectId | string | null;
+          updatedByName?: string | null;
+        };
+        adminReply = {
+          content: reply.content ?? '',
+          adminId: reply.adminId?.toString() ?? '',
+          adminName: reply.adminName ?? null,
+          repliedAt: reply.repliedAt || new Date(),
+          updatedAt: reply.updatedAt ?? null,
+          updatedById: reply.updatedById?.toString() ?? null,
+          updatedByName: reply.updatedByName ?? null,
+        };
+      }
+
       const status = (plain.status as ReviewStatusEnum) || ReviewStatusEnum.VISIBLE;
 
       return {
@@ -144,6 +169,7 @@ export class ReviewRepository extends BaseMongoRepository<IReview, ReviewDocumen
         reports,
         reportCount: Number(plain.reportCount || 0),
         instructorReply,
+        adminReply,
         user,
         course,
         createdAt: (plain.createdAt as Date) || new Date(),
@@ -440,6 +466,7 @@ export class ReviewRepository extends BaseMongoRepository<IReview, ReviewDocumen
                 reports: 1,
                 reportCount: 1,
                 instructorReply: 1,
+                adminReply: 1,
                 createdAt: 1,
                 updatedAt: 1,
                 deletedAt: 1,
@@ -615,6 +642,41 @@ export class ReviewRepository extends BaseMongoRepository<IReview, ReviewDocumen
           },
         },
         { new: true, session: session ?? null },
+      )
+      .populate(USER_POPULATE)
+      .populate(COURSE_POPULATE)
+      .exec();
+
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  async setAdminReply(
+    reviewId: string,
+    reply: IAdminReviewReply,
+    session?: ClientSession,
+  ): Promise<IReview | null> {
+    const doc = await this.model
+      .findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(reviewId),
+          deletedAt: null,
+          status: ReviewStatusEnum.VISIBLE,
+        },
+        {
+          $set: {
+            adminReply: {
+              content: reply.content,
+              adminId: new Types.ObjectId(reply.adminId),
+              adminName: reply.adminName ?? null,
+              repliedAt: reply.repliedAt,
+              updatedAt: reply.updatedAt ?? null,
+              updatedById: reply.updatedById ? new Types.ObjectId(reply.updatedById) : null,
+              updatedByName: reply.updatedByName ?? null,
+            },
+          },
+        },
+        // Keep the student's review and the instructor's reply unchanged.
+        { returnDocument: 'after', runValidators: true, timestamps: false, session: session ?? null },
       )
       .populate(USER_POPULATE)
       .populate(COURSE_POPULATE)

@@ -44,7 +44,7 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps): React.JSX.
       >
         {/* Brand / Logo Section */}
         <div className="h-16 flex items-center justify-between px-6 border-b border-border/60 shrink-0">
-          <Link href="/admin" className="flex items-center gap-2 group" aria-label="Mindly Admin Dashboard">
+          <Link href="/admin/dashboard" className="flex items-center gap-2 group" aria-label="Mindly Admin Dashboard">
             <MindlyLogo variant="auto" className="h-8 w-auto" showSlogan={false} />
             <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary tracking-wider uppercase">
               Admin

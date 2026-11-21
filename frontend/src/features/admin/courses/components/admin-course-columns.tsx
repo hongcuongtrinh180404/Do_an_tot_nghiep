@@ -7,6 +7,7 @@ import { CourseStatusEnum, CourseLevelEnum, type ICourse } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { DataTableColumnHeader } from '@/components/shared/data-table';
+import { getCourseUrl } from '@/features/course/utils/course-view-mode.util';
 
 const statusConfig: Record<
   CourseStatusEnum,
@@ -28,7 +29,7 @@ const statusConfig: Record<
     icon: 'lucide:file-edit',
   },
   [CourseStatusEnum.ARCHIVED]: {
-    label: 'Lưu trữ',
+    label: 'Ngưng bán',
     badgeClass: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/25',
     icon: 'lucide:archive',
   },
@@ -69,11 +70,13 @@ function formatDate(dateValue?: Date | string | null): string {
 export interface AdminCourseColumnsOptions {
   onApprove: (course: ICourse) => void;
   onReject: (course: ICourse) => void;
+  onViewHistory?: (course: ICourse) => void;
 }
 
 export function createAdminCourseColumns({
   onApprove,
   onReject,
+  onViewHistory,
 }: AdminCourseColumnsOptions): ColumnDef<ICourse>[] {
   return [
     {
@@ -278,15 +281,29 @@ export function createAdminCourseColumns({
             )}
 
             <Link
-              href={`/courses/${course.id}?mode=edit`}
+              href={getCourseUrl(course.id)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 h-7 text-xs px-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent hover:border-border/60 transition-colors"
-              title="Xem trang nội dung khóa học"
+              title="Xem khóa học ở chế độ học viên"
             >
               <Icon icon="lucide:external-link" className="size-3" />
               <span>Xem</span>
             </Link>
+
+            {onViewHistory && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => onViewHistory(course)}
+                className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground cursor-pointer gap-1"
+                title="Xem lịch sử phê duyệt của khóa học này"
+              >
+                <Icon icon="lucide:history" className="size-3" />
+                <span>Lịch sử</span>
+              </Button>
+            )}
           </div>
         );
       },

@@ -12,6 +12,7 @@ export * from './enums/reconciliation-status.enum.js';
 export * from './enums/learning-status.enum.js';
 export * from './enums/review-status.enum.js';
 export * from './enums/instructor-application-status.enum.js';
+export * from './enums/course-approval-action.enum.js';
 
 // Interfaces
 export * from './interfaces/user.interface.js';
@@ -26,6 +27,7 @@ export * from './interfaces/enrollment.interface.js';
 export * from './interfaces/learning-progress.interface.js';
 export * from './interfaces/lesson-completion.interface.js';
 export * from './interfaces/course-approval.interface.js';
+export * from './interfaces/course-approval-history.interface.js';
 export * from './interfaces/course-category.interface.js';
 export * from './interfaces/section.interface.js';
 export * from './interfaces/lesson.interface.js';
@@ -37,6 +39,7 @@ export * from './interfaces/lesson-summary.interface.js';
 export * from './interfaces/review.interface.js';
 export * from './interfaces/revenue.interface.js';
 export * from './interfaces/instructor-application.interface.js';
+export * from './interfaces/admin-dashboard.interface.js';
 
 // Constants
 export * from './constants/auth.constants.js';

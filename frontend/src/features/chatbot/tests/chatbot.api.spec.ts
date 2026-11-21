@@ -50,6 +50,7 @@ describe('Chatbot HTTP client and auth integration', () => {
     expect(config.headers.Authorization).toBe('Bearer test-mindly-token');
     expect(config.timeout).toBe(45000);
     expect(config.signal).toBe(controller.signal);
+    if (result.reply.kind !== undefined && result.reply.kind !== 'course_search') throw new Error('Expected catalog response');
     expect(result.reply.result?.items[0].price).toBe(299000);
   });
 
@@ -114,6 +115,7 @@ describe('Chatbot HTTP client and auth integration', () => {
     reply.result!.items[0].price = 150000;
     adapter.mockImplementationOnce(async (config) => response(config, 200, { success: true, data: reply }));
     const result = await sendChatbotMessage('Học làm website dưới 200k', new AbortController().signal);
+    if (result.reply.kind !== undefined && result.reply.kind !== 'course_search') throw new Error('Expected catalog response');
     expect(result.reply.result?.filtersApplied.relatedKeywords).toEqual(['HTML', 'CSS', 'React']);
     expect(result.reply.result?.items).toEqual(reply.result!.items);
   });

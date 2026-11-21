@@ -4,6 +4,8 @@ export * from './api/admin-dashboard.api';
 export * from './components/dashboard-header';
 export * from './components/dashboard-kpi-cards';
 export * from './components/dashboard-revenue-section';
+export * from './components/category-revenue-breakdown';
+export * from './components/dashboard-pending-section';
 export * from './components/dashboard-instructors-section';
 export * from './components/dashboard-instructor-drawer';
 export * from './components/dashboard-courses-section';

@@ -1,11 +1,14 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ChatbotAiError, type ChatbotAiErrorCode } from '../chatbot.errors.js';
 import { ChatbotContextError } from './chatbot-context.service.js';
+import { ChatbotLearningError } from '../tools/my-learning.types.js';
+import { SearchCoursesError } from '../tools/search-courses.contract.js';
 
 type ChatbotHttpErrorCode =
   | ChatbotAiErrorCode
   | 'CHATBOT_HTTP_RATE_LIMITED'
   | 'CHATBOT_SEARCH_UNAVAILABLE'
+  | 'CHATBOT_LEARNING_UNAVAILABLE'
   | 'CHATBOT_CONTEXT_INVALID'
   | 'CHATBOT_INTERNAL_ERROR';
 
@@ -67,6 +70,10 @@ export function mapChatbotHttpError(
   error: unknown,
   requestId: string,
 ): HttpException {
+  if ((error instanceof ChatbotLearningError && error.code === 'CHATBOT_LEARNING_UNAVAILABLE')
+    || (error instanceof SearchCoursesError && error.code === 'CHATBOT_SEARCH_UNAVAILABLE')) {
+    return chatbotHttpException(error.code, HttpStatus.SERVICE_UNAVAILABLE, UNAVAILABLE, true, requestId);
+  }
   if (error instanceof ChatbotContextError) {
     return chatbotHttpException(
       'CHATBOT_CONTEXT_INVALID',

@@ -56,6 +56,7 @@ interface CourseMindmapTabProps {
   course: IPublicCourseDetailResponse;
   isEnrolled: boolean;
   isInstructorOwner: boolean;
+  isAdminPreview?: boolean;
   totalLessonsCount: number;
 }
 
@@ -64,6 +65,7 @@ interface InnerMindmapCanvasProps {
   rawData: CourseMindmapRawData;
   isEnrolled: boolean;
   isInstructorOwner: boolean;
+  isAdminPreview: boolean;
   totalLessonsCount: number;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
@@ -74,6 +76,7 @@ function InnerMindmapCanvas({
   rawData,
   isEnrolled,
   isInstructorOwner,
+  isAdminPreview,
   totalLessonsCount,
   isFullscreen,
   onToggleFullscreen,
@@ -239,7 +242,7 @@ function InnerMindmapCanvas({
     if (node.type === 'lesson') {
       const lessonData = node.data as unknown as LessonNodeData;
       if (lessonData?.lessonId) {
-        const canAccess = isEnrolled || isInstructorOwner || lessonData.isPreview;
+        const canAccess = isEnrolled || isInstructorOwner || isAdminPreview || lessonData.isPreview;
         if (canAccess) {
           router.push(`/courses/${course.id}/lessons/${lessonData.lessonId}`);
         } else {
@@ -401,6 +404,7 @@ export function CourseMindmapTab({
   course,
   isEnrolled,
   isInstructorOwner,
+  isAdminPreview = false,
   totalLessonsCount,
 }: CourseMindmapTabProps): React.JSX.Element {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -484,6 +488,7 @@ export function CourseMindmapTab({
             rawData={rawData}
             isEnrolled={isEnrolled}
             isInstructorOwner={isInstructorOwner}
+            isAdminPreview={isAdminPreview}
             totalLessonsCount={totalLessonsCount}
             isFullscreen={isFullscreen}
             onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}

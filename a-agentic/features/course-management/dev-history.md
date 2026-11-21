@@ -13,6 +13,38 @@
 
 ## 2. Technical Notes & Gotchas
 
+### [2026-11-20] - Milestone 70: Triển Khai Tab "Lịch Sử Phê Duyệt" Khóa Học Admin (/admin/courses) End-to-End
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trên trang Quản lý & Phê duyệt khóa học Admin (`/admin/courses`), khi Quản trị viên duyệt hoặc từ chối khóa học, hệ thống chỉ lưu vết đè lên bản ghi `Course` (`reviewedAt`, `reviewedById`, `rejectionReason`).
+  - Khi khóa học trải qua nhiều lần gửi duyệt, sửa đổi và từ chối, toàn bộ lịch sử trước đó bị mất.
+  - Người dùng yêu cầu triển khai chuẩn từ giao diện đến backend một tab **"Lịch sử phê duyệt"** trên trang `/admin/courses` để quản lý và theo dõi nhật ký kiểm duyệt.
+
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Hợp đồng dữ liệu chung (`share-lib`)**:
+     - Định nghĩa `CourseApprovalActionEnum` (`APPROVED = 'APPROVED'`, `REJECTED = 'REJECTED'`).
+     - Định nghĩa `ICourseApprovalHistory` và `IAdminCourseApprovalHistoryStats` chứa đầy đủ thông tin courseId, adminId, instructorId, action, reason, previousStatus, targetStatus, và populated snapshots cho UI.
+  2. **Tầng Backend NestJS & MongoDB (`course_approval_histories`)**:
+     - Schema `CourseApprovalHistoryEntity` kế thừa `BaseAbstractDocument`, đánh chỉ mục compound `{ courseId: 1, createdAt: -1 }`, `{ createdAt: -1 }`, `{ action: 1, createdAt: -1 }`.
+     - Repository `CourseApprovalHistoryRepository` kế thừa `BaseMongoRepository`, sử dụng Aggregation Pipeline với `$lookup` + `$project` tối ưu truy vấn nạp thông tin khóa học, danh mục, giảng viên và quản trị viên, tránh N+1 và deep populate.
+     - `CourseService`: Tự động gọi `courseApprovalHistoryRepository.createHistory()` khi Admin bấm Phê duyệt (`APPROVED`) hoặc Yêu cầu chỉnh sửa (`REJECTED`).
+     - Endpoints mới:
+       - `GET /api/v1/courses/admin/approval-history`: Danh sách lịch sử phê duyệt có phân trang, lọc theo action và tìm kiếm text.
+       - `GET /api/v1/courses/admin/approval-history/stats`: Thống kê tổng số, số lượng duyệt và từ chối.
+       - `GET /api/v1/courses/:id/approval-history`: Xem lịch sử kiểm duyệt riêng của một khóa học.
+  3. **Tầng Frontend Next.js & UI/UX (`AdminCoursesView`)**:
+     - Bố cục 2 Tab cấp cao: **Danh sách khóa học** (`?tab=COURSES`) và **Lịch sử phê duyệt** (`?tab=HISTORY`).
+     - Tab Lịch sử:
+       - Các chip lọc con: `Tất cả`, `Đã phê duyệt` (`APPROVED`), `Đã từ chối` (`REJECTED`) kèm số lượng thống kê live.
+       - Thanh tìm kiếm theo tên khóa học, giảng viên, admin hoặc lý do.
+       - Bảng `BaseDataTable` chuẩn hiển thị badge kết quả, lý do, người duyệt và ngày giờ.
+       - `CourseApprovalHistoryDetailDialog`: Xem chi tiết toàn diện một lần kiểm duyệt.
+       - `CourseTimelineHistoryDialog`: Xem dòng thời gian kiểm duyệt dạng timeline dọc của một khóa học.
+       - Menu thao tác dòng ở Tab Khóa học: Thêm nút "Lịch sử" mở timeline kiểm duyệt của khóa học đó.
+  4. **Kiểm chuẩn chất lượng**:
+     - Backend Vitest: 5/5 tests `course-approval-history.service.spec.ts` pass, 23/23 tests `course-moderation.service.spec.ts` pass.
+     - Frontend Vitest: 31/31 tests pass (`admin-courses.api.spec.tsx`, `admin-course-columns.spec.tsx`, `admin-course-approval-history.spec.tsx`, `admin-course-stats.spec.tsx`).
+
 ### [2026-11-18] - Milestone 69: Đồng Bộ Lĩnh Vực Đăng Ký Giảng Viên Với Danh Mục Khóa Học Hệ Thống (/become-instructor)
 
 - **Bối cảnh & Vấn đề (Problem Statement)**:

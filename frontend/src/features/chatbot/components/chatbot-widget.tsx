@@ -8,14 +8,15 @@ import { ArrowRight, ArrowUp, LoaderCircle, MessageCircle, RotateCcw, X } from '
 import { CourseLevelEnum } from 'share-lib';
 import { MindlyLogo } from '@/components/brand/mindly-logo';
 import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
-import { CHATBOT_MESSAGE_LIMIT, type ChatbotReply, type ChatbotTurn } from '../chatbot.contract';
+import { CHATBOT_MESSAGE_LIMIT, type ChatbotSearchReply, type ChatbotTurn } from '../chatbot.contract';
 import { useChatbot } from '../hooks/use-chatbot';
+import { PersonalLearningReply } from './personal-learning-reply';
 import styles from './chatbot.module.css';
 
 const suggestions = [
   'Tìm khóa Python cho người mới',
-  'Có khóa học nào dưới 500k?',
-  'Có khóa học miễn phí không?',
+  'Xem các khóa học của tôi',
+  'Tiến độ học của tôi',
 ];
 const levelLabels: Record<CourseLevelEnum, string> = {
   [CourseLevelEnum.BEGINNER]: 'Cơ bản',
@@ -31,7 +32,7 @@ function subscribeMobile(onChange: () => void) {
   return () => media.removeEventListener('change', onChange);
 }
 
-function SearchReply({ reply, onNavigate }: { reply: ChatbotReply; onNavigate: () => void }) {
+function SearchReply({ reply, onNavigate }: { reply: ChatbotSearchReply; onNavigate: () => void }) {
   if (reply.status !== 'found' || !reply.result) {
     return <p className={styles.answer}>{reply.answer}</p>;
   }
@@ -40,7 +41,7 @@ function SearchReply({ reply, onNavigate }: { reply: ChatbotReply; onNavigate: (
     <div className={styles.results}>
       <p>Tìm thấy <strong>{result.total.toLocaleString('vi-VN')} khóa học</strong> phù hợp.</p>
       <ul className={styles.courses} aria-label="Khóa học tìm được">
-        {result.items.map((course) => (
+        {result.items.map((course, index) => (
           <li key={course.id}>
             <Link
               href={course.url}
@@ -48,7 +49,7 @@ function SearchReply({ reply, onNavigate }: { reply: ChatbotReply; onNavigate: (
               onClick={onNavigate}
               className={styles.course}
             >
-              <span className={styles.courseTitle}>{course.title}</span>
+              <span className={styles.courseTitle}>{index + 1}. {course.title}</span>
               <span className={styles.courseMeta}>
                 {course.categoryName && <span>{course.categoryName}</span>}
                 <span>{levelLabels[course.level]}</span>
@@ -63,19 +64,20 @@ function SearchReply({ reply, onNavigate }: { reply: ChatbotReply; onNavigate: (
       </ul>
       <p className={styles.meta}>
         Trang {result.page} · Hiển thị {result.items.length}/{result.total.toLocaleString('vi-VN')} khóa học
-        {result.hasMore && '. Bạn có thể thêm điều kiện để thu hẹp kết quả.'}
+        {result.hasMore && '. Bạn có thể hỏi “xem thêm”.'}
       </p>
     </div>
   );
 }
 
 function Turn({
-  turn, disabled, onRetry, onNavigate,
+  turn, disabled, onRetry, onNavigate, onAsk,
 }: {
   turn: ChatbotTurn;
   disabled: boolean;
   onRetry: () => void;
   onNavigate: () => void;
+  onAsk: (question: string) => void;
 }) {
   return (
     <div className={styles.turn}>
@@ -87,10 +89,14 @@ function Turn({
         {turn.status === 'pending' ? (
           <p className={styles.loading} role="status">
             <LoaderCircle size={16} className={styles.spinner} aria-hidden />
-            Đang tìm khóa học…
+            Đang tra cứu…
           </p>
         ) : turn.status === 'success' ? (
-          <SearchReply reply={turn.reply} onNavigate={onNavigate} />
+          turn.reply.kind === 'my_courses' || turn.reply.kind === 'learning_progress'
+            ? <PersonalLearningReply reply={turn.reply} disabled={disabled} onAsk={onAsk} onNavigate={onNavigate} />
+            : turn.reply.kind === 'clarification'
+              ? <p className={styles.answer}>{turn.reply.answer}</p>
+              : <SearchReply reply={turn.reply} onNavigate={onNavigate} />
         ) : (
           <div className={styles.error}>
             <p role="alert">{turn.error.message}</p>
@@ -150,11 +156,11 @@ function ChatbotSession({ authenticated, loading, courseDetail }: {
     >
       <Dialog.Trigger
         className={`${styles.launcher} ${courseDetail ? styles.abovePurchase : ''}`}
-        aria-label="Mở trợ lý tìm khóa học Mindly"
+        aria-label="Mở trợ lý Mindly"
         data-chatbot-launcher
       >
         <MessageCircle size={21} aria-hidden />
-        <span>Tìm khóa học</span>
+        <span>Trợ lý Mindly</span>
       </Dialog.Trigger>
       <Dialog.Portal>
         {mobile && <Dialog.Backdrop className={styles.backdrop} />}
@@ -168,7 +174,7 @@ function ChatbotSession({ authenticated, loading, courseDetail }: {
               <MindlyLogo iconOnly showSlogan={false} variant="auto" className={styles.logo} aria-hidden />
               <div>
                 <Dialog.Title className={styles.title}>Trợ lý Mindly</Dialog.Title>
-                <Dialog.Description className={styles.subtitle}>Tìm khóa học phù hợp với bạn</Dialog.Description>
+                <Dialog.Description className={styles.subtitle}>Tìm khóa học, theo dõi việc học</Dialog.Description>
               </div>
             </div>
             <div className={styles.headerActions}>
@@ -193,10 +199,10 @@ function ChatbotSession({ authenticated, loading, courseDetail }: {
             <div className={styles.welcome} role="status">Đang kiểm tra phiên đăng nhập…</div>
           ) : !loggedIn ? (
             <div className={styles.welcome}>
-              <h3>Tìm khóa học cùng Mindly</h3>
+              <h3>Học cùng Mindly</h3>
               <p>{chat.requiresLogin
-                ? 'Phiên đăng nhập đã hết hạn. Đăng nhập lại để tiếp tục tìm khóa học.'
-                : 'Đăng nhập để tìm khóa học theo chủ đề, ngân sách và trình độ của bạn.'}</p>
+                ? 'Phiên đăng nhập đã hết hạn. Đăng nhập lại để tiếp tục.'
+                : 'Đăng nhập để tìm khóa học, xem khóa đang sở hữu và tiến độ của bạn.'}</p>
               <Link href="/login" className={styles.login} onClick={() => setOpen(false)}>
                 Đăng nhập <ArrowRight size={16} aria-hidden />
               </Link>
@@ -207,7 +213,7 @@ function ChatbotSession({ authenticated, loading, courseDetail }: {
                 ref={transcript}
                 className={styles.transcript}
                 role="log"
-                aria-label="Cuộc trò chuyện tìm khóa học"
+                aria-label="Cuộc trò chuyện với Mindly"
                 aria-live="polite"
                 aria-relevant="additions text"
                 onScroll={(event) => {
@@ -218,7 +224,7 @@ function ChatbotSession({ authenticated, loading, courseDetail }: {
                 {chat.turns.length === 0 && (
                   <div className={styles.intro}>
                     <h3>Bạn muốn học gì?</h3>
-                    <p>Nói cho Mindly chủ đề bạn quan tâm, mức giá hoặc trình độ muốn tìm.</p>
+                    <p>Tìm khóa học phù hợp hoặc xem bạn đã học đến đâu.</p>
                     <div className={styles.suggestions}>
                       {suggestions.map((message) => (
                         <button type="button" key={message} disabled={blocked} onClick={() => submit(message)}>
@@ -235,6 +241,7 @@ function ChatbotSession({ authenticated, loading, courseDetail }: {
                     disabled={blocked || turn.id !== chat.turns[chat.turns.length - 1]?.id}
                     onRetry={() => { stickToBottom.current = true; chat.retry(turn); }}
                     onNavigate={() => setOpen(false)}
+                    onAsk={submit}
                   />
                 ))}
               </div>
@@ -263,14 +270,14 @@ function ChatbotSession({ authenticated, loading, courseDetail }: {
                     }}
                     maxLength={CHATBOT_MESSAGE_LIMIT}
                     rows={2}
-                    placeholder="Ví dụ: React cơ bản dưới 500k"
+                    placeholder="Ví dụ: Tiến độ khóa Python của tôi"
                     aria-describedby="mindly-chatbot-context mindly-chatbot-limit"
                   />
                   <button
                     type="submit"
                     className={styles.send}
                     disabled={blocked || !draft.trim()}
-                    aria-label={chat.isPending ? 'Đang tìm khóa học' : 'Gửi câu hỏi'}
+                    aria-label={chat.isPending ? 'Đang tra cứu' : 'Gửi câu hỏi'}
                     title="Gửi câu hỏi"
                   >
                     <ArrowUp size={21} aria-hidden />

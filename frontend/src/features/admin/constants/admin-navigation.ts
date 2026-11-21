@@ -3,7 +3,7 @@ import type { AdminNavItem } from '../types';
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   {
     title: 'Tổng quan',
-    href: '/admin',
+    href: '/admin/dashboard',
     icon: 'lucide:layout-dashboard',
   },
   {
@@ -32,30 +32,20 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     icon: 'lucide:folder-tree',
   },
   {
-    title: 'Quản lý Khuyến mãi & Mã giảm giá',
-    href: '/admin/promotions',
-    icon: 'lucide:ticket-percent',
-  },
-  {
     title: 'Kiểm duyệt Đánh giá & Bình luận',
     href: '/admin/reviews',
     icon: 'lucide:message-square-check',
   },
-  {
-    title: 'Cấu hình Hệ thống',
-    href: '/admin/settings',
-    icon: 'lucide:settings-2',
-  },
 ];
 
 /**
- * The dashboard lives at the admin root, so it only matches exactly.
+ * The dashboard only matches its exact route.
  * Every other tab also owns its nested detail routes.
  */
 export function isAdminNavItemActive(pathname: string | null, href: string): boolean {
   if (!pathname) return false;
   const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
-  return href === '/admin'
+  return href === '/admin/dashboard'
     ? normalized === href
     : normalized === href || normalized.startsWith(`${href}/`);
 }

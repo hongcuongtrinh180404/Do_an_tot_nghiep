@@ -7,7 +7,8 @@ import { Browser, sleep } from '../../.agents/skills/design-taste-frontend/scrip
 // Default: real browser + API fixtures, no provider calls or business writes.
 // --live: exactly five real chat requests with an existing seed account token.
 const live = process.argv.includes('--live');
-assert.ok(process.argv.slice(2).every((arg) => arg === '--live'));
+const learning = process.argv.includes('--learning');
+assert.ok(process.argv.slice(2).every((arg) => ['--live', '--learning'].includes(arg)));
 if (live) assert.ok(process.env.CHATBOT_BROWSER_ACCESS_TOKEN, 'An existing access token is required');
 process.env.TASTE_SKILL_TMP ??= join(tmpdir(), 'opencode');
 const out = join(process.env.TASTE_SKILL_TMP, 'chatbot-conversation-check');
@@ -37,6 +38,28 @@ function reply(context, { page = 1, start = 1, free = false, level = 'intermedia
       }),
       total: 4, page, limit: 2, hasMore: page === 1, currency: 'VND',
     },
+  };
+}
+function ownedReply(context) {
+  const id = '0123456789abcdef01234567';
+  const lessonId = '0123456789abcdef01234568';
+  return {
+    requestId: reply('').requestId, kind: 'my_courses', status: 'found', answer: 'Khóa học của bạn.', context,
+    result: {
+      filtersApplied: { page: 1, limit: 5 }, page: 1, limit: 5, hasMore: false, total: 1,
+      items: [{
+        id, title: 'Python thực hành — từ nền tảng đến ứng dụng', enrolledAt: '2026-11-20T00:00:00.000Z',
+        url: `/courses/${id}`, resumeUrl: `/courses/${id}/lessons/${lessonId}`,
+        progress: { status: 'IN_PROGRESS', completedLessons: 8, totalLessons: 20, progressPercent: 40,
+          watchedMs: 7200000, lastLessonId: lessonId, lastPositionSeconds: 85 },
+      }],
+    },
+  };
+}
+function progressReply(context) {
+  return {
+    requestId: reply('').requestId, kind: 'learning_progress', status: 'found', answer: 'Tiến độ của bạn.', context,
+    result: { scope: 'course', course: ownedReply('').result.items[0], remainingLessons: 12, lastLessonTitle: 'Vòng lặp và điều kiện' },
   };
 }
 const browser = await Browser.launch();
@@ -72,6 +95,25 @@ async function snapshot(page, name) {
     document.querySelectorAll('.tsqd-open-btn-container, nextjs-portal').forEach((node) => node.remove());
   });
   await page.screenshot({ path: join(out, `${name}.png`), format: 'png' });
+}
+async function inspectPanel(page) {
+  const findings = await page.eval(() => {
+    const panel = document.querySelector('[data-chatbot-panel]');
+    const errors = [];
+    const bounds = panel.getBoundingClientRect();
+    if (bounds.left < 0 || bounds.right > innerWidth + 1 || bounds.bottom > innerHeight + 1) errors.push('Panel outside viewport');
+    for (const element of panel.querySelectorAll('[data-chatbot-personal], button, a, [role="progressbar"]')) {
+      const rect = element.getBoundingClientRect();
+      if (rect.left < bounds.left - 1 || rect.right > bounds.right + 1) errors.push('Content overflow');
+      if (['BUTTON', 'A'].includes(element.tagName) && rect.height < 43) errors.push('Small touch target');
+    }
+    for (const bar of panel.querySelectorAll('[role="progressbar"]')) {
+      const actual = bar.firstElementChild.getBoundingClientRect().width / bar.getBoundingClientRect().width * 100;
+      if (Math.abs(actual - Number(bar.getAttribute('aria-valuenow'))) > 1) errors.push('Inaccurate progress bar');
+    }
+    return errors;
+  });
+  assert.deepEqual(findings, []);
 }
 async function open(width) {
   const page = await browser.newPage({
@@ -186,7 +228,86 @@ async function clear(page) {
 function latest(state) { return state.calls.at(-1); }
 
 try {
-  if (live) {
+  if (live && learning) {
+    const { page, state } = await open(1440);
+    await ask(page, state, 'Cho tôi xem các khóa học đã mua, mỗi trang 2 khóa');
+    const first = state.responses.at(-1).body.data;
+    assert.ok(state.responses.at(-1).remaining >= 4, 'Insufficient quota for five requests');
+    assert.equal(first.kind, 'my_courses');
+    assert.ok(first.result.items.length);
+    await snapshot(page, 'learning-live-courses');
+    await ask(page, state, 'Tiến độ khóa thứ nhất');
+    const detail = state.responses.at(-1).body.data;
+    assert.equal(detail.result.scope, 'course');
+    assert.equal(detail.result.course.id, first.result.items[0].id);
+    assert.equal(latest(state).context, first.context);
+    await inspectPanel(page);
+    await snapshot(page, 'learning-live-detail');
+    mark('live-learning-owned-to-detail');
+    await ask(page, state, 'Khóa đó còn bao nhiêu bài?');
+    assert.equal(state.responses.at(-1).body.data.result.course.id, first.result.items[0].id);
+    mark('live-learning-current-course');
+    await ask(page, state, 'Tổng quan tiến độ tất cả khóa học của tôi');
+    const overview = state.responses.at(-1).body.data;
+    assert.equal(overview.result.scope, 'overview');
+    assert.equal(overview.result.totalCourses, overview.result.notStarted + overview.result.inProgress + overview.result.completed);
+    await snapshot(page, 'learning-live-overview');
+    mark('live-learning-overview');
+    await clear(page);
+    await ask(page, state, 'Tiến độ khóa thứ hai');
+    assert.ok(!('context' in latest(state)));
+    assert.equal(state.responses.at(-1).body.data.status, 'needs_clarification');
+    assert.equal(state.calls.length, 5);
+    assert.deepEqual(state.failures, []);
+    mark('live-learning-clear-drops-reference');
+    await page.close();
+  } else if (learning) {
+    for (const width of [1440, 768, 390]) {
+      const { page, state } = await open(width);
+      state.queue.push({ body: ownedReply('owned-context') });
+      await ask(page, state, 'Các khóa của tôi');
+      await inspectPanel(page);
+      await snapshot(page, `learning-courses-${width}`);
+      state.queue.push({ body: progressReply('detail-context') });
+      const completed = state.responses.length;
+      await page.eval(() => [...document.querySelectorAll('[data-chatbot-personal="courses"] button')].at(-1).click());
+      await waitFor(() => state.responses.length === completed + 1, 'Selection did not complete');
+      await waitFor(() => page.eval(() => !!document.querySelector('[data-chatbot-personal="detail"]')), 'Detail missing');
+      assert.equal(latest(state).context, 'owned-context');
+      assert.equal(latest(state).message, 'Xem tiến độ khóa thứ 1');
+      assert.ok(await page.eval(() => document.querySelector('[data-chatbot-personal="courses"] button').disabled));
+      await inspectPanel(page);
+      await snapshot(page, `learning-detail-${width}`);
+      mark(`learning-selection-detail-and-historical-controls-${width}`);
+      state.queue.push({ body: {
+        requestId: reply('').requestId, kind: 'learning_progress', status: 'needs_clarification', answer: 'Chọn khóa.',
+        context: 'selection-context', result: { scope: 'selection', keyword: 'Python', items: [
+          { id: '0123456789abcdef01234567', title: 'Python cơ bản' },
+          { id: '0123456789abcdef01234569', title: 'Python ứng dụng' },
+        ], total: 2, page: 1, limit: 5, hasMore: false },
+      } });
+      await ask(page, state, 'Tiến độ Python');
+      await inspectPanel(page);
+      await snapshot(page, `learning-ambiguous-${width}`);
+      state.queue.push({ body: {
+        requestId: reply('').requestId, kind: 'learning_progress', status: 'found', answer: 'Tổng quan.',
+        context: 'overview-context', result: { scope: 'overview', totalCourses: 4, notStarted: 1, inProgress: 2, completed: 1 },
+      } });
+      await ask(page, state, 'Tổng quan tiến độ của tôi');
+      await inspectPanel(page);
+      await snapshot(page, `learning-overview-${width}`);
+      mark(`learning-ambiguous-and-overview-${width}`);
+      await clear(page);
+      state.queue.push({ body: { requestId: reply('').requestId, kind: 'clarification',
+        status: 'needs_clarification', answer: 'Bạn muốn xem tiến độ khóa nào?' } });
+      await ask(page, state, 'Khóa đó');
+      assert.ok(!('context' in latest(state)));
+      assert.deepEqual(state.writes, []);
+      assert.deepEqual(state.failures, []);
+      mark(`learning-clear-and-read-only-${width}`);
+      await page.close();
+    }
+  } else if (live) {
     const { page, state } = await open(1440);
     await ask(page, state, 'Tìm khóa backend trả phí dưới 200k');
     const first = state.responses.at(-1).body.data;

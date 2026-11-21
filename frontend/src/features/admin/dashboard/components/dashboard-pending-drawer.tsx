@@ -3,32 +3,36 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from '@/components/ui/icon';
-import type { PendingTaskCategory } from '../types';
-import { PENDING_TASKS_DATA } from '../constants/mock-dashboard-data';
+import type { PendingTaskCategory, IDashboardPendingTask } from '../types';
 
 interface DashboardPendingDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  tasks?: IDashboardPendingTask[];
 }
 
 export function DashboardPendingDrawer({
   isOpen,
   onClose,
+  tasks = [],
 }: DashboardPendingDrawerProps): React.JSX.Element | null {
   const router = useRouter();
   const [filterType, setFilterType] = React.useState<'all' | PendingTaskCategory>('all');
 
   const filteredTasks = React.useMemo(() => {
-    if (filterType === 'all') return PENDING_TASKS_DATA;
-    return PENDING_TASKS_DATA.filter((task) => task.type === filterType);
-  }, [filterType]);
+    if (filterType === 'all') return tasks;
+    return tasks.filter((task) => task.type === filterType);
+  }, [tasks, filterType]);
 
-  const counts = React.useMemo(() => ({
-    all: PENDING_TASKS_DATA.length,
-    course: PENDING_TASKS_DATA.filter((t) => t.type === 'course').length,
-    instructor: PENDING_TASKS_DATA.filter((t) => t.type === 'instructor').length,
-    review: PENDING_TASKS_DATA.filter((t) => t.type === 'review').length,
-  }), []);
+  const counts = React.useMemo(
+    () => ({
+      all: tasks.length,
+      course: tasks.filter((t) => t.type === 'course').length,
+      instructor: tasks.filter((t) => t.type === 'instructor').length,
+      review: tasks.filter((t) => t.type === 'review').length,
+    }),
+    [tasks],
+  );
 
   if (!isOpen) return null;
 
@@ -150,8 +154,14 @@ export function DashboardPendingDrawer({
         {/* Tasks List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
           {filteredTasks.length === 0 ? (
-            <div className="p-8 text-center text-xs text-muted-foreground">
-              Không có công việc nào trong danh mục này cần xử lý.
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
+              <div className="size-12 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground mb-3">
+                <Icon icon="lucide:check-circle-2" className="size-6 text-emerald-500" />
+              </div>
+              <p className="text-xs font-bold text-foreground">Không có công việc nào đang chờ xử lý</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Mọi yêu cầu phê duyệt khóa học, giảng viên và đánh giá đều đã được hoàn tất.
+              </p>
             </div>
           ) : (
             filteredTasks.map((item) => (

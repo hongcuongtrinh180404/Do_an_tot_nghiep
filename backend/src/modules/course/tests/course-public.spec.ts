@@ -140,6 +140,7 @@ describe('Public Courses and Access Control', () => {
       mockEnrollmentRepository as unknown as EnrollmentRepository,
       mockUserRepository as unknown as UserRepository,
       mockStorageService as StorageService,
+      { createHistory: vi.fn(), findAdminHistoriesWithPagination: vi.fn(), getStats: vi.fn(), findByCourseId: vi.fn() } as unknown as any,
       mockClsService as ClsService,
       { findByLessonIds: vi.fn().mockResolvedValue([]) } as unknown as LessonQuizRepository,
     );
@@ -182,6 +183,9 @@ describe('Public Courses and Access Control', () => {
       mockLessonRepository.findBySectionId.mockResolvedValue([previewLesson, lockedLesson]);
 
       const result = await courseService.getPublicCourseDetail('khoa-hoc-react-19-nextjs');
+      expect(mockCourseRepository.findPublicCourseDetail).toHaveBeenCalledWith(
+        'khoa-hoc-react-19-nextjs', undefined, false,
+      );
       expect(result.id).toBe('course-pub-1');
       expect(result.sections).toHaveLength(1);
       const firstSec = result.sections[0] as ISection & { lessons: Array<{ id: string; isPreview: boolean }> };
@@ -196,6 +200,55 @@ describe('Public Courses and Access Control', () => {
       await expect(courseService.getPublicCourseDetail('nonexistent')).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    it.each([
+      CourseStatusEnum.DRAFT,
+      CourseStatusEnum.PENDING_APPROVAL,
+      CourseStatusEnum.ARCHIVED,
+      CourseStatusEnum.PUBLISHED,
+    ])('allows an authenticated admin to preview %s using learner lesson outlines', async (status) => {
+      mockCourseRepository.findPublicCourseDetail.mockResolvedValue({ ...publishedCourse, status });
+      mockSectionRepository.findByCourseId.mockResolvedValue([sampleSection]);
+      mockLessonRepository.findBySectionId.mockResolvedValue([{
+        ...lockedLesson,
+        content: { type: 'video', url: 'private-media-url', duration: 120 },
+      }]);
+
+      const result = await courseService.getPublicCourseDetail(publishedCourse.id, RoleEnum.ADMIN);
+
+      expect(mockCourseRepository.findPublicCourseDetail).toHaveBeenCalledWith(
+        publishedCourse.id, undefined, true,
+      );
+      expect(result.status).toBe(status);
+      const section = result.sections[0] as { lessons: Record<string, unknown>[] };
+      expect(section.lessons[0]).toEqual({
+        id: lockedLesson.id, title: lockedLesson.title, order: lockedLesson.order,
+        duration: 120, isPreview: false, type: 'video',
+      });
+      expect(section.lessons[0]).not.toHaveProperty('content');
+    });
+
+    it.each([undefined, RoleEnum.STUDENT, RoleEnum.INSTRUCTOR])(
+      'never enables unpublished preview for role %s',
+      async (role) => {
+        mockCourseRepository.findPublicCourseDetail.mockResolvedValue(null);
+
+        await expect(courseService.getPublicCourseDetail('draft-course', role))
+          .rejects.toThrow(NotFoundException);
+
+        expect(mockCourseRepository.findPublicCourseDetail).toHaveBeenCalledWith(
+          'draft-course', undefined, false,
+        );
+        expect(mockSectionRepository.findByCourseId).not.toHaveBeenCalled();
+      },
+    );
+
+    it('does not bypass the not-found response for admins', async () => {
+      mockCourseRepository.findPublicCourseDetail.mockResolvedValue(null);
+      await expect(courseService.getPublicCourseDetail('deleted-course', RoleEnum.ADMIN))
+        .rejects.toThrow(NotFoundException);
+      expect(mockSectionRepository.findByCourseId).not.toHaveBeenCalled();
     });
   });
 

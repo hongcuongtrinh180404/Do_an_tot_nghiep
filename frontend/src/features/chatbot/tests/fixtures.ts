@@ -1,7 +1,7 @@
 import { CourseLevelEnum } from 'share-lib';
-import type { ChatbotReply } from '../chatbot.contract';
+import type { ChatbotSearchReply } from '../chatbot.contract';
 
-export function foundReply(): ChatbotReply {
+export function foundReply(): ChatbotSearchReply {
   return {
     requestId: '65ac3483-7075-48e3-8bbe-4c3a6eb9cced',
     status: 'found',

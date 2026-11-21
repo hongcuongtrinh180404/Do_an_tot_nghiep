@@ -4,17 +4,20 @@ import {
   isAdminNavItemActive,
 } from '../constants/admin-navigation';
 
-const dashboardHref = '/admin';
+const dashboardHref = '/admin/dashboard';
 const usersHref = '/admin/users';
 
 describe('admin navigation', () => {
-  it('points the overview tab at the admin root', () => {
+  it('points the overview tab at the dashboard route', () => {
     expect(ADMIN_NAV_ITEMS[0]).toMatchObject({ title: 'Tổng quan', href: dashboardHref });
   });
 
-  it('highlights the overview only on the exact admin root', () => {
-    expect(isAdminNavItemActive('/admin', dashboardHref)).toBe(true);
-    expect(isAdminNavItemActive('/admin/', dashboardHref)).toBe(true);
+  it('highlights the overview only on the exact dashboard route', () => {
+    expect(isAdminNavItemActive('/admin/dashboard', dashboardHref)).toBe(true);
+    expect(isAdminNavItemActive('/admin/dashboard/', dashboardHref)).toBe(true);
+    expect(isAdminNavItemActive('/admin', dashboardHref)).toBe(false);
+    expect(isAdminNavItemActive('/admin/dashboard/details', dashboardHref)).toBe(false);
+    expect(isAdminNavItemActive('/admin/dashboard-other', dashboardHref)).toBe(false);
     expect(isAdminNavItemActive('/admin/users', dashboardHref)).toBe(false);
   });
 
@@ -43,5 +46,11 @@ describe('admin navigation', () => {
     expect(isAdminNavItemActive('/admin/instructors', instructorsHref)).toBe(true);
     expect(isAdminNavItemActive('/admin/instructors/app-123', instructorsHref)).toBe(true);
     expect(isAdminNavItemActive('/admin/courses', instructorsHref)).toBe(false);
+  });
+
+  it('does not include removed tabs (promotions, settings)', () => {
+    const routes = ADMIN_NAV_ITEMS.map((item) => item.href);
+    expect(routes).not.toContain('/admin/promotions');
+    expect(routes).not.toContain('/admin/settings');
   });
 });

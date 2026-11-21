@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatbotAiError } from '../chatbot.errors.js';
 import { ChatbotMessageService } from '../http/chatbot-message.service.js';
 import { CHATBOT_HTTP_TIMEOUT_MS } from '../http/chatbot-http.constants.js';
-import type { ChatbotSearchService } from '../services/chatbot-search.service.js';
+import type { ChatbotConversationService } from '../services/chatbot-conversation.service.js';
 import { ChatbotContextService } from '../http/chatbot-context.service.js';
 import { ConfigService } from '@nestjs/config';
 
@@ -15,18 +15,23 @@ describe('ChatbotMessageService lifecycle', () => {
   beforeEach(() => {
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     search = vi.fn().mockResolvedValue({
+      kind: 'clarification',
       status: 'needs_clarification',
       answer: 'Cần làm rõ.',
     });
     service = new ChatbotMessageService(
       {
-        search,
-      } as unknown as ChatbotSearchService,
+        respond: search,
+      } as unknown as ChatbotConversationService,
       new ChatbotContextService(
         new ConfigService({ JWT_SECRET: 'synthetic-context-secret' }),
       ),
     );
   });
+
+  function respond(signal?: AbortSignal) {
+    return service.respond('React', requestId, signal, { userId: '0123456789abcdef01234567' });
+  }
 
   afterEach(() => {
     vi.useRealTimers();
@@ -35,7 +40,8 @@ describe('ChatbotMessageService lifecycle', () => {
 
   it('removes the overall deadline when a request succeeds', async () => {
     vi.useFakeTimers();
-    expect(await service.respond('React', requestId)).toEqual({
+    expect(await respond()).toEqual({
+      kind: 'clarification',
       requestId,
       status: 'needs_clarification',
       answer: 'Cần làm rõ.',
@@ -47,7 +53,7 @@ describe('ChatbotMessageService lifecycle', () => {
   it('removes the deadline on provider failure too', async () => {
     vi.useFakeTimers();
     search.mockRejectedValue(new ChatbotAiError('CHATBOT_RATE_LIMITED'));
-    await expect(service.respond('React', requestId)).rejects.toMatchObject({
+    await expect(respond()).rejects.toMatchObject({
       status: 429,
       response: { code: 'CHATBOT_RATE_LIMITED' },
     });
@@ -61,7 +67,7 @@ describe('ChatbotMessageService lifecycle', () => {
       receivedSignal = options.signal as AbortSignal;
       return new Promise(() => {});
     });
-    const promise = service.respond('React', requestId);
+    const promise = respond();
     const assertion = expect(promise).rejects.toMatchObject({
       status: 504,
       response: { code: 'CHATBOT_TIMEOUT', requestId },
@@ -75,7 +81,7 @@ describe('ChatbotMessageService lifecycle', () => {
 
   it('never starts work for an already disconnected caller', async () => {
     await expect(
-      service.respond('React', requestId, AbortSignal.abort()),
+      respond(AbortSignal.abort()),
     ).rejects.toMatchObject({
       status: 408,
       response: { code: 'CHATBOT_CANCELLED' },
@@ -87,7 +93,7 @@ describe('ChatbotMessageService lifecycle', () => {
     vi.useFakeTimers();
     search.mockImplementation(() => new Promise(() => {}));
     const controller = new AbortController();
-    const promise = service.respond('React', requestId, controller.signal);
+    const promise = respond(controller.signal);
     const assertion = expect(promise).rejects.toMatchObject({
       status: 408,
       response: { code: 'CHATBOT_CANCELLED' },
@@ -95,5 +101,12 @@ describe('ChatbotMessageService lifecycle', () => {
     controller.abort('private-caller-abort-reason');
     await assertion;
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('requires the authenticated caller even without conversation context', async () => {
+    await expect(service.respond('Khóa của tôi', requestId)).rejects.toMatchObject({
+      response: { code: 'CHATBOT_REQUEST_INVALID' },
+    });
+    expect(search).not.toHaveBeenCalled();
   });
 });

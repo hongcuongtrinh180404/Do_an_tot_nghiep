@@ -20,6 +20,7 @@ describe.skipIf(!process.env.REVIEW_REPLY_TEST_MONGO_URI)('Instructor replies wi
   const dbName = `review_reply_test_${randomUUID().replaceAll('-', '')}`;
   const instructorId = new Types.ObjectId();
   const studentId = new Types.ObjectId();
+  const adminId = new Types.ObjectId();
   const createdAt = new Date('2026-01-01T00:00:00Z');
   let connection: Connection;
   let model: Model<ReviewDocument>;
@@ -42,6 +43,7 @@ describe.skipIf(!process.env.REVIEW_REPLY_TEST_MONGO_URI)('Instructor replies wi
     await userModel.collection.insertMany([
       { _id: instructorId, fullName: 'Giảng viên kiểm thử', email: 'instructor@example.test', deletedAt: null },
       { _id: studentId, fullName: 'Học viên kiểm thử', email: 'student@example.test', deletedAt: null },
+      { _id: adminId, fullName: 'Quản trị viên kiểm thử', email: 'admin@example.test', deletedAt: null },
     ]);
     repository = new ReviewRepository(model);
     courseRepository = new CourseRepository(courseModel);
@@ -144,6 +146,47 @@ describe.skipIf(!process.env.REVIEW_REPLY_TEST_MONGO_URI)('Instructor replies wi
     })).toBeNull();
     expect(await repository.clearInstructorReply(reviewId)).toBeNull();
     expect((await model.findById(reviewId))?.instructorReply?.content).toBe('Phản hồi đã lưu');
+    expect((await repository.findCourseReviews(courseId.toString())).items).toEqual([]);
+  });
+
+  it('persists an independent admin reply and its update across public, owner, instructor and admin reads', async () => {
+    const instructorReview = await service.replyToReview(instructorId.toString(), reviewId, { reply: 'Tôi đã kiểm tra bài giảng.' });
+    const created = await service.adminReplyToReview(adminId.toString(), reviewId, { reply: 'Đang kiểm tra lỗi phát video.' });
+    expect(created.adminReply).toMatchObject({
+      content: 'Đang kiểm tra lỗi phát video.',
+      adminId: adminId.toString(),
+      adminName: 'Quản trị viên kiểm thử',
+      updatedAt: null,
+    });
+    const edited = await service.adminReplyToReview(adminId.toString(), reviewId, { reply: 'Lỗi đã được khắc phục.' });
+    expect(edited.adminReply?.repliedAt).toEqual(created.adminReply?.repliedAt);
+    expect(edited.adminReply).toMatchObject({
+      updatedAt: expect.any(Date),
+      updatedById: adminId.toString(),
+    });
+    const reads = [
+      (await repository.findCourseReviews(courseId.toString())).items[0],
+      await service.getMyReview(studentId.toString(), courseId.toString()),
+      (await repository.findInstructorReviews(instructorId.toString(), { courseId: courseId.toString() })).items[0],
+      (await repository.findAdminReviews({ page: 1, limit: 10, isPagination: true, courseId: courseId.toString() })).items[0],
+      await service.adminGetReviewDetail(reviewId),
+    ];
+    for (const result of reads) {
+      expect(result?.adminReply).toEqual(edited.adminReply);
+      expect(result?.instructorReply).toEqual(instructorReview.instructorReply);
+      expect(result).toMatchObject({ rating: 4, comment: 'Nhận xét ban đầu của học viên.', updatedAt: createdAt });
+    }
+    expect(await repository.calculateCourseReviewStats(courseId.toString())).toMatchObject({ totalReviews: 1, averageRating: 4 });
+    expect(await model.findById(reviewId).lean()).toMatchObject({ updatedById: studentId.toString() });
+  });
+
+  it.each(['hidden', 'deleted'] as const)('prevents an admin reply write after the review becomes %s', async (state) => {
+    const review = await service.adminReplyToReview(adminId.toString(), reviewId, { reply: 'Đang kiểm tra.' });
+    await model.updateOne({ _id: reviewId }, state === 'hidden'
+      ? { status: ReviewStatusEnum.HIDDEN }
+      : { deletedAt: new Date() });
+    expect(await repository.setAdminReply(reviewId, { ...review.adminReply!, content: 'Không được ghi đè.' })).toBeNull();
+    expect((await model.findById(reviewId))?.adminReply?.content).toBe('Đang kiểm tra.');
     expect((await repository.findCourseReviews(courseId.toString())).items).toEqual([]);
   });
 });

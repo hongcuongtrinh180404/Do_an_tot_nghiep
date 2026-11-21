@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { RoleEnum } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { buttonVariants } from '@/components/ui/button';
 import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
@@ -45,6 +46,7 @@ export function PublicCourseDetailView({
   const router = useRouter();
   const { data: user } = useCurrentUserQuery();
   const isLoggedIn = Boolean(user);
+  const isAdminPreview = user?.role === RoleEnum.ADMIN;
 
   const [activeTab, setActiveTab] = useState<CourseDetailTabId>('curriculum');
 
@@ -57,14 +59,16 @@ export function PublicCourseDetailView({
 
   const { data: isEnrolled = false, isLoading: isEnrollmentLoading } = useCheckEnrollmentQuery(
     course?.id || courseId,
-    isLoggedIn,
+    isLoggedIn && !isAdminPreview,
   );
 
   const freeEnrollmentMutation = useRegisterFreeCourseMutation(course?.id || courseId);
   const createOrderMutation = useCreateOrderMutation();
 
-  const isInstructorOwner = canManageCourse(user, course);
-  const learning = useCourseLearningProgressQuery(user?.id, course?.id || courseId, isEnrolled && !isInstructorOwner);
+  const isInstructorOwner = !isAdminPreview && canManageCourse(user, course);
+  const learning = useCourseLearningProgressQuery(
+    user?.id, course?.id || courseId, isEnrolled && !isInstructorOwner && !isAdminPreview,
+  );
 
   const totalLessonsCount = useMemo(() => {
     if (!course?.sections) return 0;
@@ -133,6 +137,8 @@ export function PublicCourseDetailView({
   }
 
   const handlePurchase = (): void => {
+    if (isAdminPreview) return;
+
     if (!isLoggedIn) {
       router.push(`/login?redirect=/courses/${course.id}`);
       return;
@@ -154,6 +160,22 @@ export function PublicCourseDetailView({
 
   return (
     <div className="w-full min-h-screen bg-[#fbfbfb] text-[#161616] pb-16 lg:pb-24">
+      {isAdminPreview && (
+        <aside aria-label="Thông báo chế độ học viên" data-ui="admin-course-preview" className="w-full bg-[#f3fcfc] px-4 sm:px-6 lg:px-8 py-3">
+          <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+            <p className="text-sm text-[#027D88]">
+              Bạn đang xem trước khóa học với tư cách <strong>học viên</strong>. Nội dung chỉ đọc, không thể chỉnh sửa.
+            </p>
+            <Link
+              href="/admin/courses"
+              className="inline-flex items-center self-start min-h-11 text-sm font-semibold text-[#027D88] hover:underline shrink-0 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#027D88]"
+            >
+              Quay lại quản lý khóa học
+            </Link>
+          </div>
+        </aside>
+      )}
+
       {/* Ownership does not grant editing in the learner experience. */}
       {isInstructorOwner && (
         <aside aria-label="Thông báo chế độ học viên" data-ui="instructor-alert" className="w-full bg-[#f3fcfc] border-b border-[#027D88]/20 px-4 py-2.5">
@@ -215,6 +237,7 @@ export function PublicCourseDetailView({
                   courseId={course.id}
                   isEnrolled={isEnrolled}
                   isInstructorOwner={isInstructorOwner}
+                  isAdminPreview={isAdminPreview}
                   totalLessonsCount={totalLessonsCount}
                   totalDurationFormatted={totalDurationFormatted}
                 />
@@ -225,6 +248,7 @@ export function PublicCourseDetailView({
                   course={course}
                   isEnrolled={isEnrolled}
                   isInstructorOwner={isInstructorOwner}
+                  isAdminPreview={isAdminPreview}
                   totalLessonsCount={totalLessonsCount}
                 />
               )}
@@ -254,6 +278,7 @@ export function PublicCourseDetailView({
             course={course}
             isEnrolled={isEnrolled}
             isInstructorOwner={isInstructorOwner}
+            isAdminPreview={isAdminPreview}
             isLoggedIn={isLoggedIn}
             isPending={
               freeEnrollmentMutation.isPending ||

@@ -86,16 +86,16 @@ export class LessonCompletionService {
   }
 
   /** Internal batch read. Callers supply current video stats for already-authorized courses. */
-  async getSummariesForCourses(userId: string, stats: CourseVideoStats[]): Promise<Map<string, ILessonCompletionSummary[]>> {
+  async getSummariesForCourses(userId: string, stats: CourseVideoStats[], maxTimeMS?: number): Promise<Map<string, ILessonCompletionSummary[]>> {
     const summaries = new Map<string, ILessonCompletionSummary[]>();
     const lessonIds = stats.flatMap((course) => course.videos.map((video) => video.lessonId));
     if (lessonIds.length === 0) return summaries;
     const courseIds = stats.map((course) => course.courseId);
     // One read per collection for the entire course list, never one query per lesson/course.
     const [quizzes, answers, videos] = await Promise.all([
-      this.quizzes.findByLessonIds(lessonIds),
-      this.repository.findAnswersForCourses(userId, courseIds),
-      this.repository.findVideoCompletionsForCourses(userId, courseIds),
+      this.quizzes.findByLessonIds(lessonIds, ...(maxTimeMS ? [maxTimeMS] : [])),
+      this.repository.findAnswersForCourses(userId, courseIds, ...(maxTimeMS ? [maxTimeMS] : [])),
+      this.repository.findVideoCompletionsForCourses(userId, courseIds, ...(maxTimeMS ? [maxTimeMS] : [])),
     ]);
     const quizzesByLesson = new Map<string, ILessonQuiz[]>();
     for (const quiz of quizzes) {

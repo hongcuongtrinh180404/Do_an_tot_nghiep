@@ -39,7 +39,7 @@ export function chatbotFailure(error: unknown): ChatbotFailure {
   const base = { ...fallback, requestId };
 
   if (status === 400 && body?.code === 'CHATBOT_CONTEXT_INVALID') return {
-    ...base, message: 'Ngữ cảnh tìm kiếm đã hết hạn. Bạn vui lòng nêu lại chủ đề và điều kiện.',
+    ...base, message: 'Ngữ cảnh tìm kiếm đã hết hạn. Bạn vui lòng nêu lại khóa học hoặc điều kiện cần tra cứu.',
     retryable: false, resetContext: true,
   };
   if (status === 401) return {
@@ -51,17 +51,17 @@ export function chatbotFailure(error: unknown): ChatbotFailure {
     retryAt: retryAtFromHeader(error.response?.headers['retry-after']),
   };
   if (status === 504 || error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') return {
-    ...base, message: 'Tìm kiếm mất nhiều thời gian hơn dự kiến. Bạn có thể thử lại.',
+    ...base, message: 'Tra cứu mất nhiều thời gian hơn dự kiến. Bạn có thể thử lại.',
   };
   if (status === 400 || status === 422) return {
-    ...base, message: 'Chưa xử lý được câu hỏi này. Hãy nêu rõ chủ đề, mức giá hoặc trình độ muốn tìm.',
+    ...base, message: 'Chưa xử lý được câu hỏi này. Hãy nêu rõ khóa học hoặc thông tin bạn muốn tra cứu.',
     retryable: false,
   };
   if (status === 403) return {
     ...base, message: 'Tài khoản hiện không có quyền sử dụng trợ lý.', retryable: false,
   };
   if (status && status >= 500) return {
-    ...base, message: 'Trợ lý tìm khóa học tạm thời không khả dụng. Bạn vui lòng thử lại sau.',
+    ...base, message: 'Trợ lý tạm thời không khả dụng. Bạn vui lòng thử lại sau.',
     retryable: body?.retryable !== false,
   };
   if (!error.response) return {

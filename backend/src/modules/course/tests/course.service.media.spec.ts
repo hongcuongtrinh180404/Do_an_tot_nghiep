@@ -113,6 +113,7 @@ describe('Course Media Upload (Thumbnail & Trailer)', () => {
       { countByCourseId: vi.fn().mockResolvedValue(0), countByCourseIds: vi.fn().mockResolvedValue(new Map()) } as unknown as EnrollmentRepository,
       mockUserRepository as unknown as UserRepository,
       mockStorageService as unknown as StorageService,
+      { createHistory: vi.fn(), findAdminHistoriesWithPagination: vi.fn(), getStats: vi.fn(), findByCourseId: vi.fn() } as unknown as any,
       mockCls as unknown as ClsService,
       { findByLessonIds: vi.fn().mockResolvedValue([]) } as unknown as LessonQuizRepository,
     );

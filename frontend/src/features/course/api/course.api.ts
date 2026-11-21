@@ -398,6 +398,7 @@ export function useCreateCourseMutation() {
     onSuccess: (data: ICourse) => {
       // Invalidate course queries
       queryClient.invalidateQueries({ queryKey: courseKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
 
       toast.success('Tạo khóa học thành công!', {
         description: `Khóa học "${data.title}" đã được lưu thành công vào hệ thống.`,
@@ -474,6 +475,7 @@ export function useUpdateCourseMutation(courseId: string) {
       queryClient.setQueryData(courseKeys.detail(courseId), updatedCourse);
       void queryClient.invalidateQueries({ queryKey: courseKeys.detail(courseId) });
       void queryClient.invalidateQueries({ queryKey: courseKeys.myCourses() });
+      void queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
       toast.success('Cập nhật thông tin thành công');
     },
     onError: (error: unknown) => {

@@ -1,66 +1,18 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { PublicCourseSearchResult } from '../../course/interfaces/public-course-search.interface.js';
 import { ChatbotAiError } from '../chatbot.errors.js';
-import {
-  ChatbotSearchService,
-  type ChatbotSearchReply,
-} from '../services/chatbot-search.service.js';
+import { ChatbotConversationService } from '../services/chatbot-conversation.service.js';
 import { CHATBOT_HTTP_TIMEOUT_MS } from './chatbot-http.constants.js';
-import {
-  ChatbotSearchUnavailableException,
-  mapChatbotHttpError,
-} from './chatbot-http.errors.js';
+import { mapChatbotHttpError } from './chatbot-http.errors.js';
 import { ChatbotContextService } from './chatbot-context.service.js';
-
-export interface ChatbotMessageResponse {
-  requestId: string;
-  status: Exclude<ChatbotSearchReply['status'], 'unavailable'>;
-  answer: string;
-  result?: PublicCourseSearchResult;
-  context?: string;
-}
-
-/** Explicit HTTP projection; never serialize an entire internal protocol/result object. */
-function publicSearchResult(
-  result: PublicCourseSearchResult,
-): PublicCourseSearchResult {
-  const filters = result.filtersApplied;
-  return {
-    filtersApplied: {
-      ...(filters.keyword !== undefined ? { keyword: filters.keyword } : {}),
-      ...(filters.relatedKeywords !== undefined
-        ? { relatedKeywords: [...filters.relatedKeywords] }
-        : {}),
-      ...(filters.minPrice !== undefined ? { minPrice: filters.minPrice } : {}),
-      ...(filters.maxPrice !== undefined ? { maxPrice: filters.maxPrice } : {}),
-      ...(filters.isFree !== undefined ? { isFree: filters.isFree } : {}),
-      ...(filters.level !== undefined ? { level: filters.level } : {}),
-      maxPriceExclusive: filters.maxPriceExclusive,
-      page: filters.page,
-      limit: filters.limit,
-    },
-    items: result.items.map((item) => ({
-      id: item.id,
-      title: item.title,
-      price: item.price,
-      level: item.level,
-      categoryName: item.categoryName,
-      url: item.url,
-    })),
-    currency: result.currency,
-    total: result.total,
-    page: result.page,
-    limit: result.limit,
-    hasMore: result.hasMore,
-  };
-}
+import { projectChatbotReply, type ChatbotMessageResponse } from './chatbot-response.projection.js';
+export type { ChatbotMessageResponse } from './chatbot-response.projection.js';
 
 @Injectable()
 export class ChatbotMessageService {
   private readonly logger = new Logger(ChatbotMessageService.name);
 
   constructor(
-    @Inject(ChatbotSearchService) private readonly search: ChatbotSearchService,
+    @Inject(ChatbotConversationService) private readonly conversations: ChatbotConversationService,
     @Inject(ChatbotContextService)
     private readonly contexts: ChatbotContextService,
   ) {}
@@ -80,8 +32,9 @@ export class ChatbotMessageService {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       if (signal.aborted) throw new ChatbotAiError('CHATBOT_CANCELLED');
+      if (!conversation?.userId) throw new ChatbotAiError('CHATBOT_REQUEST_INVALID');
       const context = conversation?.context
-        ? this.contexts.read(conversation.userId, conversation.context)
+        ? this.contexts.readConversation(conversation.userId, conversation.context)
         : undefined;
       const interrupted = new Promise<never>((_resolve, reject) => {
         onAbort = () =>
@@ -98,7 +51,8 @@ export class ChatbotMessageService {
       }, CHATBOT_HTTP_TIMEOUT_MS);
       timer.unref();
       const reply = await Promise.race([
-        this.search.search(message, {
+        this.conversations.respond(message, {
+          userId: conversation.userId,
           requestId,
           signal,
           ...(context ? { context } : {}),
@@ -109,31 +63,13 @@ export class ChatbotMessageService {
         throw new ChatbotAiError(
           timedOut ? 'CHATBOT_TIMEOUT' : 'CHATBOT_CANCELLED',
         );
-      if (reply.status === 'unavailable') {
-        throw new ChatbotSearchUnavailableException(requestId);
-      }
-      const result = reply.result
-        ? publicSearchResult(reply.result)
-        : undefined;
       return {
+        ...projectChatbotReply(reply),
         requestId,
-        status: reply.status,
-        answer: reply.answer,
-        ...(result
-          ? {
-              result,
-              ...(conversation
-                ? { context: this.contexts.create(conversation.userId, result) }
-                : {}),
-            }
-          : {}),
+        ...(reply.nextContext ? { context: this.contexts.createConversation(conversation.userId, reply.nextContext) } : {}),
       };
     } catch (error) {
-      // Preserve only the safe exception constructed here, never arbitrary HttpExceptions.
-      const safeError =
-        error instanceof ChatbotSearchUnavailableException && !signal.aborted
-          ? error
-          : mapChatbotHttpError(
+      const safeError = mapChatbotHttpError(
               callerSignal?.aborted
                 ? new ChatbotAiError('CHATBOT_CANCELLED')
                 : timedOut

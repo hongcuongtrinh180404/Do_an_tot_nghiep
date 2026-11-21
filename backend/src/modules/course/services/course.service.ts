@@ -10,6 +10,7 @@ import {
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
 import {
+  IAdminCourseStats,
   ICourse,
   ISection,
   IUser,
@@ -17,6 +18,9 @@ import {
   UserStatusEnum,
   CourseStatusEnum,
   CourseLevelEnum,
+  CourseApprovalActionEnum,
+  type ICourseApprovalHistory,
+  type IAdminCourseApprovalHistoryStats,
   slugify,
 } from 'share-lib';
 import { BaseService, PaginationResult } from '../../base/index.js';
@@ -25,6 +29,7 @@ import { CourseCategoryRepository } from '../repositories/course-category.reposi
 import { SectionRepository } from '../repositories/section.repository.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
 import { CourseMindmapRepository } from '../repositories/course-mindmap.repository.js';
+import { CourseApprovalHistoryRepository } from '../repositories/course-approval-history.repository.js';
 import { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
 import { CreateSectionDto } from '../dto/create-section.dto.js';
@@ -32,6 +37,7 @@ import { UpdateSectionDto } from '../dto/update-section.dto.js';
 import { ReorderSectionsDto } from '../dto/reorder-sections.dto.js';
 import { UpdateCourseDto } from '../dto/update-course.dto.js';
 import { QueryCoursesAdminDto } from '../dto/query-courses-admin.dto.js';
+import { QueryCourseApprovalHistoryDto } from '../dto/query-course-approval-history.dto.js';
 import { QueryPublicCoursesDto } from '../dto/query-public-courses.dto.js';
 import { StorageService } from '../../storage/index.js';
 import { LessonQuizRepository } from '../repositories/lesson-quiz.repository.js';
@@ -62,6 +68,7 @@ export class CourseService extends BaseService<ICourse, string> {
     protected readonly enrollmentRepository: EnrollmentRepository,
     protected readonly userRepository: UserRepository,
     protected readonly storageService: StorageService,
+    protected readonly courseApprovalHistoryRepository: CourseApprovalHistoryRepository,
     cls: ClsService,
     private readonly lessonQuizRepository: LessonQuizRepository,
   ) {
@@ -810,6 +817,10 @@ export class CourseService extends BaseService<ICourse, string> {
     return this.updateOrFail(courseId, updateData as unknown as Partial<ICourse>, session);
   }
 
+  async getAdminCourseStats(session?: ClientSession): Promise<IAdminCourseStats> {
+    return this.courseRepository.getAdminCourseStats(session);
+  }
+
   async findAdminCourses(
     query: QueryCoursesAdminDto,
     session?: ClientSession,
@@ -833,6 +844,18 @@ export class CourseService extends BaseService<ICourse, string> {
         'Khóa học đã được xử lý bởi quản trị viên khác hoặc không ở trạng thái chờ duyệt.',
       );
     }
+    await this.courseApprovalHistoryRepository.createHistory(
+      {
+        courseId: updated.id,
+        adminId,
+        instructorId: updated.instructorId,
+        action: CourseApprovalActionEnum.APPROVED,
+        previousStatus: CourseStatusEnum.PENDING_APPROVAL,
+        targetStatus: CourseStatusEnum.PUBLISHED,
+        reason: null,
+      },
+      session,
+    );
     return updated;
   }
 
@@ -865,6 +888,18 @@ export class CourseService extends BaseService<ICourse, string> {
         'Khóa học đã được xử lý bởi quản trị viên khác hoặc không ở trạng thái chờ duyệt.',
       );
     }
+    await this.courseApprovalHistoryRepository.createHistory(
+      {
+        courseId: updated.id,
+        adminId,
+        instructorId: updated.instructorId,
+        action: CourseApprovalActionEnum.REJECTED,
+        previousStatus: CourseStatusEnum.PENDING_APPROVAL,
+        targetStatus: CourseStatusEnum.DRAFT,
+        reason: reason.trim(),
+      },
+      session,
+    );
     return updated;
   }
 
@@ -908,9 +943,16 @@ export class CourseService extends BaseService<ICourse, string> {
 
   async getPublicCourseDetail(
     idOrSlug: string,
+    viewerRole?: RoleEnum,
     session?: ClientSession,
   ): Promise<ICourse & { sections: unknown[] }> {
-    const course = await this.courseRepository.findPublicCourseDetail(idOrSlug, session);
+    // Admins review unpublished courses through the same read-only learner projection.
+    // The role comes from authentication, never from a client-provided preview flag.
+    const course = await this.courseRepository.findPublicCourseDetail(
+      idOrSlug,
+      session,
+      viewerRole === RoleEnum.ADMIN,
+    );
     if (!course) {
       throw new NotFoundException('Không tìm thấy khóa học công khai');
     }
@@ -943,4 +985,25 @@ export class CourseService extends BaseService<ICourse, string> {
       sections: sectionsWithLessons,
     };
   }
+
+  async findAdminCourseApprovalHistories(
+    query: QueryCourseApprovalHistoryDto,
+    session?: ClientSession,
+  ): Promise<PaginationResult<ICourseApprovalHistory>> {
+    return this.courseApprovalHistoryRepository.findAdminHistoriesWithPagination(query, session);
+  }
+
+  async getAdminCourseApprovalHistoryStats(
+    session?: ClientSession,
+  ): Promise<IAdminCourseApprovalHistoryStats> {
+    return this.courseApprovalHistoryRepository.getStats(session);
+  }
+
+  async getCourseApprovalHistories(
+    courseId: string,
+    session?: ClientSession,
+  ): Promise<ICourseApprovalHistory[]> {
+    return this.courseApprovalHistoryRepository.findByCourseId(courseId, session);
+  }
 }
+

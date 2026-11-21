@@ -6,6 +6,8 @@ import type {
   IDashboardCoursePerformance,
   IDashboardPendingTask,
   RevenueGroupBy,
+  IDashboardCustomDates,
+  CategoryRevenueItem,
 } from '../types';
 import { formatVnd } from '../../revenue/utils/revenue-format.util';
 
@@ -641,3 +643,29 @@ export const PENDING_TASKS_DATA: IDashboardPendingTask[] = [
     route: '/admin/reviews?hasReports=true',
   },
 ];
+
+export const CATEGORY_REVENUE_DATA: CategoryRevenueItem[] = [
+  { id: 'cat-1', name: 'Lập trình Web & Backend', revenue: 517178000 },
+  { id: 'cat-2', name: 'AI & Khoa học Dữ liệu', revenue: 300402000 },
+  { id: 'cat-3', name: 'Thiết kế UI/UX & Đồ họa', revenue: 157920000 },
+  { id: 'cat-4', name: 'Kinh doanh & Marketing', revenue: 158122000 },
+  { id: 'cat-5', name: 'DevOps & Điện toán đám mây', revenue: 82450000 },
+  { id: 'cat-6', name: 'Ngoại ngữ & Tiếng Anh công sở', revenue: 38400000 },
+  { id: 'cat-7', name: 'Dựng Video & Multimedia', revenue: 20500000 },
+  { id: 'cat-8', name: 'Kỹ năng mềm & Năng suất', revenue: 9528000 },
+];
+
+export function getCategoryRevenueByPeriod(
+  period: DashboardPeriodType,
+  _customDates?: IDashboardCustomDates,
+): CategoryRevenueItem[] {
+  const kpi = KPI_DATA_BY_PERIOD[period] || KPI_DATA_BY_PERIOD.this_month;
+  const baseTotal = 1284500000;
+  const factor = kpi.grossRevenue.cur / baseTotal;
+
+  return CATEGORY_REVENUE_DATA.map((item) => ({
+    ...item,
+    revenue: Math.round(item.revenue * factor),
+  }));
+}
+

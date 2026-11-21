@@ -67,6 +67,33 @@ export class ReviewInstructorReplyEntrySchema {
 export const ReviewInstructorReplyEntryModelSchema =
   SchemaFactory.createForClass(ReviewInstructorReplyEntrySchema);
 
+@Schema({ _id: false, timestamps: false })
+export class ReviewAdminReplyEntrySchema {
+  @Prop({ type: String, required: true, trim: true, maxlength: 2000 })
+  content: string;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: UserEntity.name, required: true })
+  adminId: Types.ObjectId;
+
+  @Prop({ type: String, required: false, default: null })
+  adminName?: string | null;
+
+  @Prop({ type: Date, default: () => new Date() })
+  repliedAt: Date;
+
+  @Prop({ type: Date, required: false, default: null })
+  updatedAt?: Date | null;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: UserEntity.name, default: null })
+  updatedById?: Types.ObjectId | null;
+
+  @Prop({ type: String, required: false, default: null })
+  updatedByName?: string | null;
+}
+
+export const ReviewAdminReplyEntryModelSchema =
+  SchemaFactory.createForClass(ReviewAdminReplyEntrySchema);
+
 @Schema({ timestamps: true, collection: 'reviews' })
 export class ReviewEntity extends BaseAbstractDocument {
   @Prop({
@@ -141,6 +168,12 @@ export class ReviewEntity extends BaseAbstractDocument {
     default: null,
   })
   instructorReply?: ReviewInstructorReplyEntrySchema | null;
+
+  @Prop({
+    type: ReviewAdminReplyEntryModelSchema,
+    default: null,
+  })
+  adminReply?: ReviewAdminReplyEntrySchema | null;
 }
 
 export const ReviewSchema = SchemaFactory.createForClass(ReviewEntity);

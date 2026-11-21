@@ -10,8 +10,10 @@ import {
 import { RevenueKpiCards } from './revenue-kpi-cards';
 import { RevenueChart } from './revenue-chart';
 import { TransactionTable, type TransactionStatusFilterType } from './transaction-table';
+import { TransactionTimeFilter } from './transaction-time-filter';
 import { TransactionDetailDrawer } from './transaction-detail-drawer';
 import { InstructorsRevenueTable } from './instructors-revenue-table';
+import { DashboardInstructorsSection } from '@/features/admin/dashboard';
 import {
   useRevenueOverviewQuery,
   useRevenueChartQuery,
@@ -51,6 +53,11 @@ export function RevenueView(): React.JSX.Element {
     timeRange: '30days',
   });
 
+  // Dedicated Time Filter for Section "Danh Sách Giao Dịch" (Tab 1)
+  const [transactionTimeFilter, setTransactionTimeFilter] = React.useState<RevenueTimeFilterValue>({
+    timeRange: '30days',
+  });
+
   // Tab 1: Transactions Search & Sort & Pagination
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<TransactionStatusFilterType>('ALL');
@@ -65,7 +72,7 @@ export function RevenueView(): React.JSX.Element {
   const overviewQuery = useRevenueOverviewQuery(timeFilter);
   const chartQuery = useRevenueChartQuery(timeFilter);
   const transactionsQuery = useRevenueTransactionsQuery({
-    ...timeFilter,
+    ...transactionTimeFilter,
     page,
     limit,
     search,
@@ -75,7 +82,11 @@ export function RevenueView(): React.JSX.Element {
 
   const handleTimeFilterChange = (val: RevenueTimeFilterValue) => {
     setTimeFilter(val);
-    setPage(1); // Reset transaction page to 1 when time filter changes
+  };
+
+  const handleTransactionTimeFilterChange = (val: RevenueTimeFilterValue) => {
+    setTransactionTimeFilter(val);
+    setPage(1); // Reset transaction page to 1 when transaction time filter changes
   };
 
   return (
@@ -149,9 +160,12 @@ export function RevenueView(): React.JSX.Element {
             isLoading={chartQuery.isLoading}
           />
 
+          {/* Bảng xếp hạng Giảng viên tiêu biểu */}
+          <DashboardInstructorsSection globalPeriod={timeFilter.timeRange} />
+
           {/* Transactions Table Section */}
           <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold text-foreground">
                   Danh Sách Giao Dịch
@@ -160,6 +174,13 @@ export function RevenueView(): React.JSX.Element {
                   Theo dõi toàn bộ đơn hàng và trạng thái thanh toán qua cổng SePay
                 </p>
               </div>
+
+              {/* Dropdown list lọc ngày, tháng chuẩn UI như trang Tổng quan /admin/dashboard */}
+              <TransactionTimeFilter
+                value={transactionTimeFilter}
+                onChange={handleTransactionTimeFilterChange}
+                globalPeriodValue={timeFilter}
+              />
             </div>
 
             <TransactionTable
@@ -171,6 +192,11 @@ export function RevenueView(): React.JSX.Element {
               onStatusFilterChange={setStatusFilter}
               sort={sort}
               onSortChange={setSort}
+              timeFilter={transactionTimeFilter}
+              onResetTimeFilter={() => {
+                setTransactionTimeFilter({ timeRange: '30days' });
+                setPage(1);
+              }}
               page={page}
               onPageChange={setPage}
               limit={limit}

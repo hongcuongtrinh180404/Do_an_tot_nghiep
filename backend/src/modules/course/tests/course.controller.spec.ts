@@ -42,6 +42,7 @@ describe('CourseController', () => {
     deleteCourse: ReturnType<typeof vi.fn>;
     archiveCourse: ReturnType<typeof vi.fn>;
     unarchiveCourse: ReturnType<typeof vi.fn>;
+    getAdminCourseStats: ReturnType<typeof vi.fn>;
   };
 
   const sampleCourse: ICourse = {
@@ -81,9 +82,39 @@ describe('CourseController', () => {
       deleteCourse: vi.fn(),
       archiveCourse: vi.fn(),
       unarchiveCourse: vi.fn(),
+      getAdminCourseStats: vi.fn(),
     };
 
     controller = new CourseController(mockCourseService as unknown as CourseService);
+  });
+
+  describe('GET /courses/admin/stats', () => {
+    it('returns global course statistics in the API response envelope', async () => {
+      const stats = { total: 24, published: 15, draft: 3, archived: 2, pendingApproval: 4 };
+      mockCourseService.getAdminCourseStats.mockResolvedValue(stats);
+
+      const response = await controller.getAdminCourseStats();
+
+      expect(mockCourseService.getAdminCourseStats).toHaveBeenCalledExactlyOnceWith();
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual(stats);
+    });
+
+    it.each([RoleEnum.INSTRUCTOR, RoleEnum.STUDENT])('rejects non-admin role %s', (role) => {
+      const reflector = new Reflector();
+      // oxlint-disable-next-line typescript/unbound-method
+      const handler = CourseController.prototype.getAdminCourseStats;
+      expect(reflector.get<RoleEnum[]>(ROLES_KEY, handler)).toEqual([RoleEnum.ADMIN]);
+      expect(reflector.get(IS_PUBLIC_KEY, handler)).not.toBe(true);
+      const guard = new RolesGuard(reflector);
+      const context = {
+        getHandler: () => handler,
+        getClass: () => CourseController,
+        switchToHttp: () => ({ getRequest: () => ({ user: { role } }) }),
+      } as unknown as ExecutionContext;
+
+      expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+    });
   });
 
   describe('POST /courses - create', () => {

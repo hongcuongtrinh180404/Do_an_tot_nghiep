@@ -1,5 +1,15 @@
 # Payment SePay — Development History & Gotchas
 
+## 2026-11-20 — Bổ sung Dropdown List Lọc Ngày, Tháng cho Danh Sách Giao Dịch (/admin/revenue)
+
+- **Vấn đề / Yêu cầu**: Section "Danh Sách Giao Dịch" tại trang Quản lý Doanh thu & Hoa hồng (`/admin/revenue`) thiếu bộ lọc thời gian độc lập giống như ở trang Tổng quan Dashboard (`/admin/dashboard`), khiến quản trị viên gặp khó khăn khi muốn tra cứu giao dịch theo chu kỳ cụ thể (Hôm nay, Hôm qua, 7 ngày, Tháng này, Tháng trước, Năm nay, Tùy chỉnh khoảng ngày).
+- **Giải pháp**:
+  - Xây dựng component `TransactionTimeFilter` chuẩn theo layout và phong cách của `DashboardHeader`: gồm Calendar icon, `<select>` chu kỳ thời gian, Picker khoảng ngày Từ - Đến khi chọn `custom`, và Badge hiển thị khoảng ngày thực tế.
+  - Tách riêng state `transactionTimeFilter` trong `RevenueView` cho bảng giao dịch (mặc định 30 ngày, có tùy chọn đồng bộ *"Theo bộ lọc trang"*). Khi đổi bộ lọc thời gian, tự động reset `page = 1`.
+  - Cập nhật `TransactionTable` empty state và nút "Đặt lại bộ lọc" để hỗ trợ reset cả bộ lọc thời gian khi không có dữ liệu.
+  - Bổ sung alias chu kỳ thời gian (`7d`, `30d`, `this_month`, `last_month`, `this_year`) trong `revenue-date.util.ts` ở backend để bảo đảm tính tương thích chéo 100% giữa Dashboard và Revenue APIs.
+  - Bổ sung unit tests cho `TransactionTimeFilter` tại `frontend/src/features/admin/revenue/tests/transaction-time-filter.spec.ts`. Toàn bộ 21 tests frontend và 17 tests backend đều pass 100%.
+
 ## 2026-11-18 — UI PaymentSuccess với pháo hoa canvas-confetti & kiểm soát chuyển trang
 
 - Cài đặt `canvas-confetti`, `@types/canvas-confetti` và `lucide-react` cho frontend.

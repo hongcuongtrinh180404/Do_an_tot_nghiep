@@ -99,10 +99,10 @@ export class LessonRepository extends BaseMongoRepository<ILesson, LessonEntity>
     return doc ? this.toDomain(doc) : null;
   }
 
-  async getCourseVideoStats(courseIds: string[]): Promise<CourseVideoStats[]> {
+  async getCourseVideoStats(courseIds: string[], maxTimeMS?: number): Promise<CourseVideoStats[]> {
     if (courseIds.length === 0) return [];
     const validDuration = { $and: [{ $isNumber: '$content.duration' }, { $gt: ['$content.duration', 0] }] };
-    return this.model.aggregate<CourseVideoStats>([
+    const query = this.model.aggregate<CourseVideoStats>([
       { $match: { deletedAt: null, 'content.type': LessonContentTypeEnum.VIDEO } },
       { $lookup: { from: 'sections', localField: 'sectionId', foreignField: '_id', as: 'section' } },
       { $unwind: '$section' },
@@ -116,7 +116,9 @@ export class LessonRepository extends BaseMongoRepository<ILesson, LessonEntity>
           publicId: { $ifNull: ['$content.publicId', null] }, durationSeconds: '$content.duration' } },
       } },
       { $project: { _id: 0, courseId: { $toString: '$_id' }, totalSeconds: 1, videoCount: 1, missingDurationCount: 1, videos: 1 } },
-    ]).exec();
+    ]);
+    if (maxTimeMS) query.option({ maxTimeMS });
+    return query.exec();
   }
 
   async softDeleteBySectionId(

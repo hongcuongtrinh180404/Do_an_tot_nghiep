@@ -2,6 +2,10 @@ import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CourseEntity, CourseSchema } from './schemas/course.schema.js';
 import {
+  CourseApprovalHistoryEntity,
+  CourseApprovalHistorySchema,
+} from './schemas/course-approval-history.schema.js';
+import {
   CourseCategoryEntity,
   CourseCategorySchema,
 } from './schemas/course-category.schema.js';
@@ -25,6 +29,7 @@ import { LessonQuizController } from './lesson-quiz.controller.js';
 import { LessonManagementGuard } from './guards/lesson-management.guard.js';
 import { LessonAccessGuard } from './guards/lesson-access.guard.js';
 import { CourseRepository } from './repositories/course.repository.js';
+import { CourseApprovalHistoryRepository } from './repositories/course-approval-history.repository.js';
 import { CourseCategoryRepository } from './repositories/course-category.repository.js';
 import { SectionRepository } from './repositories/section.repository.js';
 import { LessonRepository } from './repositories/lesson.repository.js';
@@ -50,6 +55,7 @@ import { EnrollmentModule } from '../enrollment/enrollment.module.js';
   imports: [
     MongooseModule.forFeature([
       { name: CourseEntity.name, schema: CourseSchema },
+      { name: CourseApprovalHistoryEntity.name, schema: CourseApprovalHistorySchema },
       { name: CourseCategoryEntity.name, schema: CourseCategorySchema },
       { name: SectionEntity.name, schema: SectionSchema },
       { name: LessonEntity.name, schema: LessonSchema },
@@ -80,6 +86,7 @@ import { EnrollmentModule } from '../enrollment/enrollment.module.js';
     LessonManagementGuard,
     CourseApprovalService,
     CourseRepository,
+    CourseApprovalHistoryRepository,
     CourseCategoryRepository,
     SectionRepository,
     LessonRepository,
@@ -101,6 +108,7 @@ import { EnrollmentModule } from '../enrollment/enrollment.module.js';
     LessonAccessGuard,
     LessonManagementGuard,
     CourseRepository,
+    CourseApprovalHistoryRepository,
     CourseCategoryRepository,
     SectionRepository,
     LessonRepository,

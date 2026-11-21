@@ -111,3 +111,10 @@ export interface IDashboardCustomDates {
   startDate: string;
   endDate: string;
 }
+
+export interface CategoryRevenueItem {
+  id: string;
+  name: string;
+  revenue: number;
+}
+

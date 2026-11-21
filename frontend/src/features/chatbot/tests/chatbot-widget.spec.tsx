@@ -163,7 +163,7 @@ describe('Chatbot widget session', () => {
     expect(sendChatbotMessage).toHaveBeenCalledExactlyOnceWith(
       'Tìm khóa Python cho người mới', expect.any(AbortSignal),
     );
-    expect(panelText()).toContain('Đang tìm khóa học');
+    expect(panelText()).toContain('Đang tra cứu');
 
     await act(async () => { finish({ reply: foundReply() }); });
     const card = panel()!.querySelector<HTMLAnchorElement>('a[href="/courses/0123456789abcdef01234567"]');
@@ -214,7 +214,7 @@ describe('Chatbot widget session', () => {
     type('Python');
     pressEnter(document.querySelector<HTMLTextAreaElement>('#mindly-chatbot-message')!);
     await settle();
-    expect(panelText()).toContain('Phiên đăng nhập đã hết hạn. Đăng nhập lại để tiếp tục tìm khóa học.');
+    expect(panelText()).toContain('Phiên đăng nhập đã hết hạn. Đăng nhập lại để tiếp tục.');
     expect(document.querySelector('#mindly-chatbot-message')).toBeNull();
   });
 

@@ -21,6 +21,7 @@ import { ReviewModule } from './modules/review/review.module.js';
 import { PublicProfileModule } from './modules/profile/public-profile.module.js';
 import { ChatbotHttpModule } from './modules/chatbot/chatbot-http.module.js';
 import { InstructorApplicationModule } from './modules/instructor-application/instructor-application.module.js';
+import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module.js';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { InstructorApplicationModule } from './modules/instructor-application/in
     ReviewModule,
     PublicProfileModule,
     InstructorApplicationModule,
+    AdminDashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

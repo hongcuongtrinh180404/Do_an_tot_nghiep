@@ -137,13 +137,26 @@ export function CategoriesView(): React.JSX.Element {
             )}
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-muted-foreground font-medium">
-            <span>
-              Tổng cộng: {filteredCategories.length} danh mục
-            </span>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-medium">
+            <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3.5 py-2">
+              <Icon icon="lucide:layers" className="size-4 shrink-0" />
+              <div>
+                <span className="block">Tổng danh mục</span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl sm:text-3xl font-extrabold leading-none tabular-nums text-foreground">
+                    {categoriesQuery.isLoading || categoriesQuery.isError ? '—' : categories.length}
+                  </span>
+                  <span>danh mục</span>
+                </div>
+              </div>
+            </div>
+            {searchQuery.trim() && !categoriesQuery.isLoading && !categoriesQuery.isError && (
+              <span>{filteredCategories.length} kết quả tìm kiếm</span>
+            )}
+            <span className="h-7 w-px bg-border" aria-hidden="true" />
             <span className="inline-flex items-center gap-1">
               <span className="size-1.5 rounded-full bg-emerald-500" />
-              {activeCount} đang hiển thị
+              {categoriesQuery.isLoading || categoriesQuery.isError ? '—' : activeCount} đang hiển thị
             </span>
           </div>
         </div>

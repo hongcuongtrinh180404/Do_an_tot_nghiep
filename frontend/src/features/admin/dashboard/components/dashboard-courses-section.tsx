@@ -2,21 +2,22 @@
 
 import * as React from 'react';
 import { Icon } from '@/components/ui/icon';
-import type { DashboardPeriodType } from '../types';
+import type { DashboardPeriodType, IDashboardCoursePerformance } from '../types';
 import { formatVnd } from '../../revenue/utils/revenue-format.util';
-import {
-  COURSES_PERFORMANCE_DATA,
-  formatNumber,
-} from '../constants/mock-dashboard-data';
+import { formatNumber } from '../constants/mock-dashboard-data';
 
 type CourseTabType = 'revenue' | 'enrollment' | 'completion';
 
 interface DashboardCoursesSectionProps {
   globalPeriod: DashboardPeriodType;
+  courses?: IDashboardCoursePerformance[];
+  isLoading?: boolean;
 }
 
 export function DashboardCoursesSection({
   globalPeriod,
+  courses = [],
+  isLoading = false,
 }: DashboardCoursesSectionProps): React.JSX.Element {
   const [activeTab, setActiveTab] = React.useState<CourseTabType>('revenue');
   const [periodOverride, setPeriodOverride] = React.useState<string>('default');
@@ -32,32 +33,29 @@ export function DashboardCoursesSection({
     setInstructorFilter('all');
   };
 
-  const effectivePeriod = periodOverride === 'default' ? globalPeriod : periodOverride;
+  const availableCategories = React.useMemo(() => {
+    const set = new Set<string>();
+    courses.forEach((c) => {
+      if (c.category) set.add(c.category);
+    });
+    return Array.from(set);
+  }, [courses]);
+
+  const availableInstructors = React.useMemo(() => {
+    const set = new Set<string>();
+    courses.forEach((c) => {
+      if (c.instructor) set.add(c.instructor);
+    });
+    return Array.from(set);
+  }, [courses]);
 
   const filteredCourses = React.useMemo(() => {
-    const scaleMap: Record<string, number> = {
-      today: 0.06,
-      yesterday: 0.05,
-      '7d': 0.32,
-      '30d': 1.2,
-      this_month: 1.0,
-      last_month: 1.22,
-      this_year: 9.5,
-      custom: 0.4,
-    };
-    const factor = scaleMap[effectivePeriod] || 1;
-
-    return COURSES_PERFORMANCE_DATA.filter((course) => {
+    return courses.filter((course) => {
       if (categoryFilter !== 'all' && course.category !== categoryFilter) return false;
       if (instructorFilter !== 'all' && course.instructor !== instructorFilter) return false;
       return true;
-    }).map((course) => ({
-      ...course,
-      salesCount: Math.max(1, Math.round(course.salesCount * factor)),
-      revenue: Math.round(course.revenue * factor),
-      newEnrollments: Math.max(1, Math.round(course.newEnrollments * factor)),
-    }));
-  }, [categoryFilter, instructorFilter, effectivePeriod]);
+    });
+  }, [courses, categoryFilter, instructorFilter]);
 
   const sortedCourses = React.useMemo(() => {
     const list = [...filteredCourses];
@@ -155,10 +153,11 @@ export function DashboardCoursesSection({
               className="text-xs px-3 py-1.5 bg-muted/40 border border-border/80 rounded-xl font-medium text-foreground outline-none cursor-pointer"
             >
               <option value="all">Danh mục: Tất cả</option>
-              <option value="Lập trình Web & Backend">Lập trình Web & Backend</option>
-              <option value="AI & Khoa học Dữ liệu">AI & Khoa học Dữ liệu</option>
-              <option value="Thiết kế UI/UX & Đồ họa">Thiết kế UI/UX & Đồ họa</option>
-              <option value="Kinh doanh & Marketing">Kinh doanh & Marketing</option>
+              {availableCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
             </select>
 
             {/* Instructor */}
@@ -168,12 +167,11 @@ export function DashboardCoursesSection({
               className="text-xs px-3 py-1.5 bg-muted/40 border border-border/80 rounded-xl font-medium text-foreground outline-none cursor-pointer"
             >
               <option value="all">Giảng viên: Tất cả</option>
-              <option value="Nguyễn Minh Quân">Nguyễn Minh Quân</option>
-              <option value="Trần Thị Lan Anh">Trần Thị Lan Anh</option>
-              <option value="Lê Hoàng Nam">Lê Hoàng Nam</option>
-              <option value="Phạm Thu Hà">Phạm Thu Hà</option>
-              <option value="Đặng Quốc Bảo">Đặng Quốc Bảo</option>
-              <option value="Hoàng Ngọc Diệp">Hoàng Ngọc Diệp</option>
+              {availableInstructors.map((inst) => (
+                <option key={inst} value={inst}>
+                  {inst}
+                </option>
+              ))}
             </select>
 
             {/* Reset */}
@@ -181,33 +179,48 @@ export function DashboardCoursesSection({
               <button
                 type="button"
                 onClick={handleReset}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition cursor-pointer"
+                className="text-xs px-2.5 py-1.5 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-xl transition flex items-center gap-1 font-semibold cursor-pointer"
               >
                 <Icon icon="lucide:rotate-ccw" className="size-3" />
-                <span>Khôi phục mặc định</span>
+                <span>Đặt lại</span>
               </button>
             )}
           </div>
 
-          <span className="text-[11px] text-muted-foreground italic">{ruleNote}</span>
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground bg-muted/40 px-3 py-1 rounded-xl border border-border/60">
+            <Icon icon="lucide:info" className="size-3 text-primary shrink-0" />
+            <span>{ruleNote}</span>
+          </div>
         </div>
       </div>
 
-      {/* Table Content */}
-      <div className="overflow-x-auto">
-        {sortedCourses.length === 0 ? (
-          <div className="py-12 text-center text-xs text-muted-foreground">
-            Không tìm thấy khóa học nào phù hợp với bộ lọc hiện tại.
+      {/* Table Container */}
+      <div className="overflow-x-auto min-h-[220px]">
+        {isLoading ? (
+          <div className="p-8 text-center text-xs text-muted-foreground animate-pulse">
+            Đang tải dữ liệu hiệu suất khóa học...
+          </div>
+        ) : sortedCourses.length === 0 ? (
+          <div className="py-12 px-4 text-center flex flex-col items-center justify-center">
+            <div className="size-10 rounded-xl bg-muted/60 flex items-center justify-center text-muted-foreground mb-2">
+              <Icon icon="lucide:book-open" className="size-5" />
+            </div>
+            <p className="text-xs font-semibold text-foreground">
+              Chưa có dữ liệu hiệu suất khóa học nào trong khoảng thời gian này
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Dữ liệu sẽ tự động xuất hiện khi có học viên ghi danh hoặc hoàn thành khóa học.
+            </p>
           </div>
         ) : activeTab === 'revenue' ? (
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-muted/30 border-b border-border/60 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                 <th className="py-3 px-5 w-14 text-center">#</th>
-                <th className="py-3 px-4">Khóa học</th>
+                <th className="py-3 px-4">Tên khóa học</th>
                 <th className="py-3 px-4">Giảng viên</th>
-                <th className="py-3 px-4 text-right">Giá khóa học</th>
-                <th className="py-3 px-4 text-right">Số lượt mua thành công</th>
+                <th className="py-3 px-4 text-right">Giá bán</th>
+                <th className="py-3 px-4 text-right">Lượt bán kỳ lọc</th>
                 <th className="py-3 px-5 text-right">Tổng doanh thu</th>
               </tr>
             </thead>
@@ -220,23 +233,18 @@ export function DashboardCoursesSection({
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
                       <div
-                        className={`size-10 rounded-lg ${c.thumbnailBg} font-bold text-[10px] flex items-center justify-center shrink-0 border border-border/60`}
+                        className={`size-9 rounded-xl ${c.thumbnailBg} font-extrabold text-[11px] flex items-center justify-center shrink-0 border border-border/60`}
                       >
                         {c.thumbnailText}
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-foreground truncate max-w-xs sm:max-w-sm">
-                          {c.title}
-                        </p>
-                        <span className="text-[10px] text-muted-foreground">{c.category}</span>
-                      </div>
+                      <span className="font-bold text-foreground">{c.title}</span>
                     </div>
                   </td>
-                  <td className="py-3 px-4 font-medium text-foreground">{c.instructor}</td>
-                  <td className="py-3 px-4 text-right font-semibold text-muted-foreground tabular-nums">
+                  <td className="py-3 px-4 text-muted-foreground font-medium">{c.instructor}</td>
+                  <td className="py-3 px-4 text-right font-semibold text-foreground tabular-nums">
                     {formatVnd(c.price)}
                   </td>
-                  <td className="py-3 px-4 text-right font-semibold text-foreground tabular-nums">
+                  <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums">
                     {formatNumber(c.salesCount)} lượt
                   </td>
                   <td className="py-3 px-5 text-right font-extrabold text-primary tabular-nums">

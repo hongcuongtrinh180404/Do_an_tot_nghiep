@@ -13,6 +13,7 @@ import {
   ReviewStatusEnum,
   IAdminReviewStats,
   IInstructorReviewReply,
+  IAdminReviewReply,
 } from 'share-lib';
 import { BaseService, isDuplicateKeyError, PaginationResult } from '../../base/index.js';
 import { ReviewRepository } from '../repositories/review.repository.js';
@@ -323,6 +324,47 @@ export class ReviewService extends BaseService<IReview, string> {
       throw new NotFoundException('Không tìm thấy đánh giá');
     }
     return review;
+  }
+
+  async adminReplyToReview(
+    adminId: string,
+    reviewId: string,
+    dto: ReplyReviewDto,
+  ): Promise<IReview> {
+    const review = await this.reviewRepository.findById(reviewId);
+    if (!review || review.deletedAt || review.status === ReviewStatusEnum.DELETED) {
+      throw new NotFoundException('Không tìm thấy đánh giá để phản hồi');
+    }
+    if (review.status !== ReviewStatusEnum.VISIBLE) {
+      throw new ForbiddenException('Chỉ có thể phản hồi đánh giá đang hiển thị công khai');
+    }
+
+    const course = await this.courseRepository.findById(review.courseId);
+    if (!course || course.deletedAt) {
+      throw new NotFoundException('Không tìm thấy khóa học của đánh giá');
+    }
+
+    const admin = await this.userRepository.findById(adminId);
+    const adminName = admin?.fullName || 'Quản trị viên';
+    const existingReply = review.adminReply;
+    const now = new Date();
+    const reply: IAdminReviewReply = {
+      content: dto.reply,
+      adminId: existingReply?.adminId ?? adminId,
+      adminName: existingReply ? existingReply.adminName ?? null : adminName,
+      repliedAt: existingReply ? new Date(existingReply.repliedAt) : now,
+      updatedAt: existingReply ? now : null,
+      updatedById: existingReply ? adminId : null,
+      updatedByName: existingReply ? adminName : null,
+    };
+
+    const updated = await this.reviewRepository.setAdminReply(reviewId, reply);
+    if (!updated) {
+      throw new ConflictException(
+        'Đánh giá không còn hiển thị công khai. Vui lòng tải lại trước khi phản hồi.',
+      );
+    }
+    return updated;
   }
 
   async adminHideReview(

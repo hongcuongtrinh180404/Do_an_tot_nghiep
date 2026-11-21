@@ -8,8 +8,10 @@ import type {
   IAdminReviewStats,
   IHideReviewPayload,
   IRestoreReviewPayload,
+  IReplyReviewPayload,
 } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
+import { reviewKeys } from '@/features/course/api/review.api';
 
 export interface IAdminReviewsQueryParams {
   page?: number;
@@ -57,6 +59,11 @@ export const adminReviewsApi = {
     return res.data.data;
   },
 
+  async replyToReview(id: string, payload: IReplyReviewPayload): Promise<IReview> {
+    const res = await apiClient.post<IApiResponse<IReview>>(`/reviews/admin/${id}/reply`, payload);
+    return res.data.data;
+  },
+
   async hideReview(id: string, payload: IHideReviewPayload): Promise<IReview> {
     const res = await apiClient.patch<IApiResponse<IReview>>(`/reviews/admin/${id}/hide`, payload);
     return res.data.data;
@@ -101,6 +108,27 @@ export function useAdminReviewDetailQuery(id: string | null) {
     queryKey: adminReviewKeys.detail(id || ''),
     queryFn: () => adminReviewsApi.getReviewDetail(id || ''),
     enabled: Boolean(id),
+  });
+}
+
+export function useAdminReplyReviewMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: IReplyReviewPayload }) =>
+      adminReviewsApi.replyToReview(id, payload),
+    onSuccess: (review) => {
+      queryClient.setQueryData(adminReviewKeys.detail(review.id), review);
+      toast.success('Đã lưu phản hồi từ ban quản trị.');
+      void queryClient.invalidateQueries({ queryKey: adminReviewKeys.all });
+      void queryClient.invalidateQueries({ queryKey: reviewKeys.all });
+    },
+    onError: (error: unknown) => {
+      const msg =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        'Không thể gửi phản hồi. Vui lòng thử lại sau.';
+      toast.error(msg);
+    },
   });
 }
 
@@ -178,4 +206,3 @@ export function useAdminDismissReportsMutation() {
     },
   });
 }
-

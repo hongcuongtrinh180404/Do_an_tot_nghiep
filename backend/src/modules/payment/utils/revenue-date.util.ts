@@ -128,6 +128,7 @@ export function parseRevenueTimeRange(
       };
     }
 
+    case '7d':
     case '7days': {
       const startMs = createVnDate(vn.year, vn.month, vn.day, 0, 0, 0, 0).getTime() - 6 * 86400000;
       const sDate = new Date(startMs + 7 * 3600000);
@@ -138,6 +139,7 @@ export function parseRevenueTimeRange(
       };
     }
 
+    case 'this_month':
     case 'thismonth': {
       // Last day of this month
       const lastDay = new Date(Date.UTC(vn.year, vn.month, 0)).getUTCDate();
@@ -148,6 +150,7 @@ export function parseRevenueTimeRange(
       };
     }
 
+    case 'last_month':
     case 'lastmonth': {
       let lYear = vn.year;
       let lMonth = vn.month - 1;
@@ -163,6 +166,7 @@ export function parseRevenueTimeRange(
       };
     }
 
+    case 'this_year':
     case 'thisyear': {
       return {
         startDate: createVnDate(vn.year, 1, 1, 0, 0, 0, 0),
@@ -171,6 +175,7 @@ export function parseRevenueTimeRange(
       };
     }
 
+    case '30d':
     case '30days':
     default: {
       const startMs = createVnDate(vn.year, vn.month, vn.day, 0, 0, 0, 0).getTime() - 29 * 86400000;

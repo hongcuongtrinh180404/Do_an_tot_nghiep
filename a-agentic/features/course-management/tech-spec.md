@@ -73,6 +73,17 @@
 - Unique Compound Index: `{ userId: 1, courseId: 1 }`
 - Inherits `BaseAbstractDocument` (`createdAt`, `updatedAt`, `deletedAt`, `createdById`, `updatedById`).
 
+### F. Course Approval History Schema (`course_approval_histories`)
+- `courseId`: Types.ObjectId (ref: `CourseEntity`, required, index)
+- `adminId`: Types.ObjectId (ref: `UserEntity`, required, index)
+- `instructorId`: Types.ObjectId (ref: `UserEntity`, required, index)
+- `action`: CourseApprovalActionEnum (`APPROVED`, `REJECTED`, required, index)
+- `reason`: string (optional, default: null, trim, max 1000 ký tự)
+- `previousStatus`: CourseStatusEnum (required)
+- `targetStatus`: CourseStatusEnum (required)
+- Inherits `BaseAbstractDocument` (`createdAt`, `updatedAt`, `deletedAt`, `createdById`, `updatedById`).
+- Compound Indexes: `{ courseId: 1, createdAt: -1 }`, `{ createdAt: -1 }`, `{ action: 1, createdAt: -1 }`, `{ adminId: 1, createdAt: -1 }`.
+
 ---
 
 ## 2. API Endpoints
@@ -81,6 +92,9 @@
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v1/courses` | Danh sách khóa học có phân trang & lọc | Public |
 | `GET` | `/api/v1/courses/admin` | Quản trị viên lấy danh sách khóa học kiểm duyệt (phân trang, search, status, category, instructor) | `ADMIN` |
+| `GET` | `/api/v1/courses/admin/approval-history` | Quản trị viên lấy danh sách lịch sử phê duyệt phân trang & lọc | `ADMIN` |
+| `GET` | `/api/v1/courses/admin/approval-history/stats` | Thống kê số lượng tổng/duyệt/từ chối lịch sử phê duyệt | `ADMIN` |
+| `GET` | `/api/v1/courses/:id/approval-history` | Xem lịch sử phê duyệt của riêng một khóa học | `ADMIN`, `INSTRUCTOR` (Owner) |
 | `GET` | `/api/v1/courses/my-courses` | Danh sách khóa học của giảng viên hiện tại (chưa xóa mềm) | `INSTRUCTOR`, `ADMIN` |
 | `GET` | `/api/v1/courses/:slug` | Chi tiết khóa học và cấu trúc chương/bài | Public |
 | `POST` | `/api/v1/courses` | Tạo khóa học mới | `INSTRUCTOR`, `ADMIN` |

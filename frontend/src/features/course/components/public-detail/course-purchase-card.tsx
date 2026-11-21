@@ -12,6 +12,7 @@ interface CoursePurchaseCardProps {
   course: IPublicCourseDetailResponse;
   isEnrolled: boolean;
   isInstructorOwner: boolean;
+  isAdminPreview?: boolean;
   isLoggedIn: boolean;
   isPending: boolean;
   totalLessonsCount: number;
@@ -34,6 +35,7 @@ export function CoursePurchaseCard({
   course,
   isEnrolled,
   isInstructorOwner,
+  isAdminPreview = false,
   isLoggedIn,
   isPending,
   totalLessonsCount,
@@ -44,7 +46,7 @@ export function CoursePurchaseCard({
   onPurchase,
 }: CoursePurchaseCardProps): React.JSX.Element {
   const isFree = course.price === 0;
-  const hasAccess = isEnrolled || isInstructorOwner;
+  const hasAccess = isEnrolled || isInstructorOwner || isAdminPreview;
 
   const discountPercent =
     course.originalPrice && course.originalPrice > course.price
@@ -99,6 +101,15 @@ export function CoursePurchaseCard({
                   <span>Tiết kiệm {discountPercent}%</span>
                 </div>
               )}
+            </div>
+          ) : isAdminPreview ? (
+            <div className="space-y-2 mb-5 p-4 rounded-xl bg-[#f3fcfc]" data-ui="admin-preview-access">
+              <p className="text-sm font-semibold text-[#027D88]">
+                Chế độ xem trước quản trị viên
+              </p>
+              <p className="text-sm text-[#666666] leading-relaxed">
+                Bạn có thể xem toàn bộ bài giảng để kiểm duyệt ở giao diện học viên. Không cần ghi danh và không ghi nhận tiến độ học tập.
+              </p>
             </div>
           ) : isInstructorOwner ? (
             <div className="space-y-3 mb-5 p-4 rounded-xl bg-[#f3fcfc] border border-[#027D88]/20">

@@ -10,8 +10,10 @@ import { RatingStars } from '@/components/shared/rating/rating-stars';
 import {
   useAdminReviewDetailQuery,
   useAdminDismissReportsMutation,
+  useAdminReplyReviewMutation,
 } from '../api/admin-reviews.api';
 import { ReviewQueryError } from './review-query-error';
+import { AdminReviewReplySection } from './admin-review-reply-section';
 
 interface ReviewDetailDialogProps {
   open: boolean;
@@ -49,6 +51,7 @@ export function ReviewDetailDialog({
 }: ReviewDetailDialogProps): React.JSX.Element | null {
   const { data: review, isLoading, isError, isFetching, refetch } = useAdminReviewDetailQuery(reviewId);
   const dismissMutation = useAdminDismissReportsMutation();
+  const replyMutation = useAdminReplyReviewMutation();
 
   if (!open) return null;
 
@@ -85,13 +88,15 @@ export function ReviewDetailDialog({
   return (
     <DialogLayout
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(nextOpen) => {
+        if (!replyMutation.isPending) onOpenChange(nextOpen);
+      }}
       title="Chi Tiết Đánh Giá Khóa Học"
-      description="Xem thông tin chi tiết học viên, khóa học, nhận xét và lịch sử kiểm duyệt."
+      description="Xem đánh giá, phản hồi học viên và theo dõi lịch sử kiểm duyệt."
       icon="lucide:message-square"
       iconClassName="bg-primary/10 text-primary ring-primary/20"
       className="sm:max-w-2xl max-h-[90vh] flex flex-col"
-      bodyClassName="overflow-y-auto pr-1 space-y-5"
+      bodyClassName="min-h-0 overflow-y-auto pr-1 space-y-5"
     >
       {isLoading ? (
         <div className="py-12 flex flex-col items-center justify-center gap-2 text-muted-foreground text-xs">
@@ -196,6 +201,13 @@ export function ReviewDetailDialog({
             )}
           </div>
 
+          <AdminReviewReplySection
+            key={review.id}
+            review={review}
+            isPending={replyMutation.isPending}
+            onSave={(reply) => replyMutation.mutateAsync({ id: review.id, payload: { reply } })}
+          />
+
           {/* Instructor Reply */}
           {review.instructorReply && (
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-1.5">
@@ -232,7 +244,7 @@ export function ReviewDetailDialog({
                   size="sm"
                   variant="outline"
                   onClick={handleDismissReports}
-                  disabled={dismissMutation.isPending}
+                  disabled={dismissMutation.isPending || replyMutation.isPending}
                   className="h-7 text-xs border-destructive/30 hover:bg-destructive/10 text-destructive"
                 >
                   <Icon icon="lucide:check" className="size-3 mr-1" />
@@ -312,22 +324,24 @@ export function ReviewDetailDialog({
           </div>
 
           {/* Action buttons */}
-          <div className="pt-2 border-t border-border/60 flex items-center justify-between gap-2">
+          <div className="pt-2 border-t border-border/60 flex flex-wrap items-center justify-between gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
+              disabled={replyMutation.isPending}
               onClick={() => onOpenChange(false)}
             >
               Đóng
             </Button>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {review.status === 'visible' && !review.deletedAt && onHideClick && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
+                  disabled={replyMutation.isPending}
                   className="border-amber-300 text-amber-700 hover:bg-amber-50"
                   onClick={() => {
                     onOpenChange(false);
@@ -343,6 +357,7 @@ export function ReviewDetailDialog({
                 <Button
                   type="button"
                   size="sm"
+                  disabled={replyMutation.isPending}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white"
                   onClick={() => {
                     onOpenChange(false);
@@ -359,6 +374,7 @@ export function ReviewDetailDialog({
                   type="button"
                   variant="destructive"
                   size="sm"
+                  disabled={replyMutation.isPending}
                   onClick={() => {
                     onOpenChange(false);
                     onDeleteClick(review);

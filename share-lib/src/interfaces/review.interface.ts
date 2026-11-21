@@ -39,6 +39,16 @@ export interface IInstructorReviewReply {
   updatedAt?: Date | string | null;
 }
 
+export interface IAdminReviewReply {
+  content: string;
+  adminId: string;
+  adminName?: string | null;
+  repliedAt: Date | string;
+  updatedAt?: Date | string | null;
+  updatedById?: string | null;
+  updatedByName?: string | null;
+}
+
 export interface IReview {
   id: string;
   userId: string;
@@ -51,6 +61,7 @@ export interface IReview {
   reports?: IReviewReportEntry[];
   reportCount?: number;
   instructorReply?: IInstructorReviewReply | null;
+  adminReply?: IAdminReviewReply | null;
   user?: IReviewUserSummary | null;
   course?: IReviewCourseSummary | null;
   createdAt: Date | string;

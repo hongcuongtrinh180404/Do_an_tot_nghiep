@@ -123,6 +123,16 @@
 .courseBottom { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; }
 .courseBottom strong { font-weight: 700; font-variant-numeric: tabular-nums; }
 .courseAction { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
+.progressBlock { display: grid; gap: 8px; font-variant-numeric: tabular-nums; }
+.progressTrack { height: 6px; overflow: hidden; border-radius: 999px; background: var(--muted); }
+.progressTrack > span { display: block; height: 100%; background: var(--primary); }
+.progressFacts { display: grid; gap: 10px; margin: 0; }
+.progressFacts > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.progressFacts dt { color: var(--muted-foreground); }
+.progressFacts dd { margin: 0; flex-shrink: 0; font-weight: 500; font-variant-numeric: tabular-nums; }
+.textAction { display: inline-flex; align-items: center; min-height: 44px; text-align: left; font-weight: 500; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.textAction:disabled, .selection:disabled { color: var(--muted-foreground); cursor: default; }
+.selection { width: 100%; min-height: 48px; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
 .loading { display: flex; align-items: center; gap: 8px; color: var(--muted-foreground); }
 .spinner { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

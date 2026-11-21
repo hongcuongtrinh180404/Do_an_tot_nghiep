@@ -43,6 +43,7 @@ describe('ReviewRepository', () => {
     expect(result?.rating).toBe(5);
     expect(result?.comment).toBe('Khóa học tuyệt vời!');
     expect(result?.user?.fullName).toBe('Nguyễn Văn A');
+    expect(result?.adminReply).toBeNull();
   });
 
   it('2. should find course reviews with pagination and sort by newest', async () => {
@@ -169,6 +170,7 @@ describe('ReviewRepository', () => {
     expect(pipeline).toContainEqual({ $match: { $and: [{ deletedAt: null }] } });
     const facet = pipeline.find((stage): stage is PipelineStage.Facet => '$facet' in stage);
     expect(facet?.$facet.data).toEqual(expect.arrayContaining([{ $sort: { createdAt: -1 } }, { $skip: 10 }, { $limit: 10 }]));
+    expect(facet?.$facet.data).toContainEqual({ $project: expect.objectContaining({ adminReply: 1 }) });
   });
 
   it.each([
@@ -298,5 +300,69 @@ describe('ReviewRepository', () => {
       { $set: { instructorReply: null } },
       { returnDocument: 'after', runValidators: true, timestamps: false, session: null },
     );
+  });
+
+  it('saves and maps only the admin reply, preserving student and instructor fields', async () => {
+    const reviewId = new Types.ObjectId();
+    const adminId = new Types.ObjectId();
+    const editorId = new Types.ObjectId();
+    const reply = {
+      content: 'Đã khắc phục lỗi phát video.',
+      adminId: adminId.toString(),
+      adminName: 'Quản trị viên',
+      repliedAt: new Date('2026-11-20T10:00:00Z'),
+      updatedAt: new Date('2026-11-20T11:00:00Z'),
+      updatedById: editorId.toString(),
+      updatedByName: 'Người cập nhật',
+    };
+    const storedReply = { ...reply, adminId, updatedById: editorId };
+    const instructorReply = {
+      content: 'Nội dung bài giảng vẫn đầy đủ.',
+      instructorId: new Types.ObjectId(),
+      repliedAt: new Date(),
+    };
+    const studentUpdatedAt = new Date('2026-01-01T00:00:00Z');
+    const query = {
+      populate: vi.fn().mockReturnThis(),
+      exec: vi.fn().mockResolvedValue({
+        _id: reviewId,
+        userId: new Types.ObjectId(userId),
+        courseId: new Types.ObjectId(courseId),
+        rating: 2,
+        comment: 'Video không tải được.',
+        updatedAt: studentUpdatedAt,
+        instructorReply,
+        adminReply: storedReply,
+      }),
+    };
+    const findOneAndUpdate = vi.fn().mockReturnValue(query);
+    const repository = new ReviewRepository({ findOneAndUpdate } as unknown as Model<ReviewDocument>);
+
+    const result = await repository.setAdminReply(reviewId.toString(), reply);
+
+    expect(findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: reviewId, deletedAt: null, status: ReviewStatusEnum.VISIBLE },
+      { $set: { adminReply: storedReply } },
+      { returnDocument: 'after', runValidators: true, timestamps: false, session: null },
+    );
+    expect(result).toMatchObject({
+      rating: 2,
+      comment: 'Video không tải được.',
+      updatedAt: studentUpdatedAt,
+      adminReply: reply,
+      instructorReply: { content: instructorReply.content, instructorId: instructorReply.instructorId.toString() },
+    });
+  });
+
+  it('returns null when the review is no longer visible at write time', async () => {
+    const query = { populate: vi.fn().mockReturnThis(), exec: vi.fn().mockResolvedValue(null) };
+    const repository = new ReviewRepository({
+      findOneAndUpdate: vi.fn().mockReturnValue(query),
+    } as unknown as Model<ReviewDocument>);
+    expect(await repository.setAdminReply(new Types.ObjectId().toString(), {
+      content: 'Phản hồi',
+      adminId: new Types.ObjectId().toString(),
+      repliedAt: new Date(),
+    })).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
-import { Logger, ValidationPipe, type INestApplication } from '@nestjs/common';
+import { Logger, Module, ValidationPipe, type INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { JwtModule, JwtService } from '@nestjs/jwt';
@@ -34,6 +34,11 @@ import { PublicCourseSearchService } from '../../course/services/public-course-s
 import { ChatbotAiClient } from '../chatbot-ai.client.js';
 import { ChatbotAiError, type ChatbotAiErrorCode } from '../chatbot.errors.js';
 import { ChatbotHttpModule } from '../chatbot-http.module.js';
+import { LearningProgressModule } from '../../learning-progress/learning-progress.module.js';
+import { LearningProgressService } from '../../learning-progress/services/learning-progress.service.js';
+import { EnrollmentEntity } from '../../enrollment/schemas/enrollment.schema.js';
+import { LessonEntity } from '../../course/schemas/lesson.schema.js';
+import { ChatbotLearningReadService } from '../services/chatbot-learning-read.service.js';
 import { parseSearchCoursesArguments } from '../tools/search-courses.contract.js';
 import {
   CHATBOT_HTTP_EXPOSED_HEADERS,
@@ -43,7 +48,13 @@ import {
 const path = '/api/v1/chatbot/messages';
 const secret = 'synthetic-chatbot-http-jwt-secret-at-least-32-characters';
 
-function toolCompletion(args: Record<string, unknown> = { keyword: 'React' }) {
+@Module({
+  providers: [{ provide: LearningProgressService, useValue: {} }],
+  exports: [LearningProgressService],
+})
+class TestLearningProgressModule {}
+
+function toolCompletion(args: Record<string, unknown> = { keyword: 'React' }, name = 'search_courses') {
   return {
     assistantMessage: {
       role: 'assistant',
@@ -53,7 +64,7 @@ function toolCompletion(args: Record<string, unknown> = { keyword: 'React' }) {
         {
           id: 'call_1',
           type: 'function',
-          function: { name: 'search_courses', arguments: JSON.stringify(args) },
+          function: { name, arguments: JSON.stringify(args) },
         },
       ],
     },
@@ -67,6 +78,7 @@ describe('Chatbot HTTP — real JWT/validation/limits, mocked external data', ()
   let token: string;
   const complete = vi.fn();
   const search = vi.fn();
+  const learning = { list: vi.fn(), detail: vi.fn(), overview: vi.fn(), candidates: vi.fn() };
   const users = {
     findById: vi.fn(),
     toUserProfile: vi.fn((user: IUser) => ({
@@ -101,6 +113,10 @@ describe('Chatbot HTTP — real JWT/validation/limits, mocked external data', ()
         },
       ],
     })
+      .overrideModule(LearningProgressModule).useModule(TestLearningProgressModule)
+      .overrideProvider(getModelToken(EnrollmentEntity.name)).useValue({})
+      .overrideProvider(getModelToken(LessonEntity.name)).useValue({})
+      .overrideProvider(ChatbotLearningReadService).useValue(learning)
       .overrideProvider(ConfigService)
       .useValue(config)
       .overrideProvider(ChatbotAiClient)
@@ -142,6 +158,7 @@ describe('Chatbot HTTP — real JWT/validation/limits, mocked external data', ()
   });
 
   beforeEach(() => {
+    for (const method of Object.values(learning)) method.mockReset();
     complete.mockReset().mockResolvedValue(toolCompletion());
     users.findById.mockReset().mockImplementation((id: string) =>
       Promise.resolve({
@@ -189,6 +206,60 @@ describe('Chatbot HTTP — real JWT/validation/limits, mocked external data', ()
       .set('Authorization', `Bearer ${bearer}`)
       .send(body as Record<string, unknown>);
   }
+
+  it('routes owned courses and selected progress through the authenticated HTTP caller', async () => {
+    const id = '0123456789abcdef01234567';
+    const course = {
+      id, title: 'Khóa thật của tài khoản', enrolledAt: '2026-11-20T00:00:00.000Z',
+      url: `/courses/${id}`, resumeUrl: null,
+      progress: { status: 'NOT_STARTED', progressPercent: 0, completedLessons: 0, totalLessons: 2,
+        watchedMs: 0, lastLessonId: null, lastPositionSeconds: 0, sessionId: 'private-session' },
+      orderId: 'private-order',
+    };
+    learning.list.mockResolvedValue({
+      filtersApplied: { page: 1, limit: 5 }, items: [course], total: 1, page: 1, limit: 5, hasMore: false,
+    });
+    complete.mockResolvedValue(toolCompletion({}, 'get_my_courses'));
+    const first = await post({ message: 'Các khóa của tôi' });
+    expect(first.status).toBe(200);
+    expect(first.body.data.kind).toBe('my_courses');
+    expect(learning.list).toHaveBeenCalledWith(jwt.decode(token).sub, { page: 1, limit: 5 }, expect.any(AbortSignal));
+    expect(JSON.stringify(first.body)).not.toContain('private-');
+    learning.detail.mockResolvedValue({ scope: 'course', course, remainingLessons: 2, lastLessonTitle: null });
+    complete.mockResolvedValue(toolCompletion({ scope: 'course', position: 1 }, 'get_my_learning_progress'));
+    const detail = await post({ message: 'Tiến độ khóa đầu tiên', context: first.body.data.context });
+    expect(detail.status).toBe(200);
+    expect(detail.body.data.result.scope).toBe('course');
+    expect(learning.detail).toHaveBeenCalledWith(jwt.decode(token).sub, id, expect.any(AbortSignal));
+    expect(JSON.stringify(detail.body)).not.toContain('private-');
+    const other = await post({ message: 'Tiến độ khóa đầu tiên', context: first.body.data.context }, jwt.sign({ sub: randomUUID() }));
+    expect(other.status).toBe(400);
+    expect(other.body.code).toBe('CHATBOT_CONTEXT_INVALID');
+    expect(learning.detail).toHaveBeenCalledOnce();
+  });
+
+  it('treats missing ownership as a business result and database failure as 503', async () => {
+    complete.mockResolvedValue(toolCompletion({ scope: 'course', courseId: '0123456789abcdef01234567' }, 'get_my_learning_progress'));
+    learning.detail.mockResolvedValue({ scope: 'not_owned' });
+    const missing = await post({ message: 'Tiến độ /courses/0123456789abcdef01234567' });
+    expect(missing.status).toBe(200);
+    expect(missing.body.data.result).toEqual({ scope: 'not_owned' });
+    const { ChatbotLearningError } = await import('../tools/my-learning.types.js');
+    learning.overview.mockRejectedValue(new ChatbotLearningError('CHATBOT_LEARNING_UNAVAILABLE'));
+    complete.mockResolvedValue(toolCompletion({ scope: 'overview' }, 'get_my_learning_progress'));
+    const failed = await post({ message: 'Tiến độ của tôi' });
+    expect(failed.status).toBe(503);
+    expect(failed.body.code).toBe('CHATBOT_LEARNING_UNAVAILABLE');
+    expect(failed.body).not.toHaveProperty('result');
+  });
+
+  it('rejects model-supplied account overrides before any personal read', async () => {
+    complete.mockResolvedValue(toolCompletion({ userId: 'other' }, 'get_my_courses'));
+    const response = await post({ message: 'Khóa của tôi' });
+    expect(response.status).toBe(200);
+    expect(response.body.data.status).toBe('needs_clarification');
+    expect(learning.list).not.toHaveBeenCalled();
+  });
 
   it.each([
     ['Có khóa học React không?', { keyword: 'React' }],

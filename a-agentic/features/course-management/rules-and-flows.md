@@ -114,3 +114,12 @@
       - Nếu chưa tồn tại: Giữ nguyên slug cơ sở (ví dụ: `lap-trinh-python-co-ban`).
       - Nếu đã tồn tại: Thử lần lượt các hậu tố `-2`, `-3`, `-4`... cho tới khi tìm được slug duy nhất khả dụng (ví dụ: `lap-trinh-python-co-ban-2`).
       - Khóa học được lưu với slug duy nhất này mà không bao giờ ném lỗi xung đột 409 cho người dùng khi tạo mới.
+
+14. **Lưu vết & Quản lý Nhật ký Lịch sử Phê duyệt Khóa học (Course Approval History Audit Trail)**:
+    - **Nguyên tắc cốt lõi**: Mỗi hành động phê duyệt (`approveCourse` -> `PUBLISHED`) hoặc từ chối / yêu cầu chỉnh sửa (`rejectCourse` -> `DRAFT` kèm `rejectionReason`) của Quản trị viên (`ADMIN`) đều được tự động lưu vết thành một bản ghi độc lập trong collection `course_approval_histories`.
+    - **Bảo toàn dữ liệu lịch sử**: Khóa học trải qua nhiều vòng chỉnh sửa và gửi duyệt lại sẽ giữ nguyên toàn bộ chuỗi lịch sử các lần duyệt/từ chối trước đó mà không bị ghi đè.
+    - **Cấu trúc Tab cấp cao trên giao diện Quản trị (`/admin/courses`)**:
+      - Trang quản lý khóa học hỗ trợ 2 Tab chính: **Danh sách khóa học** (`?tab=COURSES`) và **Lịch sử phê duyệt** (`?tab=HISTORY`).
+      - Tab Lịch sử hỗ trợ lọc con theo trạng thái (`Tất cả`, `Đã phê duyệt`, `Đã từ chối`), tìm kiếm đa trường (tên khóa học, slug, giảng viên, admin, lý do) và modal xem chi tiết từng lần duyệt hoặc timeline toàn bộ các lần duyệt của khóa học.
+    - **Bảo mật truy cập**: Danh sách tổng hợp lịch sử phê duyệt chỉ dành cho Quản trị viên (`RoleEnum.ADMIN`); Giảng viên sở hữu khóa học được phép xem lịch sử phê duyệt của riêng khóa học của mình (`GET /courses/:id/approval-history`).
+

@@ -10,12 +10,13 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Header,
   UseInterceptors,
   UploadedFile,
   ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ICourse, ISection, RoleEnum } from 'share-lib';
+import { IAdminCourseStats, ICourse, ISection, RoleEnum, type ICourseApprovalHistory, type IAdminCourseApprovalHistoryStats } from 'share-lib';
 import { ApiResponse, ParseObjectIdPipe, PaginationResult } from '../base/index.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -27,6 +28,7 @@ import { CreateSectionDto } from './dto/create-section.dto.js';
 import { UpdateSectionDto } from './dto/update-section.dto.js';
 import { ReorderSectionsDto } from './dto/reorder-sections.dto.js';
 import { QueryCoursesAdminDto } from './dto/query-courses-admin.dto.js';
+import { QueryCourseApprovalHistoryDto } from './dto/query-course-approval-history.dto.js';
 import { RejectCourseDto } from './dto/reject-course.dto.js';
 import { QueryPublicCoursesDto } from './dto/query-public-courses.dto.js';
 import { CourseImageValidationPipe } from './pipes/course-image-validation.pipe.js';
@@ -47,10 +49,12 @@ export class CourseController {
 
   @Get('public/:idOrSlug')
   @Public()
+  @Header('Cache-Control', 'private, no-store')
   async getPublicCourseDetail(
     @Param('idOrSlug') idOrSlug: string,
+    @CurrentUser('role') viewerRole?: RoleEnum,
   ): Promise<ApiResponse<unknown>> {
-    const result = await this.courseService.getPublicCourseDetail(idOrSlug);
+    const result = await this.courseService.getPublicCourseDetail(idOrSlug, viewerRole);
     return ApiResponse.success(result, 'Lấy chi tiết khóa học thành công');
   }
 
@@ -64,6 +68,13 @@ export class CourseController {
     return ApiResponse.success(courses, 'Lấy danh sách khóa học thành công');
   }
 
+  @Get('admin/stats')
+  @Roles(RoleEnum.ADMIN)
+  async getAdminCourseStats(): Promise<ApiResponse<IAdminCourseStats>> {
+    const result = await this.courseService.getAdminCourseStats();
+    return ApiResponse.success(result, 'Lấy thống kê khóa học quản trị thành công');
+  }
+
   @Get('admin')
   @Roles(RoleEnum.ADMIN)
   async getAdminCourses(
@@ -71,6 +82,31 @@ export class CourseController {
   ): Promise<ApiResponse<PaginationResult<ICourse>>> {
     const result = await this.courseService.findAdminCourses(query);
     return ApiResponse.success(result, 'Lấy danh sách khóa học quản trị thành công');
+  }
+
+  @Get('admin/approval-history/stats')
+  @Roles(RoleEnum.ADMIN)
+  async getAdminApprovalHistoryStats(): Promise<ApiResponse<IAdminCourseApprovalHistoryStats>> {
+    const result = await this.courseService.getAdminCourseApprovalHistoryStats();
+    return ApiResponse.success(result, 'Lấy thống kê lịch sử phê duyệt thành công');
+  }
+
+  @Get('admin/approval-history')
+  @Roles(RoleEnum.ADMIN)
+  async getAdminApprovalHistories(
+    @Query() query: QueryCourseApprovalHistoryDto,
+  ): Promise<ApiResponse<PaginationResult<ICourseApprovalHistory>>> {
+    const result = await this.courseService.findAdminCourseApprovalHistories(query);
+    return ApiResponse.success(result, 'Lấy lịch sử phê duyệt khóa học thành công');
+  }
+
+  @Get(':id/approval-history')
+  @Roles(RoleEnum.ADMIN, RoleEnum.INSTRUCTOR)
+  async getCourseApprovalHistory(
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<ApiResponse<ICourseApprovalHistory[]>> {
+    const result = await this.courseService.getCourseApprovalHistories(id);
+    return ApiResponse.success(result, 'Lấy lịch sử phê duyệt của khóa học thành công');
   }
 
   @Post(':id/approve')

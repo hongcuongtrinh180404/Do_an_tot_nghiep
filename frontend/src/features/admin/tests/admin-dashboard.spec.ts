@@ -10,9 +10,17 @@ import {
   COURSES_PERFORMANCE_DATA,
   PENDING_TASKS_DATA,
   PERIOD_LABELS,
+  CATEGORY_REVENUE_DATA,
+  getCategoryRevenueByPeriod,
 } from '../dashboard/constants/mock-dashboard-data';
-import type { DashboardPeriodType } from '../dashboard/types';
-import { AdminDashboardView, DashboardInstructorsSection, DashboardCoursesSection } from '@/features/admin';
+import type { DashboardPeriodType, CategoryRevenueItem } from '../dashboard/types';
+import {
+  AdminDashboardView,
+  DashboardInstructorsSection,
+  DashboardCoursesSection,
+  CategoryRevenueBreakdown,
+  DashboardPendingSection,
+} from '@/features/admin';
 
 describe('Admin Dashboard Unit Tests', () => {
   describe('Component Exports', () => {
@@ -141,6 +149,95 @@ describe('Admin Dashboard Unit Tests', () => {
       PENDING_TASKS_DATA.forEach((task) => {
         expect(task.route.startsWith('/admin')).toBe(true);
       });
+    });
+  });
+
+  describe('Category Revenue Breakdown (Top 5 + Khác)', () => {
+    it('renders CategoryRevenueBreakdown with top 5 and groups remaining into Khác', () => {
+      const sampleCategories: CategoryRevenueItem[] = [
+        { id: 'c1', name: 'Web Dev', revenue: 50000000 },
+        { id: 'c2', name: 'AI & Data', revenue: 40000000 },
+        { id: 'c3', name: 'UI/UX Design', revenue: 30000000 },
+        { id: 'c4', name: 'Marketing', revenue: 20000000 },
+        { id: 'c5', name: 'DevOps', revenue: 10000000 },
+        { id: 'c6', name: 'English', revenue: 5000000 },
+        { id: 'c7', name: 'Video Editing', revenue: 3000000 },
+      ];
+
+      const html = renderToString(
+        React.createElement(CategoryRevenueBreakdown, {
+          categories: sampleCategories,
+          timeframeLabel: 'Tháng này',
+        }),
+      );
+
+      expect(html).toContain('Cơ cấu Doanh thu theo Danh mục');
+      expect(html).toContain('Tháng này');
+      expect(html).toContain('Web Dev');
+      expect(html).toContain('AI &amp; Data');
+      expect(html).toContain('UI/UX Design');
+      expect(html).toContain('Marketing');
+      expect(html).toContain('DevOps');
+      // Should group rank 6 and 7 into Khác (2 danh mục)
+      expect(html).toContain('Khác (2 danh mục)');
+    });
+
+    it('renders empty state when categories list is empty', () => {
+      const html = renderToString(
+        React.createElement(CategoryRevenueBreakdown, {
+          categories: [],
+          timeframeLabel: 'Hôm nay',
+        }),
+      );
+
+      expect(html).toContain('Chưa có dữ liệu doanh thu');
+      expect(html).toContain('Không phát sinh giao dịch trong kỳ đã chọn.');
+    });
+
+    it('scales category revenue appropriately by period', () => {
+      const thisMonth = getCategoryRevenueByPeriod('this_month');
+      const today = getCategoryRevenueByPeriod('today');
+
+      expect(thisMonth.length).toBeGreaterThan(5);
+      const totalThisMonth = thisMonth.reduce((sum, item) => sum + item.revenue, 0);
+      const totalToday = today.reduce((sum, item) => sum + item.revenue, 0);
+
+      expect(totalThisMonth).toBeGreaterThan(totalToday);
+      expect(CATEGORY_REVENUE_DATA.length).toBeGreaterThan(5);
+    });
+  });
+
+  describe('Dashboard Pending Section (Strict Read-Only)', () => {
+    it('renders 3 informational cards with proper labels', () => {
+      const html = renderToString(
+        React.createElement(DashboardPendingSection, {
+          pendingTasks: { cur: 16, courses: 5, instructors: 3, reviews: 8 },
+        }),
+      );
+
+      expect(html).toContain('Trung tâm Công việc Chờ Xử Lý');
+      expect(html).toContain('Khóa học cần phê duyệt');
+      expect(html).toContain('Phê duyệt giảng viên');
+      expect(html).toContain('Báo cáo đánh giá');
+      expect(html).toContain('Chỉ xem • Tự động tổng hợp');
+    });
+
+    it('strictly satisfies Read-Only constraints: NO button, NO link, NO cursor-pointer', () => {
+      const html = renderToString(
+        React.createElement(DashboardPendingSection, {
+          pendingTasks: { cur: 16, courses: 5, instructors: 3, reviews: 8 },
+        }),
+      );
+
+      // Must not contain buttons
+      expect(html).not.toContain('<button');
+      // Must not contain links
+      expect(html).not.toContain('<a');
+      expect(html).not.toContain('href');
+      // Must not contain clickable cursor indicators
+      expect(html).not.toContain('cursor-pointer');
+      // Must have cursor-default and select-none
+      expect(html).toContain('cursor-default');
     });
   });
 });

@@ -153,23 +153,32 @@ export function useDataTableUrlState(options: UseDataTableUrlStateOptions = {}) 
     [searchParams, updateUrl],
   );
 
-  // Cập nhật bộ lọc
-  const setFilter = useCallback(
-    (key: string, value: string | string[] | undefined) => {
+  // Cập nhật nhiều bộ lọc trong một lần điều hướng
+  const setFilters = useCallback(
+    (filters: Record<string, string | string[] | undefined>) => {
       const params = new URLSearchParams(searchParams.toString());
 
-      if (!value || (Array.isArray(value) && value.length === 0)) {
-        params.delete(key);
-      } else if (Array.isArray(value)) {
-        params.set(key, value.join(','));
-      } else {
-        params.set(key, value);
+      for (const [key, value] of Object.entries(filters)) {
+        if (!value || (Array.isArray(value) && value.length === 0)) {
+          params.delete(key);
+        } else if (Array.isArray(value)) {
+          params.set(key, value.join(','));
+        } else {
+          params.set(key, value);
+        }
       }
 
       params.set('page', '1');
       updateUrl(params);
     },
     [searchParams, updateUrl],
+  );
+
+  const setFilter = useCallback(
+    (key: string, value: string | string[] | undefined) => {
+      setFilters({ [key]: value });
+    },
+    [setFilters],
   );
 
   const getFilter = useCallback(
@@ -225,6 +234,7 @@ export function useDataTableUrlState(options: UseDataTableUrlStateOptions = {}) 
     setPage,
     setLimit,
     setFilter,
+    setFilters,
     getFilter,
     resetFilters,
     sorting,
