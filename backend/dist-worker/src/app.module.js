@@ -29,6 +29,7 @@ import { ChatbotHttpModule } from './modules/chatbot/chatbot-http.module.js';
 import { InstructorApplicationModule } from './modules/instructor-application/instructor-application.module.js';
 import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module.js';
 import { RabbitMqModule } from './modules/messaging/rabbitmq.module.js';
+import { JobsModule } from './modules/jobs/jobs.module.js';
 let AppModule = class AppModule {
 };
 AppModule = __decorate([
@@ -52,6 +53,7 @@ AppModule = __decorate([
                 middleware: { mount: true },
             }),
             RabbitMqModule,
+            JobsModule,
             BaseModule,
             StorageModule,
             AssemblyAiModule,

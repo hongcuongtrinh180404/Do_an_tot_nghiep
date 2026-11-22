@@ -1,7 +1,7 @@
 # Giai Đoạn 2: Nền Tảng Job Management & Outbox Dispatcher
 
 > **Thuộc kế hoạch:** [`docs/chatbot/plan-rabbitmq-ai-jobs/README.md`](./README.md)  
-> **Trạng thái:** Sẵn sàng thực hiện  
+> **Trạng thái:** ✅ ĐÃ HOÀN THÀNH (100% Tests Pass, Build 0 Error, Verification Passed)  
 > **Giai đoạn trước:** [`phase-1-infrastructure-worker.md`](./phase-1-infrastructure-worker.md)  
 > **Mục tiêu:** Xây dựng vòng đời Job bền vững trong MongoDB, mô hình Embedded Outbox, cơ chế Atomic Claim với Lease Token, dịch vụ phục hồi lỗi (Recovery), và các API quản lý/tra cứu Job.
 
@@ -191,17 +191,17 @@ const claimedJob = await this.jobModel.findOneAndUpdate(
 
 ## 4. Danh Sách Nhiệm Vụ Cụ Thể (Checklist)
 
-- [ ] Cập nhật `share-lib` với các enums và types của Job; build lại `share-lib`.
-- [ ] Xây dựng `JobSchema` và khai báo đầy đủ 6 indexes bắt buộc trong Mongoose.
-- [ ] Xây dựng `JobRepository` triển khai `BaseMongoRepository` theo đúng quy chuẩn dự án (Rule 1).
-- [ ] Cài đặt `JobService` chứa logic `createJob`, `claimJob`, `renewLease`, `completeJob`, `failJob`.
-- [ ] Cài đặt `JobDispatcherService` với batch query, publisher confirms và exponential backoff khi lỗi broker.
-- [ ] Cài đặt `JobRecoveryService` chạy background (mỗi 30-60s) để reset các job có lease quá hạn về `status: queued`.
-- [ ] Xây dựng controller `analysis-jobs.controller.ts` cung cấp:
+- [x] Cập nhật `share-lib` với các enums và types của Job; build lại `share-lib`.
+- [x] Xây dựng `JobSchema` và khai báo đầy đủ 7 indexes bắt buộc trong Mongoose.
+- [x] Xây dựng `JobRepository` triển khai `BaseMongoRepository` theo đúng quy chuẩn dự án (Rule 1).
+- [x] Cài đặt `JobService` chứa logic `createJob`, `claimJob`, `renewLease`, `completeJob`, `failJob`, `retryManual`.
+- [x] Cài đặt `JobDispatcherService` với batch query, publisher confirms và exponential backoff khi lỗi broker.
+- [x] Cài đặt `JobRecoveryService` chạy background (mỗi 30-60s) để reset các job có lease quá hạn về `status: queued`.
+- [x] Xây dựng controller `analysis-jobs.controller.ts` cung cấp:
   - `GET /lessons/:id/analysis/jobs`
   - `GET /lessons/:id/analysis/jobs/:jobId`
   - `POST /lessons/:id/analysis/jobs/:jobId/retry`
-- [ ] Đảm bảo CLS (AsyncLocalStorage) nhận đúng `requestedById` và `correlationId` trong tiến trình Worker khi claim job.
+- [x] Đảm bảo CLS (AsyncLocalStorage) nhận đúng `requestedById` và `correlationId` trong tiến trình Worker khi claim job.
 
 ---
 
@@ -218,11 +218,11 @@ const claimedJob = await this.jobModel.findOneAndUpdate(
 ## 6. Tiêu Chí Nghiệm Thu (Exit Gate)
 
 Giai đoạn 2 hoàn thành khi:
-- [ ] Unit tests cho `JobService` và `JobDispatcherService` đạt 100% pass.
-- [ ] Không thể tạo nhiều hơn 1 Job `active: true` trên cùng một bộ `(lessonId, type)`.
-- [ ] Quá trình Claim Job là nguyên tử (Atomic), không có hiện tượng race condition.
-- [ ] Recovery Service phục hồi thành công job bị treo mà không cần can thiệp thủ công.
-- [ ] Toàn bộ log có gắn kèm `jobId`, `correlationId`, `leaseToken` (rút gọn) và `attempts`.
+- [x] Unit tests cho `JobService`, `JobDispatcherService`, `JobRecoveryService`, `AnalysisJobService`, `AnalysisJobsController` đạt 100% pass (32/32 tests mới, 120/120 tests toàn bộ).
+- [x] Không thể tạo nhiều hơn 1 Job `active: true` trên cùng một bộ `(lessonId, type)`.
+- [x] Quá trình Claim Job là nguyên tử (Atomic), không có hiện tượng race condition.
+- [x] Recovery Service phục hồi thành công job bị treo mà không cần can thiệp thủ công.
+- [x] Toàn bộ log có gắn kèm `jobId`, `correlationId`, `leaseToken` (rút gọn) và `attempts`.
 
 ---
 

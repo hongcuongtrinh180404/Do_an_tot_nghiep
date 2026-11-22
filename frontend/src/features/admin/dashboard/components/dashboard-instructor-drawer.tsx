@@ -23,6 +23,8 @@ export function DashboardInstructorDrawer({
 
   if (!instructor) return null;
 
+  const courses = instructor.courses ?? [];
+
   const handleNavigateToInstructors = () => {
     onClose();
     router.push('/admin/instructors');
@@ -106,7 +108,7 @@ export function DashboardInstructorDrawer({
           <div>
             <div className="flex items-center justify-between mb-2.5">
               <p className="text-xs font-bold text-foreground">
-                Các khóa học đang giảng dạy ({instructor.courses.length})
+                Các khóa học đang giảng dạy ({courses.length})
               </p>
               <span className="text-[11px] text-muted-foreground">
                 Tổng công khai: {instructor.coursesCount} khóa
@@ -114,12 +116,12 @@ export function DashboardInstructorDrawer({
             </div>
 
             <div className="space-y-2.5">
-              {instructor.courses.length === 0 ? (
+              {courses.length === 0 ? (
                 <div className="p-4 text-center text-xs text-muted-foreground bg-muted/20 rounded-xl border border-border/40">
                   Chưa có chi tiết danh sách khóa học con trong cơ sở dữ liệu
                 </div>
               ) : (
-                instructor.courses.map((course) => (
+                courses.map((course) => (
                   <div
                     key={course.id}
                     className="p-3 rounded-xl border border-border/60 hover:border-primary/40 bg-card transition space-y-2"

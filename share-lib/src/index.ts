@@ -13,6 +13,9 @@ export * from './enums/learning-status.enum.js';
 export * from './enums/review-status.enum.js';
 export * from './enums/instructor-application-status.enum.js';
 export * from './enums/course-approval-action.enum.js';
+export * from './enums/job-status.enum.js';
+export * from './enums/job-type.enum.js';
+export * from './enums/job-phase.enum.js';
 
 // Interfaces
 export * from './interfaces/user.interface.js';
@@ -40,6 +43,7 @@ export * from './interfaces/review.interface.js';
 export * from './interfaces/revenue.interface.js';
 export * from './interfaces/instructor-application.interface.js';
 export * from './interfaces/admin-dashboard.interface.js';
+export * from './interfaces/job.interface.js';
 
 // Constants
 export * from './constants/auth.constants.js';

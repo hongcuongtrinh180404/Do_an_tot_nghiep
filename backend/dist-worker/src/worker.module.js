@@ -5,10 +5,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
 import { ClsModule } from 'nestjs-cls';
 import { envValidationSchema } from './config/env.validation.js';
 import { RabbitMqModule } from './modules/messaging/rabbitmq.module.js';
+import { JobsModule } from './modules/jobs/jobs.module.js';
 let WorkerModule = class WorkerModule {
 };
 WorkerModule = __decorate([
@@ -19,10 +21,19 @@ WorkerModule = __decorate([
                 isGlobal: true,
                 validationSchema: envValidationSchema,
             }),
+            MongooseModule.forRootAsync({
+                imports: [ConfigModule],
+                useFactory: (configService) => ({
+                    uri: configService.get('MONGODB_URI'),
+                    dbName: configService.get('MONGODB_DB_NAME', 'thc_datn'),
+                }),
+                inject: [ConfigService],
+            }),
             ClsModule.forRoot({
                 global: true,
             }),
             RabbitMqModule,
+            JobsModule,
         ],
     })
 ], WorkerModule);
