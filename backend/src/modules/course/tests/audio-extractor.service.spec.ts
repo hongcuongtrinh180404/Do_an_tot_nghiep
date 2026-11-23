@@ -164,4 +164,18 @@ describe('AudioExtractorService', () => {
       await expect(service.cleanupTempFile('/tmp/non-existent.mp3')).resolves.not.toThrow();
     });
   });
+
+  describe('onModuleDestroy', () => {
+    it('should kill any active child processes on shutdown', () => {
+      const mockChild = {
+        kill: vi.fn(),
+      };
+      (service as any).activeProcesses.add(mockChild);
+
+      service.onModuleDestroy();
+
+      expect(mockChild.kill).toHaveBeenCalledWith('SIGTERM');
+      expect((service as any).activeProcesses.size).toBe(0);
+    });
+  });
 });

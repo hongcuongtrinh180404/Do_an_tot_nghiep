@@ -102,6 +102,24 @@ export class LessonEntity extends BaseAbstractDocument {
     required: true,
   })
   transcriptionStatus: LessonTranscriptionStatusEnum;
+
+  @Prop({ type: Number, default: 0 })
+  analysisInputRevision: number;
+
+  @Prop({
+    type: {
+      summary: { type: Number, default: 0 },
+      quiz: { type: Number, default: 0 },
+      mindmap: { type: Number, default: 0 },
+    },
+    default: () => ({ summary: 0, quiz: 0, mindmap: 0 }),
+    _id: false,
+  })
+  analysisOutputRevisions: {
+    summary: number;
+    quiz: number;
+    mindmap: number;
+  };
 }
 
 export const LessonSchema = SchemaFactory.createForClass(LessonEntity);

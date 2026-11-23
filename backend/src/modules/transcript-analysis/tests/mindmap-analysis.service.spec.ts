@@ -40,6 +40,7 @@ describe('MindmapAnalysisService', () => {
     };
     mockLessonRepo = {
       findById: vi.fn(),
+      incrementOutputRevision: vi.fn().mockResolvedValue(true),
     };
     mockLessonTranscriptRepo = {
       findByLessonId: vi.fn(),
@@ -139,6 +140,7 @@ describe('MindmapAnalysisService', () => {
         'lesson-123',
         sampleMindmapData,
         'instructor-1',
+        undefined,
       );
     });
 
@@ -172,6 +174,7 @@ describe('MindmapAnalysisService', () => {
         'lesson-123',
         sampleMindmapData,
         'instructor-1',
+        undefined,
       );
     });
 
@@ -255,6 +258,7 @@ describe('MindmapAnalysisService', () => {
           root: expect.objectContaining({ id: 'root' }),
         }),
         'instructor-1',
+        undefined,
       );
     });
   });

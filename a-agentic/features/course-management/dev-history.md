@@ -13,6 +13,30 @@
 
 ## 2. Technical Notes & Gotchas
 
+### [2026-11-22] - Milestone 71: Đồng Bộ Hiển Thị Ảnh Khóa Học Tại Mục Phân Tích Hiệu Suất (/admin/dashboard)
+
+- **Bối cảnh & Vấn đề (Problem Statement)**:
+  - Trên trang Tổng quan Admin (`/admin/dashboard`), tại mục "Phân tích Hiệu suất Khóa học", giao diện ở Tab Doanh thu hiển thị một ô vuông ký tự viết tắt (`thumbnailBg`/`thumbnailText`), trong khi Tab Đăng ký và Tab Hoàn thành chỉ hiển thị text tên khóa học thô, không hiển thị ảnh khóa học thực tế như ở trang Quản lý & Phê duyệt khóa học (`/admin/courses`).
+  - Tại tầng Backend (`AdminDashboardRepository.getCoursesPerformance`), pipeline MongoDB `$project` bỏ sót `thumbnailUrl` và `slug`, khiến frontend không nhận được URL ảnh từ collection `courses`.
+
+- **Giải pháp Kiến trúc & Triển khai (Solution & Implementation)**:
+  1. **Hợp đồng dữ liệu chung (`share-lib`)**:
+     - Cập nhật interface `IDashboardCoursePerformance` bổ sung `thumbnailUrl?: string | null;` và `slug?: string;`.
+     - Biên dịch lại dist `share-lib`.
+  2. **Tầng Backend NestJS & MongoDB (`AdminDashboardRepository`)**:
+     - Bổ sung `thumbnailUrl: { $ifNull: ['$thumbnailUrl', null] }` và `slug: { $ifNull: ['$slug', ''] }` vào công đoạn `$project` của Aggregation Pipeline trên collection `courses`.
+     - Ánh xạ đầy đủ `thumbnailUrl` và `slug` trong danh sách kết quả trả về của hàm `getCoursesPerformance`.
+  3. **Tầng Frontend Next.js (`DashboardCoursesSection`)**:
+     - Đồng bộ kiểu `IDashboardCoursePerformance` trong `frontend/src/features/admin/dashboard/types/index.ts`.
+     - Xây dựng component `CourseItemCell` chuẩn hóa hiển thị ảnh khóa học:
+       - Khi có `thumbnailUrl`: hiển thị `<img src={thumbnailUrl} alt={title} className="size-10 rounded-lg object-cover border border-border/60 shrink-0 bg-muted" />`.
+       - Khi không có ảnh (`thumbnailUrl` là null hoặc rỗng): hiển thị container fallback `<div className="size-10 rounded-lg bg-muted flex items-center justify-center shrink-0 border border-border/60 text-muted-foreground"><Icon icon="lucide:book-open" className="size-5" /></div>`.
+       - Hiển thị tên khóa học in đậm kèm link định danh `/{course.slug}` (hoặc kèm tên giảng viên ở Tab Hoàn thành).
+     - Áp dụng đồng bộ cho cả 3 Tab: Tab A (Top 10 Doanh thu cao nhất), Tab B (Top 10 Nhiều lượt đăng ký nhất), Tab C (Top Tỷ lệ hoàn thành cao).
+  4. **Kiểm thử tự động & Xác minh chất lượng**:
+     - Backend test: `admin-dashboard.service.spec.ts` pass 5/5.
+     - Frontend test: `admin-dashboard-real-data.spec.ts` và `admin-dashboard.spec.ts` pass 34/34 tests, kiểm tra chặt chẽ việc render đúng thẻ `<img>` với `src` hợp lệ và container fallback icon `lucide:book-open` khi không có ảnh.
+
 ### [2026-11-20] - Milestone 70: Triển Khai Tab "Lịch Sử Phê Duyệt" Khóa Học Admin (/admin/courses) End-to-End
 
 - **Bối cảnh & Vấn đề (Problem Statement)**:

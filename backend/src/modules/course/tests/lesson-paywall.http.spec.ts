@@ -25,6 +25,8 @@ import { TranscriptAnalysisController } from '../../transcript-analysis/transcri
 import { MindmapAnalysisService } from '../../transcript-analysis/services/mindmap-analysis.service.js';
 import { QuizGenerationService } from '../../transcript-analysis/services/quiz-generation.service.js';
 import { SummaryGenerationService } from '../../transcript-analysis/services/summary-generation.service.js';
+import { AnalysisJobService } from '../../transcript-analysis/services/analysis-job.service.js';
+import { ConfigService } from '@nestjs/config';
 
 const lockedId = '607f1f77bcf86cd799439011';
 const previewId = '607f1f77bcf86cd799439012';
@@ -63,6 +65,8 @@ describe('Learner paywall HTTP (no database writes or external services)', () =>
         { provide: MindmapAnalysisService, useValue: mindmaps },
         { provide: SummaryGenerationService, useValue: summaries },
         { provide: QuizGenerationService, useValue: {} },
+        { provide: AnalysisJobService, useValue: {} },
+        { provide: ConfigService, useValue: { get: vi.fn() } },
       ],
     }).compile();
     app = module.createNestApplication();

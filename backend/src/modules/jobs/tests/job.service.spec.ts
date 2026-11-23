@@ -231,4 +231,55 @@ describe('JobService (Unit Test)', () => {
       ).rejects.toThrow(ConflictException);
     });
   });
+
+  describe('updateCheckpoint', () => {
+    it('nên cập nhật checkpoint bền vững vào parameters khi leaseToken hợp lệ', async () => {
+      mockJobRepo.findById = vi.fn().mockResolvedValue({
+        ...mockJob,
+        status: JobStatusEnum.PROCESSING,
+        leaseToken: 'lease-tok-123',
+        parameters: { videoKey: 'video.mp4' },
+      });
+
+      const updated = await service.updateCheckpoint('job-123', 'lease-tok-123', {
+        externalTranscriptId: 'ext-999',
+      });
+
+      expect(mockJobRepo.update).toHaveBeenCalledWith(
+        'job-123',
+        {
+          parameters: {
+            videoKey: 'video.mp4',
+            externalTranscriptId: 'ext-999',
+          },
+        },
+        undefined,
+      );
+      expect(updated).toBeDefined();
+    });
+
+    it('nên ném ConflictException nếu leaseToken không khớp', async () => {
+      mockJobRepo.findById = vi.fn().mockResolvedValue({
+        ...mockJob,
+        status: JobStatusEnum.PROCESSING,
+        leaseToken: 'different-token',
+      });
+
+      await expect(
+        service.updateCheckpoint('job-123', 'lease-tok-123', {
+          externalTranscriptId: 'ext-999',
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('nên ném NotFoundException nếu Job không tồn tại', async () => {
+      mockJobRepo.findById = vi.fn().mockResolvedValue(null);
+
+      await expect(
+        service.updateCheckpoint('job-non-existent', 'lease-tok-123', {
+          externalTranscriptId: 'ext-999',
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });

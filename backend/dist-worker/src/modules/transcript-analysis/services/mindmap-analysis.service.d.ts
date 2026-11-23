@@ -1,3 +1,4 @@
+import type { ClientSession } from 'mongoose';
 import { ILessonMindmap, ILessonMindmapData } from 'share-lib';
 import { GeminiService } from '../../gemini/index.js';
 import { LessonRepository } from '../../course/repositories/lesson.repository.js';
@@ -33,6 +34,17 @@ export declare class MindmapAnalysisService {
         end: number;
     }>, rawTranscript: string): string;
     buildMindmapPrompt(lessonTitle: string, durationSeconds: number, formattedTranscript: string): string;
+    generateMindmapContent(lessonId: string, options?: {
+        expectedInputRevision?: number;
+    }): Promise<{
+        mindmap: ILessonMindmapData;
+        metadata: MindmapGenerationResponse['metadata'];
+    }>;
+    persistMindmapWithSession(lessonId: string, mindmap: ILessonMindmapData, options?: {
+        saveAsDraft?: boolean;
+        userId?: string;
+        session?: ClientSession;
+    }): Promise<ILessonMindmap>;
     generateMindmap(lessonId: string, dto?: GenerateMindmapDto, userId?: string): Promise<MindmapGenerationResponse>;
     getMindmap(lessonId: string): Promise<ILessonMindmap | null>;
     applyDraft(lessonId: string, userId?: string): Promise<ILessonMindmap>;

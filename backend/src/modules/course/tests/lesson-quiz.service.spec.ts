@@ -32,6 +32,7 @@ describe('LessonQuizService (Unit Tests - AAA Pattern)', () => {
 
     mockLessonRepo = {
       findById: vi.fn(),
+      incrementOutputRevision: vi.fn().mockResolvedValue(true),
     };
 
     mockClsService = {

@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { Icon } from '@/components/ui/icon';
 import { CourseCard } from './course-card';
 import { usePublicCoursesCatalogQuery } from '../../api/public-courses.api';
+import { PublicCoursesQueryError } from '../public-courses-query-error';
 
 export function FeaturedCourses(): React.JSX.Element {
-  const { data, isLoading } = usePublicCoursesCatalogQuery({
+  const { data, isLoading, isError, refetch } = usePublicCoursesCatalogQuery({
     limit: 8,
     sort: 'popular',
   });
@@ -47,6 +48,10 @@ export function FeaturedCourses(): React.JSX.Element {
               />
             ))}
           </div>
+        ) : isError ? (
+          <PublicCoursesQueryError onRetry={() => { void refetch(); }} />
+        ) : featuredCourses.length === 0 ? (
+          <p className="py-6 text-sm text-[#666666]">Chưa có khóa học công khai.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {featuredCourses.map((course) => (

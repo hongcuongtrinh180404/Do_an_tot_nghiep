@@ -11,6 +11,9 @@ import { ClsModule } from 'nestjs-cls';
 import { envValidationSchema } from './config/env.validation.js';
 import { RabbitMqModule } from './modules/messaging/rabbitmq.module.js';
 import { JobsModule } from './modules/jobs/jobs.module.js';
+import { CourseModule } from './modules/course/course.module.js';
+import { GeminiModule } from './modules/gemini/gemini.module.js';
+import { TranscriptAnalysisModule } from './modules/transcript-analysis/transcript-analysis.module.js';
 let WorkerModule = class WorkerModule {
 };
 WorkerModule = __decorate([
@@ -34,6 +37,9 @@ WorkerModule = __decorate([
             }),
             RabbitMqModule,
             JobsModule,
+            CourseModule,
+            GeminiModule,
+            TranscriptAnalysisModule,
         ],
     })
 ], WorkerModule);

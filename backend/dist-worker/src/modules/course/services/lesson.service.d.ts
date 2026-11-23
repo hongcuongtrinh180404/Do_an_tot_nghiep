@@ -8,6 +8,7 @@ import { CourseRepository } from '../repositories/course.repository.js';
 import { StorageService } from '../../storage/index.js';
 import { LessonTranscriptService } from './lesson-transcript.service.js';
 import { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
+import { JobService } from '../../jobs/services/job.service.js';
 export interface CreateLessonInput {
     title: string;
     order: number;
@@ -27,7 +28,8 @@ export declare class LessonService extends BaseService<ILesson, string> {
     protected readonly storageService?: StorageService | undefined;
     protected readonly courseRepository?: CourseRepository | undefined;
     protected readonly lessonTranscriptService?: LessonTranscriptService | undefined;
-    constructor(lessonRepository: LessonRepository, sectionRepository: SectionRepository, cls: ClsService, enrollmentRepository: EnrollmentRepository, storageService?: StorageService | undefined, courseRepository?: CourseRepository | undefined, lessonTranscriptService?: LessonTranscriptService | undefined);
+    protected readonly jobService?: JobService | undefined;
+    constructor(lessonRepository: LessonRepository, sectionRepository: SectionRepository, cls: ClsService, enrollmentRepository: EnrollmentRepository, storageService?: StorageService | undefined, courseRepository?: CourseRepository | undefined, lessonTranscriptService?: LessonTranscriptService | undefined, jobService?: JobService | undefined);
     createLesson(sectionId: string, input: CreateLessonInput, session?: ClientSession): Promise<ILesson>;
     updateLesson(lessonId: string, input: UpdateLessonInput, userId?: string, userRole?: RoleEnum, session?: ClientSession): Promise<ILesson>;
     getLessonsBySectionId(sectionId: string, session?: ClientSession): Promise<ILesson[]>;

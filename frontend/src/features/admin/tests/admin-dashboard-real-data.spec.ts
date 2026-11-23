@@ -17,6 +17,8 @@ describe('Admin Dashboard Real Data Integration Tests', () => {
     {
       id: 'crs-real-1',
       title: 'Khóa học Thực Chiến React 19',
+      slug: 'khoa-hoc-thuc-chien-react-19',
+      thumbnailUrl: 'https://cdn.example.com/react-19-thumbnail.webp',
       instructor: 'Trần Văn Thực',
       category: 'Frontend',
       price: 599000,
@@ -35,7 +37,30 @@ describe('Admin Dashboard Real Data Integration Tests', () => {
     },
     {
       id: 'crs-real-2',
+      title: 'Khóa học Node.js Backend Nâng Cao',
+      slug: 'khoa-hoc-nodejs-backend-nang-cao',
+      thumbnailUrl: null,
+      instructor: 'Lê Văn Node',
+      category: 'Backend',
+      price: 499000,
+      isFree: false,
+      thumbnailBg: 'bg-primary/10 text-primary',
+      thumbnailText: 'Node',
+      salesCount: 10,
+      revenue: 4990000,
+      newEnrollments: 10,
+      totalOwned: 20,
+      startedLearners: 15,
+      completedLearners: 12,
+      completionRate: 80.0,
+      rating: 4.9,
+      reviewCount: 5,
+    },
+    {
+      id: 'crs-real-3',
       title: 'Khóa học Miễn Phí Git Cơ Bản',
+      slug: 'khoa-hoc-mien-phi-git-co-ban',
+      thumbnailUrl: null,
       instructor: 'Nguyễn Văn Git',
       category: 'DevOps',
       price: 0,
@@ -76,7 +101,7 @@ describe('Admin Dashboard Real Data Integration Tests', () => {
   ];
 
   describe('DashboardCoursesSection with Real Data', () => {
-    it('renders real courses with exact title and revenue', () => {
+    it('renders real courses with exact title, thumbnail image, slug and revenue', () => {
       const html = renderToString(
         React.createElement(DashboardCoursesSection, {
           globalPeriod: 'this_month',
@@ -85,8 +110,24 @@ describe('Admin Dashboard Real Data Integration Tests', () => {
       );
 
       expect(html).toContain('Khóa học Thực Chiến React 19');
+      expect(html).toContain('src="https://cdn.example.com/react-19-thumbnail.webp"');
+      expect(html).toContain('/khoa-hoc-thuc-chien-react-19');
       expect(html).toContain('Trần Văn Thực');
       expect(html).toContain('8.985.000');
+    });
+
+    it('renders fallback icon when course has no thumbnail', () => {
+      const html = renderToString(
+        React.createElement(DashboardCoursesSection, {
+          globalPeriod: 'this_month',
+          courses: [mockRealCourses[1]],
+        }),
+      );
+
+      expect(html).toContain('Khóa học Node.js Backend Nâng Cao');
+      expect(html).toContain('/khoa-hoc-nodejs-backend-nang-cao');
+      expect(html).toContain('rounded-lg bg-muted flex items-center justify-center');
+      expect(html).not.toContain('<img');
     });
 
     it('renders empty state when real courses list is empty', () => {
@@ -132,7 +173,7 @@ describe('Admin Dashboard Real Data Integration Tests', () => {
       const html = renderToString(
         React.createElement(DashboardPendingDrawer, {
           isOpen: true,
-          onClose: () => {},
+          onClose: () => { },
           tasks: mockRealPendingTasks,
         }),
       );
@@ -146,7 +187,7 @@ describe('Admin Dashboard Real Data Integration Tests', () => {
       const html = renderToString(
         React.createElement(DashboardPendingDrawer, {
           isOpen: true,
-          onClose: () => {},
+          onClose: () => { },
           tasks: [],
         }),
       );

@@ -126,7 +126,9 @@ let LessonQuizService = LessonQuizService_1 = class LessonQuizService extends Ba
         await this.assertNotPendingApproval(trimmedLessonId);
         const payload = this.normalizeQuiz(dto, lesson.content?.duration);
         const order = await this.getNextQuizOrder(trimmedLessonId, payload.timestamp);
-        return super.create({ ...payload, lessonId: trimmedLessonId, order });
+        const created = await super.create({ ...payload, lessonId: trimmedLessonId, order });
+        await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'quiz');
+        return created;
     }
     async updateQuiz(quizId, dto) {
         const trimmedId = quizId?.trim();
@@ -150,6 +152,7 @@ let LessonQuizService = LessonQuizService_1 = class LessonQuizService extends Ba
         if (!updated) {
             throw new NotFoundException('Câu hỏi đã bị xóa hoặc không còn tồn tại');
         }
+        await this.lessonRepo.incrementOutputRevision(existing.lessonId, 'quiz');
         return updated;
     }
     async updateTimestamp(quizId, timestamp) {
@@ -166,6 +169,7 @@ let LessonQuizService = LessonQuizService_1 = class LessonQuizService extends Ba
         const updated = await super.update(quizId, { timestamp, order });
         if (!updated)
             throw new NotFoundException('Câu hỏi đã bị xóa hoặc không còn tồn tại');
+        await this.lessonRepo.incrementOutputRevision(existing.lessonId, 'quiz');
         return updated;
     }
     async syncQuizzesAtTimestamp(lessonId, dto) {
@@ -190,7 +194,7 @@ let LessonQuizService = LessonQuizService_1 = class LessonQuizService extends Ba
             throw new BadRequestException('Mốc thời gian (timestamp) không hợp lệ');
         }
         this.logger.log(`Đồng bộ ${dto.questions.length} câu hỏi tại mốc ${dto.timestamp}s cho bài học ${trimmedLessonId}`);
-        return this.lessonQuizRepo.syncQuizzesAtTimestamp(trimmedLessonId, dto.timestamp, normalized.map((q) => ({
+        const synced = await this.lessonQuizRepo.syncQuizzesAtTimestamp(trimmedLessonId, dto.timestamp, normalized.map((q) => ({
             id: q.id,
             order: q.order,
             timestamp: q.timestamp,
@@ -205,6 +209,8 @@ let LessonQuizService = LessonQuizService_1 = class LessonQuizService extends Ba
             explanation: q.explanation?.trim() || null,
             ...(q.explanationTimestamp !== undefined ? { explanationTimestamp: q.explanationTimestamp } : {}),
         })));
+        await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'quiz');
+        return synced;
     }
     async deleteQuiz(quizId) {
         const trimmedId = quizId?.trim();
@@ -220,6 +226,7 @@ let LessonQuizService = LessonQuizService_1 = class LessonQuizService extends Ba
         if (!deleted) {
             throw new NotFoundException(`Không tìm thấy câu hỏi với ID: ${trimmedId}`);
         }
+        await this.lessonRepo.incrementOutputRevision(existing.lessonId, 'quiz');
         this.logger.log(`Đã xóa cứng câu hỏi ${trimmedId} của bài học ${existing.lessonId}`);
         return true;
     }
@@ -237,7 +244,9 @@ let LessonQuizService = LessonQuizService_1 = class LessonQuizService extends Ba
             throw new BadRequestException('Mốc thời gian (timestamp) không hợp lệ');
         }
         this.logger.log(`Xóa toàn bộ câu hỏi tại mốc ${timestamp}s cho bài học ${trimmedLessonId}`);
-        return this.lessonQuizRepo.deleteQuizzesAtTimestampRange(trimmedLessonId, timestamp, 2);
+        const deletedCount = await this.lessonQuizRepo.deleteQuizzesAtTimestampRange(trimmedLessonId, timestamp, 2);
+        await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'quiz');
+        return deletedCount;
     }
     async moveOrMergeQuizCluster(lessonId, dto) {
         const trimmedLessonId = lessonId?.trim();
@@ -253,14 +262,17 @@ let LessonQuizService = LessonQuizService_1 = class LessonQuizService extends Ba
             throw new BadRequestException('Mốc thời gian (timestamp) không hợp lệ');
         }
         this.logger.log(`Di chuyển/Gộp cụm câu hỏi từ mốc ${dto.sourceTimestamp}s sang ${dto.targetTimestamp}s cho bài học ${trimmedLessonId}`);
+        let result;
         try {
-            return await this.lessonQuizRepo.withTransaction(async (session) => {
+            result = await this.lessonQuizRepo.withTransaction(async (session) => {
                 return this.lessonQuizRepo.moveOrMergeCluster(trimmedLessonId, dto.sourceTimestamp, dto.targetTimestamp, 2, session);
             });
         }
         catch {
-            return this.lessonQuizRepo.moveOrMergeCluster(trimmedLessonId, dto.sourceTimestamp, dto.targetTimestamp, 2);
+            result = await this.lessonQuizRepo.moveOrMergeCluster(trimmedLessonId, dto.sourceTimestamp, dto.targetTimestamp, 2);
         }
+        await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'quiz');
+        return result;
     }
 };
 LessonQuizService = LessonQuizService_1 = __decorate([

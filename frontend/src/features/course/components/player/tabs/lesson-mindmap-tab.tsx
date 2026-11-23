@@ -27,6 +27,8 @@ import {
 import { cn } from '@/lib/utils';
 import { generateLessonMindmapDefaultCollapsedIds } from '@/features/course/utils/lesson-mindmap-flow.util';
 import { LessonMindmapCanvasView } from './mindmap/lesson-mindmap-canvas-view';
+import { useLessonAnalysisJob } from '@/features/course/hooks/use-analysis-jobs';
+import { AnalysisJobStatusBanner } from '../analysis-job-status';
 
 interface LessonMindmapTabProps {
   lessonId: string;
@@ -190,11 +192,10 @@ const TreeNode = React.memo(function MindmapTreeNode({
       ) : (
         /* Normal View Card */
         <div
-          className={`group relative flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl border transition-all ${currentStyle} ${
-            isNearCurrentTime
+          className={`group relative flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl border transition-all ${currentStyle} ${isNearCurrentTime
               ? 'ring-2 ring-sky-500 ring-offset-1 ring-offset-background'
               : 'hover:border-sky-500/40'
-          }`}
+            }`}
         >
           <div className="flex items-center gap-2 min-w-0 flex-1">
             {hasChildren ? (
@@ -315,6 +316,12 @@ export const LessonMindmapTab = React.memo(function LessonMindmapTab({
   const { data: mindmapDoc, isLoading } = useLessonMindmapAnalysisQuery(lessonId);
   const { mutate: generateMindmap, isPending: isGenerating } = useGenerateMindmapMutation(lessonId);
   const { mutate: updateMindmap } = useUpdateLessonMindmapMutation(lessonId);
+  const {
+    job: mindmapJob,
+    isProcessing: isMindmapJobProcessing,
+    retryJob: handleRetryMindmapJob,
+    isRetrying: isMindmapJobRetrying,
+  } = useLessonAnalysisJob(lessonId, 'mindmap');
 
   // Active data from DB
   const currentMindmapData: ILessonMindmapData | null = useMemo(() => {
@@ -344,12 +351,13 @@ export const LessonMindmapTab = React.memo(function LessonMindmapTab({
     setTreeOverride({ source: currentMindmapData, value });
   }, [currentMindmapData]);
   const saveTree = useCallback((value: ILessonMindmapData) => {
+    if (isMindmapJobProcessing) return;
     updateMindmap({ mindmap: value }, {
       onError: () => {
         setTreeOverride((previous) => previous?.value === value ? null : previous);
       },
     });
-  }, [updateMindmap]);
+  }, [updateMindmap, isMindmapJobProcessing]);
 
   // Canvas Collapsed IDs: null = chưa có override, dùng mặc định 2 cấp độ.
   // Lưu kèm structureKey để tự reset khi cấu trúc cây thay đổi (AI sinh lại, thêm/xóa nhánh).
@@ -477,7 +485,7 @@ export const LessonMindmapTab = React.memo(function LessonMindmapTab({
 
   // Node Adding state (Default timestamp = 0 per Socratic Gate)
   const handleAddChild = useCallback((parentId: string) => {
-    if (!isInstructor || !localTree) return;
+    if (!isInstructor || !localTree || isMindmapJobProcessing) return;
 
     const newId = `node-${Date.now()}`;
     const newNode: ILessonMindmapNode = {
@@ -526,7 +534,7 @@ export const LessonMindmapTab = React.memo(function LessonMindmapTab({
   }, [isInstructor, executeDelete]);
 
   function deleteBranch(nodeId: string) {
-    if (!isInstructor || !localTree) return;
+    if (!isInstructor || !localTree || isMindmapJobProcessing) return;
 
     const newRoot = deleteNodeFromTree(localTree.root, nodeId);
     const updatedData: ILessonMindmapData = { root: newRoot };
@@ -547,12 +555,21 @@ export const LessonMindmapTab = React.memo(function LessonMindmapTab({
   };
 
   const handleGenerateMindmap = () => {
-    if (!isInstructor) return;
+    if (!isInstructor || isMindmapJobProcessing) return;
     generateMindmap({ saveAsDraft: false });
   };
 
   return (
     <div className="w-full flex flex-col space-y-4 p-4 sm:p-6">
+      {/* Banner hiển thị trạng thái tác vụ AI ngầm */}
+      <div className="mx-auto w-full max-w-4xl">
+        <AnalysisJobStatusBanner
+          job={mindmapJob}
+          onRetry={handleRetryMindmapJob}
+          isRetrying={isMindmapJobRetrying}
+        />
+      </div>
+
       {/* Compact Mindmap Controls Toolbar */}
       {localTree && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
@@ -622,7 +639,7 @@ export const LessonMindmapTab = React.memo(function LessonMindmapTab({
         viewMode === 'canvas' ? (
           <div className="w-full py-1">
             <LessonMindmapCanvasView
-              canEdit={isInstructor}
+              canEdit={isInstructor && !isMindmapJobProcessing}
               isActive={isActive}
               root={localTree.root}
               currentTime={currentTime}
@@ -644,7 +661,7 @@ export const LessonMindmapTab = React.memo(function LessonMindmapTab({
               isExpanded={expandedMap[localTree.root.id] !== false}
               onToggleExpand={handleToggleExpand}
               expandedMap={expandedMap}
-              isInstructor={isInstructor}
+              isInstructor={isInstructor && !isMindmapJobProcessing}
               editingNodeId={editingNodeId}
               editTitle={editTitle}
               setEditTitle={setEditTitle}

@@ -13,7 +13,7 @@ describe('EnrollmentService', () => {
   const enrollment = { id: 'enrollment', userId: 'student', courseId: 'course', orderId: null, course };
   const session = {} as ClientSession;
   let service: EnrollmentService;
-  let enrollments: { findByUserAndCourse: ReturnType<typeof vi.fn>; findUserEnrollments: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn>; withTransaction: ReturnType<typeof vi.fn> };
+  let enrollments: { findByUserAndCourse: ReturnType<typeof vi.fn>; findUserEnrollments: ReturnType<typeof vi.fn>; countByCourseIds: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn>; withTransaction: ReturnType<typeof vi.fn> };
   let courses: { findById: ReturnType<typeof vi.fn>; findForEnrollment: ReturnType<typeof vi.fn>; findByInstructorId: ReturnType<typeof vi.fn> };
   let users: { findById: ReturnType<typeof vi.fn> };
 
@@ -21,6 +21,7 @@ describe('EnrollmentService', () => {
     enrollments = {
       findByUserAndCourse: vi.fn().mockResolvedValue(null),
       findUserEnrollments: vi.fn().mockResolvedValue([enrollment]),
+      countByCourseIds: vi.fn().mockResolvedValue(new Map([['course', 1]])),
       create: vi.fn().mockResolvedValue(enrollment),
       withTransaction: vi.fn(async (operation: (session: ClientSession) => Promise<unknown>) => operation(session)),
     };
@@ -52,9 +53,33 @@ describe('EnrollmentService', () => {
   });
 
   it('returns only enrolled courses and does not include authored courses for instructors', async () => {
-    expect(await service.getMyPurchasedCourses('student', RoleEnum.STUDENT)).toEqual([course]);
+    expect(await service.getMyPurchasedCourses('student', RoleEnum.STUDENT)).toEqual([{ ...course, studentsCount: 1 }]);
     courses.findByInstructorId.mockResolvedValue([course, { ...course, id: 'authored' }, { ...course, id: 'draft', status: CourseStatusEnum.DRAFT }]);
-    expect(await service.getMyPurchasedCourses('teacher', RoleEnum.INSTRUCTOR)).toEqual([course]);
+    expect(await service.getMyPurchasedCourses('teacher', RoleEnum.INSTRUCTOR)).toEqual([{ ...course, studentsCount: 1 }]);
+  });
+
+  it('enriches every purchased course using one batch count, not embedded or mock counts', async () => {
+    const otherCourse = { ...course, id: 'other', studentsCount: 15409 };
+    enrollments.findUserEnrollments.mockResolvedValue([
+      enrollment,
+      { ...enrollment, id: 'duplicate', course },
+      { ...enrollment, id: 'other-enrollment', course: otherCourse },
+      { ...enrollment, course: { ...course, id: 'deleted', deletedAt: new Date() } },
+      { ...enrollment, course: null },
+    ]);
+    enrollments.countByCourseIds.mockResolvedValue(new Map([['course', 3]]));
+
+    expect(await service.getMyPurchasedCourses('student')).toEqual([
+      { ...course, studentsCount: 3 },
+      { ...otherCourse, studentsCount: 0 },
+    ]);
+    expect(enrollments.countByCourseIds).toHaveBeenCalledExactlyOnceWith(['course', 'other']);
+  });
+
+  it('does not query counts when the user owns no courses', async () => {
+    enrollments.findUserEnrollments.mockResolvedValue([]);
+    expect(await service.getMyPurchasedCourses('student')).toEqual([]);
+    expect(enrollments.countByCourseIds).not.toHaveBeenCalled();
   });
 
   it('registers a free course without creating any order or payment', async () => {

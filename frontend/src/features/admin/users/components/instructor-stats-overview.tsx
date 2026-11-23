@@ -2,10 +2,10 @@
 
 import * as React from 'react';
 import { Icon } from '@/components/ui/icon';
-import { type InstructorStats } from '../constants/mock-instructor-data';
+import type { IAdminUserInstructorStats } from 'share-lib';
 
 interface InstructorStatsOverviewProps {
-  stats: InstructorStats;
+  stats: IAdminUserInstructorStats;
 }
 
 export function InstructorStatsOverview({ stats }: InstructorStatsOverviewProps): React.JSX.Element {
@@ -61,7 +61,7 @@ export function InstructorStatsOverview({ stats }: InstructorStatsOverviewProps)
             {formattedStudents} <span className="text-sm font-normal text-muted-foreground">học viên</span>
           </div>
           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-            Đo lường mức độ ảnh hưởng và quy mô học sinh đang theo học.
+             Số tài khoản đăng ký, không đếm trùng giữa các khóa học.
           </p>
         </div>
       </div>
@@ -79,10 +79,10 @@ export function InstructorStatsOverview({ stats }: InstructorStatsOverviewProps)
             {formattedRevenue}
           </div>
           <div className="inline-flex items-center gap-1 mt-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-            <span>Hoa hồng thực nhận: {formattedNetRevenue}</span>
+             <span>Thu nhập sau hoa hồng: {formattedNetRevenue}</span>
           </div>
           <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
-            Tổng giá trị giao dịch mà giảng viên đã đem về cho nền tảng.
+             Giao dịch đã thanh toán trong toàn bộ lịch sử giảng dạy.
           </p>
         </div>
       </div>
@@ -97,12 +97,12 @@ export function InstructorStatsOverview({ stats }: InstructorStatsOverviewProps)
         </div>
         <div>
           <div className="flex items-center gap-1.5 text-2xl font-bold tracking-tight text-foreground">
-            <span>{stats.averageRating.toFixed(1)}</span>
+            <span>{stats.totalReviews > 0 ? stats.averageRating.toFixed(1) : '—'}</span>
             <span className="text-sm font-normal text-muted-foreground">/ 5.0</span>
             <Icon icon="lucide:star" className="size-4 text-amber-500 fill-amber-500 inline" />
           </div>
           <div className="text-[11px] font-medium text-amber-600 dark:text-amber-400 mt-1">
-            từ {stats.totalReviews} lượt đánh giá
+            {stats.totalReviews > 0 ? `từ ${stats.totalReviews} lượt đánh giá` : 'Chưa có đánh giá'}
           </div>
           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
             Đo lường uy tín và chất lượng chuyên môn.

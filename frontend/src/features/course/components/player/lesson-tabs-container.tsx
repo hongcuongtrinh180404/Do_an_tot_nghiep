@@ -14,6 +14,7 @@ import {
   useGenerateSummaryMutation,
   useLessonMindmapAnalysisQuery,
 } from '../../api/transcript-analysis.api';
+import { useLessonAnalysisJob } from '../../hooks/use-analysis-jobs';
 
 export interface TabConfig {
   id: 'summary' | 'mindmap' | 'quiz';
@@ -101,6 +102,9 @@ export function LessonTabsContainer({
     useGenerateQuizMutation(lessonId);
   const { mutate: generateSummary, isPending: isSummaryGenerating } =
     useGenerateSummaryMutation(lessonId);
+  const { isProcessing: isSummaryJobProcessing } = useLessonAnalysisJob(lessonId, 'summary');
+  const { isProcessing: isQuizJobProcessing } = useLessonAnalysisJob(lessonId, 'quiz');
+  const { isProcessing: isMindmapJobProcessing } = useLessonAnalysisJob(lessonId, 'mindmap');
 
   const handleTriggerAiForActiveTab = (tabId: TabConfig['id']) => {
     if (!isInstructor) return;
@@ -111,16 +115,24 @@ export function LessonTabsContainer({
     }
 
     if (tabId === 'mindmap') {
+      if (isMindmapJobProcessing) return;
       generateMindmap({ saveAsDraft: false });
     } else if (tabId === 'quiz') {
+      if (isQuizJobProcessing) return;
       generateQuiz({ count: 10, saveAsDraft: false });
     } else if (tabId === 'summary') {
+      if (isSummaryJobProcessing) return;
       generateSummary({ saveAsDraft: false });
     }
   };
 
   const requestAiGeneration = (tabId: TabConfig['id']) => {
-    if (!isInstructor || (tabId === 'quiz' && (isQuizGenerating || isQuizzesLoading || isQuizzesError))) return;
+    if (
+      !isInstructor ||
+      (tabId === 'quiz' && (isQuizGenerating || isQuizJobProcessing || isQuizzesLoading || isQuizzesError)) ||
+      (tabId === 'mindmap' && (isMindmapGenerating || isMindmapJobProcessing)) ||
+      (tabId === 'summary' && (isSummaryGenerating || isSummaryJobProcessing))
+    ) return;
     if (tabId === 'quiz' && quizzes.length > 0) {
       onPauseVideo?.();
       setIsQuizRegenerateOpen(true);
@@ -130,17 +142,21 @@ export function LessonTabsContainer({
   };
 
   const getIsGenerating = (tabId: TabConfig['id']) => {
-    if (tabId === 'mindmap') return isMindmapGenerating;
-    if (tabId === 'quiz') return isQuizGenerating;
-    if (tabId === 'summary') return isSummaryGenerating;
+    if (tabId === 'mindmap') return isMindmapGenerating || isMindmapJobProcessing;
+    if (tabId === 'quiz') return isQuizGenerating || isQuizJobProcessing;
+    if (tabId === 'summary') return isSummaryGenerating || isSummaryJobProcessing;
     return false;
   };
 
   const getAiButtonText = (tabId: TabConfig['id'], isGenerating: boolean) => {
     if (isGenerating) {
-      if (tabId === 'mindmap') return 'Đang vẽ sơ đồ AI...';
-      if (tabId === 'quiz') return 'Đang tạo câu hỏi AI...';
-      return 'Đang tóm tắt lại AI...';
+      if (tabId === 'mindmap') {
+        return isMindmapJobProcessing ? 'AI đang vẽ sơ đồ ngầm...' : 'Đang vẽ sơ đồ AI...';
+      }
+      if (tabId === 'quiz') {
+        return isQuizJobProcessing ? 'AI đang tạo câu hỏi ngầm...' : 'Đang tạo câu hỏi AI...';
+      }
+      return isSummaryJobProcessing ? 'AI đang xử lý ngầm...' : 'Đang tóm tắt lại AI...';
     }
     if (tabId === 'mindmap') return 'Tạo lại Mindmap AI';
     if (tabId === 'quiz') return 'Tạo lại 10 câu hỏi AI';
@@ -169,19 +185,35 @@ export function LessonTabsContainer({
                 type="button"
                 aria-selected={isActive}
                 onClick={() => handleTabChange(tab.id)}
-                className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm transition-colors cursor-pointer ${
-                  isActive
+                className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm transition-colors cursor-pointer ${isActive
                     ? 'bg-background text-foreground shadow-2xs font-semibold'
                     : 'text-muted-foreground hover:text-foreground hover:bg-background/40 font-medium'
-                }`}
+                  }`}
               >
                 <Icon
                   icon={tab.icon}
-                  className={`size-3.5 sm:size-4 shrink-0 transition-colors ${
-                    isActive ? 'text-sky-600 dark:text-sky-400' : 'text-muted-foreground'
-                  }`}
+                  className={`size-3.5 sm:size-4 shrink-0 transition-colors ${isActive ? 'text-sky-600 dark:text-sky-400' : 'text-muted-foreground'
+                    }`}
                 />
                 <span>{tab.title}</span>
+                {tab.id === 'summary' && isSummaryJobProcessing && (
+                  <span
+                    className="size-2 rounded-full bg-sky-500 animate-ping shrink-0"
+                    title="AI đang phân tích và tóm tắt bài học trong nền..."
+                  />
+                )}
+                {tab.id === 'quiz' && isQuizJobProcessing && (
+                  <span
+                    className="size-2 rounded-full bg-sky-500 animate-ping shrink-0"
+                    title="AI đang tạo câu hỏi trắc nghiệm trong nền..."
+                  />
+                )}
+                {tab.id === 'mindmap' && isMindmapJobProcessing && (
+                  <span
+                    className="size-2 rounded-full bg-sky-500 animate-ping shrink-0"
+                    title="AI đang vẽ sơ đồ tư duy trong nền..."
+                  />
+                )}
               </button>
             );
           })}

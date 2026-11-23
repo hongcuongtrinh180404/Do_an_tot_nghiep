@@ -66,7 +66,8 @@ export class GetMyLearningProgressTool {
         mode: 'learning_progress',
         // Keep the originating list for references or a named course on that page,
         // but never reuse unrelated filters when an explicit selector changes topic.
-        ...(continuesList && context?.list ? { list: context.list } : {}),
+        ...(continuesList && context?.list && !['business_selection', 'business_top'].includes(context.list.kind)
+          ? { list: context.list } : {}),
         ...(result.scope === 'course' ? { selectedCourseId: result.course.id } : {}),
       },
     };

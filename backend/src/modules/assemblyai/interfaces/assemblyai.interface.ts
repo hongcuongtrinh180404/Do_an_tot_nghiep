@@ -35,6 +35,14 @@ export interface IAssemblyAiService {
     filePath: string,
     options?: Partial<AssemblyAiTranscribeOptions>,
   ): Promise<AssemblyAiTranscriptionResult>;
+  submitTranscriptFile(
+    filePath: string,
+    options?: Partial<AssemblyAiTranscribeOptions>,
+  ): Promise<string>;
+  pollTranscript(
+    transcriptId: string,
+    timeoutMs?: number,
+  ): Promise<AssemblyAiTranscriptionResult>;
   getSubtitles(transcriptId: string, format?: 'srt' | 'vtt'): Promise<string>;
   getTranscript(transcriptId: string): Promise<Transcript>;
 }

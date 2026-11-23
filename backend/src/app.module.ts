@@ -22,6 +22,7 @@ import { PublicProfileModule } from './modules/profile/public-profile.module.js'
 import { ChatbotHttpModule } from './modules/chatbot/chatbot-http.module.js';
 import { InstructorApplicationModule } from './modules/instructor-application/instructor-application.module.js';
 import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module.js';
+import { AdminUsersModule } from './modules/admin-users/admin-users.module.js';
 import { RabbitMqModule } from './modules/messaging/rabbitmq.module.js';
 import { JobsModule } from './modules/jobs/jobs.module.js';
 
@@ -63,6 +64,7 @@ import { JobsModule } from './modules/jobs/jobs.module.js';
     PublicProfileModule,
     InstructorApplicationModule,
     AdminDashboardModule,
+    AdminUsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

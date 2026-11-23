@@ -69,12 +69,14 @@ export interface IDashboardInstructor {
 export interface IDashboardCoursePerformance {
   id: string;
   title: string;
+  slug?: string;
+  thumbnailUrl?: string | null;
   instructor: string;
   category: string;
   price: number;
   isFree: boolean;
-  thumbnailBg: string;
-  thumbnailText: string;
+  thumbnailBg?: string;
+  thumbnailText?: string;
   salesCount: number;
   revenue: number;
   newEnrollments: number;

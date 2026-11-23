@@ -11,6 +11,7 @@ import { useCheckoutOrderQuery, useOrderStatusQuery } from '../api/payment.api';
 import { PaymentSuccess } from './payment-success';
 import { enrollmentKeys } from '@/features/course/api/enrollment.api';
 import { courseKeys } from '@/features/course/api/course.api';
+import { publicCourseKeys } from '@/features/course/api/public-courses.api';
 import { OrderStatusEnum } from 'share-lib';
 import { calculateSecondsRemaining, formatCountdown, getCurrentPaymentInfo, isFatalPaymentError, requiresPaymentReview, shouldCheckExpiry } from '../utils/checkout.util';
 
@@ -68,6 +69,7 @@ export function CheckoutView({ orderCode }: CheckoutViewProps): React.JSX.Elemen
     if (isPaid) {
       void queryClient.invalidateQueries({ queryKey: enrollmentKeys.all });
       void queryClient.invalidateQueries({ queryKey: courseKeys.all });
+      void queryClient.invalidateQueries({ queryKey: publicCourseKeys.all });
     }
   }, [isPaid, queryClient]);
 

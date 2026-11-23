@@ -173,16 +173,16 @@ export function AnalysisJobStatusBanner({ job, onRetry, isRetrying }: Props) {
 
 ## 4. Danh Sách Nhiệm Vụ Cụ Thể (Checklist)
 
-- [ ] Tạo API client `analysis-jobs.api.ts` kết nối với Backend.
-- [ ] Xây dựng hook `useLessonAnalysisJob` hỗ trợ polling thích ứng (adaptive polling) và tự động refetch khi window focus.
-- [ ] Xây dựng component `AnalysisJobStatusBanner` tuân thủ design system hiện có, có icon và màu sắc tương ứng theo trạng thái.
-- [ ] Chỉnh sửa `transcript-analysis.api.ts`: Khi nhận mã `202`, trả về thông tin `jobId` để kích hoạt polling thay vì thông báo lỗi timeout.
-- [ ] Cập nhật `lesson-summary-tab.tsx`:
+- [x] Tạo API client `analysis-jobs.api.ts` kết nối với Backend.
+- [x] Xây dựng hook `useLessonAnalysisJob` hỗ trợ polling thích ứng (adaptive polling) và tự động refetch khi window focus.
+- [x] Xây dựng component `AnalysisJobStatusBanner` tuân thủ design system hiện có, có icon và màu sắc tương ứng theo trạng thái.
+- [x] Chỉnh sửa `transcript-analysis.api.ts`: Khi nhận mã `202`, trả về thông tin `jobId` để kích hoạt polling thay vì thông báo lỗi timeout.
+- [x] Cập nhật `lesson-summary-tab.tsx`:
   - Khởi tạo `useLessonAnalysisJob(lessonId, 'summary')`.
   - Hiển thị banner trạng thái khi có Job đang chạy hoặc Job lỗi.
   - Vô hiệu hóa nút "Tạo tóm tắt bằng AI" khi `isProcessing === true`.
   - Giữ nguyên các chức năng chỉnh sửa Markdown thủ công và lưu bản nháp/áp dụng chính thức.
-- [ ] Kiểm tra khả năng hồi phục sau khi reload: Mở bài học đang có Job chạy, nhấn F5; giao diện phải khôi phục ngay trạng thái loading kèm thông tin Job.
+- [x] Kiểm tra khả năng hồi phục sau khi reload: Mở bài học đang có Job chạy, nhấn F5; giao diện phải khôi phục ngay trạng thái loading kèm thông tin Job.
 
 ---
 
@@ -198,12 +198,14 @@ export function AnalysisJobStatusBanner({ job, onRetry, isRetrying }: Props) {
 
 ## 6. Tiêu Chí Nghiệm Thu (Exit Gate)
 
+Trạng thái: ✅ **ĐÃ HOÀN THÀNH (PASSED)**
+
 Giai đoạn 4 hoàn thành khi:
-- [ ] Người dùng không bao giờ gặp tình trạng thông báo "Thành công" giả khi Worker chưa hoàn tất.
-- [ ] Người dùng không cần phải giữ tab mở để đợi AI xử lý.
-- [ ] Reload trang hoặc đổi bài học và quay lại khôi phục 100% đúng tiến độ xử lý từ server.
-- [ ] Không có hiện tượng polling vô hạn khi Job đã hoàn tất hoặc thất bại.
-- [ ] Nút bấm tạo mới bị khóa hoàn toàn khi có tác vụ đang chạy, loại bỏ khả năng bấm đúp.
+- [x] Người dùng không bao giờ gặp tình trạng thông báo "Thành công" giả khi Worker chưa hoàn tất.
+- [x] Người dùng không cần phải giữ tab mở để đợi AI xử lý.
+- [x] Reload trang hoặc đổi bài học và quay lại khôi phục 100% đúng tiến độ xử lý từ server.
+- [x] Không có hiện tượng polling vô hạn khi Job đã hoàn tất hoặc thất bại.
+- [x] Nút bấm tạo mới bị khóa hoàn toàn khi có tác vụ đang chạy, loại bỏ khả năng bấm đúp.
 
 ---
 

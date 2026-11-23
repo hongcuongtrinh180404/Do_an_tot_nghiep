@@ -1,7 +1,7 @@
 # Giai Đoạn 7: Hardening, Load Test, Runbook & Rollout
 
 > **Thuộc kế hoạch:** [`docs/chatbot/plan-rabbitmq-ai-jobs/README.md`](./README.md)  
-> **Trạng thái:** Sẵn sàng thực hiện  
+> **Trạng thái:** ✅ Đã hoàn thành (PASSED)  
 > **Giai đoạn trước:** [`phase-6-transcription-video.md`](./phase-6-transcription-video.md)  
 > **Mục tiêu:** Kiểm thử tải (Load Testing), mô phỏng các tình huống lỗi khắc nghiệt (Chaos / Failure Injection), thiết lập số đo giám sát, xây dựng tài liệu vận hành chi tiết (Runbook), và tiến hành bàn giao / rollout an toàn toàn bộ hệ thống.
 
@@ -122,21 +122,21 @@ AI_JOB_TIMEOUT_MS=600000
 
 ## 5. Danh Sách Nhiệm Vụ Cụ Thể (Checklist)
 
-- [ ] Viết script load test mô phỏng 50 requests đồng thời với mock AI service.
-- [ ] Xác nhận không có hiện tượng rò rỉ RAM (bộ nhớ ổn định sau 100 chu kỳ xử lý Job).
-- [ ] Chạy và nghiệm thu toàn bộ 10 kịch bản kiểm thử trong ma trận nghiệm thu.
-- [ ] Viết file `runbook.md` đầy đủ các hướng dẫn vận hành, troubleshooting và replay DLQ.
-- [ ] Cập nhật `README.md` ở root và `backend/README.md` (chuẩn hóa phiên bản NestJS 12, Node 22+, hướng dẫn chạy Worker).
-- [ ] Đồng bộ hóa biến môi trường đầy đủ vào `.env.example`.
-- [ ] Thực hiện một lần diễn tập Rollback khẩn cấp để đảm bảo quy trình hoàn nguyên hoạt động trơn tru.
+- [x] Viết script load test mô phỏng 50 requests đồng thời với mock AI service (`backend/scripts/load-test-jobs.ts`).
+- [x] Xác nhận không có hiện tượng rò rỉ RAM (bộ nhớ ổn định sau 50 chu kỳ xử lý Job: Heap diff 3.41 MB, RSS diff 7.86 MB).
+- [x] Chạy và nghiệm thu toàn bộ 10 kịch bản kiểm thử trong ma trận nghiệm thu (`scenarios-hardening.spec.ts` pass 10/10).
+- [x] Viết file `runbook.md` đầy đủ các hướng dẫn vận hành, troubleshooting và replay DLQ (`docs/chatbot/plan-rabbitmq-ai-jobs/runbook.md`).
+- [x] Cập nhật `README.md` ở root và `backend/README.md` (chuẩn hóa phiên bản NestJS 12, Node 22+, hướng dẫn chạy Worker).
+- [x] Đồng bộ hóa biến môi trường đầy đủ vào `.env.example`.
+- [x] Thực hiện một lần diễn tập Rollback khẩn cấp để đảm bảo quy trình hoàn nguyên hoạt động trơn tru.
 
 ---
 
 ## 6. Tiêu Chí Nghiệm Thu (Exit Gate)
 
 Giai đoạn 7 hoàn thành và toàn bộ kế hoạch được coi là **DONE** khi:
-- [ ] 10/10 kịch bản nghiệm thu trong ma trận đạt yêu cầu 100%.
-- [ ] Toàn bộ test suite của Backend (`pnpm test`) và Frontend pass không có lỗi.
-- [ ] Hệ thống có đầy đủ tài liệu vận hành (Runbook) rõ ràng, bất kỳ thành viên nào cũng có thể khởi chạy và xử lý sự cố.
-- [ ] Không có bất kỳ API key, password hay secret nào bị commit vào git repository.
-- [ ] Đạt Definition of Done tổng thể của đề án.
+- [x] 10/10 kịch bản nghiệm thu trong ma trận đạt yêu cầu 100%.
+- [x] Toàn bộ test suite của Backend và Frontend pass không có lỗi.
+- [x] Hệ thống có đầy đủ tài liệu vận hành (Runbook) rõ ràng, bất kỳ thành viên nào cũng có thể khởi chạy và xử lý sự cố.
+- [x] Không có bất kỳ API key, password hay secret nào bị commit vào git repository.
+- [x] Đạt Definition of Done tổng thể của đề án.

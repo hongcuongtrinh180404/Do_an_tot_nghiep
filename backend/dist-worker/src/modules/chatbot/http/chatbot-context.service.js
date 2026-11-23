@@ -33,7 +33,7 @@ let ChatbotContextService = class ChatbotContextService {
         if (!secret)
             throw new ChatbotAiError('CHATBOT_CONFIG_INVALID');
         return createHmac('sha256', secret)
-            .update(`${version === 1 ? 'mindly:chatbot-search-context:v1' : 'mindly:chatbot-conversation-context:v2'}\0${userId}\0${payload}`)
+            .update(`${version === 1 ? 'mindly:chatbot-search-context:v1' : `mindly:chatbot-conversation-context:v${version}`}\0${userId}\0${payload}`)
             .digest();
     }
     create(userId, result) {
@@ -83,9 +83,9 @@ let ChatbotContextService = class ChatbotContextService {
     createConversation(userId, context) {
         const state = validateConversationContext(context);
         const payload = Buffer.from(JSON.stringify({
-            v: 2, expiresAt: Date.now() + CHATBOT_CONTEXT_TTL_MS, state,
+            v: 3, expiresAt: Date.now() + CHATBOT_CONTEXT_TTL_MS, state,
         })).toString('base64url');
-        const token = `${payload}.${this.signature(payload, userId, 2).toString('hex')}`;
+        const token = `${payload}.${this.signature(payload, userId, 3).toString('hex')}`;
         if (token.length > CHATBOT_CONTEXT_MAX_LENGTH)
             throw new ChatbotContextError();
         return token;
@@ -95,17 +95,21 @@ let ChatbotContextService = class ChatbotContextService {
             || !/^[A-Za-z0-9_-]+\.[a-f0-9]{64}$/.test(token))
             throw new ChatbotContextError();
         const [payload, mac] = token.split('.');
-        if (!timingSafeEqual(Buffer.from(mac, 'hex'), this.signature(payload, userId, 2))) {
+        const version = [3, 2].find((value) => timingSafeEqual(Buffer.from(mac, 'hex'), this.signature(payload, userId, value)));
+        if (!version) {
             return { mode: 'catalog', list: { kind: 'catalog', ...this.read(userId, token), ids: [] } };
         }
         try {
             const envelope = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-            if (envelope.v !== 2 || typeof envelope.expiresAt !== 'number'
+            if (envelope.v !== version || typeof envelope.expiresAt !== 'number'
                 || !Number.isSafeInteger(envelope.expiresAt) || envelope.expiresAt <= Date.now()
                 || Object.keys(envelope).some((key) => !['v', 'expiresAt', 'state'].includes(key))) {
                 throw new ChatbotContextError();
             }
-            return validateConversationContext(envelope.state);
+            const state = validateConversationContext(envelope.state);
+            if (version === 2 && state.business)
+                throw new ChatbotContextError();
+            return state;
         }
         catch {
             throw new ChatbotContextError();

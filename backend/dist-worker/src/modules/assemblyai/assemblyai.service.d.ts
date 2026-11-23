@@ -12,6 +12,8 @@ export declare class AssemblyAiService implements IAssemblyAiService {
     private executeTranscription;
     transcribe(audioUrl: string, options?: Partial<AssemblyAiTranscribeOptions>): Promise<AssemblyAiTranscriptionResult>;
     transcribeStream(audioStream: NodeJS.ReadableStream | ReadableStream, options?: Partial<AssemblyAiTranscribeOptions>): Promise<AssemblyAiTranscriptionResult>;
+    submitTranscriptFile(filePath: string, options?: Partial<AssemblyAiTranscribeOptions>): Promise<string>;
+    pollTranscript(transcriptId: string, timeoutMs?: number): Promise<AssemblyAiTranscriptionResult>;
     transcribeFile(filePath: string, options?: Partial<AssemblyAiTranscribeOptions>): Promise<AssemblyAiTranscriptionResult>;
     getSubtitles(transcriptId: string, format?: 'srt' | 'vtt'): Promise<string>;
     getTranscript(transcriptId: string): Promise<Transcript>;

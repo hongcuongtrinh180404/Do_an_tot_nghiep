@@ -7,4 +7,4 @@ export { NewsHighlightsCarousel } from './news-highlights-carousel';
 export { RecentCourses } from './recent-courses';
 export { AiExperienceBanner } from './ai-experience-banner';
 export { PublicFooter } from './public-footer';
-export * from './mock-discovery-data';
+export type { IPublicCourseCard } from '../../types/public-course.types';

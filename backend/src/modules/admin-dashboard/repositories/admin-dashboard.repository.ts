@@ -703,6 +703,8 @@ export class AdminDashboardRepository extends BaseMongoRepository<IOrder, OrderE
         $project: {
           id: { $toString: '$_id' },
           title: 1,
+          slug: { $ifNull: ['$slug', ''] },
+          thumbnailUrl: { $ifNull: ['$thumbnailUrl', null] },
           price: { $ifNull: ['$price', 0] },
           ratingAvg: { $ifNull: ['$ratingAvg', 0] },
           reviewCount: { $ifNull: ['$reviewCount', 0] },
@@ -751,6 +753,8 @@ export class AdminDashboardRepository extends BaseMongoRepository<IOrder, OrderE
       return {
         id: String(r.id || r._id),
         title,
+        slug: (r.slug as string) || '',
+        thumbnailUrl: (r.thumbnailUrl as string) || null,
         instructor: String(r.instructorName || 'Giảng viên'),
         category: String(r.categoryName || 'Khác'),
         price,

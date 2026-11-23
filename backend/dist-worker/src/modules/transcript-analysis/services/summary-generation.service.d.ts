@@ -1,3 +1,4 @@
+import { ClientSession } from 'mongoose';
 import { ILessonSummary, ILessonSummaryData } from 'share-lib';
 import { GeminiService } from '../../gemini/index.js';
 import { LessonRepository } from '../../course/repositories/lesson.repository.js';
@@ -5,6 +6,24 @@ import { LessonTranscriptRepository } from '../../course/repositories/lesson-tra
 import { LessonSummaryRepository } from '../../course/repositories/lesson-summary.repository.js';
 import { GenerateSummaryDto } from '../dto/generate-summary.dto.js';
 import { UpdateLessonSummaryDto } from '../dto/update-summary.dto.js';
+export interface ValidatedSummaryContent {
+    lessonId: string;
+    lessonTitle: string;
+    summary: ILessonSummaryData;
+    metadata: {
+        model: string;
+        keyIndex: number;
+        maskedKey: string;
+        executionTimeMs: number;
+        usage?: {
+            promptTokens: number;
+            completionTokens: number;
+            totalTokens: number;
+        };
+    };
+    currentInputRevision: number;
+    currentOutputRevision: number;
+}
 export interface SummaryGenerationResponse {
     lessonId: string;
     summary: ILessonSummaryData;
@@ -20,6 +39,12 @@ export interface SummaryGenerationResponse {
         };
     };
 }
+export interface PersistSummaryOptions {
+    saveAsDraft?: boolean;
+    expectedRevision?: number;
+    userId?: string;
+    session?: ClientSession;
+}
 export declare class SummaryGenerationService {
     private readonly geminiService;
     private readonly lessonRepo;
@@ -33,6 +58,11 @@ export declare class SummaryGenerationService {
         end: number;
     }>, rawTranscript: string): string;
     buildSummaryPrompt(lessonTitle: string, durationSeconds: number, formattedTranscript: string): string;
+    generateSummaryContent(lessonId: string, options?: {
+        dto?: GenerateSummaryDto;
+        expectedInputRevision?: number;
+    }): Promise<ValidatedSummaryContent>;
+    persistSummaryWithSession(lessonId: string, summaryData: ILessonSummaryData, options: PersistSummaryOptions): Promise<ILessonSummary>;
     generateSummary(lessonId: string, dto?: GenerateSummaryDto, userId?: string): Promise<SummaryGenerationResponse>;
     updateSummary(lessonId: string, dto: UpdateLessonSummaryDto, userId?: string): Promise<ILessonSummary>;
     getSummary(lessonId: string): Promise<ILessonSummary | null>;

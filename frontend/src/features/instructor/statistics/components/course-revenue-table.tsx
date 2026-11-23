@@ -23,10 +23,15 @@ import {
 import type { IInstructorCourseRevenue } from 'share-lib';
 import { formatVnd } from '@/features/admin/revenue/utils/revenue-format.util';
 import type { IPaginatedResult } from '../api/teaching-stats.api';
+import { TeachingStatsQueryError } from './teaching-stats-query-error';
 
 interface CourseRevenueTableProps {
   data?: IPaginatedResult<IInstructorCourseRevenue>;
   isLoading?: boolean;
+  isError?: boolean;
+  error?: unknown;
+  onRetry: () => void;
+  isRetrying?: boolean;
   search: string;
   onSearchChange: (val: string) => void;
   sort: 'revenue_desc' | 'earnings_desc' | 'sales_desc';
@@ -74,6 +79,10 @@ function getStatusBadge(status: string) {
 export function CourseRevenueTable({
   data,
   isLoading = false,
+  isError = false,
+  error,
+  onRetry,
+  isRetrying = false,
   search,
   onSearchChange,
   sort,
@@ -108,7 +117,7 @@ export function CourseRevenueTable({
       {/* Section Header & Subtitle */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/40">
         <div>
-          <h2 className="text-base sm:text-lg font-bold text-foreground">
+          <h2 id="section-courses-revenue" className="text-base sm:text-lg font-bold text-foreground">
             Doanh thu theo khóa học
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -116,7 +125,7 @@ export function CourseRevenueTable({
           </p>
         </div>
         <div className="text-xs text-muted-foreground font-medium shrink-0">
-          Tổng cộng: <strong className="text-foreground">{total}</strong> khóa học
+          Tổng cộng: <strong className="text-foreground">{isError || !data ? '—' : total}</strong> khóa học
         </div>
       </div>
 
@@ -181,6 +190,14 @@ export function CourseRevenueTable({
 
       {/* Data Table */}
       <div className="rounded-lg border border-border/60 overflow-hidden">
+        {isError ? (
+          <TeachingStatsQueryError
+            title="Không thể tải doanh thu khóa học"
+            error={error}
+            onRetry={onRetry}
+            isRetrying={isRetrying}
+          />
+        ) : (
         <Table>
           <TableHeader className="bg-muted/40">
             <TableRow className="hover:bg-transparent">
@@ -318,10 +335,11 @@ export function CourseRevenueTable({
             )}
           </TableBody>
         </Table>
+        )}
       </div>
 
       {/* Pagination Footer */}
-      {totalPages > 1 && (
+      {!isError && totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
           <p className="text-xs text-muted-foreground">
             Hiển thị trang <strong className="text-foreground">{page}</strong> trên <strong className="text-foreground">{totalPages}</strong>

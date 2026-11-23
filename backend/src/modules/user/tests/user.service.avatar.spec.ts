@@ -84,6 +84,7 @@ describe('UserService - Profile and Avatar Management', () => {
         updatedAt: mockUser.updatedAt,
         firstName: undefined,
         lastName: undefined,
+        socialLinks: null,
         avatar: 'https://example.com/old_avatar.jpg',
         provider: AuthProviderEnum.LOCAL,
       });

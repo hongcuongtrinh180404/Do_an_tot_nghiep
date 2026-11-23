@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { LIVE_PREVIEW_MOCK_DATA, type ILivePreviewBreakpoint } from './mock-discovery-data';
+import { INTERACTIVE_PREVIEW_DEMO, type ILivePreviewBreakpoint } from './interactive-preview-demo';
 
 export function PublicHero(): React.JSX.Element {
   const [activeBreakpointIndex, setActiveBreakpointIndex] = useState<number>(1);
@@ -12,8 +12,8 @@ export function PublicHero(): React.JSX.Element {
   const [quizSubmitted, setQuizSubmitted] = useState<boolean>(false);
 
   const activeBreakpoint: ILivePreviewBreakpoint =
-    LIVE_PREVIEW_MOCK_DATA.breakpoints[activeBreakpointIndex] ??
-    LIVE_PREVIEW_MOCK_DATA.breakpoints[0];
+    INTERACTIVE_PREVIEW_DEMO.breakpoints[activeBreakpointIndex] ??
+    INTERACTIVE_PREVIEW_DEMO.breakpoints[0];
 
   const handleSelectBreakpoint = (index: number): void => {
     setActiveBreakpointIndex(index);
@@ -84,12 +84,12 @@ export function PublicHero(): React.JSX.Element {
             <div className="pt-2 flex flex-wrap items-center gap-y-2 gap-x-4 text-xs font-medium text-[#454545]">
               <div className="inline-flex items-center gap-1.5">
                 <span className="size-2 rounded-full bg-[#DE2900]" />
-                <span>3.200+ mốc dừng tương tác</span>
+                <span>Video với mốc dừng tương tác</span>
               </div>
               <span className="text-[#D9D9D9] hidden sm:inline">•</span>
               <div className="inline-flex items-center gap-1.5">
                 <span className="size-2 rounded-full bg-[#027D88]" />
-                <span>100% video đồng bộ Mindmap</span>
+                <span>Mindmap đồng bộ theo nội dung</span>
               </div>
               <span className="text-[#D9D9D9] hidden sm:inline">•</span>
               <div className="inline-flex items-center gap-1.5">
@@ -108,7 +108,7 @@ export function PublicHero(): React.JSX.Element {
                 <div className="flex items-center gap-2">
                   <span className="size-2 rounded-full bg-[#DE2900]" />
                   <span className="font-semibold text-white truncate max-w-[220px] sm:max-w-xs">
-                    {LIVE_PREVIEW_MOCK_DATA.lessonTitle}
+                    {INTERACTIVE_PREVIEW_DEMO.lessonTitle}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 text-neutral-300 font-medium">
@@ -134,7 +134,7 @@ export function PublicHero(): React.JSX.Element {
                 <div className="relative z-10 flex items-center justify-between text-xs">
                   <div className="inline-flex items-center gap-2 rounded bg-[#161616]/85 px-2.5 py-1 font-medium tabular-nums text-white/90 border border-white/10">
                     <Icon icon="lucide:clock" className="size-3.5 text-[#FFD100]" />
-                    <span>{activeBreakpoint.timestamp} / {LIVE_PREVIEW_MOCK_DATA.durationText}</span>
+                    <span>{activeBreakpoint.timestamp} / {INTERACTIVE_PREVIEW_DEMO.durationText}</span>
                   </div>
                   <div className="rounded bg-[#161616]/85 px-2.5 py-1 text-xs font-medium text-white/90 border border-white/10">
                     {activeBreakpoint.label}
@@ -245,7 +245,7 @@ export function PublicHero(): React.JSX.Element {
                     </div>
 
                     {/* Breakpoint Micro-Gem Markers directly on track */}
-                    {LIVE_PREVIEW_MOCK_DATA.breakpoints.map((bp, idx) => {
+                    {INTERACTIVE_PREVIEW_DEMO.breakpoints.map((bp, idx) => {
                       const isActive = idx === activeBreakpointIndex;
                       const markerPercent = (bp.seconds / 255) * 100;
                       return (
@@ -272,7 +272,7 @@ export function PublicHero(): React.JSX.Element {
                   <div className="flex items-center justify-between text-xs pt-1">
                     <div className="flex items-center gap-1.5 sm:gap-2">
                       <span className="text-white/70 text-[11px]">Mốc AI:</span>
-                      {LIVE_PREVIEW_MOCK_DATA.breakpoints.map((bp, idx) => {
+                      {INTERACTIVE_PREVIEW_DEMO.breakpoints.map((bp, idx) => {
                         const isActive = idx === activeBreakpointIndex;
                         return (
                           <button
@@ -290,7 +290,7 @@ export function PublicHero(): React.JSX.Element {
                       })}
                     </div>
                     <span className="hidden sm:inline text-white/60 tabular-nums text-[11px]">
-                      {activeBreakpoint.timestamp} / {LIVE_PREVIEW_MOCK_DATA.durationText}
+                      {activeBreakpoint.timestamp} / {INTERACTIVE_PREVIEW_DEMO.durationText}
                     </span>
                   </div>
                 </div>

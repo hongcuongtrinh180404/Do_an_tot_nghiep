@@ -9,14 +9,47 @@ describe('EnrollmentRepository', () => {
   let mockModel: {
     find: ReturnType<typeof vi.fn>;
     findOne: ReturnType<typeof vi.fn>;
+    countDocuments: ReturnType<typeof vi.fn>;
+    aggregate: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
     mockModel = {
       find: vi.fn(),
       findOne: vi.fn(),
+      countDocuments: vi.fn(),
+      aggregate: vi.fn(),
     };
     repository = new EnrollmentRepository(mockModel as unknown as Model<EnrollmentEntity>);
+  });
+
+  describe('active enrollment counts', () => {
+    it.each([0, 1, 15409])('counts only non-revoked enrollments for a course (%s)', async (count) => {
+      mockModel.countDocuments.mockReturnValue({ exec: vi.fn().mockResolvedValue(count) });
+      const id = new Types.ObjectId().toHexString();
+
+      expect(await repository.countByCourseId(id)).toBe(count);
+      expect(mockModel.countDocuments).toHaveBeenCalledExactlyOnceWith({ courseId: id, deletedAt: null });
+    });
+
+    it('aggregates real counts for each course, excluding soft-deleted enrollments', async () => {
+      const first = new Types.ObjectId();
+      const second = new Types.ObjectId();
+      mockModel.aggregate.mockReturnValue({
+        exec: vi.fn().mockResolvedValue([{ _id: first, count: 2 }]),
+      });
+
+      expect(await repository.countByCourseIds([String(first), String(second)])).toEqual(new Map([[String(first), 2]]));
+      expect(mockModel.aggregate).toHaveBeenCalledExactlyOnceWith([
+        { $match: { courseId: { $in: [first, second] }, deletedAt: null } },
+        { $group: { _id: '$courseId', count: { $sum: 1 } } },
+      ]);
+    });
+
+    it('returns no counts without querying when the course list is empty', async () => {
+      expect(await repository.countByCourseIds([])).toEqual(new Map());
+      expect(mockModel.aggregate).not.toHaveBeenCalled();
+    });
   });
 
   describe('findUserEnrollments', () => {

@@ -8,7 +8,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 var MindmapAnalysisService_1;
-import { Injectable, Logger, NotFoundException, BadRequestException, } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException, } from '@nestjs/common';
 import { LessonTranscriptionStatusEnum, } from 'share-lib';
 import { GeminiService } from '../../gemini/index.js';
 import { LessonRepository } from '../../course/repositories/lesson.repository.js';
@@ -128,7 +128,7 @@ V. QUY TẮC TÍNH MỐC THỜI GIAN ("timestamp" - Đơn vị: giây):
 TRANSCRIPT BÀI GIẢNG CÓ MỐC THỜI GIAN:
 ${formattedTranscript}`;
     }
-    async generateMindmap(lessonId, dto, userId) {
+    async generateMindmapContent(lessonId, options) {
         const trimmedLessonId = lessonId?.trim();
         if (!trimmedLessonId) {
             throw new BadRequestException('ID bài học không được để trống.');
@@ -136,6 +136,10 @@ ${formattedTranscript}`;
         const lesson = await this.lessonRepo.findById(trimmedLessonId);
         if (!lesson) {
             throw new NotFoundException(`Không tìm thấy bài học với ID: ${trimmedLessonId}`);
+        }
+        if (options?.expectedInputRevision !== undefined &&
+            (lesson.analysisInputRevision ?? 0) !== options.expectedInputRevision) {
+            throw new ConflictException(`INPUT_CHANGED: Nội dung transcript bài học đã thay đổi (hiện tại: ${lesson.analysisInputRevision ?? 0}, lúc tạo: ${options.expectedInputRevision})`);
         }
         const transcript = await this.lessonTranscriptRepo.findByLessonId(trimmedLessonId);
         if (!transcript) {
@@ -156,17 +160,7 @@ ${formattedTranscript}`;
         });
         const sanitizedMindmap = MindmapValidator.sanitize(geminiResult.data, durationSeconds, 4, lesson.title);
         MindmapValidator.validateOrFail(sanitizedMindmap, durationSeconds, 4);
-        const shouldSaveDraft = dto?.saveAsDraft ?? false;
-        if (shouldSaveDraft) {
-            await this.lessonMindmapRepo.saveDraftByLessonId(trimmedLessonId, sanitizedMindmap, userId);
-            this.logger.log(`Đã lưu bản nháp Mindmap cho bài học ${trimmedLessonId}`);
-        }
-        else {
-            await this.lessonMindmapRepo.upsertOfficialByLessonId(trimmedLessonId, sanitizedMindmap, userId);
-            this.logger.log(`Đã lưu bản sơ đồ tư duy chính thức cho bài học ${trimmedLessonId}`);
-        }
         return {
-            lessonId: trimmedLessonId,
             mindmap: sanitizedMindmap,
             metadata: {
                 model: geminiResult.model,
@@ -175,6 +169,39 @@ ${formattedTranscript}`;
                 executionTimeMs: geminiResult.executionTimeMs,
                 usage: geminiResult.usage,
             },
+        };
+    }
+    async persistMindmapWithSession(lessonId, mindmap, options) {
+        const trimmedLessonId = lessonId?.trim();
+        const shouldSaveDraft = options?.saveAsDraft ?? false;
+        let saved;
+        if (shouldSaveDraft) {
+            saved = await this.lessonMindmapRepo.saveDraftByLessonId(trimmedLessonId, mindmap, options?.userId, options?.session);
+            this.logger.log(`Đã lưu bản nháp Mindmap cho bài học ${trimmedLessonId}`);
+        }
+        else {
+            saved = await this.lessonMindmapRepo.upsertOfficialByLessonId(trimmedLessonId, mindmap, options?.userId, options?.session);
+            this.logger.log(`Đã lưu bản sơ đồ tư duy chính thức cho bài học ${trimmedLessonId}`);
+        }
+        if (options?.session) {
+            await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'mindmap', undefined, options.session);
+        }
+        else {
+            await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'mindmap');
+        }
+        return saved;
+    }
+    async generateMindmap(lessonId, dto, userId) {
+        const trimmedLessonId = lessonId?.trim();
+        const content = await this.generateMindmapContent(trimmedLessonId);
+        await this.persistMindmapWithSession(trimmedLessonId, content.mindmap, {
+            saveAsDraft: dto?.saveAsDraft ?? false,
+            userId,
+        });
+        return {
+            lessonId: trimmedLessonId,
+            mindmap: content.mindmap,
+            metadata: content.metadata,
         };
     }
     async getMindmap(lessonId) {
@@ -193,6 +220,7 @@ ${formattedTranscript}`;
         if (!applied) {
             throw new BadRequestException('Không tìm thấy bản nháp Mindmap nào để áp dụng cho bài học này.');
         }
+        await this.lessonRepo.incrementOutputRevision(trimmedId, 'mindmap');
         this.logger.log(`Đã áp dụng bản nháp Mindmap thành chính thức cho bài học ${trimmedId}`);
         return applied;
     }
@@ -209,6 +237,7 @@ ${formattedTranscript}`;
         const durationSeconds = transcript?.durationSeconds || lesson.content?.duration || 0;
         MindmapValidator.validateOrFail(dto.mindmap, durationSeconds, 20);
         const updated = await this.lessonMindmapRepo.upsertOfficialByLessonId(trimmedLessonId, dto.mindmap, userId);
+        await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'mindmap');
         this.logger.log(`Đã cập nhật trực tiếp sơ đồ tư duy chính thức cho bài học ${trimmedLessonId} bởi user ${userId || 'SYSTEM'}`);
         return updated;
     }

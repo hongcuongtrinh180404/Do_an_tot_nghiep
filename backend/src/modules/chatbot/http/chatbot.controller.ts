@@ -21,6 +21,7 @@ import {
 } from './chatbot-message.service.js';
 import { ChatbotRateLimitGuard } from './chatbot-rate-limit.guard.js';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator.js';
+import { RoleEnum } from 'share-lib';
 
 @Controller('chatbot')
 @UseGuards(ChatbotRateLimitGuard)
@@ -47,6 +48,7 @@ export class ChatbotController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
     @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: RoleEnum,
   ): Promise<ApiResponse<ChatbotMessageResponse>> {
     const requestId = randomUUID();
     response.setHeader('X-Request-Id', requestId);
@@ -62,7 +64,7 @@ export class ChatbotController {
           dto.message,
           requestId,
           cancellation.signal,
-          { userId, ...(dto.context ? { context: dto.context } : {}) },
+          { userId, role, ...(dto.context ? { context: dto.context } : {}) },
         ),
       );
     } finally {

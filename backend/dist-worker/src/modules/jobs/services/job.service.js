@@ -104,6 +104,27 @@ let JobService = JobService_1 = class JobService extends BaseService {
         this.logger.log(`[Job] Job ${jobId} đã hoàn tất thành công (COMPLETED).`);
         return updatedJob;
     }
+    async updateCheckpoint(jobId, leaseToken, checkpoint, session) {
+        const currentJob = await this.jobRepository.findById(jobId, session);
+        if (!currentJob) {
+            throw new NotFoundException(`Không tìm thấy Job ${jobId}`);
+        }
+        if (currentJob.leaseToken !== leaseToken || currentJob.status !== JobStatusEnum.PROCESSING) {
+            throw new ConflictException(`Fencing Lỗi: LeaseToken không hợp lệ hoặc Job không còn ở trạng thái PROCESSING khi updateCheckpoint`);
+        }
+        const updatedParameters = {
+            ...(currentJob.parameters || {}),
+            ...checkpoint,
+        };
+        const updatedJob = await this.jobRepository.update(jobId, {
+            parameters: updatedParameters,
+        }, session);
+        if (!updatedJob) {
+            throw new NotFoundException(`Cập nhật checkpoint cho Job ${jobId} thất bại`);
+        }
+        this.logger.log(`[Job] Đã lưu checkpoint cho Job ${jobId}: ${JSON.stringify(Object.keys(checkpoint))}`);
+        return updatedJob;
+    }
     async failJob(jobId, leaseToken, params, session) {
         const currentJob = await this.jobRepository.findById(jobId, session);
         if (!currentJob) {

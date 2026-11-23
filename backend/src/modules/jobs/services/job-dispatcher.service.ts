@@ -5,7 +5,9 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JobTypeEnum } from 'share-lib';
 import { RabbitMqService } from '../../messaging/rabbitmq.service.js';
+import { RABBITMQ_CONSTANTS } from '../../messaging/rabbitmq-topology.js';
 import { JobRepository } from '../repositories/job.repository.js';
 
 export interface JobMessagePayload {
@@ -69,7 +71,10 @@ export class JobDispatcherService implements OnModuleInit, OnModuleDestroy {
       for (const job of pendingJobs) {
         if (this.isShuttingDown) break;
 
-        const routingKey = `ai.${job.type}`;
+        const routingKey =
+          job.type === JobTypeEnum.TRANSCRIPTION
+            ? RABBITMQ_CONSTANTS.ROUTING_KEY_TRANSCRIPTION
+            : `ai.${job.type}`;
         const messagePayload: JobMessagePayload = {
           version: 1,
           jobId: job.id,
@@ -96,14 +101,16 @@ export class JobDispatcherService implements OnModuleInit, OnModuleDestroy {
               `[JobDispatcher] Đã dispatch thành công Job ${job.id} [${job.type}] -> RoutingKey: ${routingKey}`,
             );
           }
-        } catch (pubErr: any) {
+        } catch (pubErr: unknown) {
+          const errObj = pubErr as { message?: string } | undefined;
           this.logger.warn(
-            `[JobDispatcher] Không thể dispatch Job ${job.id} sang RabbitMQ: ${pubErr?.message}. Sẽ thử lại ở chu kỳ tiếp theo.`,
+            `[JobDispatcher] Không thể dispatch Job ${job.id} sang RabbitMQ: ${errObj?.message || String(pubErr)}. Sẽ thử lại ở chu kỳ tiếp theo.`,
           );
         }
       }
-    } catch (err: any) {
-      this.logger.error(`[JobDispatcher] Lỗi trong chu kỳ quét outbox: ${err?.message}`);
+    } catch (err: unknown) {
+      const errObj = err as { message?: string } | undefined;
+      this.logger.error(`[JobDispatcher] Lỗi trong chu kỳ quét outbox: ${errObj?.message || String(err)}`);
     } finally {
       this.isProcessing = false;
     }

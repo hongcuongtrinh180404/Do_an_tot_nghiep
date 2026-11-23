@@ -140,10 +140,10 @@ export class AssemblyAiService implements IAssemblyAiService {
     }
   }
 
-  async transcribeFile(
+  async submitTranscriptFile(
     filePath: string,
     options?: Partial<AssemblyAiTranscribeOptions>,
-  ): Promise<AssemblyAiTranscriptionResult> {
+  ): Promise<string> {
     const trimmedPath = filePath?.trim();
     if (!trimmedPath) {
       throw new BadRequestException('Đường dẫn tệp âm thanh (filePath) không được để trống.');
@@ -158,16 +158,97 @@ export class AssemblyAiService implements IAssemblyAiService {
     try {
       const fileStream = fs.createReadStream(trimmedPath);
       const uploadUrl = await client.files.upload(fileStream as never);
-      this.logger.log('Audio file uploaded to AssemblyAI successfully. Starting transcription...');
-      return await this.executeTranscription(uploadUrl, options);
+      this.logger.log('Audio file uploaded to AssemblyAI. Submitting transcript job...');
+      const languageCode = options?.languageCode ?? this.defaultLanguageCode;
+      const transcript = await client.transcripts.submit({
+        audio: uploadUrl,
+        language_code: languageCode,
+        punctuate: options?.punctuate ?? true,
+        format_text: options?.formatText ?? true,
+        speaker_labels: options?.speakerLabels ?? false,
+      });
+      this.logger.log(`Transcript job submitted successfully to AssemblyAI with ID: ${transcript.id}`);
+      return transcript.id;
     } catch (error: unknown) {
       if (error instanceof BadRequestException || error instanceof InternalServerErrorException) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to upload audio file to AssemblyAI: ${message}`);
-      throw new InternalServerErrorException(`Failed to upload audio file to AssemblyAI: ${message}`);
+      this.logger.error(`Failed to submit transcript job to AssemblyAI: ${message}`);
+      throw new InternalServerErrorException(`Failed to submit transcript job to AssemblyAI: ${message}`);
     }
+  }
+
+  async pollTranscript(
+    transcriptId: string,
+    timeoutMs: number = 900000,
+  ): Promise<AssemblyAiTranscriptionResult> {
+    const trimmedId = transcriptId?.trim();
+    if (!trimmedId) {
+      throw new BadRequestException('Transcript ID không được để trống khi poll.');
+    }
+
+    const client = this.getClient();
+    const startTime = Date.now();
+    const pollInterval = 3000;
+
+    this.logger.log(`Starting polling for AssemblyAI transcript ID: ${trimmedId}...`);
+
+    while (Date.now() - startTime < timeoutMs) {
+      try {
+        const transcript = await client.transcripts.get(trimmedId);
+
+        if (transcript.status === 'completed') {
+          const { sentences = [] } = await client.transcripts.sentences(transcript.id);
+          const cleanedSentences: TranscribedSentence[] = (sentences ?? []).map(({ text, start, end }) => ({
+            text: (text ?? '').trim(),
+            start,
+            end,
+          }));
+
+          const durationSeconds = Math.round(transcript.audio_duration ?? 0);
+          this.logger.log(
+            `Transcript polling completed for ID: ${trimmedId}. Sentences: ${cleanedSentences.length}, Duration: ${durationSeconds}s`,
+          );
+
+          return {
+            transcriptId: transcript.id,
+            rawTranscript: (transcript.text ?? '').trim(),
+            sentences: cleanedSentences,
+            durationSeconds,
+            languageCode: transcript.language_code ?? this.defaultLanguageCode,
+          };
+        }
+
+        if (transcript.status === 'error') {
+          const errorMsg = transcript.error || 'Unknown AssemblyAI transcription error';
+          this.logger.error(`AssemblyAI transcript ${trimmedId} failed with error: ${errorMsg}`);
+          throw new InternalServerErrorException(`AssemblyAI transcription failed: ${errorMsg}`);
+        }
+
+        // Chờ trước lần poll tiếp theo
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      } catch (error: unknown) {
+        if (error instanceof BadRequestException || error instanceof InternalServerErrorException) {
+          throw error;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Error polling transcript ${trimmedId}: ${message}`);
+        throw new InternalServerErrorException(`Error polling transcript ${trimmedId}: ${message}`);
+      }
+    }
+
+    throw new InternalServerErrorException(
+      `AssemblyAI transcript ${trimmedId} timed out after ${Math.round(timeoutMs / 1000)}s`,
+    );
+  }
+
+  async transcribeFile(
+    filePath: string,
+    options?: Partial<AssemblyAiTranscribeOptions>,
+  ): Promise<AssemblyAiTranscriptionResult> {
+    const transcriptId = await this.submitTranscriptFile(filePath, options);
+    return this.pollTranscript(transcriptId);
   }
 
   async getSubtitles(transcriptId: string, format: 'srt' | 'vtt' = 'srt'): Promise<string> {

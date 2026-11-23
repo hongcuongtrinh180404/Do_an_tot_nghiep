@@ -26,8 +26,7 @@ import {
   type UpdateUserAdminFormValues,
 } from '../schemas/user-admin.schema';
 import { UserRoleBadge, UserStatusBadge } from './users-status-badge';
-import { UserEnrolledCoursesSection } from './user-enrolled-courses-section';
-import { InstructorCoursesSection } from './instructor-courses-section';
+import { UserCoursesSection } from './user-courses-section';
 
 interface UserDetailsViewProps {
   userId: string;
@@ -367,12 +366,7 @@ export function UserDetailsView({ userId }: UserDetailsViewProps): React.JSX.Ele
         </div>
       </div>
 
-      {/* Phân Hệ Khóa Học: Giảng viên hiển thị 4 KPI + 2 Tab, Học viên/Admin hiển thị danh sách đã mua */}
-      {user.role === RoleEnum.INSTRUCTOR ? (
-        <InstructorCoursesSection />
-      ) : (
-        <UserEnrolledCoursesSection />
-      )}
+      <UserCoursesSection key={userId} userId={userId} role={user.role} />
     </div>
   );
 }

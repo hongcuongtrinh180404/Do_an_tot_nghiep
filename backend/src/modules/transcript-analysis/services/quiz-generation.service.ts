@@ -3,7 +3,9 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
+import type { ClientSession } from 'mongoose';
 import {
   IGeneratedQuizItem,
   ILessonQuiz,
@@ -45,7 +47,7 @@ export class QuizGenerationService {
     private readonly lessonTranscriptRepo: LessonTranscriptRepository,
     private readonly lessonQuizRepo: LessonQuizRepository,
     private readonly lessonQuizDraftRepo: LessonQuizDraftRepository,
-  ) {}
+  ) { }
 
   /**
    * Định dạng transcript với mốc giây để Gemini tham chiếu timestamp cho câu hỏi
@@ -182,25 +184,25 @@ ${formattedTranscript}`;
 
       const options = Array.isArray(item.options)
         ? (item.options as Array<Record<string, unknown>>).map((opt, optIdx) => {
-            const labels = ['A', 'B', 'C', 'D'];
-            const defaultLabel = labels[optIdx] || String.fromCharCode(65 + optIdx);
-            const label = (opt.label || defaultLabel).toString().trim().toUpperCase();
-            const id = opt.id
-              ? String(opt.id).trim()
-              : `opt-${order}-${label}`;
-            const text = (opt.text || '').toString().trim();
-            const isCorrect =
-              opt.isCorrect === true ||
-              opt.isCorrect === 'true' ||
-              opt.isCorrect === 1;
+          const labels = ['A', 'B', 'C', 'D'];
+          const defaultLabel = labels[optIdx] || String.fromCharCode(65 + optIdx);
+          const label = (opt.label || defaultLabel).toString().trim().toUpperCase();
+          const id = opt.id
+            ? String(opt.id).trim()
+            : `opt-${order}-${label}`;
+          const text = (opt.text || '').toString().trim();
+          const isCorrect =
+            opt.isCorrect === true ||
+            opt.isCorrect === 'true' ||
+            opt.isCorrect === 1;
 
-            return {
-              id,
-              label,
-              text,
-              isCorrect,
-            };
-          })
+          return {
+            id,
+            label,
+            text,
+            isCorrect,
+          };
+        })
         : [];
 
       return {
@@ -216,24 +218,38 @@ ${formattedTranscript}`;
   }
 
   /**
-   * Sinh danh sách câu hỏi trắc nghiệm từ transcript qua Gemini
+   * Bước 1: Tính toán và sinh nội dung Quiz từ AI (thực thi ngoài database transaction)
    */
-  async generateQuiz(
+  async generateQuizContent(
     lessonId: string,
-    dto?: GenerateQuizDto,
-    userId?: string,
-  ): Promise<QuizGenerationResponse> {
+    options?: {
+      count?: number;
+      expectedInputRevision?: number;
+    },
+  ): Promise<{
+    quizzes: IGeneratedQuizItem[];
+    metadata: QuizGenerationResponse['metadata'];
+  }> {
     const trimmedLessonId = lessonId?.trim();
     if (!trimmedLessonId) {
       throw new BadRequestException('ID bài học không được để trống.');
     }
 
-    const count = dto?.count ?? 10;
+    const count = options?.count ?? 10;
 
     // 1. Kiểm tra bài học
     const lesson = await this.lessonRepo.findById(trimmedLessonId);
     if (!lesson) {
       throw new NotFoundException(`Không tìm thấy bài học với ID: ${trimmedLessonId}`);
+    }
+
+    if (
+      options?.expectedInputRevision !== undefined &&
+      (lesson.analysisInputRevision ?? 0) !== options.expectedInputRevision
+    ) {
+      throw new ConflictException(
+        `INPUT_CHANGED: Nội dung transcript bài học đã thay đổi (hiện tại: ${lesson.analysisInputRevision ?? 0}, lúc tạo: ${options.expectedInputRevision})`,
+      );
     }
 
     // 2. Lấy transcript
@@ -291,13 +307,39 @@ ${formattedTranscript}`;
     // 6. Kiểm tra tính hợp lệ
     QuizValidator.validateOrFail(quizzes, durationSeconds, count);
 
-    // 7. Lưu câu hỏi: Mặc định (saveAsDraft: false) lưu trực tiếp thành câu hỏi chính thức cho bài học
-    const shouldSaveDraft = dto?.saveAsDraft ?? false;
+    return {
+      quizzes,
+      metadata: {
+        model: geminiResult.model,
+        keyIndex: geminiResult.keyIndex,
+        maskedKey: geminiResult.maskedKey,
+        executionTimeMs: geminiResult.executionTimeMs,
+        usage: geminiResult.usage,
+      },
+    };
+  }
+
+  /**
+   * Bước 2: Lưu kết quả Quiz vào cơ sở dữ liệu có hỗ trợ ClientSession transaction
+   */
+  async persistQuizWithSession(
+    lessonId: string,
+    quizzes: IGeneratedQuizItem[],
+    options?: {
+      saveAsDraft?: boolean;
+      userId?: string;
+      session?: ClientSession;
+    },
+  ): Promise<void> {
+    const trimmedLessonId = lessonId?.trim();
+    const shouldSaveDraft = options?.saveAsDraft ?? false;
+
     if (shouldSaveDraft) {
       await this.lessonQuizDraftRepo.saveDraftByLessonId(
         trimmedLessonId,
         quizzes,
-        userId,
+        options?.userId,
+        options?.session,
       );
       this.logger.log(
         `Đã lưu bản nháp Quiz (${quizzes.length} câu hỏi) cho bài học ${trimmedLessonId}`,
@@ -323,31 +365,51 @@ ${formattedTranscript}`;
         await this.lessonQuizRepo.replaceAllQuizzesForLesson(
           trimmedLessonId,
           quizzesToInsert,
+          options?.session,
         );
 
         // Dọn dẹp bản nháp cũ nếu có
-        await this.lessonQuizDraftRepo.clearDraftByLessonId(trimmedLessonId);
+        await this.lessonQuizDraftRepo.clearDraftByLessonId(trimmedLessonId, options?.session);
 
         this.logger.log(
           `Đã lưu và áp dụng trực tiếp ${quizzes.length} câu hỏi Quiz chính thức cho bài học ${trimmedLessonId}`,
         );
       } else {
-        this.logger.log(
-          `AI sinh 0 câu hỏi do transcript không đủ dữ kiện, bảo toàn câu hỏi chính thức hiện tại cho bài học ${trimmedLessonId}`,
+        this.logger.warn(
+          `[Zero-Quiz Safety Rule] AI sinh 0 câu hỏi do transcript không đủ dữ kiện, bảo toàn câu hỏi chính thức hiện tại cho bài học ${trimmedLessonId}`,
         );
       }
     }
 
+    if (options?.session) {
+      await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'quiz', undefined, options.session);
+    } else {
+      await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'quiz');
+    }
+  }
+
+  /**
+   * Sinh danh sách câu hỏi trắc nghiệm từ transcript qua Gemini (Backward Compatibility)
+   */
+  async generateQuiz(
+    lessonId: string,
+    dto?: GenerateQuizDto,
+    userId?: string,
+  ): Promise<QuizGenerationResponse> {
+    const trimmedLessonId = lessonId?.trim();
+    const content = await this.generateQuizContent(trimmedLessonId, {
+      count: dto?.count ?? 10,
+    });
+
+    await this.persistQuizWithSession(trimmedLessonId, content.quizzes, {
+      saveAsDraft: dto?.saveAsDraft ?? false,
+      userId,
+    });
+
     return {
       lessonId: trimmedLessonId,
-      quizzes,
-      metadata: {
-        model: geminiResult.model,
-        keyIndex: geminiResult.keyIndex,
-        maskedKey: geminiResult.maskedKey,
-        executionTimeMs: geminiResult.executionTimeMs,
-        usage: geminiResult.usage,
-      },
+      quizzes: content.quizzes,
+      metadata: content.metadata,
     };
   }
 
@@ -402,6 +464,8 @@ ${formattedTranscript}`;
 
     // Xóa bản nháp sau khi đã áp dụng thành công
     await this.lessonQuizDraftRepo.clearDraftByLessonId(trimmedId);
+
+    await this.lessonRepo.incrementOutputRevision(trimmedId, 'quiz');
 
     this.logger.log(
       `Đã áp dụng thành công ${officialQuizzes.length} câu hỏi Quiz chính thức cho bài học ${trimmedId}`,

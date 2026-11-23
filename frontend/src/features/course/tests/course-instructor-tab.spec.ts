@@ -4,7 +4,7 @@ import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CourseLevelEnum, CourseStatusEnum } from 'share-lib';
-import type { IPublicCourseCard } from '../components/public-discovery/mock-discovery-data';
+import type { IPublicCourseCard } from '../types/public-course.types';
 import {
   TeacherCourseRow,
   formatCompactNumber,
@@ -247,7 +247,7 @@ describe('CourseInstructorTab Component', () => {
 
     // Profile info
     expect(container.textContent).toContain('Ana Marin');
-    expect(container.textContent).toContain('ana.marin@example.com');
+    expect(container.textContent).not.toContain('ana.marin@example.com');
     expect(container.textContent).toContain('Giảng viên chuyên gia được xác thực');
 
     // Other courses section header
@@ -258,6 +258,8 @@ describe('CourseInstructorTab Component', () => {
     expect(otherCourseRows.length).toBe(1);
     expect(container.textContent).toContain('Social Media Strategy');
     expect(container.textContent).not.toContain('Introduction to Community Management');
+    expect(container.textContent).toContain('205.000');
+    expect(container.textContent).not.toContain('96%');
   });
 
   it('renders empty state when instructor has no other courses', () => {
@@ -289,5 +291,40 @@ describe('CourseInstructorTab Component', () => {
     expect(container.textContent).toContain('Chưa có thêm khóa học nào khác');
     const otherCourseRows = container.querySelectorAll('[data-ui="teacher-course-row"]');
     expect(otherCourseRows.length).toBe(0);
+  });
+
+  it('displays real zero enrollments and no invented rating or completion percentage', () => {
+    mockUseInstructorPublicCoursesQuery.mockReturnValue({
+      data: { items: [], total: 0 }, isLoading: false, isError: false,
+    });
+    act(() => root.render(createElement(CourseInstructorTab, { instructorId: 'inst-1' })));
+
+    const label = [...container.querySelectorAll('span')].find((node) => node.textContent === 'Lượt ghi danh');
+    expect(label?.parentElement?.querySelector('p')?.textContent).toBe('0');
+    expect(container.textContent).toContain('0 khóa');
+    expect(container.textContent).toContain('Chưa có đánh giá');
+    expect(container.textContent).not.toMatch(/15\.4K|96%|4\.9 \/|5\.0 \//);
+  });
+
+  it('does not show fake or stale stats/empty state on API failure, and supports retry', () => {
+    const refetch = vi.fn();
+    mockUseInstructorPublicCoursesQuery.mockReturnValue({
+      data: { items: mockCourses, total: 2 }, isLoading: false, isError: true, refetch,
+    });
+    act(() => root.render(createElement(CourseInstructorTab, { instructorId: 'inst-1' })));
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Không thể tải danh sách khóa học');
+    expect(container.querySelectorAll('[data-ui="teacher-course-row"]')).toHaveLength(0);
+    expect(container.textContent).not.toContain('205.000');
+    expect(container.textContent).not.toContain('Chưa có thêm khóa học nào khác');
+    act(() => container.querySelector<HTMLButtonElement>('[role="alert"] button')?.click());
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
+  it('shows unknown totals while loading instead of fabricated student numbers', () => {
+    mockUseInstructorPublicCoursesQuery.mockReturnValue({ isLoading: true, isError: false });
+    act(() => root.render(createElement(CourseInstructorTab, { instructorId: 'inst-1' })));
+    expect(container.textContent).toContain('—');
+    expect(container.textContent).not.toContain('15.4K');
   });
 });

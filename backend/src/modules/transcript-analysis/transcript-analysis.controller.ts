@@ -8,9 +8,14 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Headers,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 import {
   RoleEnum,
+  JobTypeEnum,
   ILessonMindmap,
   ILessonQuiz,
   ILessonQuizDraft,
@@ -33,6 +38,7 @@ import {
   SummaryGenerationService,
   SummaryGenerationResponse,
 } from './services/summary-generation.service.js';
+import { AnalysisJobService } from './services/analysis-job.service.js';
 import { GenerateMindmapDto } from './dto/generate-mindmap.dto.js';
 import { UpdateLessonMindmapDto } from './dto/update-mindmap.dto.js';
 import { GenerateQuizDto } from './dto/generate-quiz.dto.js';
@@ -46,7 +52,19 @@ export class TranscriptAnalysisController {
     private readonly mindmapAnalysisService: MindmapAnalysisService,
     private readonly quizGenerationService: QuizGenerationService,
     private readonly summaryGenerationService: SummaryGenerationService,
-  ) {}
+    private readonly analysisJobService: AnalysisJobService,
+    private readonly configService: ConfigService,
+  ) { }
+
+  /**
+   * Kiểm tra xem tác vụ có được bật cờ xử lý bất đồng bộ không
+   */
+  private isAsyncEnabled(type: JobTypeEnum): boolean {
+    const raw = this.configService.get<string>('AI_ASYNC_TYPES', '');
+    if (!raw) return false;
+    const types = raw.split(',').map((t) => t.trim().toLowerCase());
+    return types.includes(type.toLowerCase());
+  }
 
   // ==========================================
   // MINDMAP ENDPOINTS
@@ -58,12 +76,48 @@ export class TranscriptAnalysisController {
   @Post(':id/analysis/mindmap')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
   @UseGuards(LessonManagementGuard)
-  @HttpCode(HttpStatus.OK)
   async generateMindmap(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() dto: GenerateMindmapDto,
     @CurrentUser('id') userId?: string,
-  ): Promise<ApiResponse<MindmapGenerationResponse>> {
+    @Headers('idempotency-key') idempotencyKey?: string,
+    @Res({ passthrough: true }) res?: Response,
+  ): Promise<
+    ApiResponse<
+      | MindmapGenerationResponse
+      | {
+        jobId: string;
+        lessonId: string;
+        type: string;
+        status: string;
+        phase: string;
+        statusUrl: string;
+      }
+    >
+  > {
+    if (this.isAsyncEnabled(JobTypeEnum.MINDMAP)) {
+      if (res) {
+        res.status(HttpStatus.ACCEPTED);
+      }
+      const job = await this.analysisJobService.enqueueMindmapJob({
+        lessonId: id,
+        dto,
+        idempotencyKey,
+        userId: userId || 'SYSTEM',
+      });
+      return ApiResponse.success(
+        {
+          jobId: job.id,
+          lessonId: job.lessonId,
+          type: job.type,
+          status: job.status,
+          phase: job.phase,
+          statusUrl: `/api/v1/lessons/${id}/analysis/jobs/${job.id}`,
+        },
+        'Đã tiếp nhận yêu cầu tạo sơ đồ tư duy bài học',
+      );
+    }
+
     const result = await this.mindmapAnalysisService.generateMindmap(
       id,
       dto,
@@ -136,12 +190,48 @@ export class TranscriptAnalysisController {
   @Post(':id/analysis/quiz')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
   @UseGuards(LessonManagementGuard)
-  @HttpCode(HttpStatus.OK)
   async generateQuiz(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() dto: GenerateQuizDto,
     @CurrentUser('id') userId?: string,
-  ): Promise<ApiResponse<QuizGenerationResponse>> {
+    @Headers('idempotency-key') idempotencyKey?: string,
+    @Res({ passthrough: true }) res?: Response,
+  ): Promise<
+    ApiResponse<
+      | QuizGenerationResponse
+      | {
+        jobId: string;
+        lessonId: string;
+        type: string;
+        status: string;
+        phase: string;
+        statusUrl: string;
+      }
+    >
+  > {
+    if (this.isAsyncEnabled(JobTypeEnum.QUIZ)) {
+      if (res) {
+        res.status(HttpStatus.ACCEPTED);
+      }
+      const job = await this.analysisJobService.enqueueQuizJob({
+        lessonId: id,
+        dto,
+        idempotencyKey,
+        userId: userId || 'SYSTEM',
+      });
+      return ApiResponse.success(
+        {
+          jobId: job.id,
+          lessonId: job.lessonId,
+          type: job.type,
+          status: job.status,
+          phase: job.phase,
+          statusUrl: `/api/v1/lessons/${id}/analysis/jobs/${job.id}`,
+        },
+        'Đã tiếp nhận yêu cầu tạo bộ câu hỏi trắc nghiệm bài học',
+      );
+    }
+
     const result = await this.quizGenerationService.generateQuiz(
       id,
       dto,
@@ -190,12 +280,48 @@ export class TranscriptAnalysisController {
   @Post(':id/analysis/summary')
   @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
   @UseGuards(LessonManagementGuard)
-  @HttpCode(HttpStatus.OK)
   async generateSummary(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() dto: GenerateSummaryDto,
     @CurrentUser('id') userId?: string,
-  ): Promise<ApiResponse<SummaryGenerationResponse>> {
+    @Headers('idempotency-key') idempotencyKey?: string,
+    @Res({ passthrough: true }) res?: Response,
+  ): Promise<
+    ApiResponse<
+      | SummaryGenerationResponse
+      | {
+        jobId: string;
+        lessonId: string;
+        type: string;
+        status: string;
+        phase: string;
+        statusUrl: string;
+      }
+    >
+  > {
+    if (this.isAsyncEnabled(JobTypeEnum.SUMMARY)) {
+      if (res) {
+        res.status(HttpStatus.ACCEPTED);
+      }
+      const job = await this.analysisJobService.enqueueSummaryJob({
+        lessonId: id,
+        dto,
+        idempotencyKey,
+        userId: userId || 'SYSTEM',
+      });
+      return ApiResponse.success(
+        {
+          jobId: job.id,
+          lessonId: job.lessonId,
+          type: job.type,
+          status: job.status,
+          phase: job.phase,
+          statusUrl: `/api/v1/lessons/${id}/analysis/jobs/${job.id}`,
+        },
+        'Đã tiếp nhận yêu cầu tạo tóm tắt bài học',
+      );
+    }
+
     const result = await this.summaryGenerationService.generateSummary(
       id,
       dto,

@@ -931,7 +931,7 @@ export class CourseService extends BaseService<ICourse, string> {
         const totalDuration = (c as { totalDuration?: number }).totalDuration ?? stats?.totalSeconds ?? 0;
         return {
           ...c,
-          studentsCount: countMap.get(c.id) ?? c.studentsCount ?? 0,
+          studentsCount: countMap.get(c.id) ?? 0,
           totalDuration,
           lessonsCount: stats?.videoCount ?? c.lessonsCount ?? 0,
         };

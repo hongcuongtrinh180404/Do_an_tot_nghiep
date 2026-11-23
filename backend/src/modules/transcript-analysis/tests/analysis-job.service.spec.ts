@@ -28,7 +28,7 @@ describe('AnalysisJobService (Unit Test)', () => {
     phase: JobPhaseEnum.WAITING_DISPATCH,
     attempts: 3,
     maxAttempts: 3,
-    dispatchState: 'dispatched',
+    dispatchState: 'published',
     dispatchSequence: 1,
     inputRevision: 0,
     targetRevision: 0,

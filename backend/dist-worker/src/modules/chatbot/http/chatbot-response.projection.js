@@ -48,6 +48,33 @@ function learningResult(result) {
         };
     }
 }
+function businessPeriod(p) {
+    return { startDate: p.startDate, endDate: p.endDate, startAt: p.startAt,
+        endAtExclusive: p.endAtExclusive, isPartial: p.isPartial };
+}
+function businessTotals(t) {
+    return { totalRevenue: t.totalRevenue, platformCommission: t.platformCommission,
+        instructorEarnings: t.instructorEarnings, successfulSales: t.successfulSales, reconstructedOrders: t.reconstructedOrders };
+}
+function businessResult(r) {
+    const base = { asOf: r.asOf, timeZone: 'Asia/Ho_Chi_Minh', currency: 'VND',
+        period: businessPeriod(r.period), course: r.course ? { id: r.course.id, title: r.course.title } : null };
+    switch (r.scope) {
+        case 'not_owned': return { ...base, course: null, scope: r.scope };
+        case 'selection': return { ...base, course: null, scope: r.scope,
+            items: r.items.map((c) => ({ id: c.id, title: c.title })),
+            total: r.total, page: r.page, limit: r.limit, hasMore: r.hasMore };
+        case 'revenue':
+        case 'sales_count': return { ...base, scope: r.scope, totals: businessTotals(r.totals) };
+        case 'top_courses': return { ...base, course: null, scope: r.scope,
+            totals: businessTotals(r.totals),
+            items: r.items.map((c) => ({ id: c.id, title: c.title, rank: c.rank, ...businessTotals(c) })),
+            total: r.total, page: r.page, limit: r.limit, hasMore: r.hasMore, topTiedCount: r.topTiedCount };
+        case 'compare': return { ...base, scope: r.scope, metric: r.metric, current: businessTotals(r.current),
+            previous: businessTotals(r.previous), previousPeriod: businessPeriod(r.previousPeriod),
+            change: { absolute: r.change.absolute, percent: r.change.percent, direction: r.change.direction } };
+    }
+}
 export function projectChatbotReply(reply) {
     switch (reply.kind) {
         case 'clarification': return { kind: reply.kind, status: reply.status, answer: reply.answer };
@@ -67,6 +94,10 @@ export function projectChatbotReply(reply) {
         }
         case 'learning_progress': return {
             kind: reply.kind, status: reply.status, answer: reply.answer, result: learningResult(reply.result),
+        };
+        case 'instructor_revenue':
+        case 'instructor_sales_stats': return {
+            kind: reply.kind, status: reply.status, answer: reply.answer, result: businessResult(reply.result),
         };
     }
 }

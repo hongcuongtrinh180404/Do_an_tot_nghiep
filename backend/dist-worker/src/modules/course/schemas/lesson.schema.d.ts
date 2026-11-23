@@ -154,6 +154,12 @@ export declare class LessonEntity extends BaseAbstractDocument {
     materials: LessonMaterialEntity[];
     isPreview: boolean;
     transcriptionStatus: LessonTranscriptionStatusEnum;
+    analysisInputRevision: number;
+    analysisOutputRevisions: {
+        summary: number;
+        quiz: number;
+        mindmap: number;
+    };
 }
 export declare const LessonSchema: MongooseSchema<LessonEntity, import("mongoose").Model<LessonEntity, any, any, any, any, any, LessonEntity>, {}, {}, {}, {}, import("mongoose").DefaultSchemaOptions, LessonEntity, import("mongoose").Document<unknown, {}, LessonEntity, {
     id: string;
@@ -219,6 +225,28 @@ export declare const LessonSchema: MongooseSchema<LessonEntity, import("mongoose
         id: string;
     }>> | undefined;
     transcriptionStatus?: import("mongoose").SchemaDefinitionProperty<LessonTranscriptionStatusEnum, LessonEntity, import("mongoose").Document<unknown, {}, LessonEntity, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<LessonEntity & Required<{
+        _id: Types.ObjectId;
+    }> & {
+        __v: number;
+    }, "id"> & import("mongoose").HydratedDocumentOverrides<{
+        id: string;
+    }>> | undefined;
+    analysisInputRevision?: import("mongoose").SchemaDefinitionProperty<number, LessonEntity, import("mongoose").Document<unknown, {}, LessonEntity, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<LessonEntity & Required<{
+        _id: Types.ObjectId;
+    }> & {
+        __v: number;
+    }, "id"> & import("mongoose").HydratedDocumentOverrides<{
+        id: string;
+    }>> | undefined;
+    analysisOutputRevisions?: import("mongoose").SchemaDefinitionProperty<{
+        summary: number;
+        quiz: number;
+        mindmap: number;
+    }, LessonEntity, import("mongoose").Document<unknown, {}, LessonEntity, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<LessonEntity & Required<{
         _id: Types.ObjectId;

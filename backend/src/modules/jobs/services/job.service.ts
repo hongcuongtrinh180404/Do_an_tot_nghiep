@@ -198,6 +198,48 @@ export class JobService extends BaseService<IJob, string> {
   }
 
   /**
+   * Cập nhật Checkpoint bền vững cho Job đang xử lý
+   * Giúp Worker resume lại tác vụ (ví dụ: polling AssemblyAI transcript) mà không cần chạy lại từ đầu
+   */
+  async updateCheckpoint(
+    jobId: string,
+    leaseToken: string,
+    checkpoint: Record<string, unknown>,
+    session?: ClientSession,
+  ): Promise<IJob> {
+    const currentJob = await this.jobRepository.findById(jobId, session);
+    if (!currentJob) {
+      throw new NotFoundException(`Không tìm thấy Job ${jobId}`);
+    }
+
+    if (currentJob.leaseToken !== leaseToken || currentJob.status !== JobStatusEnum.PROCESSING) {
+      throw new ConflictException(
+        `Fencing Lỗi: LeaseToken không hợp lệ hoặc Job không còn ở trạng thái PROCESSING khi updateCheckpoint`,
+      );
+    }
+
+    const updatedParameters = {
+      ...(currentJob.parameters || {}),
+      ...checkpoint,
+    };
+
+    const updatedJob = await this.jobRepository.update(
+      jobId,
+      {
+        parameters: updatedParameters,
+      },
+      session,
+    );
+
+    if (!updatedJob) {
+      throw new NotFoundException(`Cập nhật checkpoint cho Job ${jobId} thất bại`);
+    }
+
+    this.logger.log(`[Job] Đã lưu checkpoint cho Job ${jobId}: ${JSON.stringify(Object.keys(checkpoint))}`);
+    return updatedJob;
+  }
+
+  /**
    * Đánh dấu Job thất bại hoặc lên lịch retry nếu còn lượt
    */
   async failJob(

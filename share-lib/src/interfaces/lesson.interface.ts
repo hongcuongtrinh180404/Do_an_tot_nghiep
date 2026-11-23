@@ -22,6 +22,12 @@ export interface ILessonMaterial {
   createdAt?: Date | string;
 }
 
+export interface ILessonOutputRevisions {
+  summary: number;
+  quiz: number;
+  mindmap: number;
+}
+
 export interface ILesson {
   id: string;
   sectionId: string;
@@ -32,6 +38,8 @@ export interface ILesson {
   materials?: ILessonMaterial[];
   isPreview: boolean;
   transcriptionStatus?: LessonTranscriptionStatusEnum;
+  analysisInputRevision?: number;
+  analysisOutputRevisions?: ILessonOutputRevisions;
   createdAt: Date | string;
   updatedAt: Date | string;
   deletedAt?: Date | string | null;

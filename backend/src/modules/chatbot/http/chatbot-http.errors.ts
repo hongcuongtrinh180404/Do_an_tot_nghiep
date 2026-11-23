@@ -3,6 +3,7 @@ import { ChatbotAiError, type ChatbotAiErrorCode } from '../chatbot.errors.js';
 import { ChatbotContextError } from './chatbot-context.service.js';
 import { ChatbotLearningError } from '../tools/my-learning.types.js';
 import { SearchCoursesError } from '../tools/search-courses.contract.js';
+import { ChatbotBusinessError } from '../tools/instructor-business.types.js';
 
 type ChatbotHttpErrorCode =
   | ChatbotAiErrorCode
@@ -11,6 +12,7 @@ type ChatbotHttpErrorCode =
   | 'CHATBOT_LEARNING_UNAVAILABLE'
   | 'CHATBOT_CONTEXT_INVALID'
   | 'CHATBOT_INTERNAL_ERROR';
+type BusinessHttpCode = 'CHATBOT_INSTRUCTOR_FORBIDDEN' | 'CHATBOT_REVENUE_UNAVAILABLE' | 'CHATBOT_REVENUE_DATA_INCOMPLETE';
 
 const UNAVAILABLE =
   'Trợ lý hiện tạm thời không khả dụng. Bạn vui lòng thử lại sau.';
@@ -47,7 +49,7 @@ const ERROR_STATUS: Record<ChatbotAiErrorCode, HttpStatus> = {
 };
 
 export function chatbotHttpException(
-  code: ChatbotHttpErrorCode,
+  code: ChatbotHttpErrorCode | BusinessHttpCode,
   status: HttpStatus,
   message: string,
   retryable: boolean,
@@ -70,6 +72,14 @@ export function mapChatbotHttpError(
   error: unknown,
   requestId: string,
 ): HttpException {
+  if (error instanceof ChatbotBusinessError) {
+    if (error.code === 'CHATBOT_INSTRUCTOR_FORBIDDEN') return chatbotHttpException(error.code, HttpStatus.FORBIDDEN,
+      'Chỉ tài khoản giảng viên mới được xem thống kê giảng dạy của chính mình.', false, requestId);
+    if (error.code === 'CHATBOT_REVENUE_DATA_INCOMPLETE') return chatbotHttpException(error.code, HttpStatus.UNPROCESSABLE_ENTITY,
+      'Chưa đủ dữ liệu giao dịch để xác nhận số liệu trong khoảng này. Vui lòng kiểm tra các đơn cũ hoặc liên hệ quản trị viên.', false, requestId);
+    return chatbotHttpException('CHATBOT_REVENUE_UNAVAILABLE', HttpStatus.SERVICE_UNAVAILABLE,
+      'Thống kê doanh thu hiện tạm thời không khả dụng. Bạn vui lòng thử lại sau.', true, requestId);
+  }
   if ((error instanceof ChatbotLearningError && error.code === 'CHATBOT_LEARNING_UNAVAILABLE')
     || (error instanceof SearchCoursesError && error.code === 'CHATBOT_SEARCH_UNAVAILABLE')) {
     return chatbotHttpException(error.code, HttpStatus.SERVICE_UNAVAILABLE, UNAVAILABLE, true, requestId);

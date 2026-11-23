@@ -3,16 +3,44 @@ import {
   Logger,
   BadRequestException,
   InternalServerErrorException,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { execFile, ChildProcess } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import ffmpegStatic from 'ffmpeg-static';
 
-const execFileAsync = promisify(execFile);
+class AsyncSemaphore {
+  private running = 0;
+  private readonly queue: Array<() => void> = [];
+
+  constructor(private readonly maxConcurrency: number) {}
+
+  async acquire(): Promise<void> {
+    if (this.running < this.maxConcurrency) {
+      this.running++;
+      return;
+    }
+    return new Promise<void>((resolve) => {
+      this.queue.push(resolve);
+    });
+  }
+
+  release(): void {
+    this.running--;
+    const next = this.queue.shift();
+    if (next) {
+      this.running++;
+      next();
+    }
+  }
+
+  get activeCount(): number {
+    return this.running;
+  }
+}
 
 export interface IAudioExtractorService {
   extractMp3FromVideo(videoUrlOrPath: string, lessonId: string): Promise<string>;
@@ -21,10 +49,33 @@ export interface IAudioExtractorService {
 }
 
 @Injectable()
-export class AudioExtractorService implements IAudioExtractorService {
+export class AudioExtractorService implements IAudioExtractorService, OnModuleDestroy {
   private readonly logger = new Logger(AudioExtractorService.name);
+  private readonly semaphore: AsyncSemaphore;
+  private readonly activeProcesses = new Set<ChildProcess>();
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) {
+    const configuredConcurrency = Number(this.configService.get<number>('FFMPEG_MAX_CONCURRENCY', 1)) || 1;
+    const maxConcurrency = Math.max(1, configuredConcurrency);
+    this.semaphore = new AsyncSemaphore(maxConcurrency);
+    this.logger.log(`[FFmpeg] Initialized AudioExtractorService with max concurrency: ${maxConcurrency}`);
+  }
+
+  onModuleDestroy(): void {
+    if (this.activeProcesses.size > 0) {
+      this.logger.log(
+        `[FFmpeg] Shutting down AudioExtractorService, terminating ${this.activeProcesses.size} active FFmpeg processes...`,
+      );
+      for (const process of this.activeProcesses) {
+        try {
+          process.kill('SIGTERM');
+        } catch {
+          // ignore error on kill
+        }
+      }
+      this.activeProcesses.clear();
+    }
+  }
 
   /**
    * Phân giải đường dẫn binary FFmpeg theo thứ tự ưu tiên:
@@ -92,12 +143,36 @@ export class AudioExtractorService implements IAudioExtractorService {
     ];
 
     this.logger.log(
-      `[FFmpeg] Bắt đầu trích xuất âm thanh cho bài học ${trimmedLessonId} qua ${ffmpegPath}...`,
+      `[FFmpeg] Chờ slot trích xuất âm thanh cho bài học ${trimmedLessonId} (Active: ${this.semaphore.activeCount})...`,
     );
 
+    await this.semaphore.acquire();
     try {
+      this.logger.log(
+        `[FFmpeg] Bắt đầu trích xuất âm thanh cho bài học ${trimmedLessonId} qua ${ffmpegPath}...`,
+      );
+
       // Timeout 10 phút (600.000ms) đề phòng video dài hoặc mạng chậm
-      await execFileAsync(ffmpegPath, args, { timeout: 600000 });
+      let childProcessInstance: ChildProcess | null = null;
+      let isFinished = false;
+
+      await new Promise<void>((resolve, reject) => {
+        const child = execFile(ffmpegPath, args, { timeout: 600000 }, (error) => {
+          isFinished = true;
+          if (childProcessInstance) {
+            this.activeProcesses.delete(childProcessInstance);
+          }
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
+        childProcessInstance = child;
+        if (child && !isFinished) {
+          this.activeProcesses.add(child);
+        }
+      });
 
       const stats = await fs.promises.stat(tempFilePath).catch(() => null);
       if (!stats || stats.size === 0) {
@@ -131,6 +206,8 @@ export class AudioExtractorService implements IAudioExtractorService {
       throw new InternalServerErrorException(
         `Không thể trích xuất âm thanh từ video bài học: ${message}`,
       );
+    } finally {
+      this.semaphore.release();
     }
   }
 

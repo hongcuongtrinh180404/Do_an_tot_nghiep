@@ -3,7 +3,9 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
+import { ClientSession } from 'mongoose';
 import {
   ILessonSummary,
   ILessonSummaryData,
@@ -16,6 +18,25 @@ import { LessonSummaryRepository } from '../../course/repositories/lesson-summar
 import { SummaryValidator } from '../validators/summary.validator.js';
 import { GenerateSummaryDto } from '../dto/generate-summary.dto.js';
 import { UpdateLessonSummaryDto } from '../dto/update-summary.dto.js';
+
+export interface ValidatedSummaryContent {
+  lessonId: string;
+  lessonTitle: string;
+  summary: ILessonSummaryData;
+  metadata: {
+    model: string;
+    keyIndex: number;
+    maskedKey: string;
+    executionTimeMs: number;
+    usage?: {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+    };
+  };
+  currentInputRevision: number;
+  currentOutputRevision: number;
+}
 
 export interface SummaryGenerationResponse {
   lessonId: string;
@@ -31,6 +52,13 @@ export interface SummaryGenerationResponse {
       totalTokens: number;
     };
   };
+}
+
+export interface PersistSummaryOptions {
+  saveAsDraft?: boolean;
+  expectedRevision?: number;
+  userId?: string;
+  session?: ClientSession;
 }
 
 @Injectable()
@@ -113,13 +141,15 @@ ${formattedTranscript}`;
   }
 
   /**
-   * Sinh bản tóm tắt bài học từ transcript với Gemini API
+   * BƯỚC 1: Sinh và kiểm tra hợp lệ bản tóm tắt (Thuần túy tính toán + gọi AI ngoại vi, KHÔNG mở DB transaction)
    */
-  async generateSummary(
+  async generateSummaryContent(
     lessonId: string,
-    dto?: GenerateSummaryDto,
-    userId?: string,
-  ): Promise<SummaryGenerationResponse> {
+    options?: {
+      dto?: GenerateSummaryDto;
+      expectedInputRevision?: number;
+    },
+  ): Promise<ValidatedSummaryContent> {
     const trimmedLessonId = lessonId?.trim();
     if (!trimmedLessonId) {
       throw new BadRequestException('ID bài học không được để trống.');
@@ -131,7 +161,17 @@ ${formattedTranscript}`;
       throw new NotFoundException(`Không tìm thấy bài học với ID: ${trimmedLessonId}`);
     }
 
-    // 2. Lấy transcript
+    // 2. Kiểm tra input revision nếu có yêu cầu
+    if (
+      typeof options?.expectedInputRevision === 'number' &&
+      (lesson.analysisInputRevision ?? 0) !== options.expectedInputRevision
+    ) {
+      throw new ConflictException(
+        `INPUT_CHANGED: Nội dung transcript bài học đã thay đổi (hiện tại: ${lesson.analysisInputRevision ?? 0}, yêu cầu: ${options.expectedInputRevision})`,
+      );
+    }
+
+    // 3. Lấy transcript
     const transcript = await this.lessonTranscriptRepo.findByLessonId(trimmedLessonId);
     if (!transcript) {
       throw new BadRequestException(
@@ -161,14 +201,14 @@ ${formattedTranscript}`;
       `Bắt đầu sinh bản tóm tắt (Summary) cho bài học ${trimmedLessonId} ("${lesson.title}").`,
     );
 
-    // 3. Xây dựng prompt
+    // 4. Xây dựng prompt
     const prompt = this.buildSummaryPrompt(
       lesson.title,
       durationSeconds,
       formattedTranscript,
     );
 
-    // 4. Gọi Gemini
+    // 5. Gọi Gemini
     const geminiResult = await this.geminiService.generateJson<ILessonSummaryData>(
       prompt,
       {
@@ -176,29 +216,12 @@ ${formattedTranscript}`;
       },
     );
 
-    // 5. Kiểm tra tính hợp lệ
+    // 6. Kiểm tra tính hợp lệ
     SummaryValidator.validateOrFail(geminiResult.data, durationSeconds);
-
-    // 6. Lưu vào cơ sở dữ liệu (mặc định lưu trực tiếp thành bản chính thức)
-    const shouldSaveDraft = dto?.saveAsDraft ?? false;
-    if (shouldSaveDraft) {
-      await this.lessonSummaryRepo.saveDraftByLessonId(
-        trimmedLessonId,
-        geminiResult.data,
-        userId,
-      );
-      this.logger.log(`Đã lưu bản nháp Summary cho bài học ${trimmedLessonId}`);
-    } else {
-      await this.lessonSummaryRepo.upsertOfficialByLessonId(
-        trimmedLessonId,
-        geminiResult.data,
-        userId,
-      );
-      this.logger.log(`Đã lưu bản tóm tắt chính thức cho bài học ${trimmedLessonId}`);
-    }
 
     return {
       lessonId: trimmedLessonId,
+      lessonTitle: lesson.title,
       summary: geminiResult.data,
       metadata: {
         model: geminiResult.model,
@@ -207,6 +230,100 @@ ${formattedTranscript}`;
         executionTimeMs: geminiResult.executionTimeMs,
         usage: geminiResult.usage,
       },
+      currentInputRevision: lesson.analysisInputRevision ?? 0,
+      currentOutputRevision: lesson.analysisOutputRevisions?.summary ?? 0,
+    };
+  }
+
+  /**
+   * BƯỚC 2: Lưu vào DB có session (Chạy trong transaction ngắn)
+   */
+  async persistSummaryWithSession(
+    lessonId: string,
+    summaryData: ILessonSummaryData,
+    options: PersistSummaryOptions,
+  ): Promise<ILessonSummary> {
+    const trimmedLessonId = lessonId?.trim();
+    if (!trimmedLessonId) {
+      throw new BadRequestException('ID bài học không được để trống.');
+    }
+
+    // 1. Kiểm tra và tăng revision có điều kiện (nếu có expectedRevision)
+    if (typeof options.expectedRevision === 'number') {
+      const revisionUpdated = await this.lessonRepo.incrementOutputRevision(
+        trimmedLessonId,
+        'summary',
+        options.expectedRevision,
+        options.session,
+      );
+      if (!revisionUpdated) {
+        throw new ConflictException(
+          'TARGET_CHANGED: Bản tóm tắt bài học đã bị thay đổi bởi thao tác khác',
+        );
+      }
+    } else {
+      await this.lessonRepo.incrementOutputRevision(
+        trimmedLessonId,
+        'summary',
+        undefined,
+        options.session,
+      );
+    }
+
+    // 2. Lưu vào LessonSummary collection
+    const shouldSaveDraft = options.saveAsDraft ?? false;
+    if (shouldSaveDraft) {
+      const draftResult = options.session
+        ? await this.lessonSummaryRepo.saveDraftByLessonId(
+            trimmedLessonId,
+            summaryData,
+            options.userId,
+            options.session,
+          )
+        : await this.lessonSummaryRepo.saveDraftByLessonId(
+            trimmedLessonId,
+            summaryData,
+            options.userId,
+          );
+      this.logger.log(`Đã lưu bản nháp Summary cho bài học ${trimmedLessonId}`);
+      return draftResult;
+    }
+
+    const officialResult = options.session
+      ? await this.lessonSummaryRepo.upsertOfficialByLessonId(
+          trimmedLessonId,
+          summaryData,
+          options.userId,
+          options.session,
+        )
+      : await this.lessonSummaryRepo.upsertOfficialByLessonId(
+          trimmedLessonId,
+          summaryData,
+          options.userId,
+        );
+    this.logger.log(`Đã lưu bản tóm tắt chính thức cho bài học ${trimmedLessonId}`);
+    return officialResult;
+  }
+
+  /**
+   * Sinh bản tóm tắt bài học từ transcript (đường đồng bộ truyền thống)
+   */
+  async generateSummary(
+    lessonId: string,
+    dto?: GenerateSummaryDto,
+    userId?: string,
+  ): Promise<SummaryGenerationResponse> {
+    const validatedContent = await this.generateSummaryContent(lessonId, { dto });
+
+    await this.persistSummaryWithSession(lessonId, validatedContent.summary, {
+      saveAsDraft: dto?.saveAsDraft ?? false,
+      userId,
+    });
+
+    return {
+      lessonId: validatedContent.lessonId,
+      summary: validatedContent.summary,
+      metadata: validatedContent.metadata,
     };
   }
 
@@ -247,6 +364,9 @@ ${formattedTranscript}`;
       userId,
     );
 
+    // Tăng revision để vô hiệu hóa các worker cũ đang chạy ngầm
+    await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'summary');
+
     this.logger.log(
       `Giảng viên đã cập nhật trực tiếp bản tóm tắt bài học ${trimmedLessonId}`,
     );
@@ -284,6 +404,9 @@ ${formattedTranscript}`;
         'Không tìm thấy bản nháp Summary nào để áp dụng cho bài học này.',
       );
     }
+
+    // Tăng revision khi apply draft
+    await this.lessonRepo.incrementOutputRevision(trimmedId, 'summary');
 
     this.logger.log(`Đã áp dụng bản nháp Summary thành chính thức cho bài học ${trimmedId}`);
     return applied;

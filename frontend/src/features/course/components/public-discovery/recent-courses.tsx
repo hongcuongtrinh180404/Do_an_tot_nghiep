@@ -12,6 +12,7 @@ import {
 import { CourseCard } from './course-card';
 import { usePublicCoursesCatalogQuery } from '../../api/public-courses.api';
 import type { PublicSortOption } from '../../services/public-courses.service';
+import { PublicCoursesQueryError } from '../public-courses-query-error';
 
 interface RecentCoursesProps {
   selectedCategorySlug: string;
@@ -32,7 +33,7 @@ export function RecentCourses({
   const mappedSort: PublicSortOption =
     sortBy === 'rating' ? 'rating' : sortBy === 'students' ? 'popular' : 'newest';
 
-  const { data, isLoading } = usePublicCoursesCatalogQuery({
+  const { data, isLoading, isError, refetch } = usePublicCoursesCatalogQuery({
     q: searchQuery,
     categories:
       selectedCategorySlug && selectedCategorySlug !== 'all' ? [selectedCategorySlug] : undefined,
@@ -173,6 +174,8 @@ export function RecentCourses({
               />
             ))}
           </div>
+        ) : isError ? (
+          <PublicCoursesQueryError onRetry={() => { void refetch(); }} />
         ) : courses.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {courses.map((course) => (

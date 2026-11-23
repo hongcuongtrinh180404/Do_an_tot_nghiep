@@ -1,8 +1,9 @@
 # Giai Đoạn 6: Pipeline Video & Queue Transcription
 
 > **Thuộc kế hoạch:** [`docs/chatbot/plan-rabbitmq-ai-jobs/README.md`](./README.md)  
-> **Trạng thái:** Sẵn sàng thực hiện  
-> **Giai đoạn trước:** [`phase-5-quiz-mindmap.md`](./phase-5-quiz-mindmap.md)  
+> **Trạng thái:** ✅ Đã hoàn thành (PASSED)  
+> **Giai đoạn trước:** [`phase-5-quiz-mindmap.md`](./phase-5-quiz-mindmap.md) (Đã hoàn thành)  
+> **Giai đoạn tiếp theo:** [`phase-7-hardening-rollout.md`](./phase-7-hardening-rollout.md)  
 > **Mục tiêu:** Loại bỏ hoàn toàn cơ chế gọi bất đồng bộ không kiểm soát (`void async` fire-and-forget) trong quá trình xử lý video bài học; đưa việc trích xuất audio bằng FFmpeg và chuyển giọng nói thành văn bản qua AssemblyAI vào hàng đợi riêng biệt, có checkpoint bền vững và khả năng tự phục hồi.
 
 ---
@@ -102,14 +103,14 @@ Nếu tiến trình Worker bị tắt đột ngột (do restart, cúp điện, d
 
 ## 4. Danh Sách Nhiệm Vụ Cụ Thể (Checklist)
 
-- [ ] Cập nhật topology RabbitMQ bổ sung queue và DLQ cho transcription.
-- [ ] Bổ sung semaphore (ví dụ dùng thư viện `p-limit` hoặc internal counter) vào `AudioExtractorService` để giới hạn số tiến trình FFmpeg chạy song song.
-- [ ] Refactor `AssemblyAiService` để hỗ trợ lưu vết `transcriptId` ngay sau khi submit.
-- [ ] Xây dựng `TranscriptionJobProcessor` tuân thủ đầy đủ quy trình checkpoint và khối `finally` dọn dẹp file tạm.
-- [ ] Sửa đổi `LessonService.createLesson()`: Enqueue Job transcription ngay trong cùng session tạo bài học video mới.
-- [ ] Xóa bỏ toàn bộ các lời gọi `void this.triggerTranscription()` không an toàn.
-- [ ] Kiểm thử khả năng hủy (cancellation): Khi tắt Worker, gửi tín hiệu hủy tiến trình FFmpeg (kill child process) để không để lại tiến trình mồ côi (zombie process).
-- [ ] Kiểm tra việc tăng `analysisInputRevision` sau khi transcript hoàn tất để kích hoạt bảo vệ dữ liệu cho các tác vụ AI sau đó.
+- [x] Cập nhật topology RabbitMQ bổ sung queue và DLQ cho transcription (`mindly.transcription.v1`, `mindly.transcription.dead.v1`).
+- [x] Bổ sung semaphore vào `AudioExtractorService` để giới hạn số tiến trình FFmpeg chạy song song (`FFMPEG_MAX_CONCURRENCY=1`).
+- [x] Refactor `AssemblyAiService` để hỗ trợ lưu vết `externalTranscriptId` ngay sau khi submit và polling có timeout.
+- [x] Xây dựng `TranscriptionJobProcessor` tuân thủ đầy đủ quy trình checkpoint và khối `finally` dọn dẹp file tạm.
+- [x] Sửa đổi `LessonService.createLesson()`: Enqueue Job transcription ngay trong cùng session tạo bài học video mới.
+- [x] Xóa bỏ toàn bộ các lời gọi `void this.triggerTranscription()` không an toàn.
+- [x] Kiểm thử khả năng hủy (cancellation): Khi tắt Worker, gửi tín hiệu hủy tiến trình FFmpeg (kill child process qua `onModuleDestroy`).
+- [x] Kiểm tra việc tăng `analysisInputRevision` sau khi transcript hoàn tất để kích hoạt bảo vệ dữ liệu cho các tác vụ AI sau đó.
 
 ---
 
@@ -126,11 +127,11 @@ Nếu tiến trình Worker bị tắt đột ngột (do restart, cúp điện, d
 ## 6. Tiêu Chí Nghiệm Thu (Exit Gate)
 
 Giai đoạn 6 hoàn thành khi:
-- [ ] Không còn bất kỳ luồng fire-and-forget nào trong việc xử lý video.
-- [ ] Bài học không bao giờ bị kẹt vĩnh viễn ở trạng thái `TRANSCRIBING` khi tiến trình khởi động lại.
-- [ ] Số lượng tiến trình FFmpeg chạy đồng thời luôn tuân thủ đúng ngưỡng cấu hình.
-- [ ] Không upload lại audio lên AssemblyAI khi đã có checkpoint hợp lệ.
-- [ ] Toàn bộ file tạm luôn được xóa sạch 100%.
+- [x] Không còn bất kỳ luồng fire-and-forget nào trong việc xử lý video.
+- [x] Bài học không bao giờ bị kẹt vĩnh viễn ở trạng thái `TRANSCRIBING` khi tiến trình khởi động lại.
+- [x] Số lượng tiến trình FFmpeg chạy đồng thời luôn tuân thủ đúng ngưỡng cấu hình.
+- [x] Không upload lại audio lên AssemblyAI khi đã có checkpoint hợp lệ.
+- [x] Toàn bộ file tạm luôn được xóa sạch 100%.
 
 ---
 

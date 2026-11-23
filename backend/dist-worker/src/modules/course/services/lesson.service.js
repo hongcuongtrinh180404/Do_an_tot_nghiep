@@ -13,7 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var LessonService_1;
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, ConflictException, Optional, } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
-import { RoleEnum, CourseStatusEnum, LessonContentTypeEnum, LessonTranscriptionStatusEnum, } from 'share-lib';
+import { RoleEnum, CourseStatusEnum, LessonContentTypeEnum, LessonTranscriptionStatusEnum, JobTypeEnum, } from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
@@ -21,6 +21,7 @@ import { CourseRepository } from '../repositories/course.repository.js';
 import { StorageService } from '../../storage/index.js';
 import { LessonTranscriptService } from './lesson-transcript.service.js';
 import { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
+import { JobService } from '../../jobs/services/job.service.js';
 let LessonService = LessonService_1 = class LessonService extends BaseService {
     lessonRepository;
     sectionRepository;
@@ -28,7 +29,8 @@ let LessonService = LessonService_1 = class LessonService extends BaseService {
     storageService;
     courseRepository;
     lessonTranscriptService;
-    constructor(lessonRepository, sectionRepository, cls, enrollmentRepository, storageService, courseRepository, lessonTranscriptService) {
+    jobService;
+    constructor(lessonRepository, sectionRepository, cls, enrollmentRepository, storageService, courseRepository, lessonTranscriptService, jobService) {
         super(lessonRepository, cls, LessonService_1.name);
         this.lessonRepository = lessonRepository;
         this.sectionRepository = sectionRepository;
@@ -36,6 +38,7 @@ let LessonService = LessonService_1 = class LessonService extends BaseService {
         this.storageService = storageService;
         this.courseRepository = courseRepository;
         this.lessonTranscriptService = lessonTranscriptService;
+        this.jobService = jobService;
     }
     async createLesson(sectionId, input, session) {
         let section = null;
@@ -77,11 +80,20 @@ let LessonService = LessonService_1 = class LessonService extends BaseService {
             createdById: userId,
             updatedById: userId,
         }, session);
-        if (isVideo &&
-            (createdLesson.content?.publicId || createdLesson.content?.url) &&
-            this.lessonTranscriptService) {
+        if (isVideo && (createdLesson.content?.publicId || createdLesson.content?.url)) {
             const fileKey = createdLesson.content.publicId || createdLesson.content.url;
-            this.lessonTranscriptService.triggerTranscription(createdLesson.id, fileKey);
+            if (this.jobService) {
+                await this.jobService.createJob({
+                    type: JobTypeEnum.TRANSCRIPTION,
+                    lessonId: createdLesson.id,
+                    courseId: section.courseId,
+                    requestedById: userId,
+                    parameters: { videoKey: fileKey },
+                }, session);
+            }
+            else if (this.lessonTranscriptService) {
+                this.lessonTranscriptService.triggerTranscription(createdLesson.id, fileKey);
+            }
         }
         return createdLesson;
     }
@@ -324,13 +336,15 @@ LessonService = LessonService_1 = __decorate([
     __param(4, Optional()),
     __param(5, Optional()),
     __param(6, Optional()),
+    __param(7, Optional()),
     __metadata("design:paramtypes", [LessonRepository,
         SectionRepository,
         ClsService,
         EnrollmentRepository,
         StorageService,
         CourseRepository,
-        LessonTranscriptService])
+        LessonTranscriptService,
+        JobService])
 ], LessonService);
 export { LessonService };
 //# sourceMappingURL=lesson.service.js.map

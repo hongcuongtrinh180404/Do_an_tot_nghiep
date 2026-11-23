@@ -39,6 +39,11 @@ import { LearningProgressService } from '../../learning-progress/services/learni
 import { EnrollmentEntity } from '../../enrollment/schemas/enrollment.schema.js';
 import { LessonEntity } from '../../course/schemas/lesson.schema.js';
 import { ChatbotLearningReadService } from '../services/chatbot-learning-read.service.js';
+import { InstructorRevenueReadModule } from '../../payment/instructor-revenue-read.module.js';
+import { InstructorRevenueReadRepository } from '../../payment/repositories/instructor-revenue-read.repository.js';
+import { ChatbotInstructorBusinessService } from '../services/chatbot-instructor-business.service.js';
+import { ChatbotBusinessError } from '../tools/instructor-business.types.js';
+import { resolveBusinessPeriod } from '../tools/instructor-business.period.js';
 import { parseSearchCoursesArguments } from '../tools/search-courses.contract.js';
 import {
   CHATBOT_HTTP_EXPOSED_HEADERS,
@@ -53,6 +58,11 @@ const secret = 'synthetic-chatbot-http-jwt-secret-at-least-32-characters';
   exports: [LearningProgressService],
 })
 class TestLearningProgressModule {}
+@Module({
+  providers: [{ provide: InstructorRevenueReadRepository, useValue: {} }],
+  exports: [InstructorRevenueReadRepository],
+})
+class TestInstructorRevenueReadModule {}
 
 function toolCompletion(args: Record<string, unknown> = { keyword: 'React' }, name = 'search_courses') {
   return {
@@ -79,6 +89,7 @@ describe('Chatbot HTTP — real JWT/validation/limits, mocked external data', ()
   const complete = vi.fn();
   const search = vi.fn();
   const learning = { list: vi.fn(), detail: vi.fn(), overview: vi.fn(), candidates: vi.fn() };
+  const business = { execute: vi.fn() };
   const users = {
     findById: vi.fn(),
     toUserProfile: vi.fn((user: IUser) => ({
@@ -114,6 +125,8 @@ describe('Chatbot HTTP — real JWT/validation/limits, mocked external data', ()
       ],
     })
       .overrideModule(LearningProgressModule).useModule(TestLearningProgressModule)
+      .overrideModule(InstructorRevenueReadModule).useModule(TestInstructorRevenueReadModule)
+      .overrideProvider(ChatbotInstructorBusinessService).useValue(business)
       .overrideProvider(getModelToken(EnrollmentEntity.name)).useValue({})
       .overrideProvider(getModelToken(LessonEntity.name)).useValue({})
       .overrideProvider(ChatbotLearningReadService).useValue(learning)
@@ -158,6 +171,7 @@ describe('Chatbot HTTP — real JWT/validation/limits, mocked external data', ()
   });
 
   beforeEach(() => {
+    business.execute.mockReset();
     for (const method of Object.values(learning)) method.mockReset();
     complete.mockReset().mockResolvedValue(toolCompletion());
     users.findById.mockReset().mockImplementation((id: string) =>
@@ -206,6 +220,53 @@ describe('Chatbot HTTP — real JWT/validation/limits, mocked external data', ()
       .set('Authorization', `Bearer ${bearer}`)
       .send(body as Record<string, unknown>);
   }
+  it.each([RoleEnum.INSTRUCTOR, RoleEnum.ADMIN])('routes own business data for %s using the server-verified role, never the JWT role claim', async (role) => {
+    const id = randomUUID().replaceAll('-', '').slice(0, 24);
+    const bearer = jwt.sign({ sub: id, role: RoleEnum.STUDENT });
+    users.findById.mockImplementation(async (currentId: string) => ({ id: currentId, role, status: UserStatusEnum.ACTIVE }));
+    const period = resolveBusinessPeriod({ timeRange: 'this_month' });
+    business.execute.mockResolvedValue({
+      result: { scope: 'revenue', period, course: null, asOf: new Date().toISOString(),
+        timeZone: 'Asia/Ho_Chi_Minh', currency: 'VND',
+        totals: { totalRevenue: 200000, instructorEarnings: 140000, platformCommission: 60000,
+          successfulSales: 1, reconstructedOrders: 0, accountNumber: 'private-bank' } },
+      nextContext: { mode: 'instructor_revenue', business: { query: {
+        period: { timeRange: 'this_month' }, mode: 'revenue', metric: 'instructor_earnings', page: 1, limit: 5,
+      } } },
+    });
+    complete.mockResolvedValue(toolCompletion({}, 'get_instructor_revenue'));
+    const response = await post({ message: 'Thu nhập tháng này' }, bearer);
+    expect(response.status).toBe(200);
+    expect(response.body.data.kind).toBe('instructor_revenue');
+    expect(response.body.data.result.totals.instructorEarnings).toBe(140000);
+    expect(business.execute).toHaveBeenCalledWith('revenue', '{}', id, 'Thu nhập tháng này', expect.any(AbortSignal), undefined);
+    expect(complete.mock.calls[0][0].tools).toHaveLength(5);
+    expect(JSON.stringify(response.body)).not.toContain('private-');
+    const stranger = jwt.sign({ sub: '0123456789abcdef00000009' });
+    const other = await post({ message: 'Khóa đó', context: response.body.data.context }, stranger);
+    expect(other.status).toBe(400);
+    expect(other.body.code).toBe('CHATBOT_CONTEXT_INVALID');
+    expect(business.execute).toHaveBeenCalledOnce();
+  });
+  it('does not grant instructor functions from a forged JWT role claim on an actual student account', async () => {
+    complete.mockResolvedValue(toolCompletion({}, 'get_instructor_revenue'));
+    const response = await post({ message: 'Doanh thu' }, jwt.sign({ sub: randomUUID(), role: RoleEnum.INSTRUCTOR }));
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe('CHATBOT_INSTRUCTOR_FORBIDDEN');
+    expect(complete.mock.calls[0][0].tools).toHaveLength(3);
+    expect(business.execute).not.toHaveBeenCalled();
+  });
+  it.each([
+    ['CHATBOT_INSTRUCTOR_FORBIDDEN', 403], ['CHATBOT_REVENUE_DATA_INCOMPLETE', 422], ['CHATBOT_REVENUE_UNAVAILABLE', 503],
+  ] as const)('returns safe financial error %s instead of fake zero totals', async (code, status) => {
+    users.findById.mockImplementation(async (id: string) => ({ id, role: RoleEnum.INSTRUCTOR, status: UserStatusEnum.ACTIVE }));
+    complete.mockResolvedValue(toolCompletion({}, 'get_instructor_revenue'));
+    business.execute.mockRejectedValue(new ChatbotBusinessError(code));
+    const response = await post({ message: 'Doanh thu' });
+    expect(response.status).toBe(status);
+    expect(response.body.code).toBe(code);
+    expect(response.body).not.toHaveProperty('data');
+  });
 
   it('routes owned courses and selected progress through the authenticated HTTP caller', async () => {
     const id = '0123456789abcdef01234567';
@@ -312,7 +373,7 @@ describe('Chatbot HTTP — real JWT/validation/limits, mocked external data', ()
     expect(complete.mock.calls[0][0].requestId).toBe(
       response.body.data.requestId,
     );
-    expect(complete.mock.calls[0][0].messages[1].content).toBe(
+    expect(complete.mock.calls[0][0].messages.at(-1).content).toBe(
       'Có khóa học React không?',
     );
     expect(response.body.data).not.toHaveProperty('success');

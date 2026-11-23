@@ -77,11 +77,12 @@ pnpm dev
 
 ## 🛠️ Công nghệ chủ đạo (Tech Stack)
 
-### ⚙️ Backend (REST API & Async Workers)
-* **Framework**: NestJS 11 + TypeScript (Strict mode).
-* **Database & ODM**: MongoDB 7+ & Mongoose 8.
-* **Architecture**: Repository Pattern + Base Abstract Pattern (`BaseRepository`, `BaseService`, `BaseAbstractDocument`).
-* **Message Broker**: **RabbitMQ (AMQP)** điều phối tác vụ upload video, gọi Speech-to-Text và gọi LLM bất đồng bộ với cơ chế Manual ACK & Dead Letter Queue (DLQ).
+### ⚙️ Backend (REST API & Standalone Worker)
+* **Framework**: NestJS 12 (ESM) + TypeScript (Strict mode).
+* **Database & ODM**: MongoDB 7.0 Replica Set (`rs0`) & Mongoose 9.
+* **Architecture**: Repository Pattern + Base Abstract Pattern (`BaseRepository`, `BaseService`, `BaseAbstractDocument`) + Embedded Outbox Pattern.
+* **Message Broker**: **RabbitMQ 4.4 (AMQP)** điều phối tác vụ upload video, transcription và AI pipeline bất đồng bộ với cơ chế Atomic Claim, Lease Fencing, Manual ACK & Dead Letter Queue (DLQ).
+* **Standalone Worker**: Tiến trình nền riêng biệt (`pnpm --filter backend dev:worker`) chuyên trách xử lý các tác vụ AI & Video nặng, không làm nghẽn REST API.
 * **AI Integrations**:
   * **AssemblyAI**: Chuyển đổi giọng nói video sang văn bản có timestamp chi tiết.
   * **Google Gemini API**: Phân tích transcript, sinh sơ đồ tư duy Markdown và ngân hàng câu hỏi in-video quiz.

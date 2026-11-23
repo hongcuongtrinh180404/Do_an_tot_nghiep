@@ -14,6 +14,8 @@ hay storage token riêng.
 | `hooks/use-chatbot.ts` | Lịch sử tạm, chống gửi trùng, hủy request, countdown quota, retry |
 | `components/chatbot-widget.tsx` | Launcher, dialog, form, danh sách khóa học, trạng thái lỗi |
 | `components/personal-learning-reply.tsx` | Khóa sở hữu, tổng quan/chi tiết tiến độ và chọn khóa trùng tên |
+| `chatbot-business.contract.ts` | Kiểm tra khoảng thời gian, tổng tiền, đồng hạng và chênh lệch |
+| `components/instructor-business-reply.tsx` | Thu nhập sau hoa hồng, lượt mua, bán chạy và so sánh hai kỳ |
 | `components/chatbot.module.css` | Giao diện desktop 420 px và dialog fullscreen dưới 640 px |
 
 ## Hành vi
@@ -23,7 +25,7 @@ hay storage token riêng.
   `/checkout*`, `/login`, `/register`, `/reset-password`, `/verify-email*`,
   `/courses/new` và các trang bài học (`/lessons/`).
 - Cuộc trò chuyện chỉ nằm trong component, không lưu server. Component được key
-  theo `user.id`; đổi tài khoản sẽ unmount session cũ, hủy request đang chạy và
+  theo `user.id` và role; đổi tài khoản/role sẽ unmount session cũ, hủy request đang chạy và
   xóa transcript. Nút xóa chủ động cũng hủy request nhưng **không** reset quota.
 - Mỗi request gửi câu hỏi và `context` ký số tùy chọn từ lần thành công gần nhất;
   không gửi toàn bộ transcript, role hay bộ lọc do client tự tạo. Ngữ cảnh chỉ nằm
@@ -60,6 +62,14 @@ hay storage token riêng.
   Chỉ điều hướng khi người dùng bấm; không tự mở player hoặc ghi session/heartbeat.
 - Trên trang chi tiết khóa học, launcher được nâng lên trên thanh mua hàng cố
   định của mobile.
+- Giảng viên/admin có gợi ý doanh thu, bán chạy và so sánh; học viên giữ gợi ý học tập.
+  Business card nêu rõ thu nhập **sau hoa hồng**, không phải xác nhận đã chi trả;
+  so sánh ghi rõ hai kỳ và không hiện tỷ lệ tăng giả khi kỳ trước bằng 0.
+  Số thứ tự để chọn khóa tách khỏi hạng doanh số. Khóa đồng hạng cao nhất có số
+  đếm thật ngay cả khi chỉ hiển thị một khóa.
+- Không nhận role hoặc instructor ID từ browser để cấp quyền. Zod kiểm tra
+  `gross = platform + net`, tiền nguyên VND an toàn, tỷ lệ so sánh và thời gian;
+  lỗi 422 thiếu dữ liệu doanh thu không bị diễn giải thành danh sách/tổng 0.
 
 ## Kiểm thử
 
@@ -115,3 +125,7 @@ Remove-Item Env:CHATBOT_BROWSER_ACCESS_TOKEN
 Để kiểm tra production, build frontend rồi chạy `next start` ở cổng riêng và đặt
 `CHATBOT_TEST_ORIGIN` tương ứng. Ảnh smoke thật có thể chứa dữ liệu tài khoản
 kiểm thử; không commit/chia sẻ. Không thêm thư viện UI mới.
+
+Kiểm tra hai tool giảng viên: thêm `--business` thay `--learning`, dùng JWT
+giảng viên cho live. Fixture chạy 9 kiểm tra ở 1440/768/390; live dùng đúng 5
+request, đối chiếu GET thống kê và không tự retry. Xem [hợp đồng kinh doanh](./instructor-business.md).

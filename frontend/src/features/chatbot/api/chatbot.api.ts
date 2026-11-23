@@ -46,6 +46,14 @@ export function chatbotFailure(error: unknown): ChatbotFailure {
     ...base, message: 'Phiên đăng nhập đã hết hạn. Bạn vui lòng đăng nhập lại.',
     retryable: false, requiresLogin: true,
   };
+  if (status === 422 && body?.code === 'CHATBOT_REVENUE_DATA_INCOMPLETE') return {
+    ...base, message: 'Chưa đủ dữ liệu giao dịch để xác nhận số liệu. Vui lòng kiểm tra các đơn cũ hoặc liên hệ quản trị viên.',
+    retryable: false,
+  };
+  if (status === 403 && body?.code === 'CHATBOT_INSTRUCTOR_FORBIDDEN') return {
+    ...base, message: 'Tài khoản hiện không có quyền xem thống kê giảng dạy này.',
+    retryable: false, resetContext: true,
+  };
   if (status === 429) return {
     ...base, message: 'Bạn đang gửi câu hỏi quá nhanh hoặc dịch vụ đang giới hạn lượt gọi. Vui lòng chờ rồi thử lại.',
     retryAt: retryAtFromHeader(error.response?.headers['retry-after']),

@@ -41,6 +41,14 @@ afterEach(() => {
 });
 
 describe('Chatbot HTTP client and auth integration', () => {
+  it('does not log out or suggest automatic retry for incomplete revenue or missing instructor permission', () => {
+    expect(chatbotFailure(httpError(422, {}, { code: 'CHATBOT_REVENUE_DATA_INCOMPLETE' }))).toMatchObject({
+      retryable: false, requiresLogin: false, message: expect.stringContaining('Chưa đủ dữ liệu'),
+    });
+    expect(chatbotFailure(httpError(403, {}, { code: 'CHATBOT_INSTRUCTOR_FORBIDDEN' }))).toMatchObject({
+      retryable: false, requiresLogin: false, resetContext: true,
+    });
+  });
   it('sends only message, uses existing JWT interceptor, 45s timeout and cancellation', async () => {
     const controller = new AbortController();
     const result = await sendChatbotMessage('Python', controller.signal);

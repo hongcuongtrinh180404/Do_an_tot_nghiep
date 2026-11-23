@@ -6,6 +6,7 @@ import { AssemblyAiService } from '../assemblyai.service.js';
 
 const mockTranscripts = {
   transcribe: vi.fn(),
+  submit: vi.fn(),
   sentences: vi.fn(),
   subtitles: vi.fn(),
   get: vi.fn(),
@@ -278,7 +279,7 @@ describe('AssemblyAiService', () => {
       );
     });
 
-    it('should upload file stream and execute transcription successfully', async () => {
+    it('should upload file stream, submit and poll transcription successfully', async () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
       const mockReadStream = {} as fs.ReadStream;
       vi.mocked(fs.createReadStream).mockReturnValue(mockReadStream);
@@ -286,6 +287,7 @@ describe('AssemblyAiService', () => {
       const uploadedUrl = 'https://cdn.assemblyai.com/staging/test-file.mp3';
       mockFiles.upload.mockResolvedValue(uploadedUrl);
 
+      mockTranscripts.submit.mockResolvedValue({ id: 'transcript-from-file' });
       const mockResult = {
         id: 'transcript-from-file',
         status: 'completed',
@@ -293,7 +295,7 @@ describe('AssemblyAiService', () => {
         language_code: 'vi',
         audio_duration: 90,
       };
-      mockTranscripts.transcribe.mockResolvedValue(mockResult);
+      mockTranscripts.get.mockResolvedValue(mockResult);
       mockTranscripts.sentences.mockResolvedValue({
         sentences: [
           { text: 'Nội dung tệp âm thanh trích xuất từ video.', start: 0, end: 1500 },
@@ -304,7 +306,7 @@ describe('AssemblyAiService', () => {
 
       expect(fs.createReadStream).toHaveBeenCalledWith(sampleFilePath);
       expect(mockFiles.upload).toHaveBeenCalledWith(mockReadStream);
-      expect(mockTranscripts.transcribe).toHaveBeenCalledWith(
+      expect(mockTranscripts.submit).toHaveBeenCalledWith(
         expect.objectContaining({
           audio: uploadedUrl,
           language_code: 'vi',
@@ -321,6 +323,58 @@ describe('AssemblyAiService', () => {
       mockFiles.upload.mockRejectedValue(new Error('S3 staging upload rejected'));
 
       await expect(service.transcribeFile(sampleFilePath)).rejects.toThrow(
+        InternalServerErrorException,
+      );
+    });
+  });
+
+  describe('submitTranscriptFile', () => {
+    const sampleFilePath = '/tmp/audio-lesson-456.mp3';
+
+    it('should submit transcript file and return transcript id', async () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.createReadStream).mockReturnValue({} as fs.ReadStream);
+      mockFiles.upload.mockResolvedValue('https://cdn.assemblyai.com/staging/file.mp3');
+      mockTranscripts.submit.mockResolvedValue({ id: 'sub-id-123' });
+
+      const id = await service.submitTranscriptFile(sampleFilePath);
+      expect(id).toBe('sub-id-123');
+      expect(mockTranscripts.submit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          audio: 'https://cdn.assemblyai.com/staging/file.mp3',
+          language_code: 'vi',
+        }),
+      );
+    });
+  });
+
+  describe('pollTranscript', () => {
+    it('should poll until completed and return structured result', async () => {
+      mockTranscripts.get.mockResolvedValue({
+        id: 'poll-123',
+        status: 'completed',
+        text: 'Nội dung sau khi poll',
+        language_code: 'vi',
+        audio_duration: 100,
+      });
+      mockTranscripts.sentences.mockResolvedValue({
+        sentences: [{ text: 'Nội dung sau khi poll.', start: 0, end: 2000 }],
+      });
+
+      const result = await service.pollTranscript('poll-123', 5000);
+      expect(result.transcriptId).toBe('poll-123');
+      expect(result.rawTranscript).toBe('Nội dung sau khi poll');
+      expect(result.durationSeconds).toBe(100);
+    });
+
+    it('should throw InternalServerErrorException if transcript status is error', async () => {
+      mockTranscripts.get.mockResolvedValue({
+        id: 'poll-err',
+        status: 'error',
+        error: 'Audio file unreadable or unsupported format',
+      });
+
+      await expect(service.pollTranscript('poll-err', 5000)).rejects.toThrow(
         InternalServerErrorException,
       );
     });

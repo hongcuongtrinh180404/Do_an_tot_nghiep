@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { CourseLevelEnum, LearningStatusEnum } from 'share-lib';
+import { chatbotBusinessReplySchema } from './chatbot-business.contract';
+export type { ChatbotBusinessReply } from './chatbot-business.contract';
 
 export const CHATBOT_MESSAGE_LIMIT = 2000;
 export const CHATBOT_REQUEST_TIMEOUT_MS = 45000;
@@ -130,6 +132,7 @@ const learningReplySchema = z.object({
 
 export const chatbotReplySchema = z.union([
   chatbotSearchReplySchema, myCoursesReplySchema, learningReplySchema,
+  chatbotBusinessReplySchema,
   z.object({ ...base, kind: z.literal('clarification'), status: z.literal('needs_clarification') }),
 ]);
 export type ChatbotReply = z.infer<typeof chatbotReplySchema>;

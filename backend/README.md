@@ -1,124 +1,117 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# ⚙️ THC DATN Backend Server & Standalone Worker
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+> **Framework:** NestJS 12 (ESM)  
+> **Runtime:** Node.js `>= 22.0.0` (ESM native)  
+> **Database:** MongoDB 7.0 Replica Set (`rs0`) qua Mongoose 9  
+> **Message Broker:** RabbitMQ 4.4 (AMQP 0-9-1)  
+> **Object Storage:** MinIO S3 SDK  
+> **AI Services:** Google Gemini 2.5 (`@google/genai`), AssemblyAI (`assemblyai`)  
+> **Payment Gateway:** SePay Webhook (HMAC-SHA256, Transactional Activation)
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 📖 1. Giới Thiệu Chung
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Backend của dự án được xây dựng theo kiến trúc **Modular Monolith** kết hợp mô hình xử lý bất đồng bộ **Event-Driven / Worker Pattern**:
+- **REST API Server (`src/main.ts`)**: Tiếp nhận các yêu cầu HTTP từ Web Client, xác thực JWT, kiểm soát quyền hạn (RBAC), phục vụ nghiệp vụ nhanh, và ghi nhận ý định tác vụ nặng vào MongoDB Outbox (`jobs` collection) trước khi trả về `202 Accepted`.
+- **Standalone Worker (`src/worker.ts`)**: Tiến trình xử lý nền độc lập, lắng nghe message từ RabbitMQ (`mindly.tasks.v1`), thực thi tính toán AI kéo dài, trích xuất âm thanh FFmpeg, và cam kết dữ liệu nguyên tử vào MongoDB.
 
-## Project setup
+---
 
-```bash
-$ pnpm install
+## 🏛️ 2. Cấu Trúc Thư Mục Cốt Lõi
+
+```text
+backend/
+├── src/
+│   ├── main.ts                    --> Điểm khởi động REST API Server
+│   ├── worker.ts                  --> Điểm khởi động Standalone Worker (IS_WORKER=true)
+│   ├── app.module.ts              --> Root NestJS Module
+│   ├── modules/
+│   │   ├── base/                  --> Base Service, Document, Repository trừu tượng
+│   │   ├── auth/                  --> JWT, Refresh Token, Guard, Strategy
+│   │   ├── user/                  --> Hồ sơ người dùng, phân quyền
+│   │   ├── course/                --> Quản lý khóa học, bài học, video, câu hỏi
+│   │   ├── enrollment/            --> Ghi danh học tập, theo dõi tiến độ
+│   │   ├── payment/               --> Tích hợp SePay, xác thực Webhook
+│   │   ├── storage/               --> MinIO S3 upload, presigned stream URLs
+│   │   ├── assemblyai/            --> AssemblyAI SDK, submit & poll transcription
+│   │   ├── gemini/                --> Gemini API SDK, key rotation manager
+│   │   ├── messaging/             --> RabbitMQ connection, topology, consumer/publisher
+│   │   ├── jobs/                  --> Collection jobs, embedded outbox, atomic claim, recovery
+│   │   └── transcript-analysis/   --> AI generator (Summary, Quiz, Mindmap) & Processors
+│   └── config/                    --> Cấu hình môi trường & validation Joi/class-validator
+├── scripts/                       --> Scripts kiểm thử tải, di trú dữ liệu, seed
+├── database/seeds/                --> Deterministic seed scripts
+└── tsconfig.json / tsconfig.worker.json
 ```
 
-## Compile and run the project
+---
 
+## 🚀 3. Hướng Dẫn Cài Đặt & Khởi Chạy
+
+### 3.1. Chuẩn Bị Môi Trường
+1. **Node.js:** Phiên bản `>= 22.0.0`
+2. **Docker Containers:** Đảm bảo MongoDB (`rs0`), RabbitMQ, và MinIO đang hoạt động:
+   ```bash
+   # Từ thư mục root dự án
+   docker compose up -d
+   ```
+3. **Cấu hình file môi trường:**
+   ```bash
+   cp .env.example .env
+   ```
+
+### 3.2. Khởi Chạy Ứng Dụng
+
+#### Chế độ Phát triển (Development):
 ```bash
-# development
-$ pnpm run start
+# 1. Chạy API Server (Port 8000)
+pnpm start:dev
 
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+# 2. Chạy Standalone Worker (Terminal riêng biệt)
+pnpm dev:worker
 ```
 
-## Run tests
-
+#### Chế độ Biên Dịch & Chạy Production:
 ```bash
-# unit tests
-$ pnpm run test
+# Biên dịch API
+pnpm build
 
-# e2e tests
-$ pnpm run test:e2e
+# Biên dịch Worker
+pnpm build:worker
 
-# test coverage
-$ pnpm run test:cov
+# Khởi chạy production
+node dist/main.js
+node dist/worker.js
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## 🧪 4. Kiểm Thử (Testing)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Observability
-
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-To add it to this project:
+Dự án sử dụng **Vitest** làm test runner chuẩn:
 
 ```bash
-$ pnpm install @nestjs/observe
+# Chạy toàn bộ unit test suite
+pnpm test
+
+# Chạy test suite nghiệm thu 10 kịch bản bất đồng bộ
+npx vitest run src/modules/jobs/tests/scenarios-hardening.spec.ts
+
+# Chạy load test mô phỏng 50 tác vụ đồng thời
+pnpm test:load-jobs
+
+# Chạy kiểm thử thanh toán & enrollment
+pnpm test:payment
 ```
 
-Then follow the [setup guide](https://docs.nestjs.com/observability/overview) - it takes a single import and an app key.
+---
 
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
+## 📊 5. Kiến Trúc Hàng Đợi & Quản Lý Job
 
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Hệ thống tuân thủ nghiêm ngặt các nguyên tắc:
+1. **Outbox Pattern:** Mọi Job đều được ghi nhận vào MongoDB trước khi dispatch sang RabbitMQ, bảo đảm không bao giờ mất việc kể cả khi RabbitMQ tạm thời ngừng hoạt động.
+2. **Atomic Claim & Lease Fencing:** Worker nhận việc bằng atomic `findOneAndUpdate`, được cấp `leaseToken` (90–120s) và duy trì heartbeat. Worker khác không thể can thiệp.
+3. **Short MongoDB Transaction (< 100ms):** Cuộc gọi AI/AssemblyAI kéo dài diễn ra ngoài transaction. Giao dịch chỉ mở trong vòng < 100ms ở bước cuối để commit dữ liệu an toàn.
+4. **Two-Way Revision Guard:** Bảo vệ 100% dữ liệu chỉnh sửa thủ công của giảng viên, tự động hủy bỏ kết quả AI nếu phát hiện bài học đã được cập nhật trước đó (`TARGET_CHANGED`).
+5. **Runbook Vận Hành:** Xem chi tiết tại [`docs/chatbot/plan-rabbitmq-ai-jobs/runbook.md`](../docs/chatbot/plan-rabbitmq-ai-jobs/runbook.md).

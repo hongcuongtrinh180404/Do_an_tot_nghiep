@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
-import { ILesson, ISection, ICourse, RoleEnum, LessonContentTypeEnum, CourseStatusEnum } from 'share-lib';
+import { ILesson, ISection, ICourse, RoleEnum, LessonContentTypeEnum, CourseStatusEnum, JobTypeEnum } from 'share-lib';
 import { LessonService, CreateLessonInput } from '../services/lesson.service.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
 import { SectionRepository } from '../repositories/section.repository.js';
@@ -258,6 +258,56 @@ describe('LessonService', () => {
 
       await expect(service.createLesson('section_100', validInput)).rejects.toThrow(
         'Database write error',
+      );
+    });
+
+    it('10. should enqueue TRANSCRIPTION job in transaction session when creating video lesson and jobService is available', async () => {
+      const mockJobService = {
+        createJob: vi.fn().mockResolvedValue({ id: 'job-trans-1' }),
+      };
+      const serviceWithJob = new LessonService(
+        mockLessonRepository as unknown as LessonRepository,
+        mockSectionRepository as unknown as SectionRepository,
+        mockCls as unknown as ClsService,
+        mockEnrollmentRepository as unknown as EnrollmentRepository,
+        mockStorageService as unknown as StorageService,
+        mockCourseRepository as unknown as CourseRepository,
+        undefined,
+        mockJobService as unknown as any,
+      );
+
+      mockSectionRepository.findById.mockResolvedValue(sampleSection);
+      mockLessonRepository.create.mockResolvedValue({
+        ...sampleLesson,
+        content: {
+          type: LessonContentTypeEnum.VIDEO,
+          url: 'https://cdn.example.com/video.mp4',
+          publicId: 'videos/key.mp4',
+        },
+      });
+
+      const videoInput: CreateLessonInput = {
+        title: 'Video Lesson',
+        order: 1,
+        content: {
+          type: LessonContentTypeEnum.VIDEO,
+          url: 'https://cdn.example.com/video.mp4',
+          publicId: 'videos/key.mp4',
+        },
+      };
+
+      const mockSession = { id: 'sess-1' } as unknown as ClientSession;
+      await serviceWithJob.createLesson('section_100', videoInput, mockSession);
+
+      expect(mockJobService.createJob).toHaveBeenCalledWith(
+        {
+          type: JobTypeEnum.TRANSCRIPTION,
+          lessonId: 'lesson_100',
+          courseId: 'course_100',
+          requestedById: 'user_1',
+          parameters: { videoKey: 'videos/key.mp4' },
+        },
+        mockSession,
       );
     });
   });

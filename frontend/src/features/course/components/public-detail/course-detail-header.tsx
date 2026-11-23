@@ -26,6 +26,9 @@ export function CourseDetailHeader({
   totalDurationFormatted,
 }: CourseDetailHeaderProps): React.JSX.Element {
   const levelInfo = levelLabels[course.level] || { name: 'Cơ bản', dots: 1 };
+  const studentsCount = course.studentsCount ?? 0;
+  const isBestSeller = studentsCount >= 5 ||
+    ((course.reviewCount ?? 0) > 0 && (course.ratingAvg ?? 0) >= 4.5);
 
   return (
     <header className="space-y-4">
@@ -59,10 +62,12 @@ export function CourseDetailHeader({
       <div className="pt-1">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {/* Best Seller Badge */}
-          <span className="inline-flex items-center gap-1 rounded bg-[#ffd100] px-2.5 py-1 text-xs font-bold text-[#161616] uppercase tracking-wide">
-            <Icon icon="lucide:award" className="size-3.5" />
-            <span>Best Seller</span>
-          </span>
+          {isBestSeller && (
+            <span className="inline-flex items-center gap-1 rounded bg-[#ffd100] px-2.5 py-1 text-xs font-bold text-[#161616] uppercase tracking-wide">
+              <Icon icon="lucide:award" className="size-3.5" />
+              <span>Best Seller</span>
+            </span>
+          )}
 
           {/* Category Badge */}
           {course.category && (
@@ -143,7 +148,7 @@ export function CourseDetailHeader({
         {/* Student Count */}
         <div className="flex items-center gap-1.5">
           <Icon icon="lucide:users" className="size-4 text-[#666666]" />
-          <span>15.409 học viên</span>
+          <span>{studentsCount.toLocaleString('vi-VN')} học viên</span>
         </div>
 
         <span aria-hidden="true" className="text-neutral-300">•</span>

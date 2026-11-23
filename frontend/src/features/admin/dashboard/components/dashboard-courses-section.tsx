@@ -20,6 +20,41 @@ interface DashboardCoursesSectionProps {
   isLoading?: boolean;
 }
 
+interface CourseItemCellProps {
+  course: IDashboardCoursePerformance;
+  subText?: string;
+}
+
+function CourseItemCell({ course, subText }: CourseItemCellProps): React.JSX.Element {
+  return (
+    <div className="flex items-center gap-3 min-w-[220px] max-w-[340px]">
+      {course.thumbnailUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={course.thumbnailUrl}
+          alt={course.title}
+          className="size-10 rounded-lg object-cover border border-border/60 shrink-0 bg-muted"
+        />
+      ) : (
+        <div className="size-10 rounded-lg bg-muted flex items-center justify-center shrink-0 border border-border/60 text-muted-foreground">
+          <Icon icon="lucide:book-open" className="size-5" />
+        </div>
+      )}
+      <div className="flex flex-col min-w-0">
+        <span
+          className="font-semibold text-foreground text-xs sm:text-sm truncate leading-snug"
+          title={course.title}
+        >
+          {course.title}
+        </span>
+        <span className="text-[11px] text-muted-foreground truncate">
+          {subText ?? (course.slug ? `/${course.slug}` : '—')}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function DashboardCoursesSection({
   globalPeriod,
   courses = [],
@@ -104,31 +139,31 @@ export function DashboardCoursesSection({
               type="button"
               onClick={() => setActiveTab('revenue')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${activeTab === 'revenue'
-                  ? 'bg-card text-foreground shadow-2xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground font-medium'
+                ? 'bg-card text-foreground shadow-2xs font-bold'
+                : 'text-muted-foreground hover:text-foreground font-medium'
                 }`}
             >
-              Tab A: Top 10 Doanh thu cao nhất
+              Top 10 Doanh thu cao nhất
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('enrollment')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${activeTab === 'enrollment'
-                  ? 'bg-card text-foreground shadow-2xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground font-medium'
+                ? 'bg-card text-foreground shadow-2xs font-bold'
+                : 'text-muted-foreground hover:text-foreground font-medium'
                 }`}
             >
-              Tab B: Top 10 Nhiều lượt đăng ký nhất
+              Top 10 Nhiều lượt đăng ký nhất
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('completion')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${activeTab === 'completion'
-                  ? 'bg-card text-foreground shadow-2xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground font-medium'
+                ? 'bg-card text-foreground shadow-2xs font-bold'
+                : 'text-muted-foreground hover:text-foreground font-medium'
                 }`}
             >
-              Tab C: Top Tỷ lệ hoàn thành cao
+              Top 10 Tỷ lệ hoàn thành cao nhất
             </button>
           </div>
         </div>
@@ -272,14 +307,7 @@ export function DashboardCoursesSection({
                     {idx + 1}
                   </td>
                   <td className="py-3 px-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`size-9 rounded-xl ${c.thumbnailBg} font-extrabold text-[11px] flex items-center justify-center shrink-0 border border-border/60`}
-                      >
-                        {c.thumbnailText}
-                      </div>
-                      <span className="font-bold text-foreground">{c.title}</span>
-                    </div>
+                    <CourseItemCell course={c} />
                   </td>
                   <td className="py-3 px-4 text-muted-foreground font-medium">{c.instructor}</td>
                   <td className="py-3 px-4 text-right font-semibold text-foreground tabular-nums">
@@ -313,7 +341,9 @@ export function DashboardCoursesSection({
                   <td className="py-3 px-5 text-center font-bold text-muted-foreground">
                     {idx + 1}
                   </td>
-                  <td className="py-3 px-4 font-bold text-foreground">{c.title}</td>
+                  <td className="py-3 px-4">
+                    <CourseItemCell course={c} />
+                  </td>
                   <td className="py-3 px-4 text-muted-foreground font-medium">{c.instructor}</td>
                   <td className="py-3 px-4 text-center">
                     {c.isFree ? (
@@ -354,8 +384,14 @@ export function DashboardCoursesSection({
                     {idx + 1}
                   </td>
                   <td className="py-3 px-4">
-                    <p className="font-bold text-foreground">{c.title}</p>
-                    <p className="text-[11px] text-muted-foreground">{c.instructor}</p>
+                    <CourseItemCell
+                      course={c}
+                      subText={
+                        c.instructor
+                          ? `${c.instructor}${c.slug ? ` • /${c.slug}` : ''}`
+                          : (c.slug ? `/${c.slug}` : undefined)
+                      }
+                    />
                   </td>
                   <td className="py-3 px-4 text-right font-medium text-muted-foreground tabular-nums">
                     {formatNumber(c.startedLearners)} học viên

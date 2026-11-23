@@ -107,13 +107,14 @@ bài đã xóa sẽ làm mất điểm tiếp tục cũ. Detail kiểm tra enrol
 
 ## Ngữ cảnh và điều phối
 
-`ChatbotConversationService` gửi một request với đúng ba tool definitions
-(`search_courses`, `get_my_courses`, `get_my_learning_progress`). Chỉ thực thi khi
+`ChatbotConversationService` gửi một request với ba tool definitions cho học viên
+(`search_courses`, `get_my_courses`, `get_my_learning_progress`); giảng viên/admin
+được cấp thêm [hai tool kinh doanh](./instructor-business.md). Chỉ thực thi khi
 model trả đúng một tool hợp lệ, sau đó backend tự định dạng bằng dữ liệu thật.
 Không gửi kết quả cá nhân, course IDs, caller ID, phần trăm hay thời gian học sang
 provider; chỉ gửi gợi ý điều hướng và bộ lọc/tên đang được yêu cầu.
 
-Context v2 ký HMAC theo tài khoản, TTL 30 phút, tối đa 8192 ký tự:
+Context mới v3 ký HMAC theo tài khoản, TTL 30 phút, tối đa 8192 ký tự; vẫn đọc v2 học tập:
 
 - Mode, kiểu danh sách, bộ lọc/trang/limit, `hasMore`, ordered IDs và ID đang chọn.
 - Không phải token cấp quyền; luôn đọc enrollment/tiến độ mới.

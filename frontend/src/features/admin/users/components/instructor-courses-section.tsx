@@ -1,21 +1,16 @@
 'use client';
 
 import * as React from 'react';
+import { CourseStatusEnum, type IAdminUserTeaching, type IAdminUserEnrolledCourse, type IAdminUserTeachingCourse } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
-import {
-  MOCK_INSTRUCTOR_STATS,
-  MOCK_INSTRUCTOR_COURSES,
-  type InstructorTeachingCourse,
-  type TeachingCourseStatus,
-} from '../constants/mock-instructor-data';
-import { MOCK_ENROLLED_COURSES } from '../constants/mock-enrolled-courses';
 import { InstructorStatsOverview } from './instructor-stats-overview';
 import { InstructorTeachingCard } from './instructor-teaching-card';
 import { UserEnrolledCoursesSection } from './user-enrolled-courses-section';
+import { UserCoursesError, UserCoursesLoading, type UserCoursesQuery } from './user-courses-query-state';
 
 type InstructorTab = 'TEACHING' | 'ENROLLED';
-type StatusFilter = 'ALL' | TeachingCourseStatus;
+type StatusFilter = 'ALL' | CourseStatusEnum;
 
 interface StatusFilterOption {
   key: StatusFilter;
@@ -25,14 +20,20 @@ interface StatusFilterOption {
 
 const STATUS_FILTERS: StatusFilterOption[] = [
   { key: 'ALL', label: 'Tất cả', icon: 'lucide:layout-grid' },
-  { key: 'PUBLISHED', label: 'Đã xuất bản', icon: 'lucide:check-circle-2' },
-  { key: 'PENDING_APPROVAL', label: 'Chờ duyệt', icon: 'lucide:hourglass' },
-  { key: 'DRAFT', label: 'Bản nháp', icon: 'lucide:file-edit' },
+  { key: CourseStatusEnum.PUBLISHED, label: 'Đã xuất bản', icon: 'lucide:check-circle-2' },
+  { key: CourseStatusEnum.PENDING_APPROVAL, label: 'Chờ duyệt', icon: 'lucide:hourglass' },
+  { key: CourseStatusEnum.DRAFT, label: 'Bản nháp', icon: 'lucide:file-edit' },
+  { key: CourseStatusEnum.ARCHIVED, label: 'Ngừng bán', icon: 'lucide:archive' },
 ];
 
-export function InstructorCoursesSection(): React.JSX.Element {
+const EMPTY_COURSES: IAdminUserTeachingCourse[] = [];
+
+export function InstructorCoursesSection({ teachingQuery, enrolledQuery }: {
+  teachingQuery: UserCoursesQuery<IAdminUserTeaching>;
+  enrolledQuery: UserCoursesQuery<IAdminUserEnrolledCourse[]>;
+}): React.JSX.Element {
   const [activeTab, setActiveTab] = React.useState<InstructorTab>('TEACHING');
-  const [teachingCourses] = React.useState<InstructorTeachingCourse[]>(MOCK_INSTRUCTOR_COURSES);
+  const teachingCourses = teachingQuery.data?.courses ?? EMPTY_COURSES;
   const [searchQuery, setSearchQuery] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('ALL');
 
@@ -40,9 +41,10 @@ export function InstructorCoursesSection(): React.JSX.Element {
   const statusCounts = React.useMemo(() => {
     return {
       ALL: teachingCourses.length,
-      PUBLISHED: teachingCourses.filter((c) => c.status === 'PUBLISHED').length,
-      PENDING_APPROVAL: teachingCourses.filter((c) => c.status === 'PENDING_APPROVAL').length,
-      DRAFT: teachingCourses.filter((c) => c.status === 'DRAFT').length,
+      [CourseStatusEnum.PUBLISHED]: teachingCourses.filter((c) => c.status === CourseStatusEnum.PUBLISHED).length,
+      [CourseStatusEnum.PENDING_APPROVAL]: teachingCourses.filter((c) => c.status === CourseStatusEnum.PENDING_APPROVAL).length,
+      [CourseStatusEnum.DRAFT]: teachingCourses.filter((c) => c.status === CourseStatusEnum.DRAFT).length,
+      [CourseStatusEnum.ARCHIVED]: teachingCourses.filter((c) => c.status === CourseStatusEnum.ARCHIVED).length,
     };
   }, [teachingCourses]);
 
@@ -65,14 +67,25 @@ export function InstructorCoursesSection(): React.JSX.Element {
   return (
     <div className="space-y-6">
       {/* 1. Khối 4 Thẻ KPI Tóm Tắt Nhanh */}
-      <InstructorStatsOverview stats={MOCK_INSTRUCTOR_STATS} />
+      {teachingQuery.isPending ? (
+        <UserCoursesLoading label="Đang tải số liệu giảng dạy..." />
+      ) : teachingQuery.isError || !teachingQuery.data ? (
+        <UserCoursesError
+          title="Không thể tải số liệu giảng dạy"
+          error={teachingQuery.error}
+          onRetry={() => { void teachingQuery.refetch(); }}
+        />
+      ) : (
+        <InstructorStatsOverview stats={teachingQuery.data.stats} />
+      )}
 
       {/* 2. Thanh Chuyển Tab (Segmented Tabs Navigation) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
-        <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/60 shadow-inner">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/60 shadow-inner">
           {/* Tab 1: Khóa học giảng dạy */}
           <button
             type="button"
+            aria-pressed={activeTab === 'TEACHING'}
             onClick={() => setActiveTab('TEACHING')}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeTab === 'TEACHING'
@@ -89,13 +102,14 @@ export function InstructorCoursesSection(): React.JSX.Element {
                   : 'bg-muted text-muted-foreground'
               }`}
             >
-              {teachingCourses.length}
+              {teachingQuery.data && !teachingQuery.isError ? teachingCourses.length : '—'}
             </span>
           </button>
 
           {/* Tab 2: Khóa học đã mua */}
           <button
             type="button"
+            aria-pressed={activeTab === 'ENROLLED'}
             onClick={() => setActiveTab('ENROLLED')}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeTab === 'ENROLLED'
@@ -104,7 +118,7 @@ export function InstructorCoursesSection(): React.JSX.Element {
             }`}
           >
             <Icon icon="lucide:book-check" className="size-4" />
-            <span>Khóa học đã mua</span>
+            <span>Khóa học đã đăng ký</span>
             <span
               className={`ml-1 px-1.5 py-0.2 rounded-full text-[11px] font-mono ${
                 activeTab === 'ENROLLED'
@@ -112,7 +126,7 @@ export function InstructorCoursesSection(): React.JSX.Element {
                   : 'bg-muted text-muted-foreground'
               }`}
             >
-              {MOCK_ENROLLED_COURSES.length}
+              {enrolledQuery.data && !enrolledQuery.isError ? enrolledQuery.data.length : '—'}
             </span>
           </button>
         </div>
@@ -120,12 +134,12 @@ export function InstructorCoursesSection(): React.JSX.Element {
         <p className="text-xs text-muted-foreground">
           {activeTab === 'TEACHING'
             ? 'Quản lý các khóa học do giảng viên biên soạn và phân phối trên nền tảng.'
-            : 'Theo dõi tiến độ học tập các khóa học mà tài khoản này đã đăng ký mua.'}
+            : 'Theo dõi tiến độ học tập các khóa học mà tài khoản này đã đăng ký.'}
         </p>
       </div>
 
       {/* 3. Nội Dung Tab Tương Ứng */}
-      {activeTab === 'TEACHING' ? (
+      {activeTab === 'TEACHING' ? teachingQuery.data && !teachingQuery.isError && (
         /* Nội dung Tab Khóa học giảng dạy */
         <section className="bg-card text-card-foreground border border-border/60 rounded-xl p-5 sm:p-6 shadow-xs space-y-5">
           {/* Header Section */}
@@ -159,7 +173,8 @@ export function InstructorCoursesSection(): React.JSX.Element {
                 return (
                   <button
                     key={tab.key}
-                    type="button"
+                     type="button"
+                     aria-pressed={isActive}
                     onClick={() => setStatusFilter(tab.key)}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
                       isActive
@@ -193,7 +208,8 @@ export function InstructorCoursesSection(): React.JSX.Element {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm khóa học giảng dạy..."
+                 placeholder="Tìm khóa học giảng dạy..."
+                 aria-label="Tìm khóa học giảng dạy"
                 className="pl-8 text-xs h-8"
               />
               {searchQuery && (
@@ -247,7 +263,7 @@ export function InstructorCoursesSection(): React.JSX.Element {
         </section>
       ) : (
         /* Nội dung Tab Khóa học đã mua */
-        <UserEnrolledCoursesSection />
+        <UserEnrolledCoursesSection query={enrolledQuery} />
       )}
     </div>
   );

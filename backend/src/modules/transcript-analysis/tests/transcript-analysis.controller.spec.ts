@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Reflector } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
 import { RoleEnum } from 'share-lib';
 import { TranscriptAnalysisController } from '../transcript-analysis.controller.js';
 import { MindmapAnalysisService } from '../services/mindmap-analysis.service.js';
 import { QuizGenerationService } from '../services/quiz-generation.service.js';
 import { SummaryGenerationService } from '../services/summary-generation.service.js';
+import { AnalysisJobService } from '../services/analysis-job.service.js';
 import { ROLES_KEY } from '../../auth/decorators/roles.decorator.js';
 import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator.js';
 
@@ -28,6 +30,14 @@ describe('TranscriptAnalysisController', () => {
     updateSummary: ReturnType<typeof vi.fn>;
     applyDraft: ReturnType<typeof vi.fn>;
   };
+  let mockAnalysisJobService: {
+    enqueueSummaryJob: ReturnType<typeof vi.fn>;
+    enqueueQuizJob: ReturnType<typeof vi.fn>;
+    enqueueMindmapJob: ReturnType<typeof vi.fn>;
+  };
+  let mockConfigService: {
+    get: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     mockMindmapService = {
@@ -47,11 +57,21 @@ describe('TranscriptAnalysisController', () => {
       updateSummary: vi.fn(),
       applyDraft: vi.fn(),
     };
+    mockAnalysisJobService = {
+      enqueueSummaryJob: vi.fn(),
+      enqueueQuizJob: vi.fn(),
+      enqueueMindmapJob: vi.fn(),
+    };
+    mockConfigService = {
+      get: vi.fn().mockReturnValue(''),
+    };
 
     controller = new TranscriptAnalysisController(
       mockMindmapService as unknown as MindmapAnalysisService,
       mockQuizService as unknown as QuizGenerationService,
       mockSummaryService as unknown as SummaryGenerationService,
+      mockAnalysisJobService as unknown as AnalysisJobService,
+      mockConfigService as unknown as ConfigService,
     );
   });
 
@@ -68,6 +88,45 @@ describe('TranscriptAnalysisController', () => {
       const res = await controller.generateMindmap('lesson-123', { saveAsDraft: true }, 'user-1');
       expect(res.success).toBe(true);
       expect(mockMindmapService.generateMindmap).toHaveBeenCalled();
+    });
+
+    it('should return 202 and enqueue job when AI_ASYNC_TYPES includes mindmap', async () => {
+      mockConfigService.get.mockReturnValue('summary,mindmap');
+      const mockJob = {
+        id: 'job-mindmap-1',
+        lessonId: 'lesson-123',
+        type: 'mindmap',
+        status: 'queued',
+        phase: 'waiting_dispatch',
+      };
+      mockAnalysisJobService.enqueueMindmapJob.mockResolvedValueOnce(mockJob);
+      const mockRes = { status: vi.fn() };
+
+      const res = await controller.generateMindmap(
+        'lesson-123',
+        { saveAsDraft: false },
+        'user-1',
+        'idemp-key-mindmap',
+        mockRes as any,
+      );
+
+      expect(mockRes.status).toHaveBeenCalledWith(202);
+      expect(res.success).toBe(true);
+      expect(res.data).toEqual({
+        jobId: 'job-mindmap-1',
+        lessonId: 'lesson-123',
+        type: 'mindmap',
+        status: 'queued',
+        phase: 'waiting_dispatch',
+        statusUrl: '/api/v1/lessons/lesson-123/analysis/jobs/job-mindmap-1',
+      });
+      expect(mockAnalysisJobService.enqueueMindmapJob).toHaveBeenCalledWith({
+        lessonId: 'lesson-123',
+        dto: { saveAsDraft: false },
+        idempotencyKey: 'idemp-key-mindmap',
+        userId: 'user-1',
+      });
+      expect(mockMindmapService.generateMindmap).not.toHaveBeenCalled();
     });
 
     it('should get mindmap and be marked as @Public', async () => {
@@ -129,6 +188,45 @@ describe('TranscriptAnalysisController', () => {
       expect(mockQuizService.generateQuiz).toHaveBeenCalledWith('lesson-123', { count: 10 }, 'user-1');
     });
 
+    it('should return 202 and enqueue job when AI_ASYNC_TYPES includes quiz', async () => {
+      mockConfigService.get.mockReturnValue('summary,quiz');
+      const mockJob = {
+        id: 'job-quiz-1',
+        lessonId: 'lesson-123',
+        type: 'quiz',
+        status: 'queued',
+        phase: 'waiting_dispatch',
+      };
+      mockAnalysisJobService.enqueueQuizJob.mockResolvedValueOnce(mockJob);
+      const mockRes = { status: vi.fn() };
+
+      const res = await controller.generateQuiz(
+        'lesson-123',
+        { count: 10, saveAsDraft: false },
+        'user-1',
+        'idemp-key-quiz',
+        mockRes as any,
+      );
+
+      expect(mockRes.status).toHaveBeenCalledWith(202);
+      expect(res.success).toBe(true);
+      expect(res.data).toEqual({
+        jobId: 'job-quiz-1',
+        lessonId: 'lesson-123',
+        type: 'quiz',
+        status: 'queued',
+        phase: 'waiting_dispatch',
+        statusUrl: '/api/v1/lessons/lesson-123/analysis/jobs/job-quiz-1',
+      });
+      expect(mockAnalysisJobService.enqueueQuizJob).toHaveBeenCalledWith({
+        lessonId: 'lesson-123',
+        dto: { count: 10, saveAsDraft: false },
+        idempotencyKey: 'idemp-key-quiz',
+        userId: 'user-1',
+      });
+      expect(mockQuizService.generateQuiz).not.toHaveBeenCalled();
+    });
+
     it('should get quiz draft and require INSTRUCTOR / ADMIN', async () => {
       const reflector = new Reflector();
       const roles = reflector.get<RoleEnum[]>(
@@ -163,6 +261,45 @@ describe('TranscriptAnalysisController', () => {
       const res = await controller.generateSummary('lesson-123', {}, 'user-1');
       expect(res.success).toBe(true);
       expect(mockSummaryService.generateSummary).toHaveBeenCalled();
+    });
+
+    it('should return 202 and enqueue job when AI_ASYNC_TYPES includes summary', async () => {
+      mockConfigService.get.mockReturnValue('summary');
+      const mockJob = {
+        id: 'job-999',
+        lessonId: 'lesson-123',
+        type: 'summary',
+        status: 'queued',
+        phase: 'waiting_dispatch',
+      };
+      mockAnalysisJobService.enqueueSummaryJob.mockResolvedValueOnce(mockJob);
+      const mockRes = { status: vi.fn() };
+
+      const res = await controller.generateSummary(
+        'lesson-123',
+        { saveAsDraft: true },
+        'user-1',
+        'idemp-key-1',
+        mockRes as any,
+      );
+
+      expect(mockRes.status).toHaveBeenCalledWith(202);
+      expect(res.success).toBe(true);
+      expect(res.data).toEqual({
+        jobId: 'job-999',
+        lessonId: 'lesson-123',
+        type: 'summary',
+        status: 'queued',
+        phase: 'waiting_dispatch',
+        statusUrl: '/api/v1/lessons/lesson-123/analysis/jobs/job-999',
+      });
+      expect(mockAnalysisJobService.enqueueSummaryJob).toHaveBeenCalledWith({
+        lessonId: 'lesson-123',
+        dto: { saveAsDraft: true },
+        idempotencyKey: 'idemp-key-1',
+        userId: 'user-1',
+      });
+      expect(mockSummaryService.generateSummary).not.toHaveBeenCalled();
     });
 
     it('should get summary and be marked as @Public', async () => {

@@ -4,21 +4,18 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Icon } from '@/components/ui/icon';
-import {
-  MOCK_HIGHLIGHT_COURSES,
-  type IHighlightCourseCard,
-} from './mock-discovery-data';
+import { usePublicCoursesCatalogQuery } from '../../api/public-courses.api';
+import { PublicCoursesQueryError } from '../public-courses-query-error';
 
-interface NewsHighlightsCarouselProps {
-  items?: IHighlightCourseCard[];
-}
-
-export function NewsHighlightsCarousel({
-  items = MOCK_HIGHLIGHT_COURSES,
-}: NewsHighlightsCarouselProps): React.JSX.Element {
+export function NewsHighlightsCarousel(): React.JSX.Element {
+  const { data, isLoading, isError, refetch } = usePublicCoursesCatalogQuery({
+    sort: 'newest',
+    limit: 12,
+  });
+  const items = data?.items;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   // Check scroll boundary to toggle arrows availability
   const checkScroll = useCallback((): void => {
@@ -41,7 +38,7 @@ export function NewsHighlightsCarousel({
       el.removeEventListener('scroll', checkScroll);
       window.removeEventListener('resize', checkScroll);
     };
-  }, [checkScroll]);
+  }, [checkScroll, items, isLoading, isError]);
 
   const handleScroll = (direction: 'left' | 'right'): void => {
     const el = scrollRef.current;
@@ -55,7 +52,7 @@ export function NewsHighlightsCarousel({
   };
 
   const formatPrice = (price: number): string => {
-    return `₫${price.toLocaleString('en-US')}.00`;
+    return price === 0 ? 'Miễn phí' : `${price.toLocaleString('vi-VN')} đ`;
   };
 
   return (
@@ -72,7 +69,13 @@ export function NewsHighlightsCarousel({
         </div>
 
         {/* Carousel Slider Wrapper */}
-        <div className="relative group/carousel">
+        {isLoading ? (
+          <p role="status" className="py-6 text-sm">Đang tải khóa học...</p>
+        ) : isError ? (
+          <PublicCoursesQueryError onRetry={() => { void refetch(); }} />
+        ) : !items?.length ? (
+          <p className="py-6 text-sm">Chưa có khóa học công khai.</p>
+        ) : <div className="relative group/carousel">
           {/* Left Navigation Arrow: Overlaps the left edge of the 2nd card from left */}
           {canScrollLeft && (
             <button
@@ -105,17 +108,21 @@ export function NewsHighlightsCarousel({
             {items.map((item) => (
               <Link
                 key={item.id}
-                href={`/courses/${item.slug}`}
+                href={`/courses/${item.id}`}
                 className="group relative flex-none w-[calc((100%-12px)/2)] sm:w-[calc((100%-32px)/3)] md:w-[calc((100%-48px)/4)] lg:w-[calc((100%-80px)/6)] xl:w-[calc((100%-80px)/6)] 2xl:w-[calc((100%-80px)/6)] aspect-[3/4] rounded-xl sm:rounded-2xl overflow-hidden snap-start focus:outline-none focus:ring-2 focus:ring-white/70 bg-zinc-900 shadow-md"
               >
                 {/* Background Image with Zoom on Hover */}
-                <Image
+                {item.thumbnailUrl ? <Image
                   src={item.thumbnailUrl}
                   alt={item.title}
                   fill
                   sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
                   className="object-cover w-full h-full transition-transform duration-300 ease-out group-hover:scale-105"
-                />
+                /> : (
+                  <div className="flex h-full items-center justify-center">
+                    <Icon icon="lucide:book-open" className="size-8 text-zinc-400" />
+                  </div>
+                )}
 
                 {/* Gradient Overlay for Text Readability */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none" />
@@ -132,7 +139,7 @@ export function NewsHighlightsCarousel({
 
                   {/* Instructor / Organization Name */}
                   <p className="text-zinc-300 text-xs mt-1 font-normal line-clamp-1 drop-shadow-sm">
-                    {item.author}
+                    {item.instructorName}
                   </p>
 
                   {/* Price Block: hidden by default, slides up smoothly on hover */}
@@ -141,18 +148,18 @@ export function NewsHighlightsCarousel({
                       <span className="text-xs sm:text-sm font-bold text-white tracking-tight drop-shadow-sm">
                         {formatPrice(item.price)}
                       </span>
-                      {item.originalPrice && (
+                      {item.originalPrice && item.originalPrice > item.price && item.price > 0 ? (
                         <span className="text-[11px] text-zinc-400 line-through">
                           {formatPrice(item.originalPrice)}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </div>
               </Link>
             ))}
           </div>
-        </div>
+        </div>}
       </div>
     </section>
   );

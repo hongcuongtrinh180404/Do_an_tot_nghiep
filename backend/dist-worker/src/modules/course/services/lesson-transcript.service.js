@@ -7,30 +7,39 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 var LessonTranscriptService_1;
-import { Injectable, Logger, NotFoundException, BadRequestException, } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, Optional, } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
-import { LessonTranscriptionStatusEnum, LessonContentTypeEnum, } from 'share-lib';
+import { LessonTranscriptionStatusEnum, LessonContentTypeEnum, JobTypeEnum, } from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { LessonTranscriptRepository } from '../repositories/lesson-transcript.repository.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
+import { SectionRepository } from '../repositories/section.repository.js';
 import { StorageService } from '../../storage/index.js';
 import { AssemblyAiService } from '../../assemblyai/index.js';
 import { AudioExtractorService } from './audio-extractor.service.js';
+import { JobService } from '../../jobs/services/job.service.js';
 let LessonTranscriptService = LessonTranscriptService_1 = class LessonTranscriptService extends BaseService {
     lessonTranscriptRepo;
     lessonRepo;
     storageService;
     assemblyAiService;
     audioExtractorService;
+    jobService;
+    sectionRepo;
     logger = new Logger(LessonTranscriptService_1.name);
-    constructor(lessonTranscriptRepo, lessonRepo, storageService, assemblyAiService, audioExtractorService, cls) {
+    constructor(lessonTranscriptRepo, lessonRepo, storageService, assemblyAiService, audioExtractorService, cls, jobService, sectionRepo) {
         super(lessonTranscriptRepo, cls, LessonTranscriptService_1.name);
         this.lessonTranscriptRepo = lessonTranscriptRepo;
         this.lessonRepo = lessonRepo;
         this.storageService = storageService;
         this.assemblyAiService = assemblyAiService;
         this.audioExtractorService = audioExtractorService;
+        this.jobService = jobService;
+        this.sectionRepo = sectionRepo;
     }
     async getTranscriptByLessonId(lessonId) {
         const trimmedLessonId = lessonId?.trim();
@@ -140,17 +149,44 @@ let LessonTranscriptService = LessonTranscriptService_1 = class LessonTranscript
             throw new BadRequestException('Bài học này không có nội dung video để trích xuất transcript');
         }
         const fileKey = lesson.content.publicId || lesson.content.url;
+        if (this.jobService) {
+            let courseId = '';
+            if (this.sectionRepo && lesson.sectionId) {
+                const section = await this.sectionRepo.findById(lesson.sectionId);
+                courseId = section?.courseId || '';
+            }
+            const userId = this.getCurrentUserId() || lesson.createdById || 'system';
+            await this.jobService.createJob({
+                type: JobTypeEnum.TRANSCRIPTION,
+                lessonId: trimmedId,
+                courseId,
+                requestedById: userId,
+                parameters: { videoKey: fileKey },
+            });
+            await this.lessonRepo.update(trimmedId, {
+                transcriptionStatus: LessonTranscriptionStatusEnum.QUEUED,
+            });
+            await this.lessonTranscriptRepo.upsertByLessonId(trimmedId, {
+                status: LessonTranscriptionStatusEnum.QUEUED,
+                failureReason: null,
+            });
+            return;
+        }
         this.triggerTranscription(trimmedId, fileKey);
     }
 };
 LessonTranscriptService = LessonTranscriptService_1 = __decorate([
     Injectable(),
+    __param(6, Optional()),
+    __param(7, Optional()),
     __metadata("design:paramtypes", [LessonTranscriptRepository,
         LessonRepository,
         StorageService,
         AssemblyAiService,
         AudioExtractorService,
-        ClsService])
+        ClsService,
+        JobService,
+        SectionRepository])
 ], LessonTranscriptService);
 export { LessonTranscriptService };
 //# sourceMappingURL=lesson-transcript.service.js.map

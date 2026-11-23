@@ -138,6 +138,21 @@ describe('Chatbot widget visibility', () => {
 });
 
 describe('Chatbot widget session', () => {
+  it('offers business suggestions only for instructors and resets the same account when its role changes', async () => {
+    vi.mocked(useCurrentUserQuery).mockReturnValue({ data: { id: 'same-account', role: 'instructor' }, isLoading: false } as ReturnType<typeof useCurrentUserQuery>);
+    render();
+    openWidget();
+    expect(panelText()).toContain('Bạn muốn tra cứu gì?');
+    const suggestion = [...panel()!.querySelectorAll('button')].find((button) => button.textContent?.includes('Doanh thu tháng này'))!;
+    act(() => suggestion.click());
+    await settle();
+    expect(sendChatbotMessage).toHaveBeenCalledWith('Doanh thu tháng này của tôi', expect.any(AbortSignal));
+    vi.mocked(useCurrentUserQuery).mockReturnValue({ data: { id: 'same-account', role: 'student' }, isLoading: false } as ReturnType<typeof useCurrentUserQuery>);
+    render();
+    openWidget();
+    expect(panelText()).toContain('Bạn muốn học gì?');
+    expect(panelText()).not.toContain('Doanh thu tháng này');
+  });
   it('asks a guest to sign in instead of exposing the composer', () => {
     guest();
     render();

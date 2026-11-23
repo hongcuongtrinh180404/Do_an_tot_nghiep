@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-11-22: Nâng cấp Bộ lọc Thời gian "Kỳ báo cáo" tại Trang Thống kê Giảng dạy (/instructor/statistics)
+
+- **Yêu cầu**:
+  - Tại trang Thống kê giảng dạy (`/instructor/statistics`):
+    - Thêm tùy chọn **"Hôm nay"** (`today`) và **"Tùy chỉnh khoảng ngày"** (`custom`) vào dropdown select "Kỳ báo cáo".
+    - Áp dụng cơ chế lọc ngày và trải nghiệm người dùng tương tự như trang Admin Dashboard.
+- **Triển khai**:
+  1. **Frontend Component (`frontend/src/features/instructor/statistics`)**:
+     - `teaching-revenue-time-filter.tsx`:
+       - Mở rộng kiểu dữ liệu `TeachingTimeFilterValue`: `{ timeRange: string; startDate?: string; endDate?: string }`.
+       - Bổ sung tùy chọn `today` ("Hôm nay") và `custom` ("Tùy chỉnh khoảng ngày") vào `PRESET_OPTIONS`.
+       - Tích hợp cụm điều khiển khoảng ngày (Custom Date Pickers): input `Từ:`, `Đến:` và nút `Áp dụng` đồng bộ phong cách Admin Dashboard.
+       - Tích hợp kiểm tra tính hợp lệ: nếu `startDate > endDate` thì chặn submit và thông báo `toast.error('Ngày bắt đầu không được lớn hơn ngày kết thúc')`. Khi hợp lệ, gọi `onChange` và hiển thị `toast.success`.
+       - Tích hợp huy hiệu (badge) định dạng khoảng ngày theo thời gian thực tương ứng với từng mốc thời gian hoặc tùy chỉnh.
+     - `teaching-stats-view.tsx`:
+       - Cập nhật truy vấn `useTeachingOverviewQuery` và `useCoursesRevenueQuery` để đồng bộ truyền `startDate` và `endDate` khi `timeFilter.timeRange === 'custom'`.
+       - Điều chỉnh container bộ lọc sang `flex flex-wrap items-center gap-3 shrink-0` chống tràn giao diện trên thiết bị di động/màn hình nhỏ.
+     - `teaching-revenue-time-filter.spec.tsx`:
+       - Viết bộ 5 unit test kiểm thử render mặc định, render tùy chọn hôm nay, hiển thị date pickers khi chọn custom, kích hoạt `onChange` khi áp dụng ngày hợp lệ, và bắt lỗi khi ngày bắt đầu lớn hơn ngày kết thúc.
+  2. **Backend Controller Test (`backend/src/modules/payment/tests`)**:
+     - `instructor-teaching-stats.controller.spec.ts`: Bổ sung các unit test cases kiểm tra `getOverview` và `getCourses` với tham số `today` và `custom` (`startDate`, `endDate`).
+- **Kết quả kiểm thử**:
+  - Frontend: 5/5 unit tests pass (`teaching-revenue-time-filter.spec.tsx`).
+  - Admin Dashboard regression: 27/27 unit tests pass (`admin-dashboard.spec.ts`).
+  - Backend: 5/5 unit tests pass (`instructor-teaching-stats.controller.spec.ts`).
+
+---
+
 ## 2026-11-21: Chuyển đổi "Bảng xếp hạng Giảng viên tiêu biểu" sang dữ liệu thật MongoDB và loại bỏ mock data
 
 - **Yêu cầu**:

@@ -7,6 +7,11 @@ export const RABBITMQ_CONSTANTS = {
   QUEUE_AI_DEAD: 'mindly.ai.dead.v1',
   ROUTING_KEY_AI_DEAD: 'dead.ai',
   ROUTING_KEYS_AI: ['ai.summary', 'ai.quiz', 'ai.mindmap'] as const,
+  // Video Transcription Queue & Dead-letter Topology
+  QUEUE_TRANSCRIPTION: 'mindly.transcription.v1',
+  QUEUE_TRANSCRIPTION_DEAD: 'mindly.transcription.dead.v1',
+  ROUTING_KEY_TRANSCRIPTION: 'video.transcribe',
+  ROUTING_KEY_TRANSCRIPTION_DEAD: 'dead.transcription',
 };
 
 /**
@@ -52,4 +57,30 @@ export async function assertRabbitMqTopology(channel: Channel | ConfirmChannel):
       routingKey,
     );
   }
+
+  // 6. Assert Dead Letter Queue cho Transcription và liên kết vào DLX
+  await channel.assertQueue(RABBITMQ_CONSTANTS.QUEUE_TRANSCRIPTION_DEAD, {
+    durable: true,
+  });
+  await channel.bindQueue(
+    RABBITMQ_CONSTANTS.QUEUE_TRANSCRIPTION_DEAD,
+    RABBITMQ_CONSTANTS.EXCHANGE_DEAD,
+    RABBITMQ_CONSTANTS.ROUTING_KEY_TRANSCRIPTION_DEAD,
+  );
+
+  // 7. Assert Transcription Queue (durable, DLX sang mindly.dead.v1)
+  await channel.assertQueue(RABBITMQ_CONSTANTS.QUEUE_TRANSCRIPTION, {
+    durable: true,
+    arguments: {
+      'x-dead-letter-exchange': RABBITMQ_CONSTANTS.EXCHANGE_DEAD,
+      'x-dead-letter-routing-key': RABBITMQ_CONSTANTS.ROUTING_KEY_TRANSCRIPTION_DEAD,
+    },
+  });
+
+  // 8. Liên kết routing key 'video.transcribe' vào Transcription Queue
+  await channel.bindQueue(
+    RABBITMQ_CONSTANTS.QUEUE_TRANSCRIPTION,
+    RABBITMQ_CONSTANTS.EXCHANGE_TASKS,
+    RABBITMQ_CONSTANTS.ROUTING_KEY_TRANSCRIPTION,
+  );
 }

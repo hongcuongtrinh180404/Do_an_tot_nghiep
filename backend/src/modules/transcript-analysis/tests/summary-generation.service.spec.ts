@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { LessonTranscriptionStatusEnum, ILessonSummaryData } from 'share-lib';
 import { SummaryGenerationService } from '../services/summary-generation.service.js';
 import { GeminiService } from '../../gemini/index.js';
@@ -10,7 +10,11 @@ import { LessonSummaryRepository } from '../../course/repositories/lesson-summar
 describe('SummaryGenerationService', () => {
   let service: SummaryGenerationService;
   let mockGeminiService: { generateJson: ReturnType<typeof vi.fn> };
-  let mockLessonRepo: { findById: ReturnType<typeof vi.fn> };
+  let mockLessonRepo: {
+    findById: ReturnType<typeof vi.fn>;
+    incrementOutputRevision: ReturnType<typeof vi.fn>;
+    incrementInputRevision: ReturnType<typeof vi.fn>;
+  };
   let mockLessonTranscriptRepo: { findByLessonId: ReturnType<typeof vi.fn> };
   let mockLessonSummaryRepo: {
     findByLessonId: ReturnType<typeof vi.fn>;
@@ -43,6 +47,8 @@ describe('SummaryGenerationService', () => {
     };
     mockLessonRepo = {
       findById: vi.fn(),
+      incrementOutputRevision: vi.fn().mockResolvedValue(true),
+      incrementInputRevision: vi.fn().mockResolvedValue(1),
     };
     mockLessonTranscriptRepo = {
       findByLessonId: vi.fn(),
@@ -219,6 +225,91 @@ describe('SummaryGenerationService', () => {
     it('should throw BadRequestException if no draft to apply', async () => {
       mockLessonSummaryRepo.applyDraftByLessonId.mockResolvedValueOnce(null);
       await expect(service.applyDraft('lesson-123')).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('generateSummaryContent & persistSummaryWithSession (Phase 3 Decoupling)', () => {
+    it('should throw ConflictException if expectedInputRevision does not match lesson analysisInputRevision', async () => {
+      mockLessonRepo.findById.mockResolvedValueOnce({
+        id: 'lesson-123',
+        title: 'TypeScript',
+        analysisInputRevision: 2,
+      });
+
+      await expect(
+        service.generateSummaryContent('lesson-123', { expectedInputRevision: 1 }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should successfully generate summary content outside transaction', async () => {
+      mockLessonRepo.findById.mockResolvedValueOnce({
+        id: 'lesson-123',
+        title: 'TypeScript',
+        analysisInputRevision: 1,
+        analysisOutputRevisions: { summary: 0, quiz: 0, mindmap: 0 },
+        content: { duration: 300 },
+      });
+
+      mockLessonTranscriptRepo.findByLessonId.mockResolvedValueOnce({
+        status: LessonTranscriptionStatusEnum.READY,
+        durationSeconds: 300,
+        sentences: [{ text: 'Nội dung bài giảng TS', start: 0, end: 5000 }],
+        rawTranscript: 'Nội dung bài giảng TS',
+      });
+
+      mockGeminiService.generateJson.mockResolvedValueOnce({
+        data: sampleSummary,
+        model: 'gemini-2.5-flash',
+        keyIndex: 1,
+        maskedKey: 'AIzaSy***',
+        executionTimeMs: 400,
+      });
+
+      const result = await service.generateSummaryContent('lesson-123', {
+        expectedInputRevision: 1,
+      });
+
+      expect(result.lessonId).toBe('lesson-123');
+      expect(result.summary.title).toBe(sampleSummary.title);
+      expect(result.currentInputRevision).toBe(1);
+      expect(result.currentOutputRevision).toBe(0);
+    });
+
+    it('should throw ConflictException if revision bump fails during persistSummaryWithSession', async () => {
+      mockLessonRepo.incrementOutputRevision.mockResolvedValueOnce(false);
+
+      await expect(
+        service.persistSummaryWithSession('lesson-123', sampleSummary, {
+          expectedRevision: 0,
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should persist summary official and bump revision successfully', async () => {
+      mockLessonRepo.incrementOutputRevision.mockResolvedValueOnce(true);
+      mockLessonSummaryRepo.upsertOfficialByLessonId.mockResolvedValueOnce({
+        id: 'summary-100',
+        lessonId: 'lesson-123',
+        summary: sampleSummary,
+      });
+
+      const persisted = await service.persistSummaryWithSession(
+        'lesson-123',
+        sampleSummary,
+        {
+          expectedRevision: 0,
+          userId: 'user-1',
+        },
+      );
+
+      expect(persisted.lessonId).toBe('lesson-123');
+      expect(mockLessonRepo.incrementOutputRevision).toHaveBeenCalledWith(
+        'lesson-123',
+        'summary',
+        0,
+        undefined,
+      );
+      expect(mockLessonSummaryRepo.upsertOfficialByLessonId).toHaveBeenCalled();
     });
   });
 });

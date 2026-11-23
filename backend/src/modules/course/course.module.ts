@@ -50,6 +50,7 @@ import { UserModule } from '../user/user.module.js';
 import { StorageModule } from '../storage/storage.module.js';
 import { AssemblyAiModule } from '../assemblyai/assemblyai.module.js';
 import { EnrollmentModule } from '../enrollment/enrollment.module.js';
+import { JobsModule } from '../jobs/jobs.module.js';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { EnrollmentModule } from '../enrollment/enrollment.module.js';
     StorageModule,
     AssemblyAiModule,
     forwardRef(() => EnrollmentModule),
+    forwardRef(() => JobsModule),
   ],
   controllers: [
     CourseController,

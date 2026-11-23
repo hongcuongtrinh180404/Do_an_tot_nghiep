@@ -14,4 +14,6 @@ export declare class LessonRepository extends BaseMongoRepository<ILesson, Lesso
     addMaterial(lessonId: string, material: Omit<ILessonMaterial, 'id'>, session?: ClientSession): Promise<ILesson | null>;
     deleteMaterial(lessonId: string, materialId: string, session?: ClientSession): Promise<ILesson | null>;
     reorderAfterDelete(sectionId: string, deletedOrder: number, session?: ClientSession): Promise<number>;
+    incrementOutputRevision(lessonId: string, type: 'summary' | 'quiz' | 'mindmap', expectedRevision?: number, session?: ClientSession): Promise<boolean>;
+    incrementInputRevision(lessonId: string, session?: ClientSession): Promise<number | null>;
 }

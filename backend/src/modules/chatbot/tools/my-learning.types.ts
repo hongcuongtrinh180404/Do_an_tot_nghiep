@@ -1,6 +1,7 @@
 import type { ICourseLearningProgress, LearningStatusEnum } from 'share-lib';
 import type { PublicCourseSearchResult } from '../../course/interfaces/public-course-search.interface.js';
 import type { ChatbotSearchContext } from './search-courses.context.js';
+import type { BusinessContext, BusinessQuery, BusinessResult } from './instructor-business.types.js';
 
 export interface MyCoursesFilters {
   keyword?: string;
@@ -60,13 +61,16 @@ export type ConversationList = (
   | ({ kind: 'catalog' } & ChatbotSearchContext)
   | { kind: 'my_courses'; filters: MyCoursesFilters; hasMore: boolean }
   | { kind: 'selection'; keyword: string; page: number; limit: number; hasMore: boolean }
+  | { kind: 'business_selection'; query: BusinessQuery; keyword: string; page: number; limit: number; hasMore: boolean }
+  | { kind: 'business_top'; query: BusinessQuery; page: number; limit: number; hasMore: boolean }
 ) & { ids: string[] };
 
 /** Navigation hints only. Authorization and progress are always re-read. */
 export interface ChatbotConversationContext {
-  mode: 'catalog' | 'my_courses' | 'learning_progress';
+  mode: 'catalog' | 'my_courses' | 'learning_progress' | 'instructor_revenue' | 'instructor_sales_stats';
   list?: ConversationList;
   selectedCourseId?: string;
+  business?: BusinessContext;
 }
 
 type ReplyBase = {
@@ -77,6 +81,7 @@ export type ChatbotConversationReply = ReplyBase & (
   | { kind: 'course_search'; status: 'found' | 'empty' | 'page_empty'; result: PublicCourseSearchResult }
   | { kind: 'my_courses'; status: 'found' | 'empty' | 'page_empty'; result: MyCoursesResult }
   | { kind: 'learning_progress'; status: 'found' | 'empty' | 'page_empty' | 'needs_clarification'; result: LearningResult }
+  | { kind: 'instructor_revenue' | 'instructor_sales_stats'; status: 'found' | 'empty' | 'page_empty' | 'needs_clarification'; result: BusinessResult }
   | { kind: 'clarification'; status: 'needs_clarification' }
 );
 

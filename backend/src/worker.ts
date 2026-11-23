@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { WorkerModule } from './worker.module.js';
 
 async function bootstrap() {
+  process.env.IS_WORKER = 'true';
   const logger = new Logger('WorkerBootstrap');
   logger.log('Đang khởi tạo Standalone Worker context...');
 

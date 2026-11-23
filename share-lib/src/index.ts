@@ -43,6 +43,7 @@ export * from './interfaces/review.interface.js';
 export * from './interfaces/revenue.interface.js';
 export * from './interfaces/instructor-application.interface.js';
 export * from './interfaces/admin-dashboard.interface.js';
+export * from './interfaces/admin-user-courses.interface.js';
 export * from './interfaces/job.interface.js';
 
 // Constants

@@ -10,7 +10,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var JobDispatcherService_1;
 import { Injectable, Logger, } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JobTypeEnum } from 'share-lib';
 import { RabbitMqService } from '../../messaging/rabbitmq.service.js';
+import { RABBITMQ_CONSTANTS } from '../../messaging/rabbitmq-topology.js';
 import { JobRepository } from '../repositories/job.repository.js';
 let JobDispatcherService = JobDispatcherService_1 = class JobDispatcherService {
     jobRepository;
@@ -55,7 +57,9 @@ let JobDispatcherService = JobDispatcherService_1 = class JobDispatcherService {
             for (const job of pendingJobs) {
                 if (this.isShuttingDown)
                     break;
-                const routingKey = `ai.${job.type}`;
+                const routingKey = job.type === JobTypeEnum.TRANSCRIPTION
+                    ? RABBITMQ_CONSTANTS.ROUTING_KEY_TRANSCRIPTION
+                    : `ai.${job.type}`;
                 const messagePayload = {
                     version: 1,
                     jobId: job.id,
@@ -76,12 +80,14 @@ let JobDispatcherService = JobDispatcherService_1 = class JobDispatcherService {
                     }
                 }
                 catch (pubErr) {
-                    this.logger.warn(`[JobDispatcher] Không thể dispatch Job ${job.id} sang RabbitMQ: ${pubErr?.message}. Sẽ thử lại ở chu kỳ tiếp theo.`);
+                    const errObj = pubErr;
+                    this.logger.warn(`[JobDispatcher] Không thể dispatch Job ${job.id} sang RabbitMQ: ${errObj?.message || String(pubErr)}. Sẽ thử lại ở chu kỳ tiếp theo.`);
                 }
             }
         }
         catch (err) {
-            this.logger.error(`[JobDispatcher] Lỗi trong chu kỳ quét outbox: ${err?.message}`);
+            const errObj = err;
+            this.logger.error(`[JobDispatcher] Lỗi trong chu kỳ quét outbox: ${errObj?.message || String(err)}`);
         }
         finally {
             this.isProcessing = false;

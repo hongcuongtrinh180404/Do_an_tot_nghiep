@@ -9,6 +9,9 @@ import { GetMyLearningProgressTool } from '../tools/get-my-learning-progress.too
 import { SearchCoursesTool } from '../tools/search-courses.tool.js';
 import { ChatbotLearningError, type ChatbotConversationContext, type ChatbotOwnedCourse } from '../tools/my-learning.types.js';
 import { projectChatbotReply } from '../http/chatbot-response.projection.js';
+import { GetInstructorRevenueTool } from '../tools/get-instructor-revenue.tool.js';
+import { GetInstructorSalesStatsTool } from '../tools/get-instructor-sales-stats.tool.js';
+import type { ChatbotInstructorBusinessService } from '../services/chatbot-instructor-business.service.js';
 
 const userId = '0123456789abcdef00000001';
 const courseId = '0123456789abcdef00000002';
@@ -39,6 +42,8 @@ describe('Three-tool conversation and account-bound resolution', () => {
     { complete } as unknown as ChatbotAiClient,
     new SearchCoursesTool({ search } as unknown as PublicCourseSearchService),
     new GetMyCoursesTool(reads), new GetMyLearningProgressTool(reads),
+    new GetInstructorRevenueTool({} as ChatbotInstructorBusinessService),
+    new GetInstructorSalesStatsTool({} as ChatbotInstructorBusinessService),
   );
   const ask = (name: string, args: Record<string, unknown>, context?: ChatbotConversationContext, question = 'Câu hỏi') => {
     complete.mockResolvedValue(completion(name, args));

@@ -19,53 +19,27 @@ interface DashboardReviewsSectionProps {
 }
 
 export function DashboardReviewsSection({
-  globalPeriod,
   courses = [],
   isLoading = false,
 }: DashboardReviewsSectionProps): React.JSX.Element {
   const router = useRouter();
-  const [periodOverride, setPeriodOverride] = React.useState<string>('default');
-  const [categoryFilter, setCategoryFilter] = React.useState<string>('all');
-  const [minReviews, setMinReviews] = React.useState<number>(1);
-
-  const isModified =
-    periodOverride !== 'default' || categoryFilter !== 'all' || minReviews !== 1;
-
-  const handleReset = () => {
-    setPeriodOverride('default');
-    setCategoryFilter('all');
-    setMinReviews(1);
-  };
-
-  const availableCategories = React.useMemo(() => {
-    const set = new Set<string>();
-    courses.forEach((c) => {
-      if (c.category) set.add(c.category);
-    });
-    return Array.from(set);
-  }, [courses]);
+  const [topLimit, setTopLimit] = React.useState<5 | 10>(5);
 
   const eligibleCourses = React.useMemo(() => {
-    return courses.filter((course) => {
-      if (course.reviewCount < minReviews) return false;
-      if (categoryFilter !== 'all' && course.category !== categoryFilter) return false;
-      return true;
-    });
-  }, [courses, minReviews, categoryFilter]);
+    return courses.filter((course) => course.reviewCount >= 1 && course.rating > 0);
+  }, [courses]);
 
   const topRated = React.useMemo(() => {
     return [...eligibleCourses]
-      .filter((c) => c.rating > 0)
       .sort((a, b) => b.rating - a.rating)
-      .slice(0, 5);
-  }, [eligibleCourses]);
+      .slice(0, topLimit);
+  }, [eligibleCourses, topLimit]);
 
   const lowRated = React.useMemo(() => {
     return [...eligibleCourses]
-      .filter((c) => c.rating > 0)
       .sort((a, b) => a.rating - b.rating)
-      .slice(0, 5);
-  }, [eligibleCourses]);
+      .slice(0, topLimit);
+  }, [eligibleCourses, topLimit]);
 
   const handleInspectReview = (courseId: string) => {
     router.push(`/admin/reviews?search=${encodeURIComponent(courseId)}`);
@@ -80,110 +54,39 @@ export function DashboardReviewsSection({
             Đánh giá Chất lượng Khóa học
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Xếp hạng dựa trên đánh giá hợp lệ sau kiểm duyệt và áp dụng ngưỡng tối thiểu số lượt đánh giá
+            Xếp hạng dựa trên đánh giá hợp lệ sau kiểm duyệt, chỉ tính khóa học có ít nhất 1 đánh giá
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Period Filter */}
-          <div className="w-52 shrink-0">
-            <Select<string>
-              value={periodOverride}
-              onValueChange={(val) => {
-                if (val) setPeriodOverride(val);
-              }}
+        <div className="w-40 shrink-0">
+          <Select<number>
+            value={topLimit}
+            onValueChange={(value) => {
+              if (value === 5 || value === 10) setTopLimit(value);
+            }}
+          >
+            <SelectTrigger
+              aria-label="Số khóa học xếp hạng"
+              className="h-9 text-xs px-3 font-medium bg-background"
             >
-              <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
-                <span className="truncate">
-                  {periodOverride === '7d'
-                    ? '7 ngày gần nhất'
-                    : periodOverride === 'this_month'
-                      ? 'Tháng này'
-                      : periodOverride === 'this_year'
-                        ? 'Năm nay'
-                        : 'Thời gian: Theo Dashboard'}
-                </span>
-              </SelectTrigger>
-              <SelectContent align="start" className="min-w-52">
-                <SelectItem value="default" className="text-xs">Thời gian: Theo Dashboard</SelectItem>
-                <SelectItem value="7d" className="text-xs">7 ngày gần nhất</SelectItem>
-                <SelectItem value="this_month" className="text-xs">Tháng này</SelectItem>
-                <SelectItem value="this_year" className="text-xs">Năm nay</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Category Filter */}
-          <div className="w-48 shrink-0">
-            <Select<string>
-              value={categoryFilter}
-              onValueChange={(val) => {
-                if (val) setCategoryFilter(val);
-              }}
-            >
-              <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
-                <span className="truncate">
-                  {categoryFilter === 'all' ? 'Danh mục: Tất cả' : `Danh mục: ${categoryFilter}`}
-                </span>
-              </SelectTrigger>
-              <SelectContent align="start" className="min-w-48">
-                <SelectItem value="all" className="text-xs">Danh mục: Tất cả</SelectItem>
-                {availableCategories.map((cat) => (
-                  <SelectItem key={cat} value={cat} className="text-xs">
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Threshold Minimum Count */}
-          <div className="w-48 shrink-0">
-            <Select<string>
-              value={String(minReviews)}
-              onValueChange={(val) => {
-                if (val) setMinReviews(Number(val));
-              }}
-            >
-              <SelectTrigger className="h-9 text-xs px-3 font-medium bg-background">
-                <span className="truncate">
-                  {minReviews === 0
-                    ? 'Tất cả đánh giá (≥ 0)'
-                    : `Tối thiểu ${minReviews} đánh giá`}
-                </span>
-              </SelectTrigger>
-              <SelectContent align="start" className="min-w-48">
-                <SelectItem value="0" className="text-xs">Tất cả đánh giá (≥ 0)</SelectItem>
-                <SelectItem value="1" className="text-xs">Tối thiểu 1 đánh giá</SelectItem>
-                <SelectItem value="5" className="text-xs">Tối thiểu 5 đánh giá</SelectItem>
-                <SelectItem value="10" className="text-xs">Tối thiểu 10 đánh giá</SelectItem>
-                <SelectItem value="20" className="text-xs">Tối thiểu 20 đánh giá</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Reset button */}
-          {isModified && (
-            <button
-              type="button"
-              onClick={handleReset}
-              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition cursor-pointer"
-            >
-              <Icon icon="lucide:rotate-ccw" className="size-3" />
-              <span>Khôi phục mặc định</span>
-            </button>
-          )}
+              <span className="truncate">Hiển thị: Top {topLimit}</span>
+            </SelectTrigger>
+            <SelectContent align="start" className="min-w-40">
+              <SelectItem value={5} className="text-xs">Top 5</SelectItem>
+              <SelectItem value={10} className="text-xs">Top 10</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       {/* 2 Equal Columns on Desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Left Column: Top 5 Highest Rated Courses */}
+        {/* Left Column: Highest Rated Courses */}
         <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 overflow-hidden flex flex-col">
           <div className="px-4 py-3 bg-emerald-500/10 border-b border-emerald-500/20 flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
               <Icon icon="lucide:award" className="size-4 text-emerald-600 dark:text-emerald-400" />
-              Top 5 Khóa học được đánh giá cao nhất
+              Top {topLimit} Khóa học được đánh giá cao nhất
             </span>
             <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-card px-2.5 py-0.5 rounded-full border border-emerald-500/30">
               Tiêu chuẩn cao
@@ -210,7 +113,7 @@ export function DashboardReviewsSection({
                 ) : topRated.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="py-8 text-center text-xs text-muted-foreground">
-                      Không có khóa học nào đạt ngưỡng ≥ {minReviews} đánh giá hợp lệ
+                      Không có khóa học nào đạt ngưỡng ≥ 1 đánh giá hợp lệ
                     </td>
                   </tr>
                 ) : (
@@ -244,12 +147,12 @@ export function DashboardReviewsSection({
           </div>
         </div>
 
-        {/* Right Column: Top 5 Lowest Rated Courses Needing Attention */}
+        {/* Right Column: Lowest Rated Courses Needing Attention */}
         <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 overflow-hidden flex flex-col">
           <div className="px-4 py-3 bg-rose-500/10 border-b border-rose-500/20 flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
               <Icon icon="lucide:alert-circle" className="size-4 text-rose-600 dark:text-rose-400" />
-              Top 5 Khóa học có đánh giá thấp nhất
+              Top {topLimit} Khóa học có đánh giá thấp nhất
             </span>
             <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-card px-2.5 py-0.5 rounded-full border border-rose-500/30">
               Cần rà soát
@@ -277,7 +180,7 @@ export function DashboardReviewsSection({
                 ) : lowRated.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-xs text-muted-foreground">
-                      Không có khóa học nào đạt ngưỡng ≥ {minReviews} đánh giá hợp lệ
+                      Không có khóa học nào đạt ngưỡng ≥ 1 đánh giá hợp lệ
                     </td>
                   </tr>
                 ) : (

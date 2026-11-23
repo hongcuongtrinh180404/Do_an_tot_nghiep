@@ -12,6 +12,7 @@ import type {
 } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 import { reviewKeys } from '@/features/course/api/review.api';
+import { shouldRetryTeachingStats } from '../utils/teaching-stats-error';
 
 export interface IPaginatedResult<T> {
   items: T[];
@@ -56,20 +57,24 @@ export const teachingStatsKeys = {
 };
 
 export const teachingStatsApi = {
-  async getOverview(params: ITeachingOverviewParams): Promise<ITeachingStatsOverview> {
+  async getOverview(
+    params: ITeachingOverviewParams,
+    signal?: AbortSignal,
+  ): Promise<ITeachingStatsOverview> {
     const res = await apiClient.get<IApiResponse<ITeachingStatsOverview>>(
       '/instructor/teaching-stats/overview',
-      { params },
+      { params, signal },
     );
     return res.data.data;
   },
 
   async getCoursesRevenue(
     params: ICoursesRevenueParams,
+    signal?: AbortSignal,
   ): Promise<IPaginatedResult<IInstructorCourseRevenue>> {
     const res = await apiClient.get<IApiResponse<IPaginatedResult<IInstructorCourseRevenue>>>(
       '/instructor/teaching-stats/courses',
-      { params },
+      { params, signal },
     );
     return res.data.data;
   },
@@ -109,16 +114,18 @@ export const teachingStatsApi = {
 export function useTeachingOverviewQuery(params: ITeachingOverviewParams) {
   return useQuery({
     queryKey: teachingStatsKeys.overview(params),
-    queryFn: () => teachingStatsApi.getOverview(params),
+    queryFn: ({ signal }) => teachingStatsApi.getOverview(params, signal),
     staleTime: 30 * 1000,
+    retry: shouldRetryTeachingStats,
   });
 }
 
 export function useCoursesRevenueQuery(params: ICoursesRevenueParams) {
   return useQuery({
     queryKey: teachingStatsKeys.courses(params),
-    queryFn: () => teachingStatsApi.getCoursesRevenue(params),
+    queryFn: ({ signal }) => teachingStatsApi.getCoursesRevenue(params, signal),
     staleTime: 30 * 1000,
+    retry: shouldRetryTeachingStats,
   });
 }
 

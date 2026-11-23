@@ -45,6 +45,7 @@ describe('QuizGenerationService', () => {
     };
     mockLessonRepo = {
       findById: vi.fn(),
+      incrementOutputRevision: vi.fn().mockResolvedValue(true),
     };
     mockLessonTranscriptRepo = {
       findByLessonId: vi.fn(),
@@ -131,6 +132,7 @@ describe('QuizGenerationService', () => {
         'lesson-123',
         sampleQuizzes,
         'instructor-1',
+        undefined,
       );
     });
 
@@ -168,6 +170,7 @@ describe('QuizGenerationService', () => {
         'lesson-123',
         fourQuizzes,
         'instructor-1',
+        undefined,
       );
     });
 
@@ -200,8 +203,9 @@ describe('QuizGenerationService', () => {
       expect(mockLessonQuizRepo.replaceAllQuizzesForLesson).toHaveBeenCalledWith(
         'lesson-123',
         expect.arrayContaining([expect.objectContaining({ timestamp: null, explanationTimestamp: 15 })]),
+        undefined,
       );
-      expect(mockLessonQuizDraftRepo.clearDraftByLessonId).toHaveBeenCalledWith('lesson-123');
+      expect(mockLessonQuizDraftRepo.clearDraftByLessonId).toHaveBeenCalledWith('lesson-123', undefined);
     });
   });
 

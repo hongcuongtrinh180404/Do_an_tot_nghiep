@@ -22,7 +22,7 @@ describe('JobRecoveryService (Unit Test)', () => {
     phase: JobPhaseEnum.WAITING_DISPATCH,
     attempts: 1,
     maxAttempts: 3,
-    dispatchState: 'dispatched',
+    dispatchState: 'published',
     dispatchSequence: 1,
     inputRevision: 0,
     targetRevision: 0,

@@ -12,6 +12,8 @@ import {
   useGenerateSummaryMutation,
   useUpdateSummaryMutation,
 } from '@/features/course/api/transcript-analysis.api';
+import { useLessonAnalysisJob } from '@/features/course/hooks/use-analysis-jobs';
+import { AnalysisJobStatusBanner } from '../analysis-job-status';
 import { TimestampPickerInput } from '../timestamp-picker-input';
 
 interface LessonSummaryTabProps {
@@ -40,6 +42,12 @@ export function LessonSummaryTab({
   const { data: summaryDoc, isLoading } = useLessonSummaryQuery(lessonId);
   const { mutate: generateSummary, isPending: isGenerating } = useGenerateSummaryMutation(lessonId);
   const { mutate: updateSummary, isPending: isUpdating } = useUpdateSummaryMutation(lessonId);
+  const {
+    job: summaryJob,
+    isProcessing: isJobProcessing,
+    retryJob: handleRetryJob,
+    isRetrying: isJobRetrying,
+  } = useLessonAnalysisJob(lessonId, 'summary');
 
   // Dữ liệu tóm tắt chính thức (fallback về draftSummary nếu có từ trước)
   const currentSummaryData: ILessonSummaryData | null = useMemo(() => {
@@ -232,6 +240,13 @@ export function LessonSummaryTab({
 
   return (
     <div className="w-full flex flex-col space-y-6 p-4 sm:p-6 max-w-4xl mx-auto">
+      {/* Banner hiển thị trạng thái tác vụ AI ngầm */}
+      <AnalysisJobStatusBanner
+        job={summaryJob}
+        onRetry={handleRetryJob}
+        isRetrying={isJobRetrying}
+      />
+
       {/* Summary Content Display */}
       {isLoading ? (
         <div className="py-16 flex flex-col items-center justify-center space-y-3">
@@ -686,17 +701,26 @@ export function LessonSummaryTab({
               <Button
                 size="sm"
                 onClick={handleGenerateSummary}
-                disabled={isGenerating || isUpdating}
+                disabled={isGenerating || isUpdating || isJobProcessing}
                 className="text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white cursor-pointer shadow-2xs"
               >
-                <Icon icon="lucide:sparkles" className="size-3.5 mr-1.5" />
-                Tóm tắt bằng AI
+                {isJobProcessing || isGenerating ? (
+                  <>
+                    <Icon icon="lucide:loader-2" className="size-3.5 mr-1.5 animate-spin" />
+                    Đang phân tích...
+                  </>
+                ) : (
+                  <>
+                    <Icon icon="lucide:sparkles" className="size-3.5 mr-1.5" />
+                    Tóm tắt bằng AI
+                  </>
+                )}
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={handleCreateManualSummary}
-                disabled={isGenerating || isUpdating}
+                disabled={isGenerating || isUpdating || isJobProcessing}
                 className="text-xs font-medium cursor-pointer"
               >
                 <Icon icon="lucide:pencil" className="size-3.5 mr-1.5" />

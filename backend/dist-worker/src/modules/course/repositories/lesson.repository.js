@@ -53,6 +53,12 @@ let LessonRepository = class LessonRepository extends BaseMongoRepository {
                 content: (plain.content ?? null),
                 materials,
                 isPreview: Boolean(plain.isPreview),
+                analysisInputRevision: typeof plain.analysisInputRevision === 'number' ? plain.analysisInputRevision : 0,
+                analysisOutputRevisions: plain.analysisOutputRevisions || {
+                    summary: 0,
+                    quiz: 0,
+                    mindmap: 0,
+                },
             };
         });
     }
@@ -190,6 +196,31 @@ let LessonRepository = class LessonRepository extends BaseMongoRepository {
             $inc: { order: -1 },
         }, { session: session ?? undefined });
         return result.modifiedCount;
+    }
+    async incrementOutputRevision(lessonId, type, expectedRevision, session) {
+        const lessonObjectId = Types.ObjectId.isValid(lessonId)
+            ? new Types.ObjectId(lessonId)
+            : lessonId;
+        const filter = {
+            _id: lessonObjectId,
+            deletedAt: null,
+        };
+        if (typeof expectedRevision === 'number') {
+            filter[`analysisOutputRevisions.${type}`] = expectedRevision;
+        }
+        const result = await this.model.updateOne(filter, {
+            $inc: { [`analysisOutputRevisions.${type}`]: 1 },
+        }, { session: session ?? undefined });
+        return result.modifiedCount > 0;
+    }
+    async incrementInputRevision(lessonId, session) {
+        const lessonObjectId = Types.ObjectId.isValid(lessonId)
+            ? new Types.ObjectId(lessonId)
+            : lessonId;
+        const doc = await this.model
+            .findOneAndUpdate({ _id: lessonObjectId, deletedAt: null }, { $inc: { analysisInputRevision: 1 } }, { new: true, session: session ?? null })
+            .exec();
+        return doc ? doc.analysisInputRevision : null;
     }
 };
 LessonRepository = __decorate([

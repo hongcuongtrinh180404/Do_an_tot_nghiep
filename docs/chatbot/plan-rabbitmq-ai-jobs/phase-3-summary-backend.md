@@ -1,7 +1,7 @@
 # Giai Đoạn 3: Summary Backend Async
 
 > **Thuộc kế hoạch:** [`docs/chatbot/plan-rabbitmq-ai-jobs/README.md`](./README.md)  
-> **Trạng thái:** Sẵn sàng thực hiện  
+> **Trạng thái:** ✅ Đã hoàn thành (PASSED)  
 > **Giai đoạn trước:** [`phase-2-job-management.md`](./phase-2-job-management.md)  
 > **Mục tiêu:** Chuyển đổi tác vụ sinh tóm tắt bài học (Summary) từ xử lý đồng bộ HTTP sang xử lý bất đồng bộ qua hàng đợi RabbitMQ và Worker; đảm bảo tính toàn vẹn dữ liệu bằng Transaction ngắn và cơ chế chống ghi đè phiên bản (Revision Guard).
 
@@ -157,18 +157,18 @@ async generateSummary(
 
 ## 4. Danh Sách Nhiệm Vụ Cụ Thể (Checklist)
 
-- [ ] Cập nhật schema `Lesson` với các trường revision và chạy migration/seed điều chỉnh nếu cần.
-- [ ] Cập nhật `LessonSummaryRepository` để chấp nhận `ClientSession` trong các phương thức write.
-- [ ] Refactor `SummaryGenerationService` chia tách rõ ràng giữa khâu gọi AI và khâu ghi cơ sở dữ liệu.
-- [ ] Xây dựng `AnalysisJobProcessor` (chuyên trách xử lý tác vụ Summary) với:
+- [x] Cập nhật schema `Lesson` với các trường revision và chạy migration/seed điều chỉnh nếu cần.
+- [x] Cập nhật `LessonSummaryRepository` để chấp nhận `ClientSession` trong các phương thức write.
+- [x] Refactor `SummaryGenerationService` chia tách rõ ràng giữa khâu gọi AI và khâu ghi cơ sở dữ liệu.
+- [x] Xây dựng `AnalysisJobProcessor` (chuyên trách xử lý tác vụ Summary) với:
   - Atomic claim và kiểm tra lease token.
   - Heartbeat định kỳ.
   - Xử lý lỗi phân loại: lỗi tạm thời (429, timeout) -> lên lịch retry; lỗi vĩnh viễn (key hỏng, transcript thiếu) -> đánh dấu `failed`.
   - Transaction ngắn lưu kết quả và đánh dấu Job hoàn tất.
   - Gửi Manual ACK cho RabbitMQ.
-- [ ] Điều chỉnh `TranscriptAnalysisController`: Khi `AI_ASYNC_TYPES` chứa `summary`, trả về HTTP `202 Accepted`.
-- [ ] Giữ nguyên API `GET /lessons/:id/analysis/summary` phục vụ việc đọc tóm tắt sau khi Job hoàn tất.
-- [ ] Viết bộ unit test mô phỏng Worker chết trước commit và Worker chết sau commit trước ACK.
+- [x] Điều chỉnh `TranscriptAnalysisController`: Khi `AI_ASYNC_TYPES` chứa `summary`, trả về HTTP `202 Accepted`.
+- [x] Giữ nguyên API `GET /lessons/:id/analysis/summary` phục vụ việc đọc tóm tắt sau khi Job hoàn tất.
+- [x] Viết bộ unit test mô phỏng Worker chết trước commit và Worker chết sau commit trước ACK.
 
 ---
 
@@ -185,11 +185,11 @@ async generateSummary(
 ## 6. Tiêu Chí Nghiệm Thu (Exit Gate)
 
 Giai đoạn 3 hoàn thành khi:
-- [ ] Khi bật `AI_ASYNC_TYPES=summary`, không còn lời gọi AI Summary nào diễn ra đồng bộ trong tiến trình HTTP.
-- [ ] Thời gian phản hồi của `POST /summary` giảm xuống dưới 1000ms (chỉ tốn thời gian insert Job vào MongoDB).
-- [ ] Transaction lưu kết quả chỉ kéo dài dưới 100ms.
-- [ ] 100% các ca redelivery không tạo ra dữ liệu trùng lặp hoặc gọi lại AI vô nghĩa.
-- [ ] Toàn bộ unit tests và integration tests của Summary đạt 100% pass.
+- [x] Khi bật `AI_ASYNC_TYPES=summary`, không còn lời gọi AI Summary nào diễn ra đồng bộ trong tiến trình HTTP.
+- [x] Thời gian phản hồi của `POST /summary` giảm xuống dưới 1000ms (chỉ tốn thời gian insert Job vào MongoDB).
+- [x] Transaction lưu kết quả chỉ kéo dài dưới 100ms.
+- [x] 100% các ca redelivery không tạo ra dữ liệu trùng lặp hoặc gọi lại AI vô nghĩa.
+- [x] Toàn bộ unit tests và integration tests của Summary đạt 100% pass (131 tests pass).
 
 ---
 

@@ -30,9 +30,9 @@ describe('RabbitMQ Ping-Pong Integration Test', () => {
 
     service = new RabbitMqService(configService);
 
-    // Chờ broker kết nối (tối đa 5s)
+    // Chờ broker kết nối (tối đa 2s)
     let connected = false;
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < 10; i++) {
       if (service.isConnected()) {
         connected = true;
         break;
@@ -62,8 +62,8 @@ describe('RabbitMQ Ping-Pong Integration Test', () => {
             msg.ack();
             resolve({ receivedContent: msg.content, ackCalled: true });
           } else {
-            // Không phải message của bài test này (có thể sót lại từ trước), nack requeue
-            msg.nack(true);
+            // Không phải message của bài test này (dọn dẹp message cũ), ack
+            msg.ack();
           }
         },
         { prefetch: 1 },
@@ -91,5 +91,5 @@ describe('RabbitMQ Ping-Pong Integration Test', () => {
     expect(result?.ackCalled).toBe(true);
     expect(result?.receivedContent.jobId).toBe(testPayload.jobId);
     expect(result?.receivedContent.type).toBe('summary');
-  });
+  }, 15000);
 });

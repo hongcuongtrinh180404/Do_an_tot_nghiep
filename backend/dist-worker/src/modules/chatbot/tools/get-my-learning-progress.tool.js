@@ -80,7 +80,8 @@ let GetMyLearningProgressTool = class GetMyLearningProgressTool {
             result,
             nextContext: {
                 mode: 'learning_progress',
-                ...(continuesList && context?.list ? { list: context.list } : {}),
+                ...(continuesList && context?.list && !['business_selection', 'business_top'].includes(context.list.kind)
+                    ? { list: context.list } : {}),
                 ...(result.scope === 'course' ? { selectedCourseId: result.course.id } : {}),
             },
         };

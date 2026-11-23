@@ -10,6 +10,8 @@ import { LessonQuizQuestionDialog } from '../lesson-quiz-question-dialog';
 import { useQuizTimingValidation } from '../../../hooks/use-quiz-timing-validation';
 import { isQuizTimestamp } from 'share-lib';
 import { StudentLessonQuizTab, type StudentQuizState } from './student-lesson-quiz-tab';
+import { useLessonAnalysisJob } from '../../../hooks/use-analysis-jobs';
+import { AnalysisJobStatusBanner } from '../analysis-job-status';
 
 interface LessonQuizTabProps {
   userId?: string;
@@ -50,6 +52,12 @@ export function LessonQuizTab({
   // Lấy câu hỏi chính thức của bài học
   const { data: officialQuizzes = [], isLoading, isError, refetch } = useLessonQuizzesQuery(lessonId, isInstructor);
   const deleteMutation = useDeleteLessonQuizMutation(lessonId);
+  const {
+    job: quizJob,
+    isProcessing: isQuizJobProcessing,
+    retryJob: handleRetryQuizJob,
+    isRetrying: isQuizJobRetrying,
+  } = useLessonAnalysisJob(lessonId, 'quiz');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<ILessonQuiz | undefined>();
   const [quizToDelete, setQuizToDelete] = useState<ILessonQuiz | null>(null);
@@ -70,7 +78,7 @@ export function LessonQuizTab({
   }, [isInstructor, reviewQuizId, isLoading]);
 
   const openEditor = (quiz?: ILessonQuiz) => {
-    if (!isInstructor || isGenerating) return;
+    if (!isInstructor || isGenerating || isQuizJobProcessing) return;
     onPauseVideo?.();
     setEditingQuiz(quiz);
     setIsEditorOpen(true);
@@ -104,12 +112,26 @@ export function LessonQuizTab({
           </p>
         </div>
         {isInstructor && (
-          <Button type="button" onClick={() => openEditor()} disabled={isLoading || isError || isGenerating}>
+          <Button
+            type="button"
+            onClick={() => openEditor()}
+            disabled={isLoading || isError || isGenerating || isQuizJobProcessing}
+          >
             <Icon icon="lucide:plus" className="size-4" aria-hidden="true" />
             Thêm câu hỏi
           </Button>
         )}
       </div>
+
+      {/* Banner hiển thị trạng thái tác vụ AI ngầm */}
+      <div className="mx-auto w-full max-w-4xl">
+        <AnalysisJobStatusBanner
+          job={quizJob}
+          onRetry={handleRetryQuizJob}
+          isRetrying={isQuizJobRetrying}
+        />
+      </div>
+
       {showTimingErrors && missingCount > 0 && (
         <p role="alert" className="mx-auto w-full max-w-4xl rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
           Cần điền thời điểm xuất hiện cho {missingCount} câu hỏi trước khi gửi duyệt khóa học.
@@ -135,11 +157,10 @@ export function LessonQuizTab({
             return (
               <div
                 key={quizKey}
-                className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 ${
-                  isNearCurrentTime
+                className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 ${isNearCurrentTime
                     ? 'border-sky-500/60 bg-sky-50/40 dark:bg-sky-950/20 shadow-md ring-1 ring-sky-500/20'
                     : 'border-border/70 bg-card hover:border-border hover:shadow-xs'
-                }`}
+                  }`}
               >
                 {/* Header question */}
                 <div className="mb-3 flex items-center justify-between gap-3">
@@ -219,18 +240,16 @@ export function LessonQuizTab({
                     return (
                       <div
                         key={opt.id || opt.label}
-                        className={`flex items-start gap-2.5 p-3 rounded-xl border text-xs sm:text-sm transition-colors ${
-                          isCorrect
+                        className={`flex items-start gap-2.5 p-3 rounded-xl border text-xs sm:text-sm transition-colors ${isCorrect
                             ? 'border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/25 text-emerald-950 dark:text-emerald-200 font-medium'
                             : 'border-border/60 bg-muted/20 text-muted-foreground'
-                        }`}
+                          }`}
                       >
                         <span
-                          className={`inline-flex items-center justify-center size-6 rounded-lg text-xs font-bold shrink-0 mt-0.5 ${
-                            isCorrect
-                               ? 'bg-emerald-700 text-white shadow-2xs'
+                          className={`inline-flex items-center justify-center size-6 rounded-lg text-xs font-bold shrink-0 mt-0.5 ${isCorrect
+                              ? 'bg-emerald-700 text-white shadow-2xs'
                               : 'bg-muted text-foreground'
-                          }`}
+                            }`}
                         >
                           {opt.label}
                         </span>

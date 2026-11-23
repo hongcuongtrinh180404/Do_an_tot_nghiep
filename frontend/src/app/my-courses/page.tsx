@@ -11,10 +11,11 @@ import { InstructorProfileDialog } from '@/features/course/components/instructor
 import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
 import { useMyPurchasedCoursesQuery } from '@/features/course/api/enrollment.api';
 import { useMyLearningProgressQuery } from '@/features/course/api/learning-progress.api';
+import { PublicCoursesQueryError } from '@/features/course/components/public-courses-query-error';
 
 function MyPurchasedCoursesContent(): React.JSX.Element {
   const { data: user, isLoading: isAuthLoading } = useCurrentUserQuery();
-  const { data: courses, isLoading: isCoursesLoading } = useMyPurchasedCoursesQuery(
+  const { data: courses, isLoading: isCoursesLoading, isError: isCoursesError, refetch } = useMyPurchasedCoursesQuery(
     Boolean(user),
   );
   const [selectedInstructor, setSelectedInstructor] = useState<ICourseInstructorSummary | null>(null);
@@ -108,6 +109,8 @@ function MyPurchasedCoursesContent(): React.JSX.Element {
             </div>
           ))}
         </div>
+      ) : isCoursesError ? (
+        <PublicCoursesQueryError onRetry={() => { void refetch(); }} />
       ) : courses && courses.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {courses.map((course: ICourse) => {

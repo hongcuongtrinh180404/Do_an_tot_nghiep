@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Icon } from '@/components/ui/icon';
-import type { IPublicCourseCard } from '../public-discovery/mock-discovery-data';
+import type { IPublicCourseCard } from '../../types/public-course.types';
 
 export interface TeacherCourseRowProps {
   course: IPublicCourseCard;
@@ -38,8 +38,9 @@ export function TeacherCourseRow({
     (course.reviewCount > 0 && course.rating >= 4.5),
   );
 
-  const displayRating = course.rating > 0 ? course.rating : 5.0;
-  const filledStars = Math.min(5, Math.max(1, Math.round(displayRating)));
+  const hasReviews = course.reviewCount > 0;
+  const displayRating = course.rating;
+  const filledStars = hasReviews ? Math.min(5, Math.max(0, Math.round(displayRating))) : 0;
   const hasDiscount = Boolean(
     course.originalPrice &&
     course.originalPrice > course.price &&
@@ -113,23 +114,27 @@ export function TeacherCourseRow({
             </div>
 
             {/* Rating Stars */}
-            <div
-              className="inline-flex items-center gap-1.5"
-              title={`Đánh giá: ${displayRating.toFixed(1)} / 5 sao (${course.reviewCount ?? 0} đánh giá)`}
-            >
-              <span className="font-extrabold text-[#161616]">{displayRating.toFixed(1)}</span>
-              <div className="flex items-center gap-0.5 text-[#ffd100]" aria-hidden="true">
-                {[1, 2, 3, 4, 5].map((starIndex) => (
-                  <Icon
-                    key={`star-${starIndex}`}
-                    icon="lucide:star"
-                    className={`size-3.5 ${starIndex <= filledStars ? 'fill-[#ffd100] text-[#ffd100]' : 'text-neutral-300'
-                      }`}
-                  />
-                ))}
+            {hasReviews ? (
+              <div
+                className="inline-flex items-center gap-1.5"
+                title={`Đánh giá: ${displayRating.toFixed(1)} / 5 sao (${course.reviewCount ?? 0} đánh giá)`}
+              >
+                <span className="font-extrabold text-[#161616]">{displayRating.toFixed(1)}</span>
+                <div className="flex items-center gap-0.5 text-[#ffd100]" aria-hidden="true">
+                  {[1, 2, 3, 4, 5].map((starIndex) => (
+                    <Icon
+                      key={`star-${starIndex}`}
+                      icon="lucide:star"
+                      className={`size-3.5 ${starIndex <= filledStars ? 'fill-[#ffd100] text-[#ffd100]' : 'text-neutral-300'
+                        }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-neutral-400">({formatCompactNumber(course.reviewCount)})</span>
               </div>
-              <span className="text-neutral-400">({formatCompactNumber(course.reviewCount)})</span>
-            </div>
+            ) : (
+              <span>Chưa có đánh giá</span>
+            )}
           </div>
 
           {/* Price Tag */}

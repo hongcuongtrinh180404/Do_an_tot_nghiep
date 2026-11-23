@@ -1,9 +1,6 @@
 import { CourseLevelEnum, type ICourse, type IApiResponse } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
-import {
-  MOCK_PUBLIC_COURSES,
-  type IPublicCourseCard,
-} from '../components/public-discovery/mock-discovery-data';
+import type { IPublicCourseCard } from '../types/public-course.types';
 
 export type PublicPriceRange = 'free' | 'under-200' | '200-500' | 'above-500' | 'discount';
 
@@ -27,6 +24,8 @@ export interface IPublicCoursesResult {
   limit: number;
   totalPages: number;
 }
+
+export type IInstructorPublicCoursesResult = Pick<IPublicCoursesResult, 'items' | 'total'>;
 
 export function formatCourseDuration(totalSeconds?: number | null, lessonsCount?: number | null): string {
   if (totalSeconds && totalSeconds > 0) {
@@ -119,49 +118,53 @@ export async function fetchPublicCourses(
     limit = 9,
   } = params;
 
-  try {
-    const queryParams: Record<string, string | number> = {
-      page,
-      limit,
-    };
+  const queryParams: Record<string, string | number> = { page, limit };
 
-    if (q.trim()) queryParams.q = q.trim();
-    if (categories.length > 0 && categories[0] !== 'all') {
-      queryParams.category = categories[0];
-    }
-    if (levels.length > 0) queryParams.level = levels[0];
-    if (priceRanges.length > 0) queryParams.priceRange = priceRanges[0];
-    if (sort) queryParams.sort = sort;
-    if (params.instructorId) queryParams.instructorId = params.instructorId;
+  if (q.trim()) queryParams.q = q.trim();
+  if (categories.length > 0 && categories[0] !== 'all') {
+    queryParams.category = categories[0];
+  }
+  if (levels.length > 0) queryParams.level = levels[0];
+  if (priceRanges.length > 0) queryParams.priceRange = priceRanges[0];
+  if (sort) queryParams.sort = sort;
+  if (params.instructorId) queryParams.instructorId = params.instructorId;
 
-    const res = await apiClient.get<IApiResponse<{
-      items: ICourse[];
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
-    }>>('/courses', { params: queryParams });
+  const res = await apiClient.get<IApiResponse<{
+    items: ICourse[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>>('/courses', { params: queryParams });
 
-    const data = res.data?.data;
-    if (data && Array.isArray(data.items)) {
-      return {
-        items: data.items.map(mapCourseToPublicCard),
-        total: data.total,
-        page: data.page,
-        limit: data.limit,
-        totalPages: data.totalPages,
-      };
-    }
-  } catch (error) {
-    console.warn('Backend /courses API unavailable or error, falling back to mock data:', error);
+  const data = res.data?.data;
+  if (!data || !Array.isArray(data.items)) {
+    throw new Error('Dữ liệu danh sách khóa học không hợp lệ');
   }
 
-  // Fallback to local mock data if API is offline
   return {
-    items: MOCK_PUBLIC_COURSES.slice(0, limit),
-    total: MOCK_PUBLIC_COURSES.length,
-    page,
-    limit,
-    totalPages: Math.ceil(MOCK_PUBLIC_COURSES.length / limit),
+    items: data.items.map(mapCourseToPublicCard),
+    total: data.total,
+    page: data.page,
+    limit: data.limit,
+    totalPages: data.totalPages,
+  };
+}
+
+/** Fetch every page so instructor totals are never based on only the first 12 courses. */
+export async function fetchInstructorPublicCourses(
+  instructorId: string,
+): Promise<IInstructorPublicCoursesResult> {
+  const firstPage = await fetchPublicCourses({ instructorId, page: 1, limit: 100 });
+  const courses = new Map(firstPage.items.map((course) => [course.id, course]));
+
+  for (let page = 2; page <= firstPage.totalPages; page++) {
+    const result = await fetchPublicCourses({ instructorId, page, limit: 100 });
+    for (const course of result.items) courses.set(course.id, course);
+  }
+
+  return {
+    total: firstPage.total,
+    items: [...courses.values()],
   };
 }

@@ -3,6 +3,7 @@ import {
   Get,
   Query,
   Header,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { ApiResponse, PaginationResult } from '../base/index.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
@@ -15,6 +16,21 @@ import {
 import { RevenueService } from './services/revenue.service.js';
 import { RevenueTimeRangeQueryDto } from './dto/revenue.dto.js';
 import { InstructorCoursesRevenueQueryDto } from './dto/instructor-teaching-stats.dto.js';
+import { InstructorRevenueDataError } from './utils/instructor-revenue.pipeline.js';
+
+function rethrowTeachingStatsError(error: unknown): never {
+  if (error instanceof InstructorRevenueDataError) {
+    throw new UnprocessableEntityException({
+      statusCode: 422,
+      code: 'INSTRUCTOR_REVENUE_DATA_INCOMPLETE',
+      reason: error.reason,
+      message: error.reason === 'missing_payment_date'
+        ? 'Có đơn hàng thiếu ngày thanh toán đã xác thực. Vui lòng liên hệ quản trị viên để đối soát trước khi xem báo cáo theo ngày.'
+        : 'Dữ liệu thu nhập hoặc hoa hồng của một số đơn hàng chưa đầy đủ. Vui lòng liên hệ quản trị viên để đối soát.',
+    });
+  }
+  throw error;
+}
 
 @Controller('instructor/teaching-stats')
 @Roles(RoleEnum.INSTRUCTOR, RoleEnum.ADMIN)
@@ -30,11 +46,15 @@ export class InstructorTeachingStatsController {
     @CurrentUser('id') instructorId: string,
     @Query() query: RevenueTimeRangeQueryDto,
   ): Promise<ApiResponse<ITeachingStatsOverview>> {
-    const overview = await this.revenueService.getInstructorTeachingOverview(
-      instructorId,
-      query,
-    );
-    return ApiResponse.success(overview, 'Lấy dữ liệu tổng quan thống kê giảng dạy thành công');
+    try {
+      const overview = await this.revenueService.getInstructorTeachingOverview(
+        instructorId,
+        query,
+      );
+      return ApiResponse.success(overview, 'Lấy dữ liệu tổng quan thống kê giảng dạy thành công');
+    } catch (error) {
+      rethrowTeachingStatsError(error);
+    }
   }
 
   /**
@@ -46,10 +66,14 @@ export class InstructorTeachingStatsController {
     @CurrentUser('id') instructorId: string,
     @Query() query: InstructorCoursesRevenueQueryDto,
   ): Promise<ApiResponse<PaginationResult<IInstructorCourseRevenue>>> {
-    const result = await this.revenueService.getInstructorCoursesStats(
-      instructorId,
-      query,
-    );
-    return ApiResponse.success(result, 'Lấy danh sách doanh thu theo khóa học thành công');
+    try {
+      const result = await this.revenueService.getInstructorCoursesStats(
+        instructorId,
+        query,
+      );
+      return ApiResponse.success(result, 'Lấy danh sách doanh thu theo khóa học thành công');
+    } catch (error) {
+      rethrowTeachingStatsError(error);
+    }
   }
 }

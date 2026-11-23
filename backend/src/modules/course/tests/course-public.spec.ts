@@ -89,6 +89,8 @@ describe('Public Courses and Access Control', () => {
     title: 'Bài 2: Kiến trúc Nâng cao',
     order: 1,
     isPreview: false,
+    content: undefined,
+    materials: [],
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -156,6 +158,21 @@ describe('Public Courses and Access Control', () => {
   });
 
   describe('findPublicCourses', () => {
+    it('uses active enrollment counts for every public course, including zero', async () => {
+      const noStudents = { ...publishedCourse, id: 'empty-course', studentsCount: 15409 };
+      mockCourseRepository.findPublicCoursesWithPagination.mockResolvedValue({
+        items: [{ ...publishedCourse, studentsCount: 999 }, noStudents],
+        total: 2, page: 1, limit: 10, totalPages: 1,
+      });
+      mockEnrollmentRepository.countByCourseIds.mockResolvedValue(new Map([[publishedCourse.id, 1]]));
+
+      const result = await courseService.findPublicCourses({ page: 1, limit: 10 });
+      expect(result.items.map((course) => course.studentsCount)).toEqual([1, 0]);
+      expect(mockEnrollmentRepository.countByCourseIds).toHaveBeenCalledExactlyOnceWith([
+        publishedCourse.id, noStudents.id,
+      ]);
+    });
+
     it('1. should resolve category slug and query published courses', async () => {
       mockCategoryRepository.findBySlug.mockResolvedValue({ id: 'cat-123', slug: 'cntt' });
       mockCourseRepository.findPublicCoursesWithPagination.mockResolvedValue({
@@ -177,6 +194,16 @@ describe('Public Courses and Access Control', () => {
   });
 
   describe('getPublicCourseDetail', () => {
+    it.each([0, 1, 15409])('returns the current database enrollment count (%s)', async (count) => {
+      mockCourseRepository.findPublicCourseDetail.mockResolvedValue({ ...publishedCourse, studentsCount: 999 });
+      mockSectionRepository.findByCourseId.mockResolvedValue([]);
+      mockEnrollmentRepository.countByCourseId.mockResolvedValue(count);
+
+      const result = await courseService.getPublicCourseDetail(publishedCourse.id);
+      expect(result.studentsCount).toBe(count);
+      expect(mockEnrollmentRepository.countByCourseId).toHaveBeenCalledExactlyOnceWith(publishedCourse.id);
+    });
+
     it('2. should return public course detail with sections and lesson outlines', async () => {
       mockCourseRepository.findPublicCourseDetail.mockResolvedValue(publishedCourse);
       mockSectionRepository.findByCourseId.mockResolvedValue([sampleSection]);

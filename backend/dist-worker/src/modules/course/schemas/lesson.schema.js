@@ -110,6 +110,8 @@ let LessonEntity = class LessonEntity extends BaseAbstractDocument {
     materials;
     isPreview;
     transcriptionStatus;
+    analysisInputRevision;
+    analysisOutputRevisions;
 };
 __decorate([
     Prop({
@@ -153,6 +155,22 @@ __decorate([
     }),
     __metadata("design:type", String)
 ], LessonEntity.prototype, "transcriptionStatus", void 0);
+__decorate([
+    Prop({ type: Number, default: 0 }),
+    __metadata("design:type", Number)
+], LessonEntity.prototype, "analysisInputRevision", void 0);
+__decorate([
+    Prop({
+        type: {
+            summary: { type: Number, default: 0 },
+            quiz: { type: Number, default: 0 },
+            mindmap: { type: Number, default: 0 },
+        },
+        default: () => ({ summary: 0, quiz: 0, mindmap: 0 }),
+        _id: false,
+    }),
+    __metadata("design:type", Object)
+], LessonEntity.prototype, "analysisOutputRevisions", void 0);
 LessonEntity = __decorate([
     Schema({ timestamps: true, collection: 'lessons' })
 ], LessonEntity);

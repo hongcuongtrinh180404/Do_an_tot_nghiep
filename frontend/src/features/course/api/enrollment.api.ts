@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import type { IApiResponse, ICourse, IEnrollment, ISection } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 import { courseKeys } from './course.api';
+import { publicCourseKeys } from './public-courses.api';
 
 export interface IPublicCourseDetailResponse extends ICourse {
   sections: Array<
@@ -96,6 +97,7 @@ export function useRegisterFreeCourseMutation(courseId: string) {
       // Invalidate both enrollment and course caches
       void queryClient.invalidateQueries({ queryKey: enrollmentKeys.all });
       void queryClient.invalidateQueries({ queryKey: courseKeys.all });
+      void queryClient.invalidateQueries({ queryKey: publicCourseKeys.all });
     },
     onError: (error: unknown) => {
       const axiosError = error as {

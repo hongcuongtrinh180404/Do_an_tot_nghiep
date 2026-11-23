@@ -1,13 +1,11 @@
 'use client';
 
 import * as React from 'react';
+import { LearningStatusEnum, type IAdminUserEnrolledCourse } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
-import {
-  MOCK_ENROLLED_COURSES,
-  type EnrolledCourseItem,
-} from '../constants/mock-enrolled-courses';
 import { UserEnrolledCourseCard } from './user-enrolled-course-card';
+import { UserCoursesError, UserCoursesLoading, type UserCoursesQuery } from './user-courses-query-state';
 
 type FilterTab = 'ALL' | 'IN_PROGRESS' | 'COMPLETED' | 'NOT_STARTED';
 
@@ -24,8 +22,12 @@ const FILTER_TABS: TabOption[] = [
   { key: 'NOT_STARTED', label: 'Chưa học', icon: 'lucide:clock-3' },
 ];
 
-export function UserEnrolledCoursesSection(): React.JSX.Element {
-  const [courses] = React.useState<EnrolledCourseItem[]>(MOCK_ENROLLED_COURSES);
+const EMPTY_COURSES: IAdminUserEnrolledCourse[] = [];
+
+export function UserEnrolledCoursesSection({ query }: {
+  query: UserCoursesQuery<IAdminUserEnrolledCourse[]>;
+}): React.JSX.Element {
+  const courses = query.data ?? EMPTY_COURSES;
   const [searchQuery, setSearchQuery] = React.useState('');
   const [activeTab, setActiveTab] = React.useState<FilterTab>('ALL');
 
@@ -33,9 +35,9 @@ export function UserEnrolledCoursesSection(): React.JSX.Element {
   const counts = React.useMemo(() => {
     return {
       ALL: courses.length,
-      IN_PROGRESS: courses.filter((c) => c.progressPercent > 0 && c.progressPercent < 100).length,
-      COMPLETED: courses.filter((c) => c.progressPercent === 100).length,
-      NOT_STARTED: courses.filter((c) => c.progressPercent === 0).length,
+      IN_PROGRESS: courses.filter((c) => c.status === LearningStatusEnum.IN_PROGRESS).length,
+      COMPLETED: courses.filter((c) => c.status === LearningStatusEnum.COMPLETED).length,
+      NOT_STARTED: courses.filter((c) => c.status === LearningStatusEnum.NOT_STARTED).length,
     };
   }, [courses]);
 
@@ -50,19 +52,20 @@ export function UserEnrolledCoursesSection(): React.JSX.Element {
       if (!matchesSearch) return false;
 
       // Lọc theo Tab trạng thái
-      if (activeTab === 'IN_PROGRESS') {
-        return course.progressPercent > 0 && course.progressPercent < 100;
-      }
-      if (activeTab === 'COMPLETED') {
-        return course.progressPercent === 100;
-      }
-      if (activeTab === 'NOT_STARTED') {
-        return course.progressPercent === 0;
-      }
-
-      return true;
+      return activeTab === 'ALL' || course.status === activeTab;
     });
   }, [courses, searchQuery, activeTab]);
+
+  if (query.isPending) return <UserCoursesLoading label="Đang tải khóa học đã đăng ký..." />;
+  if (query.isError || !query.data) {
+    return (
+      <UserCoursesError
+        title="Không thể tải khóa học đã đăng ký"
+        error={query.error}
+        onRetry={() => { void query.refetch(); }}
+      />
+    );
+  }
 
   return (
     <section className="bg-card text-card-foreground border border-border/60 rounded-xl p-5 sm:p-6 shadow-xs space-y-5">
@@ -82,7 +85,7 @@ export function UserEnrolledCoursesSection(): React.JSX.Element {
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Theo dõi tiến độ học tập, trạng thái kích hoạt và quản lý quyền truy cập bài giảng của học viên.
+               Các khóa học có quyền truy cập hiện tại và tiến độ học tập thực tế của tài khoản.
             </p>
           </div>
         </div>
@@ -97,7 +100,8 @@ export function UserEnrolledCoursesSection(): React.JSX.Element {
             return (
               <button
                 key={tab.key}
-                type="button"
+                 type="button"
+                 aria-pressed={isActive}
                 onClick={() => setActiveTab(tab.key)}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
                   isActive
@@ -131,7 +135,8 @@ export function UserEnrolledCoursesSection(): React.JSX.Element {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm theo tên khóa học..."
+             placeholder="Tìm theo tên khóa học..."
+             aria-label="Tìm khóa học đã đăng ký"
             className="pl-8 text-xs h-8"
           />
           {searchQuery && (
@@ -167,7 +172,9 @@ export function UserEnrolledCoursesSection(): React.JSX.Element {
             <p className="text-xs text-muted-foreground max-w-sm">
               {searchQuery
                 ? `Không có kết quả khớp với từ khóa "${searchQuery}". Hãy thử tìm kiếm với từ khóa khác.`
-                : 'Chưa có khóa học nào thuộc phân loại trạng thái này.'}
+                : courses.length === 0
+                  ? 'Tài khoản này chưa đăng ký khóa học nào.'
+                  : 'Chưa có khóa học nào thuộc phân loại trạng thái này.'}
             </p>
           </div>
           {searchQuery && (

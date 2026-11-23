@@ -610,6 +610,8 @@ let AdminDashboardRepository = class AdminDashboardRepository extends BaseMongoR
                 $project: {
                     id: { $toString: '$_id' },
                     title: 1,
+                    slug: { $ifNull: ['$slug', ''] },
+                    thumbnailUrl: { $ifNull: ['$thumbnailUrl', null] },
                     price: { $ifNull: ['$price', 0] },
                     ratingAvg: { $ifNull: ['$ratingAvg', 0] },
                     reviewCount: { $ifNull: ['$reviewCount', 0] },
@@ -652,6 +654,8 @@ let AdminDashboardRepository = class AdminDashboardRepository extends BaseMongoR
             return {
                 id: String(r.id || r._id),
                 title,
+                slug: r.slug || '',
+                thumbnailUrl: r.thumbnailUrl || null,
                 instructor: String(r.instructorName || 'Giảng viên'),
                 category: String(r.categoryName || 'Khác'),
                 price,

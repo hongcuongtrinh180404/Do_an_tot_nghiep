@@ -11,17 +11,62 @@ var AudioExtractorService_1;
 import { Injectable, Logger, BadRequestException, InternalServerErrorException, } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import ffmpegStatic from 'ffmpeg-static';
-const execFileAsync = promisify(execFile);
+class AsyncSemaphore {
+    maxConcurrency;
+    running = 0;
+    queue = [];
+    constructor(maxConcurrency) {
+        this.maxConcurrency = maxConcurrency;
+    }
+    async acquire() {
+        if (this.running < this.maxConcurrency) {
+            this.running++;
+            return;
+        }
+        return new Promise((resolve) => {
+            this.queue.push(resolve);
+        });
+    }
+    release() {
+        this.running--;
+        const next = this.queue.shift();
+        if (next) {
+            this.running++;
+            next();
+        }
+    }
+    get activeCount() {
+        return this.running;
+    }
+}
 let AudioExtractorService = AudioExtractorService_1 = class AudioExtractorService {
     configService;
     logger = new Logger(AudioExtractorService_1.name);
+    semaphore;
+    activeProcesses = new Set();
     constructor(configService) {
         this.configService = configService;
+        const configuredConcurrency = Number(this.configService.get('FFMPEG_MAX_CONCURRENCY', 1)) || 1;
+        const maxConcurrency = Math.max(1, configuredConcurrency);
+        this.semaphore = new AsyncSemaphore(maxConcurrency);
+        this.logger.log(`[FFmpeg] Initialized AudioExtractorService with max concurrency: ${maxConcurrency}`);
+    }
+    onModuleDestroy() {
+        if (this.activeProcesses.size > 0) {
+            this.logger.log(`[FFmpeg] Shutting down AudioExtractorService, terminating ${this.activeProcesses.size} active FFmpeg processes...`);
+            for (const process of this.activeProcesses) {
+                try {
+                    process.kill('SIGTERM');
+                }
+                catch {
+                }
+            }
+            this.activeProcesses.clear();
+        }
     }
     getFfmpegBinaryPath() {
         const configuredPath = this.configService.get('FFMPEG_PATH', '').trim();
@@ -60,9 +105,30 @@ let AudioExtractorService = AudioExtractorService_1 = class AudioExtractorServic
             '-y',
             tempFilePath,
         ];
-        this.logger.log(`[FFmpeg] Bắt đầu trích xuất âm thanh cho bài học ${trimmedLessonId} qua ${ffmpegPath}...`);
+        this.logger.log(`[FFmpeg] Chờ slot trích xuất âm thanh cho bài học ${trimmedLessonId} (Active: ${this.semaphore.activeCount})...`);
+        await this.semaphore.acquire();
         try {
-            await execFileAsync(ffmpegPath, args, { timeout: 600000 });
+            this.logger.log(`[FFmpeg] Bắt đầu trích xuất âm thanh cho bài học ${trimmedLessonId} qua ${ffmpegPath}...`);
+            let childProcessInstance = null;
+            let isFinished = false;
+            await new Promise((resolve, reject) => {
+                const child = execFile(ffmpegPath, args, { timeout: 600000 }, (error) => {
+                    isFinished = true;
+                    if (childProcessInstance) {
+                        this.activeProcesses.delete(childProcessInstance);
+                    }
+                    if (error) {
+                        reject(error);
+                    }
+                    else {
+                        resolve();
+                    }
+                });
+                childProcessInstance = child;
+                if (child && !isFinished) {
+                    this.activeProcesses.add(child);
+                }
+            });
             const stats = await fs.promises.stat(tempFilePath).catch(() => null);
             if (!stats || stats.size === 0) {
                 await this.cleanupTempFile(tempFilePath);
@@ -81,6 +147,9 @@ let AudioExtractorService = AudioExtractorService_1 = class AudioExtractorServic
             const message = error instanceof Error ? error.message : String(error);
             this.logger.error(`[FFmpeg] Lỗi khi thực thi tách âm thanh bài học ${trimmedLessonId}: ${message}`, error);
             throw new InternalServerErrorException(`Không thể trích xuất âm thanh từ video bài học: ${message}`);
+        }
+        finally {
+            this.semaphore.release();
         }
     }
     async cleanupTempFile(filePath) {

@@ -5,18 +5,24 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Dialog } from '@base-ui/react/dialog';
 import { ArrowRight, ArrowUp, LoaderCircle, MessageCircle, RotateCcw, X } from 'lucide-react';
-import { CourseLevelEnum } from 'share-lib';
+import { CourseLevelEnum, RoleEnum } from 'share-lib';
 import { MindlyLogo } from '@/components/brand/mindly-logo';
 import { useCurrentUserQuery } from '@/features/auth/api/auth.api';
 import { CHATBOT_MESSAGE_LIMIT, type ChatbotSearchReply, type ChatbotTurn } from '../chatbot.contract';
 import { useChatbot } from '../hooks/use-chatbot';
 import { PersonalLearningReply } from './personal-learning-reply';
+import { InstructorBusinessReply } from './instructor-business-reply';
 import styles from './chatbot.module.css';
 
 const suggestions = [
   'Tìm khóa Python cho người mới',
   'Xem các khóa học của tôi',
   'Tiến độ học của tôi',
+];
+const instructorSuggestions = [
+  'Doanh thu tháng này của tôi',
+  'Khóa nào của tôi bán chạy nhất tháng này?',
+  'So sánh doanh thu tháng này với tháng trước',
 ];
 const levelLabels: Record<CourseLevelEnum, string> = {
   [CourseLevelEnum.BEGINNER]: 'Cơ bản',
@@ -92,11 +98,14 @@ function Turn({
             Đang tra cứu…
           </p>
         ) : turn.status === 'success' ? (
-          turn.reply.kind === 'my_courses' || turn.reply.kind === 'learning_progress'
+          turn.reply.kind === 'instructor_revenue' || turn.reply.kind === 'instructor_sales_stats'
+            ? <InstructorBusinessReply reply={turn.reply} disabled={disabled} onAsk={onAsk} onNavigate={onNavigate} />
+            : turn.reply.kind === 'my_courses' || turn.reply.kind === 'learning_progress'
             ? <PersonalLearningReply reply={turn.reply} disabled={disabled} onAsk={onAsk} onNavigate={onNavigate} />
             : turn.reply.kind === 'clarification'
               ? <p className={styles.answer}>{turn.reply.answer}</p>
-              : <SearchReply reply={turn.reply} onNavigate={onNavigate} />
+               : turn.reply.kind === undefined || turn.reply.kind === 'course_search'
+                 ? <SearchReply reply={turn.reply} onNavigate={onNavigate} /> : null
         ) : (
           <div className={styles.error}>
             <p role="alert">{turn.error.message}</p>
@@ -118,10 +127,11 @@ function Turn({
   );
 }
 
-function ChatbotSession({ authenticated, loading, courseDetail }: {
+function ChatbotSession({ authenticated, loading, courseDetail, instructor }: {
   authenticated: boolean;
   loading: boolean;
   courseDetail: boolean;
+  instructor: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
@@ -174,7 +184,8 @@ function ChatbotSession({ authenticated, loading, courseDetail }: {
               <MindlyLogo iconOnly showSlogan={false} variant="auto" className={styles.logo} aria-hidden />
               <div>
                 <Dialog.Title className={styles.title}>Trợ lý Mindly</Dialog.Title>
-                <Dialog.Description className={styles.subtitle}>Tìm khóa học, theo dõi việc học</Dialog.Description>
+                <Dialog.Description className={styles.subtitle}>{instructor
+                  ? 'Khóa học, tiến độ và kinh doanh' : 'Tìm khóa học, theo dõi việc học'}</Dialog.Description>
               </div>
             </div>
             <div className={styles.headerActions}>
@@ -223,10 +234,11 @@ function ChatbotSession({ authenticated, loading, courseDetail }: {
               >
                 {chat.turns.length === 0 && (
                   <div className={styles.intro}>
-                    <h3>Bạn muốn học gì?</h3>
-                    <p>Tìm khóa học phù hợp hoặc xem bạn đã học đến đâu.</p>
+                    <h3>{instructor ? 'Bạn muốn tra cứu gì?' : 'Bạn muốn học gì?'}</h3>
+                    <p>{instructor ? 'Xem thu nhập sau hoa hồng, lượt mua hoặc việc học của bạn.'
+                      : 'Tìm khóa học phù hợp hoặc xem bạn đã học đến đâu.'}</p>
                     <div className={styles.suggestions}>
-                      {suggestions.map((message) => (
+                      {(instructor ? instructorSuggestions : suggestions).map((message) => (
                         <button type="button" key={message} disabled={blocked} onClick={() => submit(message)}>
                           {message}<ArrowRight size={16} aria-hidden />
                         </button>
@@ -270,7 +282,7 @@ function ChatbotSession({ authenticated, loading, courseDetail }: {
                     }}
                     maxLength={CHATBOT_MESSAGE_LIMIT}
                     rows={2}
-                    placeholder="Ví dụ: Tiến độ khóa Python của tôi"
+                    placeholder={instructor ? 'Ví dụ: Doanh thu 7 ngày gần nhất của tôi' : 'Ví dụ: Tiến độ khóa Python của tôi'}
                     aria-describedby="mindly-chatbot-context mindly-chatbot-limit"
                   />
                   <button
@@ -305,8 +317,9 @@ export default function ChatbotWidget() {
 
   return (
     <ChatbotSession
-      key={user?.id ?? 'guest'}
+      key={user ? `${user.id}:${user.role}` : 'guest'}
       authenticated={!!user}
+      instructor={user?.role === RoleEnum.INSTRUCTOR || user?.role === RoleEnum.ADMIN}
       loading={isLoading}
       courseDetail={/^\/courses\/[^/]+\/?$/.test(pathname)}
     />

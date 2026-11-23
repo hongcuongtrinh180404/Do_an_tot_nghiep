@@ -17,6 +17,7 @@ import { CourseCatalogSort } from './course-catalog-sort';
 import { CourseCatalogActiveChips } from './course-catalog-active-chips';
 import { CourseCatalogPagination } from './course-catalog-pagination';
 import { CourseCatalogEmpty } from './course-catalog-empty';
+import { PublicCoursesQueryError } from '../public-courses-query-error';
 
 export function CourseCatalogView(): React.JSX.Element {
   const router = useRouter();
@@ -85,7 +86,7 @@ export function CourseCatalogView(): React.JSX.Element {
     [qParam, selectedCategories, selectedPrices, selectedLevels, sortParam, currentPage],
   );
 
-  const { data, isLoading } = usePublicCoursesCatalogQuery(queryParams);
+  const { data, isLoading, isError, refetch } = usePublicCoursesCatalogQuery(queryParams);
 
   // Helper to commit new URL state
   const updateUrlParams = useCallback(
@@ -241,8 +242,9 @@ export function CourseCatalogView(): React.JSX.Element {
     selectedLevels.length > 0;
 
   const totalResults = data?.total ?? 0;
-  const startItem = totalResults === 0 ? 0 : (currentPage - 1) * 9 + 1;
-  const endItem = Math.min(currentPage * 9, totalResults);
+  const pageSize = data?.limit ?? queryParams.limit ?? 12;
+  const startItem = totalResults === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, totalResults);
 
   return (
     <div className="w-full bg-[#fbfbfb] min-h-[calc(100vh-4rem)] text-[#161616]">
@@ -337,6 +339,8 @@ export function CourseCatalogView(): React.JSX.Element {
                 <p className="text-xs sm:text-sm text-neutral-600">
                   {isLoading ? (
                     'Đang tìm kiếm...'
+                  ) : isError ? (
+                    'Không thể tải kết quả'
                   ) : totalResults > 0 ? (
                     <>
                       Hiển thị <span className="font-bold text-[#161616]">{startItem}</span> -{' '}
@@ -386,6 +390,8 @@ export function CourseCatalogView(): React.JSX.Element {
                     </div>
                   ))}
                 </div>
+              ) : isError ? (
+                <PublicCoursesQueryError onRetry={() => { void refetch(); }} />
               ) : data && data.items.length > 0 ? (
                 /* Verified Results Grid: 4 columns on desktop */
                 <>
@@ -446,4 +452,3 @@ export function CourseCatalogView(): React.JSX.Element {
     </div>
   );
 }
-

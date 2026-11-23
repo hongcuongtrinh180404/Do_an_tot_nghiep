@@ -3,7 +3,6 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/icon';
-import { Button } from '@/components/ui/button';
 import { useMyCoursesQuery } from '@/features/course/api/course.api';
 import {
   useTeachingOverviewQuery,
@@ -19,11 +18,12 @@ import { TeachingOverviewCards } from './teaching-overview-cards';
 import { CourseRevenueTable } from './course-revenue-table';
 import { TeachingReviewStatsSection } from './teaching-review-stats-section';
 import { TeachingRecentReviewsSection } from './teaching-recent-reviews-section';
+import { TeachingStatsQueryError } from './teaching-stats-query-error';
 
 export function TeachingStatsView(): React.JSX.Element {
-  // 1. Time Filter State (Defaults to 'all' as requested)
+  // 1. Time Filter State (Defaults to 'today')
   const [timeFilter, setTimeFilter] = React.useState<TeachingTimeFilterValue>({
-    timeRange: 'all',
+    timeRange: 'today',
   });
 
   // 2. Course Revenue Table State
@@ -48,11 +48,15 @@ export function TeachingStatsView(): React.JSX.Element {
   // Section 1: Overview Query
   const overviewQuery = useTeachingOverviewQuery({
     timeRange: timeFilter.timeRange,
+    startDate: timeFilter.timeRange === 'custom' ? timeFilter.startDate : undefined,
+    endDate: timeFilter.timeRange === 'custom' ? timeFilter.endDate : undefined,
   });
 
   // Section 2: Courses Revenue Query
   const coursesRevenueQuery = useCoursesRevenueQuery({
     timeRange: timeFilter.timeRange,
+    startDate: timeFilter.timeRange === 'custom' ? timeFilter.startDate : undefined,
+    endDate: timeFilter.timeRange === 'custom' ? timeFilter.endDate : undefined,
     search: courseSearch,
     sort: courseSort,
     page: coursePage,
@@ -84,7 +88,7 @@ export function TeachingStatsView(): React.JSX.Element {
       {/* ========================================================================= */}
       {/* TOP HEADER: Breadcrumbs, Title & Time Filter                               */}
       {/* ========================================================================= */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border/60">
+      <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-4 pb-6 border-b border-border/60">
         <div>
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
@@ -115,14 +119,8 @@ export function TeachingStatsView(): React.JSX.Element {
           </p>
         </div>
 
-        {/* Action Buttons & Time Range Selector */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
-          <Link href="/courses">
-            <Button variant="outline" size="sm" className="h-9 text-xs">
-              <Icon icon="lucide:arrow-left" className="size-3.5 mr-1.5" />
-              Quản lý khóa học
-            </Button>
-          </Link>
+        {/* Time Range Selector */}
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
           <TeachingRevenueTimeFilter
             value={timeFilter}
             onChange={handleTimeFilterChange}
@@ -133,23 +131,38 @@ export function TeachingStatsView(): React.JSX.Element {
       {/* ========================================================================= */}
       {/* KHU VỰC 1: TỔNG QUAN (4 KPI Cards)                                        */}
       {/* ========================================================================= */}
-      <section aria-labelledby="section-overview-title" className="space-y-3">
+      <section aria-labelledby="section-overview-title" aria-busy={overviewQuery.isFetching} className="space-y-3">
         <h2 id="section-overview-title" className="sr-only">
           Tổng quan số liệu giảng dạy
         </h2>
-        <TeachingOverviewCards
-          overview={overviewQuery.data}
-          isLoading={overviewQuery.isLoading}
-        />
+        {overviewQuery.isError ? (
+          <div className="rounded-xl border border-border/70 bg-card">
+            <TeachingStatsQueryError
+              title="Không thể tải tổng quan doanh thu"
+              error={overviewQuery.error}
+              onRetry={() => void overviewQuery.refetch()}
+              isRetrying={overviewQuery.isFetching}
+            />
+          </div>
+        ) : (
+          <TeachingOverviewCards
+            overview={overviewQuery.data}
+            isLoading={overviewQuery.isLoading}
+          />
+        )}
       </section>
 
       {/* ========================================================================= */}
       {/* KHU VỰC 2: DOANH THU THEO KHÓA HỌC                                        */}
       {/* ========================================================================= */}
-      <section aria-labelledby="section-courses-revenue">
+      <section aria-labelledby="section-courses-revenue" aria-busy={coursesRevenueQuery.isFetching}>
         <CourseRevenueTable
           data={coursesRevenueQuery.data}
           isLoading={coursesRevenueQuery.isLoading}
+          isError={coursesRevenueQuery.isError}
+          error={coursesRevenueQuery.error}
+          onRetry={() => void coursesRevenueQuery.refetch()}
+          isRetrying={coursesRevenueQuery.isFetching}
           search={courseSearch}
           onSearchChange={setCourseSearch}
           sort={courseSort}

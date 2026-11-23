@@ -551,3 +551,215 @@
 
 
 
+
+---
+
+### [2026-11-22] - Phase 3: Summary Backend Async & Revision Guard Rollout
+
+- **Bối cảnh & Mục tiêu**:
+  - Chuyển đổi tác vụ sinh tóm tắt bài học (Summary) từ cơ chế xử lý đồng bộ HTTP (`await` AI 5-20s) sang xử lý bất đồng bộ qua hàng đợi RabbitMQ và Standalone Worker theo kế hoạch `docs/chatbot/plan-rabbitmq-ai-jobs/phase-3-summary-backend.md`.
+  - Đảm bảo tính toàn vẹn dữ liệu bằng Transaction ngắn (< 100ms) và cơ chế chống ghi đè 2 chiều (Revision Guard).
+- **Các giải pháp kỹ thuật đã triển khai**:
+  1. **Schema Lesson & Revisions**:
+     - Bổ sung `analysisInputRevision` và `analysisOutputRevisions` (`summary`, `quiz`, `mindmap`) vào `LessonEntity` và `share-lib/ILesson`.
+     - Bổ sung method `incrementOutputRevision(lessonId, type, expectedRevision?, session?)` và `incrementInputRevision(lessonId, session?)` trên `LessonRepository`.
+  2. **Tách biệt Service (Decoupling)**:
+     - `SummaryGenerationService`: Tách `generateSummaryContent()` (tính toán, gọi AI, validate JSON ngoài transaction) và `persistSummaryWithSession()` (lưu MongoDB có session và bump revision).
+     - Cập nhật `updateSummary` và `applyDraft` tự động tăng revision khi giảng viên hiệu đính thủ công.
+     - Giữ nguyên `generateSummary()` hỗ trợ fallback đồng bộ tức thời khi cờ async bị tắt.
+  3. **AnalysisJobProcessor trong Standalone Worker**:
+     - Subscribes queue `mindly.ai.v1` với routing key `ai.summary` (chỉ active khi `process.env.IS_WORKER === 'true'`).
+     - Failsafe Crash-after-commit: Nếu job đã `COMPLETED`, ACK ngay không gọi AI.
+     - Atomic claim và duy trì heartbeat 20s.
+     - Revision Guard: Chặn commit với `TARGET_CHANGED` nếu revision bị đổi trong lúc AI chạy; chặn với `INPUT_CHANGED` nếu transcript thay đổi.
+     - Short Atomic Transaction: Mở `ClientSession` sau khi AI chạy xong để kiểm tra revision, lưu summary và đánh dấu job completed.
+  4. **Controller HTTP 202 & Feature Flag**:
+     - `POST /lessons/:id/analysis/summary` kiểm tra `AI_ASYNC_TYPES=summary`: Trả về `202 Accepted` kèm `jobId`, `statusUrl`. Tự động fallback về HTTP 200 đồng bộ khi cờ tắt.
+- **Kiểm thử & Nghiệm thu**:
+  - Tạo mới `summary-job-processor.spec.ts` (6/6 tests pass mô phỏng crash sau commit, revision guard target changed, course pending approval, 429 rate limit, transcript changed).
+  - Cập nhật `summary-generation.service.spec.ts` (15/15 tests pass), `transcript-analysis.controller.spec.ts` (12/12 tests pass).
+  - 131/131 tests pass 100% trên toàn bộ module jobs và transcript-analysis.
+  - Build sạch 0 lỗi: `share-lib`, `backend/dist`, `backend/dist-worker`.
+
+---
+
+### [2026-11-22] - Phase 4: Summary Frontend Async Polling, Adaptive Backoff & Status Banner
+
+- **Bối cảnh & Mục tiêu**:
+  - Tích hợp Frontend Next.js để tiêu thụ phản hồi bất đồng bộ `202 Accepted` từ Backend sau khi Phase 3 hoàn thành.
+  - Xử lý trạng thái tiến trình thời gian thực, khôi phục 100% khi reload/F5 hoặc đổi bài học, ngăn chặn bấm đúp submit và hiển thị banner chi tiết kèm nút Retry theo tài liệu `docs/chatbot/plan-rabbitmq-ai-jobs/phase-4-summary-frontend.md`.
+- **Các giải pháp kỹ thuật đã triển khai**:
+  1. **Polymorphic Contracts & API Layer (`analysis-jobs.api.ts` & `transcript-analysis.api.ts`)**:
+     - Định nghĩa `AnalysisJobResponse` với các trạng thái (`queued`, `processing`, `completed`, `failed`) và các phase (`calling_ai`, `saving_result`, v.v.).
+     - Xây dựng `isSummaryJobAccepted` type guard để phân nhánh mượt mà giữa HTTP 202 (`ISummaryJobAcceptedResponse`) và HTTP 200 (`ISummaryGenerationResponse`) fallback.
+     - Cung cấp `analysisJobsApi.getLessonJobs(lessonId)` và `analysisJobsApi.retryJob(lessonId, jobId)`.
+  2. **Adaptive Polling Hook (`use-analysis-jobs.ts`)**:
+     - Hook `useLessonAnalysisJob(lessonId, type)` quản lý query trạng thái với tính năng Adaptive Polling:
+       - 2.5s khi job đang `processing` (AI đang phân tích).
+       - 5.0s khi job đang `queued` (trong hàng đợi outbox / RabbitMQ).
+       - Tự động tắt polling (interval `false`) khi job chuyển sang `completed` hoặc `failed`.
+     - Tự động refetch khi window focus (`refetchOnWindowFocus: true`) để cập nhật ngay khi người dùng mở lại tab.
+     - Tự động kích hoạt `invalidateQueries` cho `transcriptAnalysisKeys.summary(lessonId)` và toast thông báo thành công khi job hoàn tất.
+     - Tích hợp mutation `retryJob` xử lý phản hồi lỗi an toàn không dùng kiểu `any`.
+  3. **UI Status Banner & Feedback (`analysis-job-status.tsx`)**:
+     - Component `AnalysisJobStatusBanner` hiển thị linh hoạt 3 trạng thái:
+       - `queued`: Icon Clock nhấp nháy Amber-500, thông báo đang xếp hàng xử lý.
+       - `processing`: Icon Loader xoay Sky-600, phân biệt chi tiết giai đoạn `calling_ai` và `saving_result`, hiển thị badge lần thử nếu `attempts > 1`.
+       - `failed`: Icon Alert Rose-500, hiển thị `errorMessage` an toàn kèm nút "Thử lại" kích hoạt retry mutation.
+     - Tuyệt đối tuân thủ quy tắc Purple Ban (không sử dụng màu tím).
+  4. **Tích Hợp Container & Tab Bar (`lesson-tabs-container.tsx` & `lesson-summary-tab.tsx`)**:
+     - Hiển thị dot nhấp nháy `animate-ping` màu Sky-500 trên tab header "Tóm tắt (Summary)" khi có job đang xử lý ngầm.
+     - Vô hiệu hóa nút tạo tóm tắt trên thanh công cụ và trong empty-state khi `isJobProcessing === true`, loại bỏ nguy cơ submit trùng lặp.
+     - Bảo lưu 100% tính năng chỉnh sửa Markdown thủ công, phân đoạn Key Points và lưu nháp của giảng viên.
+- **Kiểm thử & Nghiệm thu**:
+  - Tạo mới `frontend/src/features/course/tests/analysis-jobs.spec.tsx` với 10/10 test cases pass 100%:
+    - Kiểm thử type guard `isSummaryJobAccepted` và API methods.
+    - Kiểm thử render banner cho từng trạng thái (`queued`, `processing` phase `calling_ai`, `failed` kèm nút Retry).
+    - Kiểm thử hook `useLessonAnalysisJob`: ưu tiên active job, fallback failed job, và tự động invalidate/toast khi job hoàn tất.
+  - Kiểm thử tương thích ngược: `lesson-mindmap-tab.spec.tsx` (8/8 tests pass).
+  - TypeScript frontend sạch sẽ 0 lỗi (`npx tsc --noEmit`).
+
+---
+
+### [2026-11-22] - Phase 5: Quiz & Mindmap Async Expansion Over RabbitMQ Worker Pipeline
+
+- **Bối cảnh & Mục tiêu**:
+  - Mở rộng hàng đợi RabbitMQ (`mindly.ai.v1`) để xử lý toàn bộ 3 tác vụ AI (Summary, Quiz, Mindmap) với `concurrency = 1` trên môi trường dev theo tài liệu `docs/chatbot/plan-rabbitmq-ai-jobs/phase-5-quiz-mindmap.md`.
+  - Loại bỏ hoàn toàn blocking HTTP 60–120s cho Quiz và Mindmap, chuyển sang mô hình phản hồi bất đồng bộ `202 Accepted` kèm theo theo dõi tiến trình thời gian thực.
+  - Thiết lập các lớp phòng thủ toàn vẹn dữ liệu: Zero-Quiz Safety Rule, Timestamp Null Rule, Sanitize 5-level, và Two-Way Revision Fencing Guard.
+- **Các giải pháp kỹ thuật đã triển khai**:
+  1. **Decoupled AI Generation Services (`quiz-generation.service.ts` & `mindmap-analysis.service.ts`)**:
+     - Tách biệt hoàn toàn tính toán AI ngoại vi (`generateQuizContent`, `generateMindmapContent`) và thao tác lưu database ngắn hạn (`persistQuizWithSession`, `persistMindmapWithSession`).
+     - Hỗ trợ truyền tùy chọn `ClientSession` để commit nguyên khối trong MongoDB transaction.
+     - **Timestamp Null Rule**: Toàn bộ câu hỏi Quiz sinh mới từ AI đều gán `timestamp = null` và giữ `explanationTimestamp` để tránh chèn sai timeline video trước khi giảng viên phê duyệt.
+     - **Sanitize 5-Level Rule**: Tự động cắt tỉa các nhánh cây Mindmap sâu hơn 5 cấp (`maxDepth = 4`) trước khi lưu trữ hoặc hiển thị.
+     - **Zero-Quiz Safety Rule**: Khi AI trả về mảng rỗng `quizzes: []`, hệ thống hoàn tất Job với `count: 0, preservedExisting: true` và tuyệt đối KHÔNG xóa bộ câu hỏi chính thức hiện có của bài học.
+  2. **Revision Fencing (`lesson-quiz.service.ts`, `lesson.repository.ts`)**:
+     - Bổ sung lời gọi `incrementOutputRevision(lessonId, 'quiz', ...)` khi giảng viên thực hiện CRUD câu hỏi thủ công (`createQuiz`, `updateQuiz`, `updateTimestamp`, `syncQuizzesAtTimestamp`, `deleteQuiz`, `deleteQuizzesAtTimestamp`, `moveOrMergeQuizCluster`).
+     - Tương tự với Mindmap khi giảng viên lưu đè sơ đồ tư duy thủ công (`updateMindmap`, `applyDraft`).
+     - Worker phát hiện revision bị thay đổi trong lúc AI đang sinh dữ liệu (`TARGET_CHANGED`) -> Hủy bỏ transaction và đánh dấu Job thất bại không thể retry (`retryable: false`), bảo toàn 100% chỉnh sửa của giảng viên.
+  3. **Standalone Worker Processor (`analysis-job.processor.ts`)**:
+     - Mở rộng handler `handleMessage` định tuyến cho cả 3 loại job: `SUMMARY`, `QUIZ`, `MINDMAP`.
+     - Cài đặt `processQuizJob` và `processMindmapJob` với vòng đời chặt chẽ:
+       - Kịch bản crash sau commit -> Nhận diện `COMPLETED` và gửi ACK ngay.
+       - Rate limit 429 / Quota exhausted -> Đánh dấu `retryable: true` và ACK để outbox/retry scheduler lên lịch lại.
+       - Lease heartbeat duy trì an toàn mỗi 30s.
+  4. **Controller & Feature Flags (`transcript-analysis.controller.ts`, `.env`)**:
+     - `generateQuiz` và `generateMindmap` đọc cờ `AI_ASYNC_TYPES=summary,quiz,mindmap`.
+     - Trả về `202 Accepted` kèm metadata `jobId`, `type`, `statusUrl` khi cờ bật; tự động fallback `200 OK` đồng bộ khi cờ tắt.
+     - Triệt tiêu hoàn toàn kiểu `any`, áp dụng kiểu gõ tường minh và type narrowing an toàn.
+  5. **Frontend Polymorphism & UX Integration**:
+     - Thêm type guards `isQuizJobAccepted` và `isMindmapJobAccepted` trong `transcript-analysis.api.ts`.
+     - Cập nhật `useLessonAnalysisJob`: tự động phân biệt loại job và bắn toast chúc mừng thành công tương ứng (`'Bộ câu hỏi trắc nghiệm đã được tạo thành công!'`, `'Sơ đồ tư duy (Mindmap) đã được tạo thành công!'`).
+     - Nhúng `AnalysisJobStatusBanner` vào đầu `lesson-quiz-tab.tsx` và `lesson-mindmap-tab.tsx`.
+     - Vô hiệu hóa nút tạo lại câu hỏi, thêm câu hỏi, và autosave Mindmap trong lúc Job đang ở trạng thái `processing`.
+     - Thêm dot nhấp nháy `animate-ping` màu Sky-500 cạnh tiêu đề tab Quiz và Mindmap trên `lesson-tabs-container.tsx`.
+- **Kiểm thử & Nghiệm thu**:
+  - Viết mới `quiz-job-processor.spec.ts` (7/7 tests pass) và `mindmap-job-processor.spec.ts` (6/6 tests pass).
+  - Cập nhật `summary-job-processor.spec.ts` (6/6 tests pass), `transcript-analysis.controller.spec.ts` (14/14 tests pass), `quiz-generation.service.spec.ts` (18/18 tests pass), `mindmap-analysis.service.spec.ts` (15/15 tests pass).
+  - Toàn bộ backend test suite: **16 test files, 197 tests pass 100%**.
+  - Frontend test suite: `analysis-jobs.spec.tsx` **14/14 tests pass 100%**.
+  - TypeScript biên dịch sạch 0 lỗi: NestJS backend build, Worker tsconfig build, Next.js frontend type-check.
+
+---
+
+### [2026-11-23] - Phase 6: Video Processing Pipeline & Queue Transcription Over Dedicated Worker Queue
+
+- **Bối cảnh & Mục tiêu**:
+  - Triển khai Giai đoạn 6 theo [`docs/chatbot/plan-rabbitmq-ai-jobs/phase-6-transcription-video.md`](file:///d:/Download/hk1_2027/project_do_an/docs/chatbot/plan-rabbitmq-ai-jobs/phase-6-transcription-video.md).
+  - Loại bỏ hoàn toàn cơ chế gọi bất đồng bộ không kiểm soát `void async` (`triggerTranscription` fire-and-forget) trong tiến trình API của `LessonTranscriptService`.
+  - Khai báo queue chuyên biệt `mindly.transcription.v1` và DLQ `mindly.transcription.dead.v1` trên exchange `mindly.tasks.v1` với routing key `video.transcribe`, độc lập với queue AI.
+  - Kiểm soát tải tiến trình FFmpeg qua Concurrency Semaphore (`FFMPEG_MAX_CONCURRENCY=1` trên dev) và hủy tiến trình mồ côi (zombie processes) khi worker tắt đột ngột qua `onModuleDestroy`.
+  - Thiết lập cơ chế Checkpoint 2 giai đoạn với AssemblyAI: Submit file audio nhận ngay `externalTranscriptId` và lưu Checkpoint vào MongoDB; nếu worker bị restart giữa chừng, worker mới sẽ đọc `externalTranscriptId` và tiếp tục polling mà không chạy lại FFmpeg hay upload stream tốn chi phí.
+  - Bảo vệ tính toàn vẹn của dữ liệu: Toàn bộ thao tác lưu `LessonTranscript` (READY), cập nhật thời lượng `Lesson.duration`, chuyển trạng thái `Lesson.transcriptionStatus: READY`, và tăng `analysisInputRevision` được thực hiện trong một MongoDB transaction duy nhất (< 100ms).
+
+- **Các giải pháp kỹ thuật đã triển khai**:
+  1. **RabbitMQ Topology & Routing (`rabbitmq-topology.ts`, `job-dispatcher.service.ts`)**:
+     - Bổ sung queue `mindly.transcription.v1`, DLQ `mindly.transcription.dead.v1`, routing key `video.transcribe`.
+     - `JobDispatcherService`: Tự động định tuyến `job.type === JobTypeEnum.TRANSCRIPTION ? RABBITMQ_CONSTANTS.ROUTING_KEY_TRANSCRIPTION : 'ai.' + job.type`.
+  2. **FFmpeg Semaphore & Lifecycle Guard (`audio-extractor.service.ts`)**:
+     - Xây dựng lớp `AsyncSemaphore` giới hạn số lượt tách audio đồng thời theo biến môi trường `FFMPEG_MAX_CONCURRENCY`.
+     - Theo dõi toàn bộ `ChildProcess` đang chạy trong một `Set<ChildProcess>`.
+     - Thực thi hook `onModuleDestroy` để `kill('SIGTERM')` toàn bộ các tiến trình FFmpeg khi worker tắt.
+     - Dọn dẹp an toàn tệp âm thanh tạm qua `cleanupTempFile` có bẫy lỗi `ENOENT`.
+  3. **AssemblyAI Two-Phase Checkpoint Model (`assemblyai.service.ts`, `job.service.ts`)**:
+     - `submitTranscriptFile(filePath, options)`: Tải stream lên AssemblyAI staging storage và submit transcript job, trả về `transcript.id` ngay tức thì.
+     - `pollTranscript(transcriptId, timeoutMs)`: Polling trạng thái mỗi 3 giây (timeout 15 phút), trả về cấu trúc câu chuẩn hóa và thời lượng video `durationSeconds`.
+     - `JobService.updateCheckpoint(jobId, leaseToken, checkpoint, session)`: Cập nhật nguyên tử `parameters.externalTranscriptId` và duy trì tính toàn vẹn lease fencing.
+  4. **Dedicated Transcription Job Processor (`transcription-job.processor.ts`)**:
+     - Đăng ký consumer riêng biệt cho queue `mindly.transcription.v1` khi `IS_WORKER === 'true'`.
+     - Quy trình chuẩn hóa:
+       - Failsafe Crash-after-commit: Nếu job đã `COMPLETED` thì ACK ngay.
+       - Atomic Claim Job: Nhận quyền xử lý với lease duration 120s và heartbeat mỗi 25s.
+       - Kiểm tra Checkpoint: Nếu đã có `externalTranscriptId`, bỏ qua FFmpeg và upload, nhảy thẳng tới poll.
+       - Dọn dẹp file tạm tức thì ngay sau khi upload thành công, không giữ file `.mp3` trên đĩa cứng trong lúc poll (5–15 phút).
+       - Khối `finally` đảm bảo dọn sạch file tạm kể cả khi có ngoại lệ phát sinh.
+       - Short Atomic Transaction: Commit `LessonTranscript` (READY), cập nhật `Lesson` (READY, duration, tăng `analysisInputRevision`), complete Job.
+       - Phân loại lỗi: Transient (timeout, mạng glitch) đánh dấu `retryable: true`; Permanent (thiếu video, 400) đánh dấu `retryable: false` và cập nhật bài học `FAILED`.
+  5. **Transaction-Safe Lesson Creation (`lesson.service.ts`, `lesson-transcript.service.ts`)**:
+     - Trong `LessonService.createLesson`, việc tạo Job `transcription` diễn ra ngay trong `ClientSession` tạo bài học.
+     - Xóa bỏ các lệnh gọi fire-and-forget `triggerTranscription`.
+     - Cập nhật `LessonTranscriptService.retryTranscription` để enqueue Job transcription qua `jobService`.
+
+- **Kiểm thử & Nghiệm thu**:
+  - Viết mới `transcription-job-processor.spec.ts` (11/11 tests pass 100%): Happy path, Checkpoint resume, Crash after commit, Pre-check failure, Missing video source, Transient timeout retry, Finally cleanup.
+  - Cập nhật `audio-extractor.service.spec.ts`, `assemblyai.service.spec.ts`, `job.service.spec.ts`, `lesson.service.spec.ts`, `lesson-transcript.service.spec.ts`.
+  - Toàn bộ backend test suite liên quan: **18 test files, 165 tests pass 100%**.
+  - TypeScript biên dịch sạch 0 lỗi: NestJS backend build, Worker tsconfig build, Next.js frontend type-check.
+
+---
+
+### [2026-11-23] - Phase 7: Hardening, Load Test, Operations Runbook & Full Production Rollout
+
+- **Bối cảnh & Mục tiêu**:
+  - Triển khai Giai đoạn 7 theo [`docs/chatbot/plan-rabbitmq-ai-jobs/phase-7-hardening-rollout.md`](file:///d:/Download/hk1_2027/project_do_an/docs/chatbot/plan-rabbitmq-ai-jobs/phase-7-hardening-rollout.md) và kết thúc trọn vẹn Master Roadmap 8 phases của đề án Hàng Đợi & Quản Lý Job Xử Lý AI & Video với RabbitMQ.
+  - Kiểm thử sức chịu tải (Load Testing): Mô phỏng 50 tác vụ đồng thời trên các loại job AI & Video (`summary`, `quiz`, `mindmap`, `transcription`), kiểm tra độ trễ (latency P50/P95), throughput, và xác nhận không có hiện tượng rò rỉ bộ nhớ (Heap/RSS RAM leak).
+  - Tự động hóa kiểm thử 10/10 kịch bản cốt lõi trong Ma Trận Nghiệm Thu (Acceptance Matrix): Upload video bài học, Tạo Summary, Tạo Quiz, Tạo Mindmap, Nhiều giảng viên cùng lúc, Nhiều tác vụ trên 1 lesson, Worker tắt đột ngột (Worker Crash & Lease Timeout), AI Provider Rate Limit / 429 / Fallback, RabbitMQ mất kết nối (Outbox Resiliency), và Reload / Đổi tab / Khôi phục trạng thái Client.
+  - Xây dựng tài liệu vận hành hoàn chỉnh (`docs/chatbot/plan-rabbitmq-ai-jobs/runbook.md`): Tra cứu RabbitMQ CLI / UI, tracing theo `correlationId`, quy trình cô lập và replay Dead Letter Queue (DLQ), draining hàng đợi trước cập nhật, và kịch bản Rollback khẩn cấp.
+  - Chuẩn hóa môi trường và tài liệu: Đồng bộ hóa `.env.example`, cập nhật `README.md` và `backend/README.md` (chuẩn hóa phiên bản NestJS 12, Node 22+, hướng dẫn chạy Worker).
+
+- **Các giải pháp kỹ thuật đã triển khai**:
+  1. **Load Testing Harness (`backend/scripts/load-test-jobs.ts`)**:
+     - Sinh đồng thời 50 jobs với 50 lessonId độc lập (tuân thủ partial unique index `(lessonId, type, active)`).
+     - Mô phỏng chu trình 3 giai đoạn: Batch enqueue trong MongoDB (Outbox pending) -> Giả lập Dispatcher publish confirm -> Worker atomic claim, short processing & completion.
+     - Kết quả đo lường thực tế trên MongoDB container:
+       - **50/50 Jobs hoàn tất 100%**, 0 active jobs còn lại.
+       - Độ trễ trung bình: 94 ms, P50: 94 ms, P95: 128 ms.
+       - Toàn bộ chu kỳ 50 jobs chỉ mất 361 ms.
+       - Heap chênh lệch: 3.41 MB, RSS chênh lệch: 7.86 MB (hoàn toàn ổn định, không rò rỉ bộ nhớ).
+  2. **Automated Hardening Test Suite (`scenarios-hardening.spec.ts`)**:
+     - Xây dựng bộ test suite kiểm thử toàn diện 10 kịch bản:
+       - Kịch bản 1: Enqueue transcript job đồng bộ trong transaction tạo bài học.
+       - Kịch bản 2: HTTP 202 trả ngay jobId và statusUrl cho client polling.
+       - Kịch bản 3: Quy tắc Zero-Quiz giữ nguyên quiz cũ, câu mới có timestamp null.
+       - Kịch bản 4: Sanitize Mindmap tối đa 5 cấp, bảo vệ bản chính thức bằng revision guard.
+       - Kịch bản 5: 10 giảng viên cùng lúc có 10 correlationId và job riêng biệt.
+       - Kịch bản 6: Nhiều loại tác vụ đồng thời trên cùng 1 bài học chạy độc lập không xung đột.
+       - Kịch bản 7: Worker crash -> lease hết hạn -> JobRecoveryService tự động phục hồi đưa về `waiting_retry`.
+       - Kịch bản 8: Lỗi AI rate limit / 429 lên lịch retry có backoff & cooldown.
+       - Kịch bản 9: RabbitMQ down -> Outbox Dispatcher giữ job `pending` an toàn trong MongoDB và tự động đẩy khi broker kết nối lại.
+       - Kịch bản 10: Client reload khôi phục 100% trạng thái polling từ server.
+     - Kết quả: **10/10 kịch bản đạt chuẩn 100%**.
+  3. **Tài liệu Vận Hành & Khắc Phục Sự Cố (`runbook.md`)**:
+     - Lệnh chẩn đoán hệ thống RabbitMQ, MongoDB, MinIO.
+     - Quy trình tra cứu lỗi theo `correlationId` và `jobId`.
+     - Quy trình xử lý lỗi vĩnh viễn và replay Dead Letter Queue (`mindly.ai.dead.v1`, `mindly.transcription.dead.v1`).
+     - Quy trình Graceful Draining trước khi bảo trì/cập nhật hệ thống.
+     - Kịch bản Rollback khẩn cấp (Emergency Rollback Protocol).
+  4. **Chuẩn Hóa Môi Trường & Tài Liệu**:
+     - Khai báo đầy đủ các biến cấu hình RabbitMQ, Worker concurrency, timeout, lease, retry vào `.env.example` và `backend/README.md`.
+     - Chuẩn hóa tài liệu root `README.md` phản ánh trung thực kiến trúc NestJS 12 ESM, Next.js App Router, MongoDB 7 Replica Set, RabbitMQ 4.4.
+
+- **Kiểm thử & Nghiệm thu**:
+  - `load-test-jobs.ts`: 50/50 jobs PASS (100%), 0 active jobs còn lại, RAM ổn định tuyệt đối.
+  - `scenarios-hardening.spec.ts`: 10/10 tests PASS (100%).
+  - Toàn bộ backend test suite RabbitMQ, Jobs, AI: **211/211 tests PASS 100%**.
+  - Frontend test suite analysis jobs: `analysis-jobs.spec.tsx` **14/14 tests PASS 100%**.
+  - TypeScript biên dịch sạch 0 lỗi:
+    - Backend: `nest build` exit code 0.
+    - Standalone Worker: `tsc --project tsconfig.worker.json` exit code 0.
+    - Frontend: `tsc --noEmit` exit code 0.
+  - Zero secrets: Không có API key hay mật khẩu nào bị lộ trong git.
+
+
+

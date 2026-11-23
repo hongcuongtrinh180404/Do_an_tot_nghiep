@@ -8,6 +8,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { RoleEnum, JobTypeEnum } from 'share-lib';
 import { JobService } from '../../jobs/services/job.service.js';
 import { JobManagementPolicy } from '../policies/job-management.policy.js';
 let AnalysisJobService = class AnalysisJobService {
@@ -16,6 +17,51 @@ let AnalysisJobService = class AnalysisJobService {
     constructor(jobService, jobManagementPolicy) {
         this.jobService = jobService;
         this.jobManagementPolicy = jobManagementPolicy;
+    }
+    async enqueueSummaryJob(params) {
+        const { lesson, course } = await this.jobManagementPolicy.verifyLessonAccess(params.lessonId, { id: params.userId, role: RoleEnum.INSTRUCTOR }, { allowPendingApproval: false });
+        const inputRevision = lesson.analysisInputRevision ?? 0;
+        const targetRevision = lesson.analysisOutputRevisions?.summary ?? 0;
+        return this.jobService.createJob({
+            type: JobTypeEnum.SUMMARY,
+            lessonId: params.lessonId,
+            courseId: course.id,
+            requestedById: params.userId,
+            idempotencyKey: params.idempotencyKey || null,
+            parameters: (params.dto || {}),
+            inputRevision,
+            targetRevision,
+        });
+    }
+    async enqueueQuizJob(params) {
+        const { lesson, course } = await this.jobManagementPolicy.verifyLessonAccess(params.lessonId, { id: params.userId, role: RoleEnum.INSTRUCTOR }, { allowPendingApproval: false });
+        const inputRevision = lesson.analysisInputRevision ?? 0;
+        const targetRevision = lesson.analysisOutputRevisions?.quiz ?? 0;
+        return this.jobService.createJob({
+            type: JobTypeEnum.QUIZ,
+            lessonId: params.lessonId,
+            courseId: course.id,
+            requestedById: params.userId,
+            idempotencyKey: params.idempotencyKey || null,
+            parameters: (params.dto || {}),
+            inputRevision,
+            targetRevision,
+        });
+    }
+    async enqueueMindmapJob(params) {
+        const { lesson, course } = await this.jobManagementPolicy.verifyLessonAccess(params.lessonId, { id: params.userId, role: RoleEnum.INSTRUCTOR }, { allowPendingApproval: false });
+        const inputRevision = lesson.analysisInputRevision ?? 0;
+        const targetRevision = lesson.analysisOutputRevisions?.mindmap ?? 0;
+        return this.jobService.createJob({
+            type: JobTypeEnum.MINDMAP,
+            lessonId: params.lessonId,
+            courseId: course.id,
+            requestedById: params.userId,
+            idempotencyKey: params.idempotencyKey || null,
+            parameters: (params.dto || {}),
+            inputRevision,
+            targetRevision,
+        });
     }
     async getRecentJobs(lessonId, user, limit = 10) {
         await this.jobManagementPolicy.verifyLessonAccess(lessonId, user, {

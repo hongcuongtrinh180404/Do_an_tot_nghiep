@@ -54,6 +54,7 @@ let ChatbotMessageService = ChatbotMessageService_1 = class ChatbotMessageServic
             const reply = await Promise.race([
                 this.conversations.respond(message, {
                     userId: conversation.userId,
+                    role: conversation.role,
                     requestId,
                     signal,
                     ...(context ? { context } : {}),

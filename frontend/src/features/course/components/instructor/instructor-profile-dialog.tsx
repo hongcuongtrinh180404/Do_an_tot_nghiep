@@ -14,7 +14,8 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useInstructorPublicCoursesQuery } from '../../api/public-courses.api';
-import type { IPublicCourseCard } from '../public-discovery/mock-discovery-data';
+import type { IPublicCourseCard } from '../../types/public-course.types';
+import { PublicCoursesQueryError } from '../public-courses-query-error';
 
 interface InstructorProfileDialogProps {
   isOpen: boolean;
@@ -44,7 +45,7 @@ export function InstructorProfileDialog({
 }: InstructorProfileDialogProps): React.JSX.Element | null {
   const [avatarError, setAvatarError] = useState(false);
 
-  const { data, isLoading } = useInstructorPublicCoursesQuery(
+  const { data, isLoading, isError, refetch } = useInstructorPublicCoursesQuery(
     instructor?.id,
     isOpen && Boolean(instructor?.id),
   );
@@ -107,7 +108,7 @@ export function InstructorProfileDialog({
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-bold text-[#161616] flex items-center gap-1.5">
               <Icon icon="lucide:book-open" className="size-4 text-[#027D88]" />
-              <span>Khóa học đã xuất bản ({totalCourses})</span>
+              <span>Khóa học đã xuất bản{!isLoading && !isError && data ? ` (${totalCourses})` : ''}</span>
             </h4>
 
             {instructor.fullName && (
@@ -131,6 +132,8 @@ export function InstructorProfileDialog({
                 />
               ))}
             </div>
+          ) : isError ? (
+            <PublicCoursesQueryError onRetry={() => { void refetch(); }} />
           ) : publicCourses.length > 0 ? (
             <div className="space-y-3">
               {publicCourses.map((course) => (
@@ -220,4 +223,3 @@ export function InstructorProfileDialog({
     </Dialog>
   );
 }
-

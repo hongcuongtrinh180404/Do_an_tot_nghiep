@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CourseLevelEnum } from 'share-lib';
 import { parseSearchCoursesArguments } from '../tools/search-courses.contract.js';
 import {
   ChatbotFollowUpError,
@@ -40,7 +41,7 @@ describe('Conversation search intent resolution', () => {
       filters: {
         ...previous.filters,
         minPrice: 20000,
-        level: 'beginner' as const,
+        level: CourseLevelEnum.BEGINNER,
       },
     };
     const filters = resolve({ action: 'refine', isFree: true }, context);

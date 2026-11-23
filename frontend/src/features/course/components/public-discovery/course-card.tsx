@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { CourseLevelEnum, type ICourseLearningProgress } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
-import type { IPublicCourseCard } from './mock-discovery-data';
+import type { IPublicCourseCard } from '../../types/public-course.types';
 import { useUserCourseOwnership } from '../../hooks/use-user-course-ownership';
 
 export interface CourseCardProps {

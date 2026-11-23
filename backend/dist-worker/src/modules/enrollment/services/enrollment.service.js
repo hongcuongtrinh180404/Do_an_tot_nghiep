@@ -41,7 +41,14 @@ let EnrollmentService = EnrollmentService_1 = class EnrollmentService extends Ba
                 courseMap.set(enrollment.course.id, enrollment.course);
             }
         }
-        return Array.from(courseMap.values());
+        const courses = Array.from(courseMap.values());
+        if (courses.length === 0)
+            return [];
+        const counts = await this.enrollmentRepository.countByCourseIds(courses.map((course) => course.id));
+        return courses.map((course) => ({
+            ...course,
+            studentsCount: counts.get(course.id) ?? 0,
+        }));
     }
     async registerFreeCourse(userId, courseId) {
         try {

@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 import { ChatbotController } from '../http/chatbot.controller.js';
 import type { ChatbotMessageService } from '../http/chatbot-message.service.js';
+import { RoleEnum } from 'share-lib';
 
 describe('ChatbotController connection cleanup', () => {
   function setup() {
@@ -34,6 +35,7 @@ describe('ChatbotController connection cleanup', () => {
       request,
       response as unknown as Response,
       'account-a',
+      RoleEnum.STUDENT,
     );
     expect(signal?.aborted).toBe(false);
     response.emit('close');
@@ -52,6 +54,7 @@ describe('ChatbotController connection cleanup', () => {
         request,
         response as unknown as Response,
         'account-a',
+        RoleEnum.STUDENT,
       ),
     ).rejects.toThrow('safe test failure');
     expect(response.listenerCount('close')).toBe(0);
@@ -72,6 +75,7 @@ describe('ChatbotController connection cleanup', () => {
       request,
       response as unknown as Response,
       'account-a',
+      RoleEnum.STUDENT,
     );
     response.writableEnded = true;
     response.emit('close');
@@ -93,6 +97,7 @@ describe('ChatbotController connection cleanup', () => {
       request,
       response as unknown as Response,
       'account-a',
+      RoleEnum.STUDENT,
     );
     expect((respond.mock.calls[0][2] as AbortSignal).aborted).toBe(true);
   });

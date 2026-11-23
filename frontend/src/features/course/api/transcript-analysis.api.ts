@@ -16,6 +16,7 @@ import type {
 } from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 import { lessonQuizKeys } from './lesson-quiz.api';
+import { analysisJobKeys } from './analysis-jobs.api';
 
 export interface IAnalysisAiMetadata {
   model: string;
@@ -45,6 +46,45 @@ export interface ISummaryGenerationResponse {
   lessonId: string;
   summary: ILessonSummaryData;
   metadata: IAnalysisAiMetadata;
+}
+
+export interface IAnalysisJobAcceptedResponse {
+  jobId: string;
+  lessonId: string;
+  type: 'summary' | 'quiz' | 'mindmap';
+  status: 'queued' | 'processing';
+  phase: string;
+  statusUrl: string;
+}
+
+export type ISummaryJobAcceptedResponse = IAnalysisJobAcceptedResponse & { type: 'summary' };
+export type IQuizJobAcceptedResponse = IAnalysisJobAcceptedResponse & { type: 'quiz' };
+export type IMindmapJobAcceptedResponse = IAnalysisJobAcceptedResponse & { type: 'mindmap' };
+
+export type GenerateSummaryResponse = ISummaryGenerationResponse | ISummaryJobAcceptedResponse;
+export type GenerateQuizResponse = IQuizGenerationResponse | IQuizJobAcceptedResponse;
+export type GenerateMindmapResponse = IMindmapGenerationResponse | IMindmapJobAcceptedResponse;
+
+export function isAnalysisJobAccepted(res: unknown): res is IAnalysisJobAcceptedResponse {
+  return typeof res === 'object' && res !== null && 'jobId' in res;
+}
+
+export function isSummaryJobAccepted(
+  res: GenerateSummaryResponse,
+): res is ISummaryJobAcceptedResponse {
+  return isAnalysisJobAccepted(res);
+}
+
+export function isQuizJobAccepted(
+  res: GenerateQuizResponse,
+): res is IQuizJobAcceptedResponse {
+  return isAnalysisJobAccepted(res);
+}
+
+export function isMindmapJobAccepted(
+  res: GenerateMindmapResponse,
+): res is IMindmapJobAcceptedResponse {
+  return isAnalysisJobAccepted(res);
 }
 
 export const transcriptAnalysisKeys = {
@@ -90,8 +130,8 @@ export const transcriptAnalysisApi = {
   async generateMindmap(
     lessonId: string,
     payload: { saveAsDraft?: boolean } = { saveAsDraft: false },
-  ): Promise<IMindmapGenerationResponse> {
-    const res = await apiClient.post<IApiResponse<IMindmapGenerationResponse>>(
+  ): Promise<GenerateMindmapResponse> {
+    const res = await apiClient.post<IApiResponse<GenerateMindmapResponse>>(
       `/lessons/${lessonId}/analysis/mindmap`,
       payload,
       { timeout: 120000 },
@@ -129,8 +169,8 @@ export const transcriptAnalysisApi = {
   async generateQuiz(
     lessonId: string,
     payload: { count?: number; saveAsDraft?: boolean } = { count: 10, saveAsDraft: false },
-  ): Promise<IQuizGenerationResponse> {
-    const res = await apiClient.post<IApiResponse<IQuizGenerationResponse>>(
+  ): Promise<GenerateQuizResponse> {
+    const res = await apiClient.post<IApiResponse<GenerateQuizResponse>>(
       `/lessons/${lessonId}/analysis/quiz`,
       payload,
       { timeout: 120000 },
@@ -157,8 +197,8 @@ export const transcriptAnalysisApi = {
   async generateSummary(
     lessonId: string,
     payload: { saveAsDraft?: boolean } = { saveAsDraft: false },
-  ): Promise<ISummaryGenerationResponse> {
-    const res = await apiClient.post<IApiResponse<ISummaryGenerationResponse>>(
+  ): Promise<GenerateSummaryResponse> {
+    const res = await apiClient.post<IApiResponse<GenerateSummaryResponse>>(
       `/lessons/${lessonId}/analysis/summary`,
       payload,
       { timeout: 120000 },
@@ -206,6 +246,17 @@ export function useGenerateMindmapMutation(lessonId: string) {
     mutationFn: (payload?: { saveAsDraft?: boolean }) =>
       transcriptAnalysisApi.generateMindmap(lessonId, payload),
     onSuccess: (res) => {
+      if (isMindmapJobAccepted(res)) {
+        void queryClient.invalidateQueries({
+          queryKey: analysisJobKeys.lesson(lessonId),
+        });
+        toast.info('Đã tiếp nhận yêu cầu tạo sơ đồ tư duy', {
+          description:
+            'AI đang xếp hàng xử lý trong nền. Bạn có thể tự do thao tác hoặc chuyển trang.',
+        });
+        return;
+      }
+
       void queryClient.invalidateQueries({
         queryKey: transcriptAnalysisKeys.mindmap(lessonId),
       });
@@ -279,6 +330,17 @@ export function useGenerateQuizMutation(lessonId: string) {
     mutationFn: (payload?: { count?: number; saveAsDraft?: boolean }) =>
       transcriptAnalysisApi.generateQuiz(lessonId, payload),
     onSuccess: (res) => {
+      if (isQuizJobAccepted(res)) {
+        void queryClient.invalidateQueries({
+          queryKey: analysisJobKeys.lesson(lessonId),
+        });
+        toast.info('Đã tiếp nhận yêu cầu tạo bộ câu hỏi trắc nghiệm', {
+          description:
+            'AI đang xếp hàng xử lý trong nền. Bạn có thể tự do thao tác hoặc chuyển trang.',
+        });
+        return;
+      }
+
       void queryClient.invalidateQueries({ predicate: (query) => query.queryKey.includes('approval-checklist') });
       void queryClient.invalidateQueries({
         queryKey: transcriptAnalysisKeys.quizDraft(lessonId),
@@ -347,6 +409,19 @@ export function useGenerateSummaryMutation(lessonId: string) {
     mutationFn: (payload?: { saveAsDraft?: boolean }) =>
       transcriptAnalysisApi.generateSummary(lessonId, payload),
     onSuccess: (res) => {
+      if (isSummaryJobAccepted(res)) {
+        // Kích hoạt ngay polling trên hook useLessonAnalysisJob
+        void queryClient.invalidateQueries({
+          queryKey: analysisJobKeys.lesson(lessonId),
+        });
+        toast.info('Đã tiếp nhận yêu cầu tạo tóm tắt bài học', {
+          description:
+            'AI đang xếp hàng xử lý trong nền. Bạn có thể tự do thao tác hoặc chuyển trang.',
+        });
+        return;
+      }
+
+      // Trường hợp fallback đồng bộ (HTTP 200)
       void queryClient.invalidateQueries({
         queryKey: transcriptAnalysisKeys.summary(lessonId),
       });

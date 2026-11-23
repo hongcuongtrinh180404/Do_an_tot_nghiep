@@ -18,7 +18,7 @@ export declare const CommissionHistorySchema: MongooseSchema<CommissionHistoryEn
 }, "id"> & import("mongoose").HydratedDocumentOverrides<{
     id: string;
 }>, {
-    targetType?: import("mongoose").SchemaDefinitionProperty<"INSTRUCTOR" | "SYSTEM", CommissionHistoryEntity, import("mongoose").Document<unknown, {}, CommissionHistoryEntity, {
+    targetType?: import("mongoose").SchemaDefinitionProperty<"SYSTEM" | "INSTRUCTOR", CommissionHistoryEntity, import("mongoose").Document<unknown, {}, CommissionHistoryEntity, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<CommissionHistoryEntity & Required<{
         _id: Types.ObjectId;

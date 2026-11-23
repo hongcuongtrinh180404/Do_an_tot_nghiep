@@ -9,10 +9,11 @@ import { CHATBOT_HTTP_RATE_STORAGE } from './http/chatbot-http.constants.js';
 import { ChatbotContextService } from './http/chatbot-context.service.js';
 import { ChatbotLearningModule } from './chatbot-learning.module.js';
 import { ChatbotConversationService } from './services/chatbot-conversation.service.js';
+import { ChatbotInstructorModule } from './chatbot-instructor.module.js';
 
 /** HTTP surface only; JWT authentication is provided by the application's AuthModule. */
 @Module({
-  imports: [ConfigModule, ChatbotSearchModule, ChatbotLearningModule],
+  imports: [ConfigModule, ChatbotSearchModule, ChatbotLearningModule, ChatbotInstructorModule],
   controllers: [ChatbotController],
   providers: [
     { provide: CHATBOT_HTTP_RATE_STORAGE, useClass: ThrottlerStorageService },

@@ -2,7 +2,14 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import type { IApiResponse, IUserProfile, RoleEnum, UserStatusEnum } from 'share-lib';
+import type {
+  IApiResponse,
+  IUserProfile,
+  IAdminUserEnrolledCourse,
+  IAdminUserTeaching,
+  RoleEnum,
+  UserStatusEnum,
+} from 'share-lib';
 import { apiClient } from '@/lib/api-client';
 import { useIsMounted } from '@/hooks/use-is-mounted';
 
@@ -34,6 +41,8 @@ export const usersAdminKeys = {
   all: ['admin-users'] as const,
   list: (params: AdminUsersQueryParams) => [...usersAdminKeys.all, 'list', params] as const,
   detail: (userId: string) => [...usersAdminKeys.all, 'detail', userId] as const,
+  enrolledCourses: (userId: string) => [...usersAdminKeys.detail(userId), 'enrolled-courses'] as const,
+  teaching: (userId: string) => [...usersAdminKeys.detail(userId), 'teaching'] as const,
 };
 
 export const usersAdminApi = {
@@ -71,6 +80,20 @@ export const usersAdminApi = {
     return res.data.data;
   },
 
+  async getEnrolledCourses(userId: string, signal?: AbortSignal): Promise<IAdminUserEnrolledCourse[]> {
+    const res = await apiClient.get<IApiResponse<IAdminUserEnrolledCourse[]>>(
+      `/users/${encodeURIComponent(userId)}/enrolled-courses`, { signal },
+    );
+    return res.data.data;
+  },
+
+  async getTeaching(userId: string, signal?: AbortSignal): Promise<IAdminUserTeaching> {
+    const res = await apiClient.get<IApiResponse<IAdminUserTeaching>>(
+      `/users/${encodeURIComponent(userId)}/teaching`, { signal },
+    );
+    return res.data.data;
+  },
+
   async updateUser(userId: string, payload: UpdateUserAdminPayload): Promise<IUserProfile> {
     const res = await apiClient.patch<IApiResponse<IUserProfile>>(`/users/${userId}`, payload);
     return res.data.data;
@@ -101,6 +124,31 @@ export function useAdminUserDetailQuery(userId: string) {
     queryFn: () => usersAdminApi.getUserDetail(userId),
     enabled: isMounted && Boolean(userId),
     staleTime: 60 * 1000,
+  });
+}
+
+export function useAdminUserEnrolledCoursesQuery(userId: string) {
+  const isMounted = useIsMounted();
+  return useQuery({
+    queryKey: usersAdminKeys.enrolledCourses(userId),
+    queryFn: ({ signal }) => usersAdminApi.getEnrolledCourses(userId, signal),
+    enabled: isMounted && Boolean(userId),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    // Business/data-integrity errors must be visible, not retried into fake empty statistics.
+    retry: false,
+  });
+}
+
+export function useAdminUserTeachingQuery(userId: string) {
+  const isMounted = useIsMounted();
+  return useQuery({
+    queryKey: usersAdminKeys.teaching(userId),
+    queryFn: ({ signal }) => usersAdminApi.getTeaching(userId, signal),
+    enabled: isMounted && Boolean(userId),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    retry: false,
   });
 }
 

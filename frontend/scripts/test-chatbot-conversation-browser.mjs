@@ -8,7 +8,9 @@ import { Browser, sleep } from '../../.agents/skills/design-taste-frontend/scrip
 // --live: exactly five real chat requests with an existing seed account token.
 const live = process.argv.includes('--live');
 const learning = process.argv.includes('--learning');
-assert.ok(process.argv.slice(2).every((arg) => ['--live', '--learning'].includes(arg)));
+const business = process.argv.includes('--business');
+assert.ok(!(learning && business));
+assert.ok(process.argv.slice(2).every((arg) => ['--live', '--learning', '--business'].includes(arg)));
 if (live) assert.ok(process.env.CHATBOT_BROWSER_ACCESS_TOKEN, 'An existing access token is required');
 process.env.TASTE_SKILL_TMP ??= join(tmpdir(), 'opencode');
 const out = join(process.env.TASTE_SKILL_TMP, 'chatbot-conversation-check');
@@ -17,7 +19,7 @@ const origin = (process.env.CHATBOT_TEST_ORIGIN ?? 'http://localhost:3000').repl
 const viewer = {
   id: '0123456789abcdef01234567', username: 'chatbot-fixture-a',
   fullName: 'Học viên kiểm thử', email: 'chatbot-fixture@example.test',
-  role: 'student', status: 'active', isEmailVerified: true, avatarUrl: null,
+  role: business ? 'instructor' : 'student', status: 'active', isEmailVerified: true, avatarUrl: null,
 };
 const filters = {
   keyword: 'backend', relatedKeywords: ['NestJS'], maxPrice: 200000,
@@ -62,6 +64,35 @@ function progressReply(context) {
     result: { scope: 'course', course: ownedReply('').result.items[0], remainingLessons: 12, lastLessonTitle: 'Vòng lặp và điều kiện' },
   };
 }
+function businessReply(context, scope = 'revenue') {
+  const course = { id: '0123456789abcdef01234567', title: 'React thực hành cho sản phẩm thật' };
+  const other = { id: '0123456789abcdef01234569', title: 'React nâng cao — kiến trúc ứng dụng' };
+  const period = { startDate: '2026-11-01', endDate: '2026-11-22',
+    startAt: '2026-10-31T17:00:00.000Z', endAtExclusive: '2026-11-22T08:15:00.000Z', isPartial: true };
+  const totals = { totalRevenue: 1100000, instructorEarnings: 770000, platformCommission: 330000,
+    successfulSales: 5, reconstructedOrders: 1 };
+  const base = { course: null, currency: 'VND', timeZone: 'Asia/Ho_Chi_Minh', asOf: '2026-11-22T08:15:00.000Z', period, scope };
+  let result = { ...base, totals };
+  if (scope === 'top_courses') result = { ...base, totals, items: [
+    { ...course, totalRevenue: 600000, instructorEarnings: 420000, platformCommission: 180000,
+      successfulSales: 2, reconstructedOrders: 0, rank: 1 },
+    { ...other, totalRevenue: 400000, instructorEarnings: 280000, platformCommission: 120000,
+      successfulSales: 2, reconstructedOrders: 1, rank: 1 },
+  ], page: 1, limit: 2, total: 3, hasMore: true, topTiedCount: 2 };
+  if (scope === 'compare') result = { ...base, metric: 'instructor_earnings', current: totals,
+    previous: { totalRevenue: 1000000, instructorEarnings: 700000, platformCommission: 300000,
+      successfulSales: 4, reconstructedOrders: 0 },
+    previousPeriod: { startDate: '2026-10-01', endDate: '2026-10-31',
+      startAt: '2026-09-30T17:00:00.000Z', endAtExclusive: '2026-10-31T17:00:00.000Z', isPartial: false },
+    change: { absolute: 70000, percent: 10, direction: 'up' },
+  };
+  if (scope === 'selection') result = { ...base, items: [course, other], page: 1, limit: 2, total: 2, hasMore: false };
+  if (scope === 'sales_count') result = { ...base, totals: { totalRevenue: 0, instructorEarnings: 0,
+    platformCommission: 0, successfulSales: 0, reconstructedOrders: 0 } };
+  return { requestId: reply('').requestId, kind: ['revenue', 'selection'].includes(scope) ? 'instructor_revenue' : 'instructor_sales_stats',
+    answer: 'Số liệu kinh doanh kiểm thử.', context,
+    status: scope === 'selection' ? 'needs_clarification' : scope === 'sales_count' ? 'empty' : 'found', result };
+}
 const browser = await Browser.launch();
 const checks = [];
 const requestErrors = [];
@@ -102,7 +133,7 @@ async function inspectPanel(page) {
     const errors = [];
     const bounds = panel.getBoundingClientRect();
     if (bounds.left < 0 || bounds.right > innerWidth + 1 || bounds.bottom > innerHeight + 1) errors.push('Panel outside viewport');
-    for (const element of panel.querySelectorAll('[data-chatbot-personal], button, a, [role="progressbar"]')) {
+    for (const element of panel.querySelectorAll('[data-chatbot-personal], [data-chatbot-business], button, a, [role="progressbar"]')) {
       const rect = element.getBoundingClientRect();
       if (rect.left < bounds.left - 1 || rect.right > bounds.right + 1) errors.push('Content overflow');
       if (['BUTTON', 'A'].includes(element.tagName) && rect.height < 43) errors.push('Small touch target');
@@ -223,12 +254,127 @@ async function ask(page, state, message, pending = false) {
 async function clear(page) {
   await page.eval(() => document.querySelector('button[aria-label="Xóa cuộc trò chuyện tạm"]').click());
   await waitFor(() => page.eval(() =>
-    document.querySelector('[data-chatbot-panel]')?.textContent.includes('Bạn muốn học gì?')), 'Transcript not cleared');
+    ['Bạn muốn học gì?', 'Bạn muốn tra cứu gì?'].some((text) =>
+      document.querySelector('[data-chatbot-panel]')?.textContent.includes(text))), 'Transcript not cleared');
 }
 function latest(state) { return state.calls.at(-1); }
 
 try {
-  if (live && learning) {
+  if (live && business) {
+    const api = new URL(process.env.CHATBOT_BROWSER_API_URL ?? 'http://localhost:8000/api/v1/');
+    assert.ok(api.protocol === 'https:' || (api.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(api.hostname)));
+    assert.ok(!api.username && !api.password && !api.search && !api.hash && api.pathname.endsWith('/'));
+    const getKpi = async (timeRange) => {
+      const endpoint = new URL('instructor/teaching-stats/overview', api);
+      endpoint.searchParams.set('timeRange', timeRange);
+      const response = await fetch(endpoint, { headers: { Authorization: `Bearer ${process.env.CHATBOT_BROWSER_ACCESS_TOKEN}` },
+        signal: AbortSignal.timeout(45000), redirect: 'error' });
+      assert.equal(response.status, 200);
+      const body = await response.json();
+      assert.equal(body.success, true);
+      return { totalRevenue: body.data.totalRevenue, instructorEarnings: body.data.instructorEarnings,
+        successfulSales: body.data.successfulSales };
+    };
+    const baseline = await getKpi('this_month');
+    const previousKpi = await getKpi('last_month');
+    const { page, state } = await open(1440);
+    await ask(page, state, 'Doanh thu tháng này của tôi');
+    const first = state.responses.at(-1).body.data;
+    assert.ok(state.responses.at(-1).remaining >= 4, 'Insufficient quota for five requests');
+    assert.equal(first.kind, 'instructor_revenue');
+    assert.equal(first.result.scope, 'revenue');
+    assert.equal(first.result.totals.totalRevenue, first.result.totals.instructorEarnings + first.result.totals.platformCommission);
+    for (const key of Object.keys(baseline)) assert.equal(first.result.totals[key], baseline[key]);
+    await inspectPanel(page);
+    await snapshot(page, 'business-live-revenue');
+    mark('live-business-net-revenue');
+    await ask(page, state, 'So với tháng trước?');
+    const compared = state.responses.at(-1).body.data;
+    assert.equal(compared.result.scope, 'compare');
+    assert.equal(compared.result.current.instructorEarnings, first.result.totals.instructorEarnings);
+    assert.equal(compared.result.previousPeriod.startDate.slice(8), '01');
+    assert.equal(compared.result.previousPeriod.isPartial, false);
+    for (const key of Object.keys(previousKpi)) assert.equal(compared.result.previous[key], previousKpi[key]);
+    assert.equal(latest(state).context, first.context);
+    await snapshot(page, 'business-live-compare');
+    mark('live-business-entire-previous-month');
+    await ask(page, state, 'Khóa nào của tôi bán chạy nhất tháng này, hiển thị 2 khóa?');
+    const top = state.responses.at(-1).body.data;
+    assert.equal(top.result.scope, 'top_courses');
+    await inspectPanel(page);
+    await snapshot(page, 'business-live-top');
+    mark('live-business-sales-ranking');
+    if (top.result.items.length) {
+      await ask(page, state, 'Xem doanh thu khóa thứ nhất');
+      assert.equal(state.responses.at(-1).body.data.result.course.id, top.result.items[0].id);
+      assert.equal(latest(state).context, top.context);
+      mark('live-business-ranking-position');
+    } else {
+      await ask(page, state, 'Tuần này có bao nhiêu lượt mua thành công?');
+      assert.equal(state.responses.at(-1).body.data.result.scope, 'sales_count');
+      mark('live-business-empty-ranking-and-weekly-count');
+    }
+    await clear(page);
+    await ask(page, state, 'Doanh thu khóa đó?');
+    assert.ok(!('context' in latest(state)));
+    assert.equal(state.responses.at(-1).body.data.status, 'needs_clarification');
+    assert.equal(state.calls.length, 5);
+    assert.deepEqual(state.failures, []);
+    mark('live-business-clear-drops-reference');
+    assert.deepEqual(await getKpi('this_month'), baseline);
+    mark('live-business-matches-teaching-api-and-read-only');
+    await page.close();
+  } else if (business) {
+    for (const width of [1440, 768, 390]) {
+      const { page, state } = await open(width);
+      assert.ok((await page.eval(panelText)).includes('Doanh thu tháng này'));
+      state.queue.push({ body: businessReply('business-revenue') });
+      await ask(page, state, 'Doanh thu tháng này của tôi');
+      assert.ok((await page.eval(panelText)).includes('770.000'));
+      await inspectPanel(page);
+      await snapshot(page, `business-revenue-${width}`);
+      state.queue.push({ body: businessReply('business-top', 'top_courses') });
+      await ask(page, state, 'Khóa bán chạy nhất');
+      await inspectPanel(page);
+      await snapshot(page, `business-top-${width}`);
+      state.queue.push({ body: { ...businessReply('business-detail'), result: {
+        ...businessReply('').result, course: { id: '0123456789abcdef01234567', title: 'React thực hành cho sản phẩm thật' },
+      } } });
+      const completed = state.responses.length;
+      await page.eval(() => document.querySelector('[data-chatbot-business="top_courses"] button').click());
+      await waitFor(() => state.responses.length === completed + 1, 'Revenue selection did not finish');
+      await waitFor(() => page.eval(() => document.querySelector('[data-chatbot-business="top_courses"] button').disabled), 'Historical buttons not disabled');
+      assert.equal(latest(state).message, 'Xem doanh thu khóa thứ 1');
+      assert.equal(latest(state).context, 'business-top');
+      mark(`business-net-ranking-and-historical-controls-${width}`);
+      state.queue.push({ body: businessReply('business-compare', 'compare') });
+      await ask(page, state, 'So với tháng trước?');
+      assert.ok((await page.eval(panelText)).includes('01/10/2026–31/10/2026'));
+      await inspectPanel(page);
+      await snapshot(page, `business-compare-${width}`);
+      state.queue.push({ body: businessReply('business-selection', 'selection') });
+      await ask(page, state, 'Doanh thu khóa React');
+      await inspectPanel(page);
+      await snapshot(page, `business-selection-${width}`);
+      mark(`business-comparison-and-ambiguous-courses-${width}`);
+      state.queue.push({ body: businessReply('business-zero', 'sales_count') });
+      await ask(page, state, 'Số lượt mua hôm nay');
+      assert.ok((await page.eval(panelText)).includes('Chưa có lượt mua thành công'));
+      state.queue.push({ status: 422, body: { code: 'CHATBOT_REVENUE_DATA_INCOMPLETE', statusCode: 422, retryable: false } });
+      await ask(page, state, 'Doanh thu đơn cũ');
+      assert.ok((await page.eval(panelText)).includes('Chưa đủ dữ liệu giao dịch'));
+      assert.equal(await page.eval(() => Boolean(localStorage.getItem('accessToken'))), true);
+      await clear(page);
+      state.queue.push({ body: { requestId: reply('').requestId, kind: 'clarification',
+        status: 'needs_clarification', answer: 'Bạn muốn xem số liệu khóa giảng dạy nào?' } });
+      await ask(page, state, 'Doanh thu khóa đó');
+      assert.ok(!('context' in latest(state)));
+      assert.deepEqual(state.writes, []);
+      assert.deepEqual(state.failures, []);
+      mark(`business-zero-incomplete-clear-and-read-only-${width}`);
+      await page.close();
+    }
+  } else if (live && learning) {
     const { page, state } = await open(1440);
     await ask(page, state, 'Cho tôi xem các khóa học đã mua, mỗi trang 2 khóa');
     const first = state.responses.at(-1).body.data;

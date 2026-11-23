@@ -15,6 +15,7 @@ Client dùng package `openai` hiện có, với instance và cấu hình riêng.
 
 Đã có [`search_courses`](./search-courses.md), hai tool cá nhân
 [`get_my_courses` / `get_my_learning_progress`](./my-learning.md),
+[hai tool giảng viên](./instructor-business.md),
 [HTTP API có JWT](./http-api.md) và [widget](./frontend-widget.md).
 Điều phối HTTP dùng một lượt model để chọn đúng một tool, backend tự dựng trả lời;
 không dùng luồng hai lượt bên dưới để gửi dữ liệu học cá nhân cho provider.

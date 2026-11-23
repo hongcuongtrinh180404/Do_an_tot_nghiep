@@ -16,6 +16,8 @@ import { Model, Types } from 'mongoose';
 import { OrderStatusEnum, ReconciliationStatusEnum, } from 'share-lib';
 import { BaseMongoRepository } from '../../base/index.js';
 import { OrderEntity } from '../schemas/order.schema.js';
+import { InstructorRevenueReadRepository } from '../../payment/repositories/instructor-revenue-read.repository.js';
+import { assertRevenueTotals, instructorMoneyStages, instructorOrderOwnershipStages, instructorPaidDateStages, } from '../../payment/utils/instructor-revenue.pipeline.js';
 let OrderRepository = class OrderRepository extends BaseMongoRepository {
     constructor(orderModel) {
         super(orderModel, (doc) => {
@@ -708,69 +710,17 @@ let OrderRepository = class OrderRepository extends BaseMongoRepository {
             .find({ instructorId: instObjectId, deletedAt: null }, { projection: { _id: 1 } })
             .toArray();
         const courseIds = courses.map((c) => c._id);
-        const match = {
-            status: OrderStatusEnum.PAID,
-            deletedAt: null,
-            $or: [{ instructorId: instObjectId }, { courseId: { $in: courseIds } }],
-        };
-        if (startDate && endDate) {
-            match.$and = [
-                {
-                    $or: [
-                        { paidAt: { $gte: startDate, $lte: endDate } },
-                        { paidAt: null, createdAt: { $gte: startDate, $lte: endDate } },
-                    ],
-                },
-            ];
-        }
-        const pipeline = [
-            { $match: match },
-            {
-                $project: {
-                    amount: 1,
-                    platformEarnings: {
-                        $ifNull: [
-                            '$platformEarnings',
-                            {
-                                $round: [
-                                    {
-                                        $multiply: [
-                                            '$amount',
-                                            { $divide: [{ $ifNull: ['$platformCommissionRate', 30] }, 100] },
-                                        ],
-                                    },
-                                    0,
-                                ],
-                            },
-                        ],
-                    },
-                },
-            },
-            {
-                $project: {
-                    amount: 1,
-                    instructorEarnings: { $subtract: ['$amount', '$platformEarnings'] },
-                },
-            },
-            {
-                $group: {
-                    _id: null,
-                    totalRevenue: { $sum: '$amount' },
-                    instructorEarnings: { $sum: '$instructorEarnings' },
-                    successfulSales: { $sum: 1 },
-                },
-            },
-        ];
-        const result = await this.model.aggregate(pipeline).exec();
+        const totals = await new InstructorRevenueReadRepository(this.model).summary(instructorId, startDate, endDate ? new Date(endDate.getTime() + 1) : undefined);
         return {
-            totalRevenue: result[0]?.totalRevenue ?? 0,
-            instructorEarnings: result[0]?.instructorEarnings ?? 0,
+            totalRevenue: totals.totalRevenue,
+            instructorEarnings: totals.instructorEarnings,
             totalCourses: courseIds.length,
-            successfulSales: result[0]?.successfulSales ?? 0,
+            successfulSales: totals.successfulSales,
         };
     }
     async getInstructorCoursesRevenue(instructorId, startDate, endDate, page = 1, limit = 10, search, sort = 'revenue_desc') {
         const instObjectId = new Types.ObjectId(instructorId);
+        await new InstructorRevenueReadRepository(this.model).summary(instructorId, startDate, endDate ? new Date(endDate.getTime() + 1) : undefined);
         const courseMatch = {
             instructorId: instObjectId,
             deletedAt: null,
@@ -795,60 +745,16 @@ let OrderRepository = class OrderRepository extends BaseMongoRepository {
                     from: 'orders',
                     let: { cId: '$_id' },
                     pipeline: [
-                        {
-                            $match: {
-                                $expr: {
-                                    $and: [
-                                        { $eq: ['$status', OrderStatusEnum.PAID] },
-                                        { $eq: ['$deletedAt', null] },
-                                        { $eq: ['$courseId', '$$cId'] },
-                                        ...(startDate && endDate
-                                            ? [
-                                                {
-                                                    $or: [
-                                                        {
-                                                            $and: [
-                                                                { $gte: [{ $ifNull: ['$paidAt', '$createdAt'] }, startDate] },
-                                                                { $lte: [{ $ifNull: ['$paidAt', '$createdAt'] }, endDate] },
-                                                            ],
-                                                        },
-                                                    ],
-                                                },
-                                            ]
-                                            : []),
-                                    ],
-                                },
-                            },
-                        },
+                        { $match: { $expr: { $eq: ['$courseId', '$$cId'] } } },
+                        ...instructorOrderOwnershipStages(instructorId),
+                        ...instructorPaidDateStages(),
+                        ...instructorMoneyStages(),
+                        ...(startDate && endDate ? [{ $match: { _revenuePaidAt: { $gte: startDate, $lte: endDate } } }] : []),
                         {
                             $project: {
                                 amount: 1,
-                                instructorEarnings: {
-                                    $ifNull: [
-                                        '$instructorEarnings',
-                                        {
-                                            $subtract: [
-                                                '$amount',
-                                                {
-                                                    $ifNull: [
-                                                        '$platformEarnings',
-                                                        {
-                                                            $round: [
-                                                                {
-                                                                    $multiply: [
-                                                                        '$amount',
-                                                                        { $divide: [{ $ifNull: ['$platformCommissionRate', 30] }, 100] },
-                                                                    ],
-                                                                },
-                                                                0,
-                                                            ],
-                                                        },
-                                                    ],
-                                                },
-                                            ],
-                                        },
-                                    ],
-                                },
+                                instructorEarnings: '$_revenueNet',
+                                invalidMoney: { $cond: ['$_revenueMoneyValid', 0, 1] },
                             },
                         },
                     ],
@@ -865,6 +771,7 @@ let OrderRepository = class OrderRepository extends BaseMongoRepository {
                     successfulSales: { $size: '$orders' },
                     totalRevenue: { $sum: '$orders.amount' },
                     instructorEarnings: { $sum: '$orders.instructorEarnings' },
+                    invalidMoney: { $sum: '$orders.invalidMoney' },
                 },
             },
             { $sort: sortStage },
@@ -890,7 +797,12 @@ let OrderRepository = class OrderRepository extends BaseMongoRepository {
             .aggregate(facetPipeline)
             .toArray();
         const total = facetResult?.totalFacet?.[0]?.total ?? 0;
-        const items = facetResult?.coursesFacet ?? [];
+        const items = (facetResult?.coursesFacet ?? []).map(({ invalidMoney, ...item }) => {
+            assertRevenueTotals({ totalRevenue: item.totalRevenue, instructorEarnings: item.instructorEarnings ?? 0,
+                platformCommission: item.totalRevenue - (item.instructorEarnings ?? 0),
+                successfulSales: item.successfulSales, reconstructedOrders: 0, invalidMoney });
+            return item;
+        });
         const totalPages = Math.ceil(total / limit) || 1;
         return {
             items,

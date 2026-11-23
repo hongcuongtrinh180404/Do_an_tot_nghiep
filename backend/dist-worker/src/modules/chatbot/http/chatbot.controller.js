@@ -17,12 +17,13 @@ import { CreateChatbotMessageDto } from './create-chatbot-message.dto.js';
 import { ChatbotMessageService, } from './chatbot-message.service.js';
 import { ChatbotRateLimitGuard } from './chatbot-rate-limit.guard.js';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator.js';
+import { RoleEnum } from 'share-lib';
 let ChatbotController = class ChatbotController {
     messages;
     constructor(messages) {
         this.messages = messages;
     }
-    async createMessage(dto, request, response, userId) {
+    async createMessage(dto, request, response, userId, role) {
         const requestId = randomUUID();
         response.setHeader('X-Request-Id', requestId);
         const cancellation = new AbortController();
@@ -34,7 +35,7 @@ let ChatbotController = class ChatbotController {
         if (request.aborted || response.destroyed)
             cancellation.abort();
         try {
-            return ApiResponse.success(await this.messages.respond(dto.message, requestId, cancellation.signal, { userId, ...(dto.context ? { context: dto.context } : {}) }));
+            return ApiResponse.success(await this.messages.respond(dto.message, requestId, cancellation.signal, { userId, role, ...(dto.context ? { context: dto.context } : {}) }));
         }
         finally {
             response.off('close', onClose);
@@ -55,8 +56,9 @@ __decorate([
     __param(1, Req()),
     __param(2, Res({ passthrough: true })),
     __param(3, CurrentUser('id')),
+    __param(4, CurrentUser('role')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [CreateChatbotMessageDto, Object, Object, String]),
+    __metadata("design:paramtypes", [CreateChatbotMessageDto, Object, Object, String, String]),
     __metadata("design:returntype", Promise)
 ], ChatbotController.prototype, "createMessage", null);
 ChatbotController = __decorate([

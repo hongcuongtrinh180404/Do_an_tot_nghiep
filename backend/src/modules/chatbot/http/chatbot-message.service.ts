@@ -5,6 +5,7 @@ import { CHATBOT_HTTP_TIMEOUT_MS } from './chatbot-http.constants.js';
 import { mapChatbotHttpError } from './chatbot-http.errors.js';
 import { ChatbotContextService } from './chatbot-context.service.js';
 import { projectChatbotReply, type ChatbotMessageResponse } from './chatbot-response.projection.js';
+import type { RoleEnum } from 'share-lib';
 export type { ChatbotMessageResponse } from './chatbot-response.projection.js';
 
 @Injectable()
@@ -21,7 +22,7 @@ export class ChatbotMessageService {
     message: string,
     requestId: string,
     callerSignal?: AbortSignal,
-    conversation?: { userId: string; context?: string },
+    conversation?: { userId: string; role?: RoleEnum; context?: string },
   ): Promise<ChatbotMessageResponse> {
     const deadline = new AbortController();
     const signal = callerSignal
@@ -53,6 +54,7 @@ export class ChatbotMessageService {
       const reply = await Promise.race([
         this.conversations.respond(message, {
           userId: conversation.userId,
+          role: conversation.role,
           requestId,
           signal,
           ...(context ? { context } : {}),

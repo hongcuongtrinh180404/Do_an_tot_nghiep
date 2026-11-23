@@ -16,6 +16,7 @@ import {
   CourseStatusEnum,
   LessonContentTypeEnum,
   LessonTranscriptionStatusEnum,
+  JobTypeEnum,
 } from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
@@ -24,6 +25,7 @@ import { CourseRepository } from '../repositories/course.repository.js';
 import { StorageService } from '../../storage/index.js';
 import { LessonTranscriptService } from './lesson-transcript.service.js';
 import { EnrollmentRepository } from '../../enrollment/repositories/enrollment.repository.js';
+import { JobService } from '../../jobs/services/job.service.js';
 
 export interface CreateLessonInput {
   title: string;
@@ -50,6 +52,7 @@ export class LessonService extends BaseService<ILesson, string> {
     @Optional() protected readonly storageService?: StorageService,
     @Optional() protected readonly courseRepository?: CourseRepository,
     @Optional() protected readonly lessonTranscriptService?: LessonTranscriptService,
+    @Optional() protected readonly jobService?: JobService,
   ) {
     super(lessonRepository, cls, LessonService.name);
   }
@@ -112,14 +115,23 @@ export class LessonService extends BaseService<ILesson, string> {
       session,
     );
 
-    // Kích hoạt trích xuất transcript bất đồng bộ nếu bài học có nội dung video
-    if (
-      isVideo &&
-      (createdLesson.content?.publicId || createdLesson.content?.url) &&
-      this.lessonTranscriptService
-    ) {
+    // Bền vững: Khởi tạo tác vụ transcription trong MongoDB transaction session
+    if (isVideo && (createdLesson.content?.publicId || createdLesson.content?.url)) {
       const fileKey = createdLesson.content.publicId || createdLesson.content.url;
-      this.lessonTranscriptService.triggerTranscription(createdLesson.id, fileKey);
+      if (this.jobService) {
+        await this.jobService.createJob(
+          {
+            type: JobTypeEnum.TRANSCRIPTION,
+            lessonId: createdLesson.id,
+            courseId: section.courseId,
+            requestedById: userId,
+            parameters: { videoKey: fileKey },
+          },
+          session,
+        );
+      } else if (this.lessonTranscriptService) {
+        this.lessonTranscriptService.triggerTranscription(createdLesson.id, fileKey);
+      }
     }
 
     return createdLesson;

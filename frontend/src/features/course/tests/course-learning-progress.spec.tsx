@@ -6,7 +6,7 @@ import { LearningProgressSummary } from '../components/learning-progress-summary
 import { CoursePurchaseCard } from '../components/public-detail/course-purchase-card';
 import { CourseCard } from '../components/public-discovery/course-card';
 import type { IPublicCourseDetailResponse } from '../api/enrollment.api';
-import type { IPublicCourseCard } from '../components/public-discovery/mock-discovery-data';
+import type { IPublicCourseCard } from '../types/public-course.types';
 
 vi.mock('@/components/ui/icon', () => ({
   Icon: () => <span />,

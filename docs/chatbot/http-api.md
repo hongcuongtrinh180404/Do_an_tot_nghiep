@@ -14,6 +14,8 @@ Sử dụng global `JwtAuthGuard`/`JwtStrategy` hiện có: token phải hợp l
 hạn và tài khoản vẫn hoạt động. Student, instructor và admin đều tìm catalog công
 khai; hai tool cá nhân chỉ đọc enrollment/tiến độ của chính tài khoản đăng nhập,
 không có quyền xem người khác theo role.
+Giảng viên/admin còn được cấp [hai tool doanh thu/lượt bán](./instructor-business.md)
+của chính mình. Học viên không được cấp hoặc thực thi các tool này.
 
 Request:
 
@@ -42,6 +44,8 @@ JWT guard → giới hạn lượt gọi → validate body
               search_courses → catalog công khai
               get_my_courses → enrollment đang hiệu lực + tiến độ hiện tại
               get_my_learning_progress → tổng quan / chọn khóa / chi tiết
+              get_instructor_revenue → thu nhập sau hoa hồng (instructor/admin)
+              get_instructor_sales_stats → lượt mua / bán chạy / so kỳ (instructor/admin)
           → backend dựng câu trả lời + chiếu allowlist → ApiResponse
 ```
 
@@ -109,6 +113,8 @@ Các nhánh khác dùng cùng `requestId`, `status`, `answer`, `context?`:
 | --- | --- |
 | `my_courses` | Danh sách sở hữu có `filtersApplied`, `items`, `total`, `page`, `limit`, `hasMore` |
 | `learning_progress` | `scope=overview`, `selection`, `course` hoặc `not_owned` |
+| `instructor_revenue` | Thu nhập theo kỳ/khóa, chọn khóa trùng tên hoặc không có quyền với khóa |
+| `instructor_sales_stats` | Lượt mua, xếp hạng đồng hạng và so sánh hai kỳ do backend tính |
 | `clarification` | Không có `result`; chỉ `status=needs_clarification` |
 
 Các field/giá trị hợp lệ được định nghĩa ở
@@ -122,14 +128,15 @@ Nhánh cá nhân chỉ trả thông tin học của caller đã xác thực.
 `filtersApplied.relatedKeywords` là metadata tìm kiếm công khai, không phải
 reasoning của provider. Mô tả, tags thô và điểm xếp hạng không được trả trong items.
 
-`context` v2 chứa mode, bộ lọc/trang của danh sách gần nhất, các course ID theo thứ
+`context` v3 chứa mode, bộ lọc/trang của danh sách gần nhất, các course ID theo thứ
 tự hiển thị, course ID đang chọn (nếu có), cờ `hasMore`, giá nhỏ nhất của trang
 catalog và hạn dùng. Không chứa JWT, user ID, transcript, tên khóa trả về, phần
-trăm hay thời gian học. Đây là token **ký HMAC, không mã hóa**; chỉ giữ trong bộ nhớ,
+trăm, thời gian học, số tiền hay lượt bán. Bộ lọc kinh doanh tách khỏi khóa sở hữu.
+Đây là token **ký HMAC, không mã hóa**; chỉ giữ trong bộ nhớ,
 không log hoặc đưa vào URL. Context không cấp quyền truy cập.
 Chữ ký dùng secret JWT hiện có, tách domain
-`mindly:chatbot-conversation-context:v2`, ràng buộc user ID do JWT guard xác thực.
-Vẫn nhận context catalog v1 hợp lệ tới hết hạn; lượt trả dữ liệu sau đó cấp v2.
+`mindly:chatbot-conversation-context:v3`, ràng buộc user ID do JWT guard xác thực.
+Vẫn nhận context catalog v1 và học tập v2 hợp lệ tới hết hạn; lượt trả sau cấp v3.
 Không thêm session collection.
 Context sai/hết hạn/khác tài khoản trả 400 `CHATBOT_CONTEXT_INVALID`, không phải
 401 và không gọi provider. Frontend bỏ context và yêu cầu người dùng nêu lại.
@@ -162,6 +169,8 @@ CORS expose `X-Request-Id`, `Retry-After` và các header `X-RateLimit-*` để 
   adapter 8 giây. Lọc trạng thái/đếm toàn bộ trước phân trang; scan không hoàn tất
   trả lỗi, tuyệt đối không trả tổng bị thiếu.
 - Không tự retry, đổi model hoặc dùng River key 1/2 để dự phòng.
+- Đọc doanh thu có cùng deadline query 1500 ms/budget adapter 8 giây; aggregate
+  trên giao dịch thật, không gửi số tiền/kết quả cho model để tính hoặc viết lại.
 
 Khi nối frontend, đặt timeout riêng của request chat lớn hơn 40 giây (ví dụ
 45 giây), thay vì dùng mặc định 30 giây của API client chung. Widget đã tích hợp
@@ -186,11 +195,13 @@ Lỗi từ tầng chatbot có response:
 | 400  | Body sai (`ValidationPipe`); hoặc `CHATBOT_REQUEST_INVALID`.                                      |
 | 400  | `CHATBOT_CONTEXT_INVALID`: context không hợp lệ/hết hạn/khác tài khoản; không retry nguyên request. |
 | 401  | Thiếu/sai/hết hạn JWT Mindly, tài khoản không còn hoạt động.                                      |
+| 403  | `CHATBOT_INSTRUCTOR_FORBIDDEN`: không được phép đọc thống kê giảng dạy. |
 | 408  | Caller hủy request: `CHATBOT_CANCELLED` (thường socket đã đóng).                                  |
 | 422  | Provider không thể xử lý nội dung: `CHATBOT_RESPONSE_BLOCKED`.                                    |
+| 422  | `CHATBOT_REVENUE_DATA_INCOMPLETE`: chưa đủ dữ liệu xác nhận số liệu, không retry hay trả 0 giả. |
 | 429  | Quota API theo user: `CHATBOT_HTTP_RATE_LIMITED`; hoặc River trả 429: `CHATBOT_RATE_LIMITED`.     |
 | 502  | `CHATBOT_PROVIDER_ERROR`, `CHATBOT_RESPONSE_INVALID`, `CHATBOT_RESPONSE_INCOMPLETE`.              |
-| 503  | Chatbot tắt, config/key provider lỗi, provider không khả dụng, `CHATBOT_SEARCH_UNAVAILABLE` hoặc `CHATBOT_LEARNING_UNAVAILABLE`. |
+| 503  | Chatbot tắt, config/key provider lỗi, provider không khả dụng, `CHATBOT_SEARCH_UNAVAILABLE`, `CHATBOT_LEARNING_UNAVAILABLE` hoặc `CHATBOT_REVENUE_UNAVAILABLE`. |
 | 504  | Timeout: `CHATBOT_TIMEOUT`.                                                                       |
 | 500  | Lỗi không xác định đã làm sạch: `CHATBOT_INTERNAL_ERROR`.                                         |
 

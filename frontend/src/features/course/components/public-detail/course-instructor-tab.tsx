@@ -6,8 +6,9 @@ import Link from 'next/link';
 import { Icon } from '@/components/ui/icon';
 import type { ICourseInstructorSummary } from 'share-lib';
 import { useInstructorPublicCoursesQuery } from '../../api/public-courses.api';
-import { TeacherCourseRow, formatCompactNumber } from './teacher-course-row';
+import { TeacherCourseRow } from './teacher-course-row';
 import { getPublicProfilePath } from '@/features/profile/utils/profile-url';
+import { PublicCoursesQueryError } from '../public-courses-query-error';
 
 export interface CourseInstructorTabProps {
   currentCourseId?: string;
@@ -28,6 +29,8 @@ export function CourseInstructorTab({
   const {
     data: coursesResult,
     isLoading: isCoursesLoading,
+    isError: isCoursesError,
+    refetch,
   } = useInstructorPublicCoursesQuery(targetInstructorId, Boolean(targetInstructorId));
 
   const otherCourses = useMemo(() => {
@@ -36,23 +39,22 @@ export function CourseInstructorTab({
     return coursesResult.items.filter((c) => c.id !== currentCourseId);
   }, [coursesResult, currentCourseId]);
 
-  const totalCoursesCount = useMemo(() => {
-    if (coursesResult?.total && coursesResult.total > 0) return coursesResult.total;
-    if (coursesResult?.items && coursesResult.items.length > 0) return coursesResult.items.length;
-    return 1;
-  }, [coursesResult]);
+  const hasCourseStats = Boolean(coursesResult) && !isCoursesLoading && !isCoursesError;
+  const totalCoursesCount = coursesResult?.total ?? 0;
 
-  const totalStudentsCount = useMemo(() => {
+  const totalEnrollmentsCount = useMemo(() => {
     if (!coursesResult?.items || coursesResult.items.length === 0) return 0;
     return coursesResult.items.reduce((acc, c) => acc + (c.studentCount ?? 0), 0);
   }, [coursesResult]);
 
   const averageRating = useMemo(() => {
-    if (!coursesResult?.items || coursesResult.items.length === 0) return 4.9;
-    const rated = coursesResult.items.filter((c) => (c.rating ?? 0) > 0);
-    if (rated.length === 0) return 5.0;
-    const sum = rated.reduce((acc, c) => acc + (c.rating ?? 0), 0);
-    return Math.round((sum / rated.length) * 10) / 10;
+    if (!coursesResult?.items) return null;
+    const reviewCount = coursesResult.items.reduce((sum, course) => sum + course.reviewCount, 0);
+    if (reviewCount === 0) return null;
+    const weightedRating = coursesResult.items.reduce(
+      (sum, course) => sum + course.rating * course.reviewCount, 0,
+    );
+    return weightedRating / reviewCount;
   }, [coursesResult]);
 
   return (
@@ -99,30 +101,25 @@ export function CourseInstructorTab({
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-b border-[#f2f2f2] py-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-b border-[#f2f2f2] py-4">
           <div className="text-center sm:text-left space-y-0.5">
             <span className="text-xs text-[#666666]">Điểm đánh giá</span>
             <div className="flex items-center justify-center sm:justify-start gap-1 font-bold text-base text-[#161616]">
               <Icon icon="lucide:star" className="size-4 fill-[#ffd100] text-[#ffd100]" />
-              <span>{averageRating.toFixed(1)} / 5.0</span>
+              <span>{!hasCourseStats ? '—' : averageRating === null ? 'Chưa có đánh giá' : `${averageRating.toFixed(1)} / 5.0`}</span>
             </div>
           </div>
 
           <div className="text-center sm:text-left space-y-0.5">
-            <span className="text-xs text-[#666666]">Tổng học viên</span>
+            <span className="text-xs text-[#666666]">Lượt ghi danh</span>
             <p className="font-bold text-base text-[#161616]">
-              {totalStudentsCount > 0 ? `${formatCompactNumber(totalStudentsCount)}+` : '15.4K+'}
+              {hasCourseStats ? totalEnrollmentsCount.toLocaleString('vi-VN') : '—'}
             </p>
           </div>
 
           <div className="text-center sm:text-left space-y-0.5">
             <span className="text-xs text-[#666666]">Khóa học giảng dạy</span>
-            <p className="font-bold text-base text-[#161616]">{totalCoursesCount} khóa</p>
-          </div>
-
-          <div className="text-center sm:text-left space-y-0.5">
-            <span className="text-xs text-[#666666]">Tỷ lệ hoàn thành</span>
-            <p className="font-bold text-base text-[#161616]">96%</p>
+            <p className="font-bold text-base text-[#161616]">{hasCourseStats ? `${totalCoursesCount.toLocaleString('vi-VN')} khóa` : '—'}</p>
           </div>
         </div>
 
@@ -142,7 +139,7 @@ export function CourseInstructorTab({
             <h3 className="text-lg sm:text-xl font-bold text-[#161616]">
               Khóa học khác của giảng viên này
             </h3>
-            {otherCourses.length > 0 && (
+            {!isCoursesError && otherCourses.length > 0 && (
               <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-bold text-[#666666]">
                 {otherCourses.length}
               </span>
@@ -171,7 +168,11 @@ export function CourseInstructorTab({
         )}
 
         {/* Other Courses List */}
-        {!isCoursesLoading && otherCourses.length > 0 && (
+        {!isCoursesLoading && isCoursesError && (
+          <PublicCoursesQueryError onRetry={() => { void refetch(); }} />
+        )}
+
+        {!isCoursesLoading && !isCoursesError && otherCourses.length > 0 && (
           <div className="space-y-3.5">
             {otherCourses.map((c) => (
               <TeacherCourseRow
@@ -184,7 +185,7 @@ export function CourseInstructorTab({
         )}
 
         {/* Empty State */}
-        {!isCoursesLoading && otherCourses.length === 0 && (
+        {!isCoursesLoading && !isCoursesError && otherCourses.length === 0 && (
           <div className="rounded-xl border border-dashed border-[#e5e7eb] bg-white p-8 text-center space-y-3">
             <div className="size-12 rounded-full bg-neutral-100 text-neutral-400 flex items-center justify-center mx-auto">
               <Icon icon="lucide:book-open" className="size-6" />

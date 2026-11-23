@@ -2,20 +2,18 @@
 
 import * as React from 'react';
 import Image from 'next/image';
-import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
+import { CourseLevelEnum, CourseStatusEnum, type IAdminUserTeachingCourse } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
-import {
-  type InstructorTeachingCourse,
-  type CourseLevel,
-  type TeachingCourseStatus,
-} from '../constants/mock-instructor-data';
+import { getCourseUrl } from '@/features/course/utils/course-view-mode.util';
 
 interface InstructorTeachingCardProps {
-  course: InstructorTeachingCourse;
+  course: IAdminUserTeachingCourse;
 }
 
 export function InstructorTeachingCard({ course }: InstructorTeachingCardProps): React.JSX.Element {
+  const router = useRouter();
   const [imageError, setImageError] = React.useState(false);
 
   // Format giá bán
@@ -36,58 +34,71 @@ export function InstructorTeachingCard({ course }: InstructorTeachingCardProps):
   }, [course.revenue]);
 
   // Badge cấp độ
-  const renderLevelBadge = (level: CourseLevel) => {
+  const renderLevelBadge = (level: CourseLevelEnum) => {
     switch (level) {
-      case 'BEGINNER':
+      case CourseLevelEnum.BEGINNER:
         return (
           <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-muted text-muted-foreground border border-border/60">
             Cơ bản
           </span>
         );
-      case 'INTERMEDIATE':
+      case CourseLevelEnum.INTERMEDIATE:
         return (
           <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
             Trung cấp
           </span>
         );
-      case 'ADVANCED':
+      case CourseLevelEnum.ADVANCED:
         return (
           <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
             Nâng cao
+          </span>
+        );
+      case CourseLevelEnum.ALL_LEVELS:
+        return (
+          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-muted text-muted-foreground border border-border/60">
+            Mọi trình độ
           </span>
         );
     }
   };
 
   // Badge trạng thái xuất bản
-  const renderStatusBadge = (status: TeachingCourseStatus) => {
+  const renderStatusBadge = (status: CourseStatusEnum) => {
     switch (status) {
-      case 'PUBLISHED':
+      case CourseStatusEnum.PUBLISHED:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-xs">
             <Icon icon="lucide:check-circle-2" className="size-3 text-emerald-500" />
             <span>Đã xuất bản</span>
           </span>
         );
-      case 'PENDING_APPROVAL':
+      case CourseStatusEnum.PENDING_APPROVAL:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-xs">
             <Icon icon="lucide:hourglass" className="size-3 text-amber-500" />
             <span>Chờ phê duyệt</span>
           </span>
         );
-      case 'DRAFT':
+      case CourseStatusEnum.DRAFT:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border/80 shadow-xs">
             <Icon icon="lucide:file-edit" className="size-3" />
             <span>Bản nháp</span>
           </span>
         );
+      case CourseStatusEnum.ARCHIVED:
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border/80">
+            <Icon icon="lucide:archive" className="size-3" />
+            <span>Ngừng bán</span>
+          </span>
+        );
     }
   };
 
   const handleViewDetails = () => {
-    toast.info(`[Giao diện mẫu] Xem chi tiết khóa học: "${course.title}".`);
+    router.push(getCourseUrl(course.id));
   };
 
   return (
@@ -96,7 +107,7 @@ export function InstructorTeachingCard({ course }: InstructorTeachingCardProps):
       <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
         {/* Ảnh Thumbnail 16:9 thu nhỏ w-20 h-12 */}
         <div className="relative w-20 h-12 rounded-lg overflow-hidden shrink-0 bg-muted/80 border border-border/50 flex items-center justify-center">
-          {!imageError ? (
+          {course.thumbnailUrl && !imageError ? (
             <Image
               src={course.thumbnailUrl}
               alt={course.title}
@@ -115,7 +126,7 @@ export function InstructorTeachingCard({ course }: InstructorTeachingCardProps):
         <div className="flex-1 min-w-0 space-y-1.5">
           <div className="flex items-center gap-2 flex-wrap">
             <h4
-              className="font-semibold text-sm sm:text-base text-foreground truncate max-w-full hover:text-primary transition-colors cursor-pointer"
+              className="font-semibold text-sm sm:text-base text-foreground truncate max-w-full"
               title={course.title}
             >
               {course.title}

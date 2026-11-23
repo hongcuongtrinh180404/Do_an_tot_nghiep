@@ -6,6 +6,7 @@ import {
   ILessonTranscript,
   LessonTranscriptionStatusEnum,
   LessonContentTypeEnum,
+  JobTypeEnum,
 } from 'share-lib';
 import { LessonTranscriptService } from '../services/lesson-transcript.service.js';
 import { LessonTranscriptRepository } from '../repositories/lesson-transcript.repository.js';
@@ -285,6 +286,44 @@ describe('LessonTranscriptService', () => {
       await service.retryTranscription(sampleLessonId);
 
       expect(triggerSpy).toHaveBeenCalledWith(sampleLessonId, sampleVideoKey);
+    });
+
+    it('should create TRANSCRIPTION job when jobService is provided in retryTranscription', async () => {
+      const mockJobService = {
+        createJob: vi.fn().mockResolvedValue({ id: 'job-1' }),
+      };
+      const mockSectionRepo = {
+        findById: vi.fn().mockResolvedValue({ id: 'sec_1', courseId: 'course_999' }),
+      };
+      const serviceWithJob = new LessonTranscriptService(
+        mockLessonTranscriptRepo as unknown as LessonTranscriptRepository,
+        mockLessonRepo as unknown as LessonRepository,
+        mockStorageService as unknown as StorageService,
+        mockAssemblyAiService as unknown as AssemblyAiService,
+        mockAudioExtractorService as unknown as AudioExtractorService,
+        mockCls as unknown as ClsService,
+        mockJobService as unknown as any,
+        mockSectionRepo as unknown as any,
+      );
+
+      mockLessonRepo.findById.mockResolvedValue(sampleLesson);
+
+      await serviceWithJob.retryTranscription(sampleLessonId);
+
+      expect(mockJobService.createJob).toHaveBeenCalledWith({
+        type: JobTypeEnum.TRANSCRIPTION,
+        lessonId: sampleLessonId,
+        courseId: 'course_999',
+        requestedById: 'user_admin',
+        parameters: { videoKey: sampleVideoKey },
+      });
+      expect(mockLessonRepo.update).toHaveBeenCalledWith(sampleLessonId, {
+        transcriptionStatus: LessonTranscriptionStatusEnum.QUEUED,
+      });
+      expect(mockLessonTranscriptRepo.upsertByLessonId).toHaveBeenCalledWith(sampleLessonId, {
+        status: LessonTranscriptionStatusEnum.QUEUED,
+        failureReason: null,
+      });
     });
   });
 });

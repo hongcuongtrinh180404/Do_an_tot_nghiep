@@ -4,8 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useIsMounted } from '@/hooks/use-is-mounted';
 import {
   fetchPublicCourses,
+  fetchInstructorPublicCourses,
   type IPublicCoursesFilterParams,
   type IPublicCoursesResult,
+  type IInstructorPublicCoursesResult,
 } from '../services/public-courses.service';
 
 export const publicCourseKeys = {
@@ -22,9 +24,9 @@ export function useInstructorPublicCoursesQuery(
 ) {
   const isMounted = useIsMounted();
 
-  return useQuery<IPublicCoursesResult>({
+  return useQuery<IInstructorPublicCoursesResult>({
     queryKey: publicCourseKeys.byInstructor(instructorId ?? ''),
-    queryFn: () => fetchPublicCourses({ instructorId: instructorId ?? undefined, limit: 12 }),
+    queryFn: () => fetchInstructorPublicCourses(instructorId!),
     enabled: Boolean(instructorId) && enabled && isMounted,
     staleTime: 60 * 1000,
   });
@@ -40,4 +42,3 @@ export function usePublicCoursesCatalogQuery(params: IPublicCoursesFilterParams)
     staleTime: 30 * 1000,
   });
 }
-

@@ -5,6 +5,9 @@ import { ClsModule } from 'nestjs-cls';
 import { envValidationSchema } from './config/env.validation.js';
 import { RabbitMqModule } from './modules/messaging/rabbitmq.module.js';
 import { JobsModule } from './modules/jobs/jobs.module.js';
+import { CourseModule } from './modules/course/course.module.js';
+import { GeminiModule } from './modules/gemini/gemini.module.js';
+import { TranscriptAnalysisModule } from './modules/transcript-analysis/transcript-analysis.module.js';
 
 @Module({
   imports: [
@@ -26,6 +29,9 @@ import { JobsModule } from './modules/jobs/jobs.module.js';
     }),
     RabbitMqModule,
     JobsModule,
+    CourseModule,
+    GeminiModule,
+    TranscriptAnalysisModule,
   ],
 })
 export class WorkerModule {}

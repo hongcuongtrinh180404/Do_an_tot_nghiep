@@ -3,19 +3,23 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 import {
   ILessonTranscript,
   LessonTranscriptionStatusEnum,
   LessonContentTypeEnum,
+  JobTypeEnum,
 } from 'share-lib';
 import { BaseService } from '../../base/index.js';
 import { LessonTranscriptRepository } from '../repositories/lesson-transcript.repository.js';
 import { LessonRepository } from '../repositories/lesson.repository.js';
+import { SectionRepository } from '../repositories/section.repository.js';
 import { StorageService } from '../../storage/index.js';
 import { AssemblyAiService } from '../../assemblyai/index.js';
 import { AudioExtractorService } from './audio-extractor.service.js';
+import { JobService } from '../../jobs/services/job.service.js';
 
 @Injectable()
 export class LessonTranscriptService extends BaseService<ILessonTranscript, string> {
@@ -28,6 +32,8 @@ export class LessonTranscriptService extends BaseService<ILessonTranscript, stri
     private readonly assemblyAiService: AssemblyAiService,
     private readonly audioExtractorService: AudioExtractorService,
     cls: ClsService,
+    @Optional() private readonly jobService?: JobService,
+    @Optional() private readonly sectionRepo?: SectionRepository,
   ) {
     super(lessonTranscriptRepo, cls, LessonTranscriptService.name);
   }
@@ -205,6 +211,35 @@ export class LessonTranscriptService extends BaseService<ILessonTranscript, stri
     }
 
     const fileKey = lesson.content.publicId || lesson.content.url;
+
+    if (this.jobService) {
+      let courseId = '';
+      if (this.sectionRepo && lesson.sectionId) {
+        const section = await this.sectionRepo.findById(lesson.sectionId);
+        courseId = section?.courseId || '';
+      }
+
+      const userId = this.getCurrentUserId() || lesson.createdById || 'system';
+
+      await this.jobService.createJob({
+        type: JobTypeEnum.TRANSCRIPTION,
+        lessonId: trimmedId,
+        courseId,
+        requestedById: userId,
+        parameters: { videoKey: fileKey },
+      });
+
+      await this.lessonRepo.update(trimmedId, {
+        transcriptionStatus: LessonTranscriptionStatusEnum.QUEUED,
+      });
+
+      await this.lessonTranscriptRepo.upsertByLessonId(trimmedId, {
+        status: LessonTranscriptionStatusEnum.QUEUED,
+        failureReason: null,
+      });
+      return;
+    }
+
     this.triggerTranscription(trimmedId, fileKey);
   }
 }

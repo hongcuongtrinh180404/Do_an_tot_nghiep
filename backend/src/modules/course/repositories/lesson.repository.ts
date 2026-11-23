@@ -53,6 +53,13 @@ export class LessonRepository extends BaseMongoRepository<ILesson, LessonEntity>
         content: (plain.content ?? null) as ILesson['content'],
         materials,
         isPreview: Boolean(plain.isPreview),
+        analysisInputRevision:
+          typeof plain.analysisInputRevision === 'number' ? plain.analysisInputRevision : 0,
+        analysisOutputRevisions: (plain.analysisOutputRevisions as ILesson['analysisOutputRevisions']) || {
+          summary: 0,
+          quiz: 0,
+          mindmap: 0,
+        },
       } as unknown as ILesson;
     });
   }
@@ -253,5 +260,54 @@ export class LessonRepository extends BaseMongoRepository<ILesson, LessonEntity>
     );
 
     return result.modifiedCount;
+  }
+
+  async incrementOutputRevision(
+    lessonId: string,
+    type: 'summary' | 'quiz' | 'mindmap',
+    expectedRevision?: number,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    const lessonObjectId = Types.ObjectId.isValid(lessonId)
+      ? new Types.ObjectId(lessonId)
+      : lessonId;
+
+    const filter: Record<string, unknown> = {
+      _id: lessonObjectId,
+      deletedAt: null,
+    };
+
+    if (typeof expectedRevision === 'number') {
+      filter[`analysisOutputRevisions.${type}`] = expectedRevision;
+    }
+
+    const result = await this.model.updateOne(
+      filter,
+      {
+        $inc: { [`analysisOutputRevisions.${type}`]: 1 },
+      },
+      { session: session ?? undefined },
+    );
+
+    return result.modifiedCount > 0;
+  }
+
+  async incrementInputRevision(
+    lessonId: string,
+    session?: ClientSession,
+  ): Promise<number | null> {
+    const lessonObjectId = Types.ObjectId.isValid(lessonId)
+      ? new Types.ObjectId(lessonId)
+      : lessonId;
+
+    const doc = await this.model
+      .findOneAndUpdate(
+        { _id: lessonObjectId, deletedAt: null },
+        { $inc: { analysisInputRevision: 1 } },
+        { new: true, session: session ?? null },
+      )
+      .exec();
+
+    return doc ? doc.analysisInputRevision : null;
   }
 }

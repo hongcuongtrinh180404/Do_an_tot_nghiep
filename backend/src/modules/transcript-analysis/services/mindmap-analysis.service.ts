@@ -3,7 +3,9 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
+import type { ClientSession } from 'mongoose';
 import {
   ILessonMindmap,
   ILessonMindmapData,
@@ -163,13 +165,17 @@ ${formattedTranscript}`;
   }
 
   /**
-   * Sinh sơ đồ tư duy bài học từ transcript với Gemini API
+   * Bước 1: Sinh và kiểm định nội dung Mindmap từ AI (thực thi ngoài database transaction)
    */
-  async generateMindmap(
+  async generateMindmapContent(
     lessonId: string,
-    dto?: GenerateMindmapDto,
-    userId?: string,
-  ): Promise<MindmapGenerationResponse> {
+    options?: {
+      expectedInputRevision?: number;
+    },
+  ): Promise<{
+    mindmap: ILessonMindmapData;
+    metadata: MindmapGenerationResponse['metadata'];
+  }> {
     const trimmedLessonId = lessonId?.trim();
     if (!trimmedLessonId) {
       throw new BadRequestException('ID bài học không được để trống.');
@@ -179,6 +185,15 @@ ${formattedTranscript}`;
     const lesson = await this.lessonRepo.findById(trimmedLessonId);
     if (!lesson) {
       throw new NotFoundException(`Không tìm thấy bài học với ID: ${trimmedLessonId}`);
+    }
+
+    if (
+      options?.expectedInputRevision !== undefined &&
+      (lesson.analysisInputRevision ?? 0) !== options.expectedInputRevision
+    ) {
+      throw new ConflictException(
+        `INPUT_CHANGED: Nội dung transcript bài học đã thay đổi (hiện tại: ${lesson.analysisInputRevision ?? 0}, lúc tạo: ${options.expectedInputRevision})`,
+      );
     }
 
     // 2. Lấy transcript từ collection lesson_transcripts
@@ -237,26 +252,7 @@ ${formattedTranscript}`;
     // 6. Kiểm tra cấu trúc cây và mốc timestamp (MindmapValidator)
     MindmapValidator.validateOrFail(sanitizedMindmap, durationSeconds, 4);
 
-    // 7. Lưu trực tiếp làm bản chính thức (mặc định: false) hoặc lưu bản nháp nếu yêu cầu
-    const shouldSaveDraft = dto?.saveAsDraft ?? false;
-    if (shouldSaveDraft) {
-      await this.lessonMindmapRepo.saveDraftByLessonId(
-        trimmedLessonId,
-        sanitizedMindmap,
-        userId,
-      );
-      this.logger.log(`Đã lưu bản nháp Mindmap cho bài học ${trimmedLessonId}`);
-    } else {
-      await this.lessonMindmapRepo.upsertOfficialByLessonId(
-        trimmedLessonId,
-        sanitizedMindmap,
-        userId,
-      );
-      this.logger.log(`Đã lưu bản sơ đồ tư duy chính thức cho bài học ${trimmedLessonId}`);
-    }
-
     return {
-      lessonId: trimmedLessonId,
       mindmap: sanitizedMindmap,
       metadata: {
         model: geminiResult.model,
@@ -265,6 +261,72 @@ ${formattedTranscript}`;
         executionTimeMs: geminiResult.executionTimeMs,
         usage: geminiResult.usage,
       },
+    };
+  }
+
+  /**
+   * Bước 2: Lưu kết quả Mindmap vào cơ sở dữ liệu có hỗ trợ ClientSession transaction
+   */
+  async persistMindmapWithSession(
+    lessonId: string,
+    mindmap: ILessonMindmapData,
+    options?: {
+      saveAsDraft?: boolean;
+      userId?: string;
+      session?: ClientSession;
+    },
+  ): Promise<ILessonMindmap> {
+    const trimmedLessonId = lessonId?.trim();
+    const shouldSaveDraft = options?.saveAsDraft ?? false;
+
+    let saved: ILessonMindmap;
+    if (shouldSaveDraft) {
+      saved = await this.lessonMindmapRepo.saveDraftByLessonId(
+        trimmedLessonId,
+        mindmap,
+        options?.userId,
+        options?.session,
+      );
+      this.logger.log(`Đã lưu bản nháp Mindmap cho bài học ${trimmedLessonId}`);
+    } else {
+      saved = await this.lessonMindmapRepo.upsertOfficialByLessonId(
+        trimmedLessonId,
+        mindmap,
+        options?.userId,
+        options?.session,
+      );
+      this.logger.log(`Đã lưu bản sơ đồ tư duy chính thức cho bài học ${trimmedLessonId}`);
+    }
+
+    if (options?.session) {
+      await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'mindmap', undefined, options.session);
+    } else {
+      await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'mindmap');
+    }
+
+    return saved;
+  }
+
+  /**
+   * Sinh sơ đồ tư duy bài học từ transcript với Gemini API (Backward Compatibility)
+   */
+  async generateMindmap(
+    lessonId: string,
+    dto?: GenerateMindmapDto,
+    userId?: string,
+  ): Promise<MindmapGenerationResponse> {
+    const trimmedLessonId = lessonId?.trim();
+    const content = await this.generateMindmapContent(trimmedLessonId);
+
+    await this.persistMindmapWithSession(trimmedLessonId, content.mindmap, {
+      saveAsDraft: dto?.saveAsDraft ?? false,
+      userId,
+    });
+
+    return {
+      lessonId: trimmedLessonId,
+      mindmap: content.mindmap,
+      metadata: content.metadata,
     };
   }
 
@@ -300,6 +362,8 @@ ${formattedTranscript}`;
       );
     }
 
+    await this.lessonRepo.incrementOutputRevision(trimmedId, 'mindmap');
+
     this.logger.log(`Đã áp dụng bản nháp Mindmap thành chính thức cho bài học ${trimmedId}`);
     return applied;
   }
@@ -334,6 +398,8 @@ ${formattedTranscript}`;
       dto.mindmap,
       userId,
     );
+
+    await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'mindmap');
 
     this.logger.log(
       `Đã cập nhật trực tiếp sơ đồ tư duy chính thức cho bài học ${trimmedLessonId} bởi user ${userId || 'SYSTEM'}`,

@@ -90,7 +90,7 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
       throw new BadRequestException('Vui lòng nhập đầy đủ nội dung các phương án trả lời');
     }
     if (new Set(options.map((option) => option.id)).size !== options.length ||
-        new Set(options.map((option) => option.label)).size !== options.length) {
+      new Set(options.map((option) => option.label)).size !== options.length) {
       throw new BadRequestException('Mã và nhãn của các phương án trả lời không được trùng nhau');
     }
 
@@ -139,7 +139,9 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
     await this.assertNotPendingApproval(trimmedLessonId);
     const payload = this.normalizeQuiz(dto, lesson.content?.duration);
     const order = await this.getNextQuizOrder(trimmedLessonId, payload.timestamp);
-    return super.create({ ...payload, lessonId: trimmedLessonId, order });
+    const created = await super.create({ ...payload, lessonId: trimmedLessonId, order });
+    await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'quiz');
+    return created;
   }
 
   async updateQuiz(quizId: string, dto: SaveLessonQuizDto): Promise<ILessonQuiz> {
@@ -164,6 +166,7 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
     if (!updated) {
       throw new NotFoundException('Câu hỏi đã bị xóa hoặc không còn tồn tại');
     }
+    await this.lessonRepo.incrementOutputRevision(existing.lessonId, 'quiz');
     return updated;
   }
 
@@ -179,6 +182,7 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
       : await this.getNextQuizOrder(existing.lessonId, timestamp);
     const updated = await super.update(quizId, { timestamp, order });
     if (!updated) throw new NotFoundException('Câu hỏi đã bị xóa hoặc không còn tồn tại');
+    await this.lessonRepo.incrementOutputRevision(existing.lessonId, 'quiz');
     return updated;
   }
 
@@ -217,7 +221,7 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
       `Đồng bộ ${dto.questions.length} câu hỏi tại mốc ${dto.timestamp}s cho bài học ${trimmedLessonId}`,
     );
 
-    return this.lessonQuizRepo.syncQuizzesAtTimestamp(
+    const synced = await this.lessonQuizRepo.syncQuizzesAtTimestamp(
       trimmedLessonId,
       dto.timestamp,
       normalized.map((q) => ({
@@ -236,6 +240,8 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
         ...(q.explanationTimestamp !== undefined ? { explanationTimestamp: q.explanationTimestamp } : {}),
       })),
     );
+    await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'quiz');
+    return synced;
   }
 
   /**
@@ -258,6 +264,7 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
     if (!deleted) {
       throw new NotFoundException(`Không tìm thấy câu hỏi với ID: ${trimmedId}`);
     }
+    await this.lessonRepo.incrementOutputRevision(existing.lessonId, 'quiz');
     this.logger.log(`Đã xóa cứng câu hỏi ${trimmedId} của bài học ${existing.lessonId}`);
     return true;
   }
@@ -289,11 +296,13 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
       `Xóa toàn bộ câu hỏi tại mốc ${timestamp}s cho bài học ${trimmedLessonId}`,
     );
 
-    return this.lessonQuizRepo.deleteQuizzesAtTimestampRange(
+    const deletedCount = await this.lessonQuizRepo.deleteQuizzesAtTimestampRange(
       trimmedLessonId,
       timestamp,
       2,
     );
+    await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'quiz');
+    return deletedCount;
   }
 
   /**
@@ -323,8 +332,9 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
       `Di chuyển/Gộp cụm câu hỏi từ mốc ${dto.sourceTimestamp}s sang ${dto.targetTimestamp}s cho bài học ${trimmedLessonId}`,
     );
 
+    let result: ILessonQuiz[];
     try {
-      return await this.lessonQuizRepo.withTransaction(async (session) => {
+      result = await this.lessonQuizRepo.withTransaction(async (session) => {
         return this.lessonQuizRepo.moveOrMergeCluster(
           trimmedLessonId,
           dto.sourceTimestamp,
@@ -335,12 +345,14 @@ export class LessonQuizService extends BaseService<ILessonQuiz, string> {
       });
     } catch {
       // Fallback nếu database chưa bật Replica Set transaction
-      return this.lessonQuizRepo.moveOrMergeCluster(
+      result = await this.lessonQuizRepo.moveOrMergeCluster(
         trimmedLessonId,
         dto.sourceTimestamp,
         dto.targetTimestamp,
         2,
       );
     }
+    await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'quiz');
+    return result;
   }
 }

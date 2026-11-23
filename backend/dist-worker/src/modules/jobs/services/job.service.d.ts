@@ -32,6 +32,7 @@ export declare class JobService extends BaseService<IJob, string> {
     } | null>;
     renewLease(jobId: string, leaseToken: string, extendMs?: number): Promise<boolean>;
     completeJob(jobId: string, leaseToken: string, resultRef?: Record<string, unknown>, session?: ClientSession): Promise<IJob>;
+    updateCheckpoint(jobId: string, leaseToken: string, checkpoint: Record<string, unknown>, session?: ClientSession): Promise<IJob>;
     failJob(jobId: string, leaseToken: string, params: FailJobParams, session?: ClientSession): Promise<IJob>;
     retryManual(jobId: string, requestedById: string): Promise<IJob>;
     getRecentJobsByLesson(lessonId: string, limit?: number): Promise<IJob[]>;

@@ -8,7 +8,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 var QuizGenerationService_1;
-import { Injectable, Logger, NotFoundException, BadRequestException, } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException, } from '@nestjs/common';
 import { LessonTranscriptionStatusEnum, QuizQuestionTypeEnum, } from 'share-lib';
 import { GeminiService } from '../../gemini/index.js';
 import { LessonRepository } from '../../course/repositories/lesson.repository.js';
@@ -167,15 +167,19 @@ ${formattedTranscript}`;
             };
         });
     }
-    async generateQuiz(lessonId, dto, userId) {
+    async generateQuizContent(lessonId, options) {
         const trimmedLessonId = lessonId?.trim();
         if (!trimmedLessonId) {
             throw new BadRequestException('ID bài học không được để trống.');
         }
-        const count = dto?.count ?? 10;
+        const count = options?.count ?? 10;
         const lesson = await this.lessonRepo.findById(trimmedLessonId);
         if (!lesson) {
             throw new NotFoundException(`Không tìm thấy bài học với ID: ${trimmedLessonId}`);
+        }
+        if (options?.expectedInputRevision !== undefined &&
+            (lesson.analysisInputRevision ?? 0) !== options.expectedInputRevision) {
+            throw new ConflictException(`INPUT_CHANGED: Nội dung transcript bài học đã thay đổi (hiện tại: ${lesson.analysisInputRevision ?? 0}, lúc tạo: ${options.expectedInputRevision})`);
         }
         const transcript = await this.lessonTranscriptRepo.findByLessonId(trimmedLessonId);
         if (!transcript) {
@@ -196,9 +200,22 @@ ${formattedTranscript}`;
         });
         const quizzes = this.sanitizeAndNormalizeQuizzes(geminiResult.data, durationSeconds, count);
         QuizValidator.validateOrFail(quizzes, durationSeconds, count);
-        const shouldSaveDraft = dto?.saveAsDraft ?? false;
+        return {
+            quizzes,
+            metadata: {
+                model: geminiResult.model,
+                keyIndex: geminiResult.keyIndex,
+                maskedKey: geminiResult.maskedKey,
+                executionTimeMs: geminiResult.executionTimeMs,
+                usage: geminiResult.usage,
+            },
+        };
+    }
+    async persistQuizWithSession(lessonId, quizzes, options) {
+        const trimmedLessonId = lessonId?.trim();
+        const shouldSaveDraft = options?.saveAsDraft ?? false;
         if (shouldSaveDraft) {
-            await this.lessonQuizDraftRepo.saveDraftByLessonId(trimmedLessonId, quizzes, userId);
+            await this.lessonQuizDraftRepo.saveDraftByLessonId(trimmedLessonId, quizzes, options?.userId, options?.session);
             this.logger.log(`Đã lưu bản nháp Quiz (${quizzes.length} câu hỏi) cho bài học ${trimmedLessonId}`);
         }
         else {
@@ -217,24 +234,34 @@ ${formattedTranscript}`;
                     })),
                     explanation: q.explanation || null,
                 }));
-                await this.lessonQuizRepo.replaceAllQuizzesForLesson(trimmedLessonId, quizzesToInsert);
-                await this.lessonQuizDraftRepo.clearDraftByLessonId(trimmedLessonId);
+                await this.lessonQuizRepo.replaceAllQuizzesForLesson(trimmedLessonId, quizzesToInsert, options?.session);
+                await this.lessonQuizDraftRepo.clearDraftByLessonId(trimmedLessonId, options?.session);
                 this.logger.log(`Đã lưu và áp dụng trực tiếp ${quizzes.length} câu hỏi Quiz chính thức cho bài học ${trimmedLessonId}`);
             }
             else {
-                this.logger.log(`AI sinh 0 câu hỏi do transcript không đủ dữ kiện, bảo toàn câu hỏi chính thức hiện tại cho bài học ${trimmedLessonId}`);
+                this.logger.warn(`[Zero-Quiz Safety Rule] AI sinh 0 câu hỏi do transcript không đủ dữ kiện, bảo toàn câu hỏi chính thức hiện tại cho bài học ${trimmedLessonId}`);
             }
         }
+        if (options?.session) {
+            await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'quiz', undefined, options.session);
+        }
+        else {
+            await this.lessonRepo.incrementOutputRevision(trimmedLessonId, 'quiz');
+        }
+    }
+    async generateQuiz(lessonId, dto, userId) {
+        const trimmedLessonId = lessonId?.trim();
+        const content = await this.generateQuizContent(trimmedLessonId, {
+            count: dto?.count ?? 10,
+        });
+        await this.persistQuizWithSession(trimmedLessonId, content.quizzes, {
+            saveAsDraft: dto?.saveAsDraft ?? false,
+            userId,
+        });
         return {
             lessonId: trimmedLessonId,
-            quizzes,
-            metadata: {
-                model: geminiResult.model,
-                keyIndex: geminiResult.keyIndex,
-                maskedKey: geminiResult.maskedKey,
-                executionTimeMs: geminiResult.executionTimeMs,
-                usage: geminiResult.usage,
-            },
+            quizzes: content.quizzes,
+            metadata: content.metadata,
         };
     }
     async getQuizDraft(lessonId) {
@@ -269,6 +296,7 @@ ${formattedTranscript}`;
         }));
         const officialQuizzes = await this.lessonQuizRepo.replaceAllQuizzesForLesson(trimmedId, quizzesToInsert);
         await this.lessonQuizDraftRepo.clearDraftByLessonId(trimmedId);
+        await this.lessonRepo.incrementOutputRevision(trimmedId, 'quiz');
         this.logger.log(`Đã áp dụng thành công ${officialQuizzes.length} câu hỏi Quiz chính thức cho bài học ${trimmedId}`);
         return officialQuizzes;
     }

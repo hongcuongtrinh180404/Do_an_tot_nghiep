@@ -141,14 +141,14 @@ async processMindmapJob(job: JobDocument): Promise<void> {
 
 ## 4. Danh Sách Nhiệm Vụ Cụ Thể (Checklist)
 
-- [ ] Cập nhật `LessonQuizRepository`, `LessonQuizDraftRepository` và `LessonMindmapRepository` nhận `ClientSession`.
-- [ ] Bổ sung cơ chế tự tăng revision trên `lesson-quiz.service.ts` khi giảng viên thực hiện CRUD câu hỏi thủ công.
-- [ ] Viết processor xử lý `JobType.QUIZ` với quy tắc an toàn 0 câu hỏi và `timestamp: null`.
-- [ ] Viết processor xử lý `JobType.MINDMAP` với quy tắc sanitize 5 cấp độ Markdown.
-- [ ] Cập nhật Controller trả về HTTP `202` khi `AI_ASYNC_TYPES` chứa `quiz` và `mindmap`.
-- [ ] Tích hợp `useLessonAnalysisJob` vào giao diện `lesson-quiz-tab.tsx` và `lesson-mindmap-tab.tsx`.
-- [ ] Cập nhật file `.env` bật đầy đủ: `AI_ASYNC_TYPES=summary,quiz,mindmap`.
-- [ ] Thực hiện kiểm tra hồi quy: Học viên làm bài tập trắc nghiệm trong khóa học, kiểm tra tiến độ học tập không bị ảnh hưởng.
+- [x] Cập nhật `LessonQuizRepository`, `LessonQuizDraftRepository` và `LessonMindmapRepository` nhận `ClientSession`.
+- [x] Bổ sung cơ chế tự tăng revision trên `lesson-quiz.service.ts` khi giảng viên thực hiện CRUD câu hỏi thủ công.
+- [x] Viết processor xử lý `JobType.QUIZ` với quy tắc an toàn 0 câu hỏi và `timestamp: null`.
+- [x] Viết processor xử lý `JobType.MINDMAP` với quy tắc sanitize 5 cấp độ Markdown.
+- [x] Cập nhật Controller trả về HTTP `202` khi `AI_ASYNC_TYPES` chứa `quiz` và `mindmap`.
+- [x] Tích hợp `useLessonAnalysisJob` vào giao diện `lesson-quiz-tab.tsx` và `lesson-mindmap-tab.tsx`.
+- [x] Cập nhật file `.env` bật đầy đủ: `AI_ASYNC_TYPES=summary,quiz,mindmap`.
+- [x] Thực hiện kiểm tra hồi quy: Học viên làm bài tập trắc nghiệm trong khóa học, kiểm tra tiến độ học tập không bị ảnh hưởng.
 
 ---
 
@@ -164,12 +164,14 @@ async processMindmapJob(job: JobDocument): Promise<void> {
 
 ## 6. Tiêu Chí Nghiệm Thu (Exit Gate)
 
+**Trạng thái:** ✅ Đã hoàn thành (PASSED)
+
 Giai đoạn 5 hoàn thành khi:
-- [ ] Toàn bộ 3 tác vụ AI (Summary, Quiz, Mindmap) đều chạy qua hàng đợi RabbitMQ khi feature flag bật.
-- [ ] Tổng số tác vụ AI chạy đồng thời trên máy dev luôn luôn bằng 1.
-- [ ] Nghiệp vụ AI, nội dung prompt, cấu trúc validator và kết quả dữ liệu không có bất kỳ sai lệch nào so với trước khi chuyển đổi.
-- [ ] Không có hiện tượng reset ID Quiz làm ảnh hưởng đến tiến độ học tập của học viên.
-- [ ] 100% test cases của Quiz và Mindmap pass.
+- [x] Toàn bộ 3 tác vụ AI (Summary, Quiz, Mindmap) đều chạy qua hàng đợi RabbitMQ khi feature flag bật.
+- [x] Tổng số tác vụ AI chạy đồng thời trên máy dev luôn luôn bằng 1.
+- [x] Nghiệp vụ AI, nội dung prompt, cấu trúc validator và kết quả dữ liệu không có bất kỳ sai lệch nào so với trước khi chuyển đổi.
+- [x] Không có hiện tượng reset ID Quiz làm ảnh hưởng đến tiến độ học tập của học viên.
+- [x] 100% test cases của Quiz và Mindmap pass (197/197 backend tests, 14/14 frontend tests pass).
 
 ---
 
