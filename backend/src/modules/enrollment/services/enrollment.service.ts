@@ -1,22 +1,16 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 import { ClientSession } from 'mongoose';
 import {
   IEnrollment,
   ICourse,
-  CourseStatusEnum,
-  UserStatusEnum,
   RoleEnum,
 } from 'share-lib';
 import { BaseService, isDuplicateKeyError } from '../../base/index.js';
 import { EnrollmentRepository } from '../repositories/enrollment.repository.js';
 import { CourseRepository } from '../../course/repositories/course.repository.js';
 import { UserRepository } from '../../user/repositories/user.repository.js';
+import { assertFreeEnrollmentAllowed } from '../utils/free-enrollment.util.js';
 
 @Injectable()
 export class EnrollmentService extends BaseService<IEnrollment, string> {
@@ -96,27 +90,8 @@ export class EnrollmentService extends BaseService<IEnrollment, string> {
     session: ClientSession,
   ): Promise<IEnrollment> {
     const user = await this.userRepository.findById(userId, session);
-    if (!user || user.deletedAt || user.status !== UserStatusEnum.ACTIVE) {
-      throw new BadRequestException('Tài khoản người dùng không hợp lệ hoặc đã bị vô hiệu hóa');
-    }
-
     const course = await this.courseRepository.findForEnrollment(courseId, session);
-    if (!course || course.deletedAt) {
-      throw new NotFoundException(`Không tìm thấy khóa học với ID '${courseId}'`);
-    }
-
-    if (course.status !== CourseStatusEnum.PUBLISHED) {
-      throw new BadRequestException('Khóa học chưa được phê duyệt hoặc chưa công khai');
-    }
-
-    if (course.price !== 0) {
-      throw new BadRequestException('Chỉ được đăng ký trực tiếp khóa học miễn phí. Khóa học có phí phải thanh toán qua SePay');
-    }
-
-    // Kiểm tra nếu giảng viên mua chính khóa học của mình
-    if (course.instructorId === userId) {
-      throw new ConflictException('Bạn là giảng viên tạo khóa học này, không thể tự đăng ký khóa học của chính mình');
-    }
+    assertFreeEnrollmentAllowed(userId, courseId, user, course);
 
     const existingEnrollment = await this.enrollmentRepository.findByUserAndCourse(
       userId,

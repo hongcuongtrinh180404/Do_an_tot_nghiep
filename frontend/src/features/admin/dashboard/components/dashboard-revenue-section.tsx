@@ -11,7 +11,6 @@ import type {
   RevenueChartType,
 } from '../types';
 import { useAdminDashboardChartQuery } from '../api/admin-dashboard.api';
-import { REVENUE_CHART_SERIES } from '../constants/mock-dashboard-data';
 
 interface DashboardRevenueSectionProps {
   globalPeriod: DashboardPeriodType;
@@ -32,7 +31,7 @@ export function DashboardRevenueSection({
     true,
   ]);
 
-  const { data: remoteChartData } = useAdminDashboardChartQuery(
+  const { data: remoteChartData, isError, isLoading, refetch } = useAdminDashboardChartQuery(
     globalPeriod,
     groupBy === 'year' ? 'month' : groupBy,
     globalPeriod === 'custom' ? customDates : undefined,
@@ -62,35 +61,11 @@ export function DashboardRevenueSection({
   };
 
   const chartData: IDashboardRevenueChartPoint[] = React.useMemo(() => {
-    if (remoteChartData && remoteChartData.length > 0) {
-      return remoteChartData;
-    }
-    if (groupBy === 'day' && initialChartData?.length) {
-      return initialChartData;
-    }
-    const base = REVENUE_CHART_SERIES[groupBy];
-    const effectivePeriod = globalPeriod;
-
-    const scaleMap: Record<string, number> = {
-      today: 0.08,
-      yesterday: 0.07,
-      '7d': 0.38,
-      '30d': 1.15,
-      this_month: 1.0,
-      last_month: 1.25,
-      this_year: 1.0,
-      custom: 0.45,
-    };
-    const factor = groupBy === 'day' ? scaleMap[effectivePeriod] || 1 : 1;
-
-    return base.map((item) => ({
-      ...item,
-      grossRevenue: Math.round(item.grossRevenue * factor),
-      platformRevenue: Math.round(item.platformRevenue * factor),
-      instructorRevenue: Math.round(item.instructorRevenue * factor),
-      orderCount: Math.round(item.orderCount * factor),
-    }));
-  }, [groupBy, globalPeriod, initialChartData, remoteChartData]);
+    if (isError) return [];
+    // An empty API result is authoritative. Initial data is also from the real
+    // aggregate API and is used only while the matching daily query is pending.
+    return remoteChartData ?? (groupBy === 'day' ? initialChartData ?? [] : []);
+  }, [groupBy, initialChartData, remoteChartData, isError]);
 
   const totalGross = React.useMemo(() => {
     return chartData.reduce((acc, curr) => acc + curr.grossRevenue, 0);
@@ -377,13 +352,23 @@ export function DashboardRevenueSection({
         <div className="text-xs text-muted-foreground font-medium">
           Tổng giá trị kỳ biểu đồ:{' '}
           <strong className="text-foreground font-bold tabular-nums">
-            {formatVndNumber(totalGross)}
+            {isError || (isLoading && chartData.length === 0) ? '—' : formatVndNumber(totalGross)}
           </strong>
         </div>
       </div>
 
       {/* Chart Canvas Viewport */}
       <div className="relative h-72 sm:h-80 w-full">
+        {(isError || chartData.length === 0) && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-card text-sm text-muted-foreground" role={isError ? 'alert' : 'status'}>
+            <p>{isError ? 'Không tải được dữ liệu doanh thu. Không có số liệu thay thế.' : isLoading ? 'Đang tải dữ liệu doanh thu…' : 'Chưa có dữ liệu doanh thu trong khoảng thời gian này.'}</p>
+            {isError && (
+              <button type="button" onClick={() => void refetch()} className="rounded-lg border border-border px-4 py-2 text-foreground">
+                Thử lại
+              </button>
+            )}
+          </div>
+        )}
         {allSeriesHidden && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-2xs rounded-xl z-10 pointer-events-none">
             <div className="px-4 py-2 rounded-xl bg-card border border-border/80 shadow-xs text-xs font-medium text-muted-foreground flex items-center gap-2">

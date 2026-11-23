@@ -15,7 +15,11 @@ export interface IPayment {
   id: string;
   orderId?: string | null;
   orderCode?: string | null;
-  sepayTransactionId: string;
+  source?: 'SEPAY' | 'INTERNAL_SEED';
+  sepayTransactionId?: string;
+  internalReference?: string;
+  seedBatch?: string;
+  seedReference?: string;
   amountIn: number;
   bankBrandName: string;
   accountNumber: string;

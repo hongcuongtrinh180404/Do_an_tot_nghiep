@@ -16,13 +16,13 @@ export class LessonQuizAnswerEntity extends BaseAbstractDocument {
   @Prop({ type: MongoSchema.Types.ObjectId, required: true })
   quizId: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ type: String, required: true })
   quizRevision: string;
 
   @Prop({ type: [String], required: true })
   selectedOptionIds: string[];
 
-  @Prop({ required: true })
+  @Prop({ type: Boolean, required: true })
   isCorrect: boolean;
 
   @Prop({ type: [String], required: true })
@@ -50,7 +50,7 @@ export class LessonVideoCompletionEntity extends BaseAbstractDocument {
   @Prop({ type: MongoSchema.Types.ObjectId, required: true })
   lessonId: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ type: String, required: true })
   mediaVersion: string;
 
   @Prop({ type: Date, required: true })

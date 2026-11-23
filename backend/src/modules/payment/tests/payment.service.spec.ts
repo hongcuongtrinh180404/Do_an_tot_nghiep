@@ -314,4 +314,33 @@ describe('PaymentService', () => {
     expect(resolved.resolution?.refundedAmount).toBe(51000);
     expect(enrollments.create).toHaveBeenCalledTimes(1);
   });
+
+  it('never reprocesses an internal seed payment as a bank receipt', async () => {
+    receipts.set('seed', {
+      id: 'seed', source: 'INTERNAL_SEED', internalReference: 'batch:pair', seedBatch: 'batch',
+      orderId: ORDER, orderCode: CODE, amountIn: 499000, bankBrandName: '', accountNumber: '',
+      transactionDate: new Date(), appliedAt: new Date(), content: 'Internal history only',
+      reconciliationStatus: ReconciliationStatusEnum.MATCHED, createdAt: new Date(), updatedAt: new Date(),
+    });
+    await expect(service.reprocessPayment('seed', 'admin', { note: 'Kiểm tra dữ liệu nội bộ' }))
+      .rejects.toThrow('Dữ liệu seed nội bộ');
+    expect(payments.updateReconciliation).not.toHaveBeenCalled();
+    expect(orders.lockForPaymentProcessing).not.toHaveBeenCalled();
+    expect(enrollments.create).not.toHaveBeenCalled();
+  });
+
+  it('never records a bank refund or manual resolution for internal seed money', async () => {
+    receipts.set('seed', {
+      id: 'seed', source: 'INTERNAL_SEED', internalReference: 'batch:pair', seedBatch: 'batch',
+      orderId: ORDER, amountIn: 499000, bankBrandName: '', accountNumber: '',
+      transactionDate: new Date(), appliedAt: new Date(), content: 'Internal history only',
+      reconciliationStatus: ReconciliationStatusEnum.MATCHED, createdAt: new Date(), updatedAt: new Date(),
+    });
+    for (const type of ['ACKNOWLEDGED', 'REFUNDED'] as const) {
+      await expect(service.resolvePayment('seed', 'admin', { type, note: 'Dữ liệu nội bộ không chuyển tiền' }))
+        .rejects.toThrow('Dữ liệu seed nội bộ');
+    }
+    expect(payments.updateReconciliation).not.toHaveBeenCalled();
+    expect(orders.lockForPaymentProcessing).not.toHaveBeenCalled();
+  });
 });

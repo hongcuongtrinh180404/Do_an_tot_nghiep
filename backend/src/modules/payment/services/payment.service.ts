@@ -20,6 +20,7 @@ import { SepayService } from './sepay.service.js';
 import { SepayWebhookDto } from '../dto/sepay-webhook.dto.js';
 import { ReprocessPaymentDto, ResolvePaymentDto } from '../dto/reconciliation.dto.js';
 import { parseSepayTransactionDate } from '../utils/transaction-date.util.js';
+import { calculateOrderFinancials } from '../utils/order-pricing.util.js';
 
 export interface WebhookProcessResult {
   success: boolean;
@@ -66,9 +67,6 @@ export class PaymentService extends BaseService<IPayment, string> {
       const pending = await this.orderRepository.findPendingOrderByUserAndCourse(userId, courseId);
       if (pending) return this.toCreateResponse(pending, course);
 
-      const originalPrice = Number.isSafeInteger(course.originalPrice) && (course.originalPrice ?? 0) > course.price
-        ? course.originalPrice! : course.price;
-
       let platformRate = 30;
       const instructor = course.instructorId ? await this.userRepository.findById(course.instructorId) : null;
       if (typeof instructor?.commissionRate === 'number' && Number.isFinite(instructor.commissionRate)) {
@@ -79,22 +77,14 @@ export class PaymentService extends BaseService<IPayment, string> {
           platformRate = defaultSetting.defaultRate;
         }
       }
-      const platformEarnings = Math.round((course.price * platformRate) / 100);
-      const instructorEarnings = course.price - platformEarnings;
-      const instructorCommissionRate = Number((1 - platformRate / 100).toFixed(4));
-
       try {
         const order = await this.orderRepository.create({
           orderCode: this.sepayService.generateOrderCode(), userId, courseId,
           instructorId: course.instructorId,
-          amount: course.price, originalPrice, discountAmount: originalPrice - course.price,
+          ...calculateOrderFinancials(course.price, course.originalPrice, platformRate),
           paymentMethod: 'SEPAY_BANK_TRANSFER', status: OrderStatusEnum.PENDING,
           expiresAt: new Date(Date.now() + config.expireMinutes * 60000),
           pendingCheckoutKey: `${userId}:${courseId}`,
-          platformCommissionRate: platformRate,
-          platformEarnings,
-          instructorCommissionRate,
-          instructorEarnings,
           courseSnapshot: {
             title: course.title, slug: course.slug, thumbnailUrl: course.thumbnailUrl,
             instructorName: course.instructor?.fullName,
@@ -383,6 +373,7 @@ export class PaymentService extends BaseService<IPayment, string> {
     return this.withReceiptRetry(async (session) => {
       const payment = await this.paymentRepository.findById(paymentId, session);
       if (!payment) throw new NotFoundException('Không tìm thấy giao dịch');
+      if (payment.source === 'INTERNAL_SEED') throw new ConflictException('Dữ liệu seed nội bộ không được đối soát như giao dịch ngân hàng');
       if (!payment.verifiedAt || !payment.payloadHash) throw new ConflictException('Giao dịch cũ cần được replay từ SePay để xác thực trước khi xử lý lại');
       if (payment.resolution) throw new ConflictException('Giao dịch đã được đóng đối soát');
       if (payment.appliedAt) return this.receiptResult(payment, 'Giao dịch đã được áp dụng, không cấp quyền lần nữa');
@@ -404,6 +395,7 @@ export class PaymentService extends BaseService<IPayment, string> {
     return this.withReceiptRetry(async (session) => {
       const payment = await this.paymentRepository.findById(paymentId, session);
       if (!payment) throw new NotFoundException('Không tìm thấy giao dịch');
+      if (payment.source === 'INTERNAL_SEED') throw new ConflictException('Dữ liệu seed nội bộ không có khoản tiền ngân hàng để xử lý hoặc hoàn');
       if (payment.resolution) throw new ConflictException('Giao dịch đã được đóng đối soát');
       const order = payment.orderCode ? await this.orderRepository.findByOrderCode(payment.orderCode, session) : null;
       if (order) await this.orderRepository.lockForPaymentProcessing(order.id, session);

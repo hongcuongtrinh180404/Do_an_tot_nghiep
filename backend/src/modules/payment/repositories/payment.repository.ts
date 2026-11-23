@@ -38,7 +38,7 @@ export class PaymentRepository extends BaseMongoRepository<IPayment, PaymentEnti
 
   async findBySepayTransactionId(sepayTransactionId: string, session?: ClientSession): Promise<IPayment | null> {
     // Include soft-deleted receipts: a transaction ID must never be spent twice.
-    const doc = await this.model.findOne({ sepayTransactionId }).session(session ?? null).lean().exec();
+    const doc = await this.model.findOne({ sepayTransactionId, source: { $ne: 'INTERNAL_SEED' } }).session(session ?? null).lean().exec();
     return doc ? this.toDomain(doc) : null;
   }
 
@@ -60,7 +60,7 @@ export class PaymentRepository extends BaseMongoRepository<IPayment, PaymentEnti
 
   async getEligibleReceipts(orderId: string, session: ClientSession): Promise<IPayment[]> {
     const docs = await this.model.find({
-      orderId: new Types.ObjectId(orderId), deletedAt: null,
+      orderId: new Types.ObjectId(orderId), deletedAt: null, source: { $ne: 'INTERNAL_SEED' },
       reconciliationStatus: { $in: [
         ReconciliationStatusEnum.UNDERPAID, ReconciliationStatusEnum.MATCHED, ReconciliationStatusEnum.OVERPAID,
       ] },
@@ -75,7 +75,7 @@ export class PaymentRepository extends BaseMongoRepository<IPayment, PaymentEnti
   }
 
   async findReconciliationQueue(page: number, limit: number): Promise<{ items: IPayment[]; total: number }> {
-    const filter = { deletedAt: null, resolution: null, reconciliationStatus: { $ne: ReconciliationStatusEnum.MATCHED } };
+    const filter = { deletedAt: null, source: { $ne: 'INTERNAL_SEED' as const }, resolution: null, reconciliationStatus: { $ne: ReconciliationStatusEnum.MATCHED } };
     const [docs, total] = await Promise.all([
       this.model.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean().exec(),
       this.model.countDocuments(filter).exec(),

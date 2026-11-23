@@ -17,4 +17,11 @@ export abstract class BaseAbstractDocument {
 
   @Prop({ type: String, default: null })
   updatedById?: string | null;
+
+  // Optional provenance for explicit internal history imports; never bank evidence.
+  @Prop({ type: String, required: false })
+  seedBatch?: string;
+
+  @Prop({ type: String, required: false })
+  seedReference?: string;
 }

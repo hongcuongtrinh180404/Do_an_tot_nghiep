@@ -114,24 +114,18 @@ export async function fetchAdminDashboardChartData(
   groupBy: 'day' | 'month',
   customDates?: IDashboardCustomDates,
 ): Promise<IDashboardRevenueChartPoint[]> {
-  try {
-    const params: Record<string, string | undefined> = {
-      period,
-      groupBy,
-      startDate: period === 'custom' ? customDates?.startDate : undefined,
-      endDate: period === 'custom' ? customDates?.endDate : undefined,
-    };
-
-    const res = await apiClient.get<IApiResponse<IDashboardRevenueChartPoint[]>>(
-      '/admin/dashboard/chart',
-      { params },
-    );
-
-    return res.data?.data || [];
-  } catch (error) {
-    console.error('Failed to fetch admin dashboard chart data:', error);
-    return [];
-  }
+  const params: Record<string, string | undefined> = {
+    period,
+    groupBy,
+    startDate: period === 'custom' ? customDates?.startDate : undefined,
+    endDate: period === 'custom' ? customDates?.endDate : undefined,
+  };
+  const res = await apiClient.get<IApiResponse<IDashboardRevenueChartPoint[]>>(
+    '/admin/dashboard/chart',
+    { params },
+  );
+  // A failed request must remain an error, not become an empty/synthetic report.
+  return res.data?.data || [];
 }
 
 export async function fetchAdminDashboardInstructorsRanking(

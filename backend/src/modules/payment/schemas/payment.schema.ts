@@ -19,8 +19,20 @@ export class PaymentEntity extends BaseAbstractDocument {
   @Prop({ type: String, default: null, trim: true, index: true })
   orderCode?: string | null;
 
-  @Prop({ type: String, required: true, unique: true, trim: true, index: true })
-  sepayTransactionId: string;
+  @Prop({ type: String, enum: ['SEPAY', 'INTERNAL_SEED'], default: 'SEPAY' })
+  source: 'SEPAY' | 'INTERNAL_SEED';
+
+  @Prop({
+    type: String, trim: true,
+    required: function (this: PaymentEntity) { return this.source !== 'INTERNAL_SEED'; },
+  })
+  sepayTransactionId?: string;
+
+  @Prop({
+    type: String, trim: true,
+    required: function (this: PaymentEntity) { return this.source === 'INTERNAL_SEED'; },
+  })
+  internalReference?: string;
 
   @Prop({ type: Number, required: true, min: [0, 'Received amount cannot be negative'] })
   amountIn: number;
@@ -69,5 +81,30 @@ export class PaymentEntity extends BaseAbstractDocument {
 
 export const PaymentSchema = SchemaFactory.createForClass(PaymentEntity);
 
+// Legacy receipts have no source field. Their real SePay IDs remain globally unique,
+// including soft-deleted receipts. Internal imports MUST NOT invent a bank ID.
+PaymentSchema.index({ sepayTransactionId: 1 }, {
+  unique: true, partialFilterExpression: { sepayTransactionId: { $type: 'string' } },
+  name: 'unique_sepay_transaction',
+});
+PaymentSchema.index({ internalReference: 1 }, {
+  unique: true, partialFilterExpression: { internalReference: { $type: 'string' } },
+  name: 'unique_internal_payment_reference',
+});
 PaymentSchema.index({ createdAt: -1 });
 PaymentSchema.index({ orderCode: 1, reconciliationStatus: 1 });
+
+PaymentSchema.pre('validate', function () {
+  if (this.source !== 'INTERNAL_SEED') {
+    if (this.internalReference) this.invalidate('internalReference', 'Bank receipts cannot use an internal seed reference');
+    return;
+  }
+  if (!this.seedBatch) this.invalidate('seedBatch', 'Internal payments require seed provenance');
+  if (!this.orderId) this.invalidate('orderId', 'Internal payments require an order');
+  if (!this.orderCode) this.invalidate('orderCode', 'Internal payments require an order code');
+  if (!(this.amountIn > 0)) this.invalidate('amountIn', 'Free enrollment must not create a payment');
+  if (!this.appliedAt || !this.transactionDate) this.invalidate('appliedAt', 'Internal payments require historical dates');
+  if (this.sepayTransactionId || this.verifiedAt || this.payloadHash || this.accountNumber || this.bankBrandName) {
+    this.invalidate('source', 'Internal payments cannot contain bank identifiers or verification evidence');
+  }
+});
