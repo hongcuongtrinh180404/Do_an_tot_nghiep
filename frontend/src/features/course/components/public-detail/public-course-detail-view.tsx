@@ -266,6 +266,8 @@ export function PublicCourseDetailView({
                   currentCourseId={course.id}
                   instructor={course.instructor}
                   instructorId={course.instructorId || course.instructor?.id}
+                  categorySlug={course.category?.slug}
+                  categoryName={course.category?.name}
                 />
               )}
             </div>

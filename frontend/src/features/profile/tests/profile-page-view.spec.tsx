@@ -65,10 +65,10 @@ describe('profile link visibility', () => {
     expect(html).toContain('Giới thiệu');
   });
 
-  it('preserves the default copy-link button for other screens using the shared card', () => {
+  it('does not render the copy-link button on the shared info card', () => {
     const html = renderToStaticMarkup(<ProfileInfoCard user={user} />);
 
-    expect(html).toContain('Sao chép liên kết');
+    expect(html).not.toContain('Sao chép liên kết');
     expect(html).toContain('Sao chép ID');
     expect(html).toContain('@hongcuongtam');
     expect(html).toContain('href="https://www.facebook.com/trinhhongcuong1804/"');

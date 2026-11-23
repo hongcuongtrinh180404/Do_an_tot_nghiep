@@ -39,11 +39,14 @@ vi.mock('next/link', () => ({
     createElement('a', { href, className, 'aria-label': ariaLabel }, children),
 }));
 
-// Mock API Query Hook
+// Mock API Query Hooks
 const mockUseInstructorPublicCoursesQuery = vi.fn();
+const mockUseRelatedCategoryCoursesQuery = vi.fn();
 vi.mock('../api/public-courses.api', () => ({
   useInstructorPublicCoursesQuery: (...args: unknown[]) =>
     mockUseInstructorPublicCoursesQuery(...args),
+  useRelatedCategoryCoursesQuery: (...args: unknown[]) =>
+    mockUseRelatedCategoryCoursesQuery(...args),
 }));
 
 const mockCourses: IPublicCourseCard[] = [
@@ -118,6 +121,7 @@ beforeEach(() => {
   document.body.appendChild(container);
   root = createRoot(container);
   mockUseInstructorPublicCoursesQuery.mockReset();
+  mockUseRelatedCategoryCoursesQuery.mockReset();
 });
 
 afterEach(() => {
@@ -218,7 +222,21 @@ describe('TeacherCourseRow Component', () => {
 });
 
 describe('CourseInstructorTab Component', () => {
-  it('renders instructor profile and filters out currentCourseId from other courses list', () => {
+  beforeEach(() => {
+    mockUseInstructorPublicCoursesQuery.mockReturnValue({
+      data: { items: [], total: 0 },
+      isLoading: false,
+      isError: false,
+    });
+    mockUseRelatedCategoryCoursesQuery.mockReturnValue({
+      data: { items: [], total: 0, page: 1, limit: 6, totalPages: 0 },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+  });
+
+  it('renders instructor profile and shows related courses from the current category', () => {
     mockUseInstructorPublicCoursesQuery.mockReturnValue({
       data: {
         items: mockCourses,
@@ -228,6 +246,19 @@ describe('CourseInstructorTab Component', () => {
         totalPages: 1,
       },
       isLoading: false,
+      isError: false,
+    });
+    mockUseRelatedCategoryCoursesQuery.mockReturnValue({
+      data: {
+        items: mockCourses,
+        total: 2,
+        page: 1,
+        limit: 6,
+        totalPages: 1,
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
     });
 
     act(() => {
@@ -241,6 +272,8 @@ describe('CourseInstructorTab Component', () => {
             avatarUrl: null,
           },
           instructorId: 'inst-1',
+          categorySlug: 'management',
+          categoryName: 'Quản trị',
         }),
       );
     });
@@ -250,28 +283,33 @@ describe('CourseInstructorTab Component', () => {
     expect(container.textContent).not.toContain('ana.marin@example.com');
     expect(container.textContent).toContain('Giảng viên chuyên gia được xác thực');
 
-    // Other courses section header
-    expect(container.textContent).toContain('Khóa học khác của giảng viên này');
+    // Related courses section header
+    expect(container.textContent).toContain('Khóa học liên quan');
+    expect(container.textContent).toContain('Cùng danh mục:');
+    expect(container.textContent).toContain('Quản trị');
+    expect(container.textContent).not.toContain('Khóa học khác của giảng viên này');
 
     // course-1 was filtered out because currentCourseId is 'course-1'
-    const otherCourseRows = container.querySelectorAll('[data-ui="teacher-course-row"]');
-    expect(otherCourseRows.length).toBe(1);
+    const relatedCourseRows = container.querySelectorAll('[data-ui="teacher-course-row"]');
+    expect(relatedCourseRows.length).toBe(1);
     expect(container.textContent).toContain('Social Media Strategy');
     expect(container.textContent).not.toContain('Introduction to Community Management');
     expect(container.textContent).toContain('205.000');
     expect(container.textContent).not.toContain('96%');
   });
 
-  it('renders empty state when instructor has no other courses', () => {
-    mockUseInstructorPublicCoursesQuery.mockReturnValue({
+  it('renders empty state when the category has no other courses', () => {
+    mockUseRelatedCategoryCoursesQuery.mockReturnValue({
       data: {
         items: [mockCourses[0]],
         total: 1,
         page: 1,
-        limit: 10,
+        limit: 6,
         totalPages: 1,
       },
       isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
     });
 
     act(() => {
@@ -284,13 +322,114 @@ describe('CourseInstructorTab Component', () => {
             email: 'ana.marin@example.com',
           },
           instructorId: 'inst-1',
+          categorySlug: 'management',
+          categoryName: 'Quản trị',
         }),
       );
     });
 
-    expect(container.textContent).toContain('Chưa có thêm khóa học nào khác');
-    const otherCourseRows = container.querySelectorAll('[data-ui="teacher-course-row"]');
-    expect(otherCourseRows.length).toBe(0);
+    expect(container.textContent).toContain('Chưa có khóa học nào khác trong danh mục này');
+    const relatedCourseRows = container.querySelectorAll('[data-ui="teacher-course-row"]');
+    expect(relatedCourseRows.length).toBe(0);
+    expect(container.textContent).not.toContain('Xem thêm');
+  });
+
+  it('shows at most 5 related courses and a Xem thêm link with the category filter', () => {
+    const categoryCourses = Array.from({ length: 6 }, (_, index) => ({
+      ...mockCourses[1],
+      id: `related-${index}`,
+      title: `Related Course ${index}`,
+      studentCount: 10,
+    }));
+
+    mockUseRelatedCategoryCoursesQuery.mockReturnValue({
+      data: {
+        items: categoryCourses,
+        total: 7,
+        page: 1,
+        limit: 6,
+        totalPages: 2,
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    act(() => {
+      root.render(
+        createElement(CourseInstructorTab, {
+          currentCourseId: 'course-1',
+          instructor: { id: 'inst-1', fullName: 'Ana Marin', email: '' },
+          instructorId: 'inst-1',
+          categorySlug: 'management',
+          categoryName: 'Quản trị',
+        }),
+      );
+    });
+
+    const relatedCourseRows = container.querySelectorAll('[data-ui="teacher-course-row"]');
+    expect(relatedCourseRows.length).toBe(5);
+    expect(container.textContent).toContain('Related Course 0');
+    expect(container.textContent).toContain('Related Course 4');
+    expect(container.textContent).not.toContain('Related Course 5');
+
+    const viewMoreLink = [...container.querySelectorAll('a')].find(
+      (link) => link.textContent?.includes('Xem thêm'),
+    );
+    expect(viewMoreLink?.getAttribute('href')).toBe('/courses?category=management');
+  });
+
+  it('does not show the Xem thêm link when exactly 5 other courses remain', () => {
+    const categoryCourses = Array.from({ length: 5 }, (_, index) => ({
+      ...mockCourses[1],
+      id: `related-${index}`,
+      title: `Related Course ${index}`,
+      studentCount: 10,
+    }));
+
+    mockUseRelatedCategoryCoursesQuery.mockReturnValue({
+      data: {
+        items: [mockCourses[0], ...categoryCourses],
+        total: 6,
+        page: 1,
+        limit: 6,
+        totalPages: 1,
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    act(() => {
+      root.render(
+        createElement(CourseInstructorTab, {
+          currentCourseId: 'course-1',
+          instructor: { id: 'inst-1', fullName: 'Ana Marin', email: '' },
+          instructorId: 'inst-1',
+          categorySlug: 'management',
+          categoryName: 'Quản trị',
+        }),
+      );
+    });
+
+    expect(container.querySelectorAll('[data-ui="teacher-course-row"]')).toHaveLength(5);
+    expect(container.textContent).not.toContain('Xem thêm');
+  });
+
+  it('hides the related courses section when the course has no category', () => {
+    act(() => {
+      root.render(
+        createElement(CourseInstructorTab, {
+          currentCourseId: 'course-1',
+          instructor: { id: 'inst-1', fullName: 'Ana Marin', email: '' },
+          instructorId: 'inst-1',
+        }),
+      );
+    });
+
+    expect(container.textContent).toContain('Ana Marin');
+    expect(container.textContent).not.toContain('Khóa học liên quan');
+    expect(container.querySelectorAll('[data-ui="teacher-course-row"]')).toHaveLength(0);
   });
 
   it('displays real zero enrollments and no invented rating or completion percentage', () => {
@@ -306,17 +445,27 @@ describe('CourseInstructorTab Component', () => {
     expect(container.textContent).not.toMatch(/15\.4K|96%|4\.9 \/|5\.0 \//);
   });
 
-  it('does not show fake or stale stats/empty state on API failure, and supports retry', () => {
+  it('does not show fake or stale stats/related courses on API failure, and supports retry', () => {
     const refetch = vi.fn();
     mockUseInstructorPublicCoursesQuery.mockReturnValue({
-      data: { items: mockCourses, total: 2 }, isLoading: false, isError: true, refetch,
+      data: { items: mockCourses, total: 2 }, isLoading: false, isError: true,
     });
-    act(() => root.render(createElement(CourseInstructorTab, { instructorId: 'inst-1' })));
+    mockUseRelatedCategoryCoursesQuery.mockReturnValue({
+      data: { items: mockCourses, total: 2 },
+      isLoading: false,
+      isError: true,
+      refetch,
+    });
+    act(() => root.render(createElement(CourseInstructorTab, {
+      instructorId: 'inst-1',
+      categorySlug: 'management',
+      categoryName: 'Quản trị',
+    })));
 
     expect(container.querySelector('[role="alert"]')?.textContent).toContain('Không thể tải danh sách khóa học');
     expect(container.querySelectorAll('[data-ui="teacher-course-row"]')).toHaveLength(0);
     expect(container.textContent).not.toContain('205.000');
-    expect(container.textContent).not.toContain('Chưa có thêm khóa học nào khác');
+    expect(container.textContent).not.toContain('Chưa có khóa học nào khác trong danh mục này');
     act(() => container.querySelector<HTMLButtonElement>('[role="alert"] button')?.click());
     expect(refetch).toHaveBeenCalledOnce();
   });

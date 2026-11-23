@@ -5,6 +5,12 @@ import { CourseInstructorTab } from '@/features/course/components/public-detail/
 
 vi.mock('@/features/course/api/public-courses.api', () => ({
   useInstructorPublicCoursesQuery: () => ({ data: { items: [], total: 0 }, isLoading: false }),
+  useRelatedCategoryCoursesQuery: () => ({
+    data: { items: [], total: 0 },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
 }));
 
 describe('instructor profile biography in course details', () => {
