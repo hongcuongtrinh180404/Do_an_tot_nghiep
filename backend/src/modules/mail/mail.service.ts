@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import { AUTH_CONSTANTS } from 'share-lib';
 
 @Injectable()
 export class MailService {
@@ -46,6 +47,7 @@ export class MailService {
     const frontendUrl =
       this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const verificationUrl = `${frontendUrl}/verify-email?token=${encodeURIComponent(token)}`;
+    const verificationTtlHours = AUTH_CONSTANTS.EMAIL_VERIFICATION_TOKEN_TTL_MS / (60 * 60 * 1000);
 
     const transporter = this.createTransporter();
 
@@ -57,7 +59,7 @@ export class MailService {
   MINDLY EMAIL VERIFICATION (SMTP CHƯA CẤU HÌNH TRONG .ENV)
   Gửi đến: ${to} (${fullName})
   Link kích hoạt: ${verificationUrl}
-  Hạn sử dụng: 24 giờ
+  Hạn sử dụng: ${verificationTtlHours} giờ
   (Hãy cấu hình GMAIL_USER và GMAIL_APP_PASSWORD trong backend/.env để gửi email thật)
 ================================================================================`);
       return true;
@@ -108,7 +110,7 @@ export class MailService {
               <a href="${verificationUrl}" class="button" target="_blank">Kích Hoạt Tài Khoản Ngay</a>
             </div>
             <div class="text" style="font-size: 13px; color: #64748b;">
-              ⏱️ <em>Liên kết này có hiệu lực trong vòng <strong>24 giờ</strong>. Nếu bạn không thực hiện đăng ký này, xin vui lòng bỏ qua email.</em>
+              ⏱️ <em>Liên kết này có hiệu lực trong vòng <strong>${verificationTtlHours} giờ</strong>. Nếu bạn không thực hiện đăng ký này, xin vui lòng bỏ qua email.</em>
             </div>
             <div class="link-box">
               Nếu nút trên không hoạt động, bạn có thể copy và dán đường dẫn sau vào trình duyệt:<br />

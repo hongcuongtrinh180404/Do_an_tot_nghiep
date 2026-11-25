@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
@@ -77,6 +77,9 @@ describe('AuthService', () => {
   const mockExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-24T00:00:00.000Z'));
+
     mockUserService = {
       ensureEmailNotTaken: vi.fn().mockResolvedValue(undefined),
       ensureUsername: vi.fn().mockImplementation(async (user: IUser) => ({
@@ -131,8 +134,12 @@ describe('AuthService', () => {
     );
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   describe('register', () => {
-    it('should register a new unverified user and send a verification email', async () => {
+    it('should register a new unverified user and send a 2-hour verification link', async () => {
       const result = await service.register({
         email: 'test@example.com',
         password: 'password123',
@@ -150,7 +157,7 @@ describe('AuthService', () => {
           status: UserStatusEnum.INACTIVE,
           isEmailVerified: false,
           emailVerificationToken: expect.any(String),
-          emailVerificationExpires: expect.any(Date),
+          emailVerificationExpires: new Date(Date.now() + 2 * 60 * 60 * 1000),
         }),
       );
       expect(mockMailService.sendVerificationEmail).toHaveBeenCalledWith(
@@ -226,10 +233,43 @@ describe('AuthService', () => {
         BadRequestException,
       );
     });
+
+    it.each(['register', 'resendVerification'] as const)(
+      'should reject a %s verification link after 2 hours',
+      async (flow) => {
+        if (flow === 'register') {
+          await service.register({ email: mockUser.email, password: 'password123' });
+        } else {
+          mockUserService.findByEmail.mockResolvedValue({
+            ...mockUser,
+            status: UserStatusEnum.INACTIVE,
+            isEmailVerified: false,
+          });
+          await service.resendVerification({ email: mockUser.email });
+        }
+
+        const verificationData = flow === 'register'
+          ? mockUserService.create.mock.calls[0][0]
+          : mockUserService.updateOrFail.mock.calls[0][1];
+        mockUserService.findByVerificationToken.mockResolvedValue({
+          ...mockUser,
+          ...verificationData,
+          status: UserStatusEnum.INACTIVE,
+          isEmailVerified: false,
+        });
+        vi.setSystemTime(new Date(Date.now() + 2 * 60 * 60 * 1000 + 1));
+
+        await expect(
+          service.verifyEmail({ token: verificationData.emailVerificationToken }),
+        ).rejects.toThrow('Mã xác thực đã hết hạn. Vui lòng yêu cầu gửi lại email xác thực.');
+        expect(mockAuthTokenService.generateTokens).not.toHaveBeenCalled();
+        expect(mockSessionService.createOrUpdateSession).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('resendVerification', () => {
-    it('should generate new token and resend email if user exists and is unverified', async () => {
+    it('should generate a new 2-hour verification link and resend email for an unverified user', async () => {
       const unverifiedUser: IUser = {
         ...mockUser,
         status: UserStatusEnum.INACTIVE,
@@ -244,7 +284,7 @@ describe('AuthService', () => {
         'user_123',
         expect.objectContaining({
           emailVerificationToken: expect.any(String),
-          emailVerificationExpires: expect.any(Date),
+          emailVerificationExpires: new Date(Date.now() + 2 * 60 * 60 * 1000),
         }),
       );
       expect(mockMailService.sendVerificationEmail).toHaveBeenCalledWith(

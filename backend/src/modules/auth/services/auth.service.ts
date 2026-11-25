@@ -94,7 +94,7 @@ export class AuthService {
         : dto.email.split('@')[0]);
 
     const verificationToken = crypto.randomBytes(32).toString('hex');
-    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const verificationExpires = new Date(Date.now() + AUTH_CONSTANTS.EMAIL_VERIFICATION_TOKEN_TTL_MS);
 
     const newUser = await this.userService.create({
       email: dto.email.toLowerCase().trim(),
@@ -456,7 +456,7 @@ export class AuthService {
     }
 
     const verificationToken = crypto.randomBytes(32).toString('hex');
-    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const verificationExpires = new Date(Date.now() + AUTH_CONSTANTS.EMAIL_VERIFICATION_TOKEN_TTL_MS);
 
     await this.userService.updateOrFail(user.id, {
       emailVerificationToken: verificationToken,

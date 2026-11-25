@@ -4,6 +4,9 @@ export const AUTH_CONSTANTS = {
   SESSION_GRACE_PERIOD_MS: 30 * 1000, // 30 seconds
   MIN_PASSWORD_LENGTH: 6,
 
+  // Email verification flow
+  EMAIL_VERIFICATION_TOKEN_TTL_MS: 2 * 60 * 60 * 1000, // 2 hours
+
   // Password reset flow
   PASSWORD_RESET_TOKEN_TTL_MS: 15 * 60 * 1000, // 15 minutes
   PASSWORD_RESET_COOLDOWN_MS: 60 * 1000, // 60 seconds between requests per account

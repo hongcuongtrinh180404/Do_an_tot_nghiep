@@ -37,41 +37,99 @@ Do_an_tot_nghiep/ (Root)
 
 ---
 
-## 🚀 Quick Start (Khởi chạy nhanh)
+## 🚀 Hướng dẫn cài đặt & Khởi chạy (Sau khi Clone / Pull)
 
-### 1. Yêu cầu môi trường
+### 1. Yêu cầu môi trường (Prerequisites)
 * **Node.js**: Phiên bản `>= 22.0.0` (khuyên dùng Node 22 LTS hoặc Node 24 LTS; tương thích `amqp-connection-manager 5.x` và OpenAI SDK).
-* **Package Manager**: `pnpm` phiên bản `>= 9.x` (khuyên dùng `pnpm@11.x`).
-* **Cơ sở dữ liệu**: MongoDB 7.0 Replica Set `rs0` (`localhost:27017` qua Docker `mongo:7.0`).
+* **Package Manager**: `pnpm` phiên bản `11.x` (dự án khai báo `pnpm@11.1.3`).
+* **Docker & Docker Compose**: Dùng để khởi chạy đồng bộ **MongoDB 7.0 (Replica Set `rs0`)**, **MinIO Object Storage** và **RabbitMQ 4.4.1**.
+* **Git**: Để clone/pull mã nguồn.
 
-### 2. Cài đặt dependencies
-Tại thư mục gốc của dự án:
+### 2. Cài đặt lần đầu sau khi Clone
+
+#### Bước 1: Clone repository & di chuyển vào thư mục gốc
 ```bash
-pnpm install
+git clone <repository-url>
+cd project_do_an
 ```
 
-### 3. Cấu hình biến môi trường (.env)
+#### Bước 2: Cài đặt dependencies & build thư viện dùng chung (`share-lib`)
+```bash
+pnpm install
+pnpm --filter share-lib build
+```
+> 💡 Bước build `share-lib` giúp tạo sẵn `share-lib/dist/` trước khi chạy `backend`, `frontend` hoặc các script `seed`.
+
+#### Bước 3: Khởi động hạ tầng Docker
+```bash
+docker compose up -d
+```
+Kiểm tra trạng thái các container đã chạy ổn định:
+```bash
+docker compose ps
+```
+Lệnh trên sẽ tự động khởi tạo:
+* `thc_mongo` & `thc_mongo_init`: MongoDB 7.0 Replica Set `rs0` tại `localhost:27017` (bắt buộc cho MongoDB Transactions).
+* `thc_minio` & `thc_minio_init`: MinIO tại `localhost:9000` (API) & `localhost:9001` (Console), tự động tạo sẵn 2 bucket `thc-datn-media` (public) và `thc-datn-media-private` (private).
+* `thc_rabbitmq`: RabbitMQ 4.4.1 tại `localhost:5672` (AMQP) & `localhost:15672` (Management UI) với tài khoản/vhost mặc định `mindly`.
+
+#### Bước 4: Cấu hình biến môi trường (`.env`)
 Tạo file `.env` cho Backend và Frontend từ file mẫu `.env.example`:
 
+**Linux / macOS / Git Bash:**
 ```bash
-# Backend
 cp backend/.env.example backend/.env
-
-# Frontend
 cp frontend/.env.example frontend/.env
 ```
 
-### 4. Khởi chạy toàn bộ dự án
-Chạy duy nhất một câu lệnh tại root:
+**Windows PowerShell:**
+```powershell
+Copy-Item backend/.env.example backend/.env
+Copy-Item frontend/.env.example frontend/.env
+```
+
+> 📌 **Lưu ý cấu hình `.env`:**
+> * Các thông số local (`MONGODB_URI`, `MINIO_*`, `RABBITMQ_URL`, `JWT_*`, `NEXT_PUBLIC_*`) trong `.env.example` đã khớp sẵn với `docker-compose.yml`, có thể chạy ngay ở môi trường dev.
+> * Các API key bên thứ ba (`ASSEMBLYAI_API_KEY`, `GEMINI_API_KEY_*`, `RIVER_API_KEY_*`, `CHATBOT_API_KEY`, `GOOGLE_CLIENT_ID`/`SECRET`, `GMAIL_USER`/`APP_PASSWORD`, `SEPAY_*`) chỉ cần điền khi sử dụng tính năng tương ứng. Nếu chưa cấu hình Gmail SMTP, link xác thực email sẽ được in trực tiếp ra terminal của `backend`.
+
+#### Bước 5: Khởi tạo dữ liệu mẫu (Seed Database)
+```bash
+pnpm seed
+```
+*(Tùy chọn)* Dùng `pnpm seed:refresh` nếu muốn ghi đè/cập nhật lại dữ liệu tài khoản và danh mục mẫu.
+
+#### Bước 6: Khởi chạy toàn bộ dự án
+Tại thư mục gốc, chạy:
 ```bash
 pnpm dev
 ```
 > ✨ Lệnh trên sẽ tự động kích hoạt **Turborepo Terminal UI (TUI)**:
-> * Chia sidebar bên trái tách biệt các service: `backend#dev`, `frontend#dev`, `share-lib#dev`.
+> * Chạy song song `share-lib#dev`, `backend#dev` (port `8000`) và `frontend#dev` (port `3000`).
 > * Dùng phím mũi tên `↑ / ↓` để chuyển đổi và phím `Enter` để xem chi tiết log của từng service.
 
-* **Frontend Web Portal**: [http://localhost:3000](http://localhost:3000)
-* **Backend REST API**: [http://localhost:8000/api/v1](http://localhost:8000/api/v1)
+*(Tùy chọn)* Nếu cần test xử lý video bất đồng bộ (FFmpeg tách audio, AssemblyAI transcript, Gemini/River AI sinh Mindmap & In-video Quiz), mở thêm một terminal khác và chạy **Standalone Worker**:
+```bash
+pnpm --filter backend dev:worker
+```
+
+#### Địa chỉ truy cập Local
+| Thành phần | URL / Connection | Tài khoản mặc định (Dev) |
+| :--- | :--- | :--- |
+| **Frontend Web Portal** | [http://localhost:3000](http://localhost:3000) | — |
+| **Backend REST API** | [http://localhost:8000/api/v1](http://localhost:8000/api/v1) | — |
+| **MinIO Console** | [http://localhost:9001](http://localhost:9001) | `minioadmin` / `minioadmin123` |
+| **RabbitMQ Management** | [http://localhost:15672](http://localhost:15672) | `mindly` / `mindly_dev_password` |
+| **MongoDB (`rs0`)** | `mongodb://localhost:27017/thc_datn` | Không mật khẩu (local dev) |
+
+### 3. Cập nhật sau khi `git pull` code mới
+Mỗi khi kéo code mới từ nhánh về, chạy lại các bước sau để đồng bộ dependencies và `share-lib`:
+```bash
+git pull
+pnpm install
+pnpm --filter share-lib build
+docker compose up -d
+pnpm dev
+```
 
 ---
 
@@ -114,13 +172,22 @@ pnpm dev
 
 | Lệnh | Ý nghĩa |
 | :--- | :--- |
-| `pnpm dev` | Khởi chạy song song toàn bộ services với Turborepo TUI |
+| `docker compose up -d` | Khởi chạy hạ tầng Docker (MongoDB `rs0`, MinIO, RabbitMQ) |
+| `docker compose down` | Dừng và gỡ các container hạ tầng (giữ nguyên Docker volumes) |
+| `pnpm dev` | Khởi chạy song song `share-lib`, `backend`, `frontend` với Turborepo TUI |
+| `pnpm --filter backend dev:worker` | Khởi chạy Standalone Worker xử lý video & AI pipeline |
+| `pnpm seed` | Khởi tạo dữ liệu mẫu (Users, Course Categories) |
+| `pnpm seed:refresh` | Chạy lại seeder ở chế độ ghi đè/cập nhật dữ liệu mẫu |
 | `pnpm build` | Biên dịch toàn bộ monorepo (`share-lib` -> `backend` -> `frontend`) |
 | `pnpm test` | Chạy toàn bộ bộ test cases của các packages |
 | `pnpm lint` | Kiểm tra định dạng và quy chuẩn mã nguồn |
 | `pnpm --filter backend <cmd>` | Chạy lệnh riêng biệt cho thư mục `backend` |
 | `pnpm --filter frontend <cmd>` | Chạy lệnh riêng biệt cho thư mục `frontend` |
 | `pnpm --filter share-lib <cmd>` | Chạy lệnh riêng biệt cho thư mục `share-lib` |
+
+### Lưu ý & Xử lý sự cố thường gặp
+* **Kết nối MongoDB Compass báo lỗi topology Replica Set**: Dùng chuỗi kết nối `mongodb://localhost:27017/thc_datn?directConnection=true`.
+* **Lỗi thiếu module `share-lib` khi chạy backend/seed lần đầu**: Chạy `pnpm --filter share-lib build` để biên dịch thư mục `share-lib/dist/`.
 
 ### Dọn trường mô tả ngắn của khóa học cũ
 
