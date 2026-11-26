@@ -42,6 +42,7 @@ describe('JobService (Unit Test)', () => {
       claimJobAtomic: vi.fn().mockResolvedValue({ ...mockJob, status: JobStatusEnum.PROCESSING, attempts: 1 }),
       renewLeaseAtomic: vi.fn().mockResolvedValue(true),
       update: vi.fn().mockImplementation((id, payload) => Promise.resolve({ ...mockJob, ...payload })),
+      updateWithLease: vi.fn().mockImplementation((id, lease, payload) => Promise.resolve({ ...mockJob, ...payload })),
       findRecentJobsByLesson: vi.fn().mockResolvedValue([mockJob]),
     };
 
@@ -53,16 +54,17 @@ describe('JobService (Unit Test)', () => {
   });
 
   describe('createJob', () => {
-    it('nên tạo Job mới thành công khi không có trùng lặp', async () => {
+    it.each([undefined, null])('omits absent idempotency key (%s) when creating a job', async (idempotencyKey) => {
       const res = await service.createJob({
         type: JobTypeEnum.SUMMARY,
         lessonId: 'lesson-456',
         courseId: 'course-789',
         requestedById: 'user-001',
         parameters: { saveAsDraft: false },
+        idempotencyKey,
       });
 
-      expect(res).toBeDefined();
+      expect(res).not.toHaveProperty('idempotencyKey');
       expect(mockJobRepo.create).toHaveBeenCalled();
     });
 
@@ -121,6 +123,24 @@ describe('JobService (Unit Test)', () => {
         }),
       ).rejects.toThrow(ConflictException);
     });
+
+    it('reuses the same input and supersedes work only for a newer automatic analysis', async () => {
+      const existing = { ...mockJob, inputRevision: 2, dispatchSequence: 4, leaseToken: 'old' };
+      mockJobRepo.findActiveByLessonAndType.mockResolvedValue(existing);
+      const session = {} as NonNullable<Parameters<JobService['createJob']>[1]>;
+      const params = {
+        type: JobTypeEnum.SUMMARY, lessonId: existing.lessonId, courseId: existing.courseId,
+        requestedById: existing.requestedById, parameters: { automatic: true }, targetRevision: 3,
+      };
+      expect(await service.createJob({ ...params, inputRevision: 2 }, session)).toEqual(existing);
+      expect(mockJobRepo.update).not.toHaveBeenCalled();
+      await service.createJob({
+        ...params, inputRevision: 3, idempotencyKey: 'auto:3',
+      }, session);
+      expect(mockJobRepo.update).toHaveBeenCalledExactlyOnceWith(existing.id, expect.objectContaining({
+        inputRevision: 3, targetRevision: 3, status: JobStatusEnum.QUEUED, dispatchSequence: 5, leaseToken: null,
+      }), session);
+    });
   });
 
   describe('claimJob', () => {
@@ -165,6 +185,16 @@ describe('JobService (Unit Test)', () => {
   });
 
   describe('failJob', () => {
+    it('does not change a job if a newer transcript has invalidated its lease', async () => {
+      mockJobRepo.findById = vi.fn().mockResolvedValue({
+        ...mockJob, status: JobStatusEnum.PROCESSING, leaseToken: 'new-token',
+      });
+      await service.failJob('job-123', 'old-token', {
+        errorCode: 'STALE', errorMessage: 'Old transcript', retryable: true,
+      });
+      expect(mockJobRepo.updateWithLease).not.toHaveBeenCalled();
+    });
+
     it('nên lên lịch retry khi retryable = true và còn lượt attempts', async () => {
       mockJobRepo.findById = vi.fn().mockResolvedValue({
         ...mockJob,

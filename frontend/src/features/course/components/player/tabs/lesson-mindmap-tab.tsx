@@ -321,7 +321,7 @@ export const LessonMindmapTab = React.memo(function LessonMindmapTab({
     isProcessing: isMindmapJobProcessing,
     retryJob: handleRetryMindmapJob,
     isRetrying: isMindmapJobRetrying,
-  } = useLessonAnalysisJob(lessonId, 'mindmap');
+  } = useLessonAnalysisJob(lessonId, 'mindmap', isInstructor);
 
   // Active data from DB
   const currentMindmapData: ILessonMindmapData | null = useMemo(() => {

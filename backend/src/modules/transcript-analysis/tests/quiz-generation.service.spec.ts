@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, UnprocessableEntityException } from '@nestjs/common';
 import {
   LessonTranscriptionStatusEnum,
   IGeneratedQuizItem,
@@ -206,6 +206,51 @@ describe('QuizGenerationService', () => {
         undefined,
       );
       expect(mockLessonQuizDraftRepo.clearDraftByLessonId).toHaveBeenCalledWith('lesson-123', undefined);
+    });
+  });
+
+  describe('quiz response recovery', () => {
+    beforeEach(() => {
+      mockLessonRepo.findById.mockResolvedValueOnce({ id: 'lesson-123', title: 'JS Async' });
+      mockLessonTranscriptRepo.findByLessonId.mockResolvedValueOnce({
+        status: LessonTranscriptionStatusEnum.READY,
+        durationSeconds: 300,
+        sentences: [],
+        rawTranscript: 'Promise.all chạy các promise đồng thời và trả kết quả theo thứ tự đầu vào.',
+      });
+    });
+
+    it.each([{ quizzes: [] }, { wrongField: [] }])('recovers an empty or malformed response with one focused attempt', async (data) => {
+      mockGeminiService.generateJson
+        .mockResolvedValueOnce({ data, executionTimeMs: 600 })
+        .mockResolvedValueOnce({ data: { quizzes: sampleQuizzes.slice(0, 4) }, executionTimeMs: 800 });
+
+      const result = await service.generateQuiz('lesson-123');
+
+      expect(result.quizzes).toHaveLength(3);
+      expect(mockGeminiService.generateJson).toHaveBeenCalledTimes(2);
+      expect(mockLessonQuizRepo.replaceAllQuizzesForLesson).toHaveBeenCalledExactlyOnceWith(
+        'lesson-123', expect.arrayContaining([expect.objectContaining({ timestamp: null })]), undefined,
+      );
+    });
+
+    it('does not interpret a second malformed response as a valid empty quiz', async () => {
+      mockGeminiService.generateJson.mockResolvedValue({ data: {}, executionTimeMs: 600 });
+
+      await expect(service.generateQuiz('lesson-123')).rejects.toThrow(UnprocessableEntityException);
+      expect(mockGeminiService.generateJson).toHaveBeenCalledTimes(2);
+      expect(mockLessonQuizRepo.replaceAllQuizzesForLesson).not.toHaveBeenCalled();
+    });
+
+    it('preserves existing quiz data when both attempts return a valid empty list', async () => {
+      mockGeminiService.generateJson.mockResolvedValue({ data: { quizzes: [] }, executionTimeMs: 600 });
+
+      const result = await service.generateQuiz('lesson-123', { saveAsDraft: true });
+
+      expect(result.quizzes).toEqual([]);
+      expect(mockGeminiService.generateJson).toHaveBeenCalledTimes(2);
+      expect(mockLessonQuizRepo.replaceAllQuizzesForLesson).not.toHaveBeenCalled();
+      expect(mockLessonQuizDraftRepo.saveDraftByLessonId).not.toHaveBeenCalled();
     });
   });
 

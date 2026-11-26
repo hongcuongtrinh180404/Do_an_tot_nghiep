@@ -16,6 +16,16 @@ export class JobRepository extends BaseMongoRepository<IJob, Job, string> {
     super(jobModel as unknown as Model<Job>);
   }
 
+  protected override toDomain(doc: JobDocument | Job): IJob {
+    const job = super.toDomain(doc);
+    return {
+      ...job,
+      lessonId: job.lessonId.toString(),
+      courseId: job.courseId.toString(),
+      retryOfJobId: job.retryOfJobId?.toString() ?? job.retryOfJobId,
+    };
+  }
+
   /**
    * Tìm Job đang active của bài học theo loại tác vụ (Summary/Quiz/Mindmap/Transcript)
    */
@@ -52,6 +62,27 @@ export class JobRepository extends BaseMongoRepository<IJob, Job, string> {
       .session(session ?? null)
       .exec();
 
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  async updateWithLease(
+    jobId: string,
+    leaseToken: string | null,
+    payload: Partial<IJob>,
+    session?: ClientSession,
+    expiredBy?: Date,
+  ): Promise<IJob | null> {
+    const doc = await this.jobModel.findOneAndUpdate(
+      {
+        _id: jobId,
+        deletedAt: null,
+        status: JobStatusEnum.PROCESSING,
+        leaseToken,
+        ...(expiredBy ? { leaseExpiresAt: { $lte: expiredBy } } : {}),
+      },
+      { $set: payload },
+      { new: true, session },
+    ).exec();
     return doc ? this.toDomain(doc) : null;
   }
 

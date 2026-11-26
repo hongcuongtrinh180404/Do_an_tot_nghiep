@@ -6,7 +6,7 @@ export const RABBITMQ_CONSTANTS = {
   QUEUE_AI: 'mindly.ai.v1',
   QUEUE_AI_DEAD: 'mindly.ai.dead.v1',
   ROUTING_KEY_AI_DEAD: 'dead.ai',
-  ROUTING_KEYS_AI: ['ai.summary', 'ai.quiz', 'ai.mindmap'] as const,
+  ROUTING_KEYS_AI: ['ai.summary', 'ai.quiz', 'ai.mindmap', 'ai.analysis-bundle'] as const,
   // Video Transcription Queue & Dead-letter Topology
   QUEUE_TRANSCRIPTION: 'mindly.transcription.v1',
   QUEUE_TRANSCRIPTION_DEAD: 'mindly.transcription.dead.v1',

@@ -6,7 +6,7 @@
   "description": "Monorepo for DATN Graduation Project (Backend, Frontend, Share-lib)",
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev --parallel",
+    "dev": "turbo run dev dev:worker",
     "dev:backend": "pnpm --filter backend dev",
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:share": "pnpm --filter share-lib dev",

@@ -11,6 +11,8 @@ import { MindmapAnalysisService } from './services/mindmap-analysis.service.js';
 import { QuizGenerationService } from './services/quiz-generation.service.js';
 import { SummaryGenerationService } from './services/summary-generation.service.js';
 import { AnalysisJobService } from './services/analysis-job.service.js';
+import { AutomaticAnalysisService } from './services/automatic-analysis.service.js';
+import { BundleAnalysisService } from './services/bundle-analysis.service.js';
 import { JobManagementPolicy } from './policies/job-management.policy.js';
 import { AnalysisJobProcessor } from './processors/analysis-job.processor.js';
 import { TranscriptionJobProcessor } from './processors/transcription-job.processor.js';
@@ -30,6 +32,8 @@ import { TranscriptionJobProcessor } from './processors/transcription-job.proces
     QuizGenerationService,
     SummaryGenerationService,
     AnalysisJobService,
+    AutomaticAnalysisService,
+    BundleAnalysisService,
     JobManagementPolicy,
     AnalysisJobProcessor,
     TranscriptionJobProcessor,

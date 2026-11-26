@@ -47,7 +47,7 @@ export function LessonSummaryTab({
     isProcessing: isJobProcessing,
     retryJob: handleRetryJob,
     isRetrying: isJobRetrying,
-  } = useLessonAnalysisJob(lessonId, 'summary');
+  } = useLessonAnalysisJob(lessonId, 'summary', isInstructor);
 
   // Dữ liệu tóm tắt chính thức (fallback về draftSummary nếu có từ trước)
   const currentSummaryData: ILessonSummaryData | null = useMemo(() => {

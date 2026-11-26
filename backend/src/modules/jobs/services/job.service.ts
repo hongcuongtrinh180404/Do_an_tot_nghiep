@@ -81,6 +81,38 @@ export class JobService extends BaseService<IJob, string> {
     );
 
     if (existingActiveJob) {
+      if (session && (params.type === JobTypeEnum.ANALYSIS_BUNDLE || parameters.automatic === true)) {
+        // A newer transcript replaces stale work of the same type.
+        // Old messages and workers lose ownership through the dispatch sequence and lease.
+        if ((params.inputRevision ?? 0) <= existingActiveJob.inputRevision) {
+          return existingActiveJob;
+        }
+        const replacement = await this.jobRepository.update(existingActiveJob.id, {
+          idempotencyKey: params.idempotencyKey,
+          requestedById: params.requestedById,
+          correlationId,
+          requestHash,
+          parameters,
+          inputRevision: params.inputRevision,
+          targetRevision: params.targetRevision ?? 0,
+          status: JobStatusEnum.QUEUED,
+          phase: JobPhaseEnum.WAITING_DISPATCH,
+          dispatchState: 'pending',
+          dispatchSequence: existingActiveJob.dispatchSequence + 1,
+          attempts: 0,
+          nextRunAt: null,
+          workerId: null,
+          leaseToken: null,
+          leaseExpiresAt: null,
+          heartbeatAt: null,
+          publishedAt: null,
+          startedAt: null,
+          errorCode: null,
+          errorMessage: null,
+        }, session);
+        if (!replacement) throw new NotFoundException('Không tìm thấy tác vụ phân tích tự động');
+        return replacement;
+      }
       if (existingActiveJob.requestHash && existingActiveJob.requestHash === requestHash) {
         this.logger.log(`[Job] Đang có Job active cùng tham số cho bài học ${params.lessonId}. Tái sử dụng Job: ${existingActiveJob.id}`);
         return existingActiveJob;
@@ -97,7 +129,8 @@ export class JobService extends BaseService<IJob, string> {
       courseId: params.courseId,
       requestedById: params.requestedById,
       correlationId,
-      idempotencyKey: params.idempotencyKey || null,
+      // The sparse unique index skips missing keys, not explicit nulls.
+      ...(params.idempotencyKey ? { idempotencyKey: params.idempotencyKey } : {}),
       requestHash,
       parameters,
       active: true,
@@ -177,8 +210,9 @@ export class JobService extends BaseService<IJob, string> {
       );
     }
 
-    const updatedJob = await this.jobRepository.update(
+    const updatedJob = await this.jobRepository.updateWithLease(
       jobId,
+      leaseToken,
       {
         status: JobStatusEnum.COMPLETED,
         phase: JobPhaseEnum.COMPLETED,
@@ -190,7 +224,7 @@ export class JobService extends BaseService<IJob, string> {
     );
 
     if (!updatedJob) {
-      throw new NotFoundException(`Cập nhật Job ${jobId} thất bại`);
+      throw new ConflictException(`Job ${jobId} không còn do worker này xử lý`);
     }
 
     this.logger.log(`[Job] Job ${jobId} đã hoàn tất thành công (COMPLETED).`);
@@ -252,6 +286,9 @@ export class JobService extends BaseService<IJob, string> {
     if (!currentJob) {
       throw new NotFoundException(`Không tìm thấy Job ${jobId}`);
     }
+    if (currentJob.leaseToken !== leaseToken || currentJob.status !== JobStatusEnum.PROCESSING) {
+      return currentJob;
+    }
 
     const retryable = params.retryable ?? false;
     const canRetry = retryable && currentJob.attempts < currentJob.maxAttempts;
@@ -260,8 +297,9 @@ export class JobService extends BaseService<IJob, string> {
       const delayMs = params.retryDelayMs ?? (currentJob.attempts === 1 ? 30000 : 120000);
       const nextRunAt = new Date(Date.now() + delayMs);
 
-      const updatedJob = await this.jobRepository.update(
+      const updatedJob = await this.jobRepository.updateWithLease(
         jobId,
+        leaseToken,
         {
           status: JobStatusEnum.QUEUED,
           phase: JobPhaseEnum.WAITING_RETRY,
@@ -270,21 +308,25 @@ export class JobService extends BaseService<IJob, string> {
           dispatchSequence: currentJob.dispatchSequence + 1,
           workerId: null,
           leaseToken: null,
+          leaseExpiresAt: null,
+          heartbeatAt: null,
           errorCode: params.errorCode,
           errorMessage: params.errorMessage,
         },
         session,
       );
+      if (!updatedJob) return currentJob;
 
       this.logger.warn(
         `[Job] Job ${jobId} thất bại tạm thời [${params.errorCode}]. Lên lịch retry lần ${currentJob.attempts + 1} sau ${delayMs}ms.`,
       );
-      return updatedJob!;
+      return updatedJob;
     }
 
     // Thất bại vĩnh viễn (Terminal failed)
-    const updatedJob = await this.jobRepository.update(
+    const updatedJob = await this.jobRepository.updateWithLease(
       jobId,
+      leaseToken,
       {
         status: JobStatusEnum.FAILED,
         phase: JobPhaseEnum.FAILED,
@@ -295,11 +337,12 @@ export class JobService extends BaseService<IJob, string> {
       },
       session,
     );
+    if (!updatedJob) return currentJob;
 
     this.logger.error(
       `[Job] Job ${jobId} thất bại vĩnh viễn [${params.errorCode}]: ${params.errorMessage}`,
     );
-    return updatedJob!;
+    return updatedJob;
   }
 
   /**

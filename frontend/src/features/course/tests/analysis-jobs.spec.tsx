@@ -9,6 +9,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { toast } from 'sonner';
+import { JobTypeEnum } from 'share-lib';
 
 import {
   analysisJobsApi,
@@ -30,6 +31,7 @@ import {
   type UseLessonAnalysisJobResult,
 } from '../hooks/use-analysis-jobs';
 import { AnalysisJobStatusBanner } from '../components/player/analysis-job-status';
+import { lessonQuizKeys, useLessonQuizzesQuery } from '../api/lesson-quiz.api';
 
 const { get, post } = vi.hoisted(() => ({
   get: vi.fn(),
@@ -438,6 +440,41 @@ describe('useLessonAnalysisJob Hook', () => {
     expect(hookResult?.isCompleted).toBe(false);
   });
 
+  it('shares one bundle status query across tabs and refreshes all outputs on completion', async () => {
+    let job: AnalysisJobResponse = {
+      id: 'bundle-1', type: JobTypeEnum.ANALYSIS_BUNDLE, lessonId: 'les-1',
+      courseId: 'crs-1', requestedById: 'user-1', correlationId: 'corr-1',
+      active: true, status: 'processing', phase: 'calling_ai', attempts: 1, maxAttempts: 3,
+      createdAt: '2026-11-22T00:00:00Z', updatedAt: '2026-11-22T00:00:00Z',
+    };
+    get.mockImplementation(async () => ({ data: { data: [job] } }));
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+    function Tabs() {
+      const summary = useLessonAnalysisJob('les-1', 'summary');
+      const mindmap = useLessonAnalysisJob('les-1', 'mindmap');
+      const quiz = useLessonAnalysisJob('les-1', 'quiz');
+      return <span>{[summary, mindmap, quiz].map((tab) => tab.job?.status).join(',')}</span>;
+    }
+
+    await act(async () => {
+      root.render(<QueryClientProvider client={queryClient}><Tabs /></QueryClientProvider>);
+    });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 60)); });
+    expect(host.textContent).toBe('processing,processing,processing');
+    expect(get).toHaveBeenCalledTimes(1);
+
+    job = { ...job, active: false, status: 'completed', phase: 'completed' };
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: analysisJobKeys.lesson('les-1') });
+    });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 60)); });
+    expect(host.textContent).toBe('completed,completed,completed');
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: transcriptAnalysisKeys.summary('les-1') });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: transcriptAnalysisKeys.mindmap('les-1') });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: lessonQuizKeys.byLesson('les-1') });
+  });
+
   it('triggers query invalidation and success toast when job completes', async () => {
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -499,7 +536,7 @@ describe('useLessonAnalysisJob Hook', () => {
     );
   });
 
-  it('triggers toast and invalidates quiz queries when quiz job completes', async () => {
+  it('refreshes and shows untimed questions when quiz completes while the other jobs are still processing', async () => {
     let currentJob: AnalysisJobResponse = {
       id: 'job-quiz-switch',
       lessonId: 'les-1',
@@ -516,12 +553,21 @@ describe('useLessonAnalysisJob Hook', () => {
       updatedAt: '2026-11-22T00:01:00Z',
     };
 
-    get.mockImplementation(async () => ({ data: { data: [currentJob] } }));
+    get.mockImplementation(async (url: string) => ({
+      data: { data: url.endsWith('/quizzes/manage')
+        ? currentJob.status === 'completed' ? [{ id: 'q1', question: 'Câu hỏi mới', timestamp: null, order: 1 }] : []
+        : [currentJob, { ...currentJob, id: 'other-summary', type: 'summary', status: 'processing' }] },
+    }));
+    function QuizResults() {
+      const { data = [] } = useLessonQuizzesQuery('les-1');
+      return <span>{data.map((quiz) => quiz.question).join(',')}</span>;
+    }
 
     await act(async () => {
       root.render(
         <QueryClientProvider client={queryClient}>
           <TestHarness lessonId="les-1" type="quiz" />
+          <QuizResults />
         </QueryClientProvider>,
       );
     });
@@ -535,6 +581,7 @@ describe('useLessonAnalysisJob Hook', () => {
       status: 'completed',
       phase: 'completed',
       active: false,
+      resultRef: { count: 1 },
     };
 
     await act(async () => {
@@ -546,6 +593,7 @@ describe('useLessonAnalysisJob Hook', () => {
     });
 
     expect(hookResult?.isCompleted).toBe(true);
+    expect(host.textContent).toBe('Câu hỏi mới');
     expect(toast.success).toHaveBeenCalledWith(
       'Bộ câu hỏi trắc nghiệm đã được tạo thành công!',
     );

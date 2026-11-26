@@ -18,6 +18,7 @@ import { AudioExtractorService } from '../../course/services/audio-extractor.ser
 import { AssemblyAiService } from '../../assemblyai/assemblyai.service.js';
 import { StorageService } from '../../storage/storage.service.js';
 import { JobMessagePayload } from '../../jobs/services/job-dispatcher.service.js';
+import { AutomaticAnalysisService } from '../services/automatic-analysis.service.js';
 
 describe('TranscriptionJobProcessor', () => {
   let processor: TranscriptionJobProcessor;
@@ -37,6 +38,7 @@ describe('TranscriptionJobProcessor', () => {
   let mockJobRepo: {
     findById: ReturnType<typeof vi.fn>;
   };
+  let enqueueMissing: ReturnType<typeof vi.fn>;
   let mockLessonRepo: {
     findById: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
@@ -118,6 +120,7 @@ describe('TranscriptionJobProcessor', () => {
     mockJobRepo = {
       findById: vi.fn().mockResolvedValue(sampleJob),
     };
+    enqueueMissing = vi.fn();
     mockLessonRepo = {
       findById: vi.fn().mockResolvedValue({
         id: 'lesson-1',
@@ -179,6 +182,7 @@ describe('TranscriptionJobProcessor', () => {
       mockAssemblyAiService as unknown as AssemblyAiService,
       mockStorageService as unknown as StorageService,
       mockConnection as unknown as Connection,
+      { enqueueMissing } as unknown as AutomaticAnalysisService,
     );
   });
 
@@ -279,6 +283,12 @@ describe('TranscriptionJobProcessor', () => {
         mockSession,
       );
       expect(mockLessonRepo.incrementInputRevision).toHaveBeenCalledWith('lesson-1', mockSession);
+      expect(enqueueMissing).toHaveBeenCalledExactlyOnceWith({
+        lessonId: 'lesson-1',
+        courseId: 'course-1',
+        requestedById: 'user-1',
+        inputRevision: 1,
+      }, undefined, mockSession);
       expect(mockJobService.completeJob).toHaveBeenCalledWith(
         'job-transcription-1',
         'lease-token-123',
@@ -291,6 +301,22 @@ describe('TranscriptionJobProcessor', () => {
       );
 
       // 8. ACK message
+      expect(mockMsg.ack).toHaveBeenCalled();
+    });
+
+    it('marks an empty transcript ready without scheduling an AI request', async () => {
+      mockAssemblyAiService.pollTranscript.mockResolvedValueOnce({
+        transcriptId: 'assemblyai-transcript-empty',
+        rawTranscript: ' ',
+        sentences: [],
+        durationSeconds: 60,
+        languageCode: 'vi',
+      });
+
+      await processor.processTranscriptionJob(mockMsg);
+
+      expect(enqueueMissing).not.toHaveBeenCalled();
+      expect(mockJobService.completeJob).toHaveBeenCalled();
       expect(mockMsg.ack).toHaveBeenCalled();
     });
   });

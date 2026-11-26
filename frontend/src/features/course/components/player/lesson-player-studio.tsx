@@ -11,6 +11,7 @@ import {
   useLessonTranscriptQuery,
   useRetryLessonTranscriptionMutation,
 } from '../../api/course.api';
+import { analysisJobKeys } from '../../api/analysis-jobs.api';
 import { usePublicCourseDetailQuery } from '../../api/enrollment.api';
 import { canEditCourseContent } from '../../utils/course-access.util';
 import { getCourseUrl, type CourseViewMode } from '../../utils/course-view-mode.util';
@@ -126,10 +127,13 @@ function LessonPlayerStudioContent({
       void queryClient.invalidateQueries({
         queryKey: courseKeys.sections(courseId),
       });
+      if (canEdit) {
+        void queryClient.invalidateQueries({ queryKey: analysisJobKeys.lesson(lesson.id) });
+      }
     }
 
     prevTranscriptStatusRef.current = currentStatus;
-  }, [transcript?.status, lesson.id, courseId, queryClient]);
+  }, [transcript?.status, lesson.id, courseId, canEdit, queryClient]);
 
   // Mutation to retry transcription when not found or failed
   const {

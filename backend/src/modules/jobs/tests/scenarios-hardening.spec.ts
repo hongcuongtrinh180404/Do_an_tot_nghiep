@@ -40,6 +40,7 @@ describe('10 Scenarios Hardening Test Suite (Ma Trận Nghiệm Thu Kiến Trúc
       claimJobAtomic: vi.fn(),
       renewLeaseAtomic: vi.fn().mockResolvedValue(true),
       update: vi.fn().mockImplementation((id, payload) => Promise.resolve({ id, ...payload })),
+      updateWithLease: vi.fn().mockImplementation((id, lease, payload) => Promise.resolve({ id, ...payload })),
       findPendingDispatches: vi.fn().mockResolvedValue([]),
       markDispatched: vi.fn().mockResolvedValue(true),
       findExpiredLeases: vi.fn().mockResolvedValue([]),
@@ -320,7 +321,7 @@ describe('10 Scenarios Hardening Test Suite (Ma Trận Nghiệm Thu Kiến Trúc
     const recoveredCount = await recoveryService.recoverExpiredJobs();
     expect(recoveredCount).toBe(1);
 
-    expect(mockJobRepo.update).toHaveBeenCalledWith('job-crashed', {
+    expect(mockJobRepo.updateWithLease).toHaveBeenCalledWith('job-crashed', expiredJob.leaseToken, {
       status: JobStatusEnum.QUEUED,
       phase: JobPhaseEnum.WAITING_RETRY,
       workerId: null,
@@ -329,7 +330,7 @@ describe('10 Scenarios Hardening Test Suite (Ma Trận Nghiệm Thu Kiến Trúc
       heartbeatAt: null,
       dispatchState: 'pending',
       dispatchSequence: 2, // Tăng dispatchSequence để vô hiệu hóa message cũ
-    });
+    }, undefined, expect.any(Date));
   });
 
   // =========================================================================
@@ -352,8 +353,9 @@ describe('10 Scenarios Hardening Test Suite (Ma Trận Nghiệm Thu Kiến Trúc
       retryDelayMs: 30000,
     });
 
-    expect(mockJobRepo.update).toHaveBeenCalledWith(
+    expect(mockJobRepo.updateWithLease).toHaveBeenCalledWith(
       'job-rate-limit',
+      'tok-rate-limit',
       expect.objectContaining({
         status: JobStatusEnum.QUEUED,
         phase: JobPhaseEnum.WAITING_RETRY,

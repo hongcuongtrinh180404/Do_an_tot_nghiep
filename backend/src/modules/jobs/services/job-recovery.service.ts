@@ -63,7 +63,7 @@ export class JobRecoveryService implements OnModuleInit, OnModuleDestroy {
 
         try {
           // Trả job về hàng đợi để worker khác xử lý
-          await this.jobRepository.update(job.id, {
+          const recovered = await this.jobRepository.updateWithLease(job.id, job.leaseToken ?? null, {
             status: JobStatusEnum.QUEUED,
             phase: JobPhaseEnum.WAITING_RETRY,
             dispatchState: 'pending',
@@ -72,7 +72,8 @@ export class JobRecoveryService implements OnModuleInit, OnModuleDestroy {
             leaseToken: null,
             leaseExpiresAt: null,
             heartbeatAt: null,
-          });
+          }, undefined, now);
+          if (!recovered) continue;
 
           recoveredCount++;
           this.logger.log(

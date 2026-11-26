@@ -7,6 +7,17 @@
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
     "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "share-lib#dev": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true
+    },
+    "dev:worker": {
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     },

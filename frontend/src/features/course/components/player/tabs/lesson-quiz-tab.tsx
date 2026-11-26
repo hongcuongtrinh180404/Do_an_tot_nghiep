@@ -8,7 +8,7 @@ import { useDeleteLessonQuizMutation, useLessonQuizzesQuery } from '@/features/c
 import { DeleteConfirmDialog } from '@/components/shared/dialog/delete-confirm-dialog';
 import { LessonQuizQuestionDialog } from '../lesson-quiz-question-dialog';
 import { useQuizTimingValidation } from '../../../hooks/use-quiz-timing-validation';
-import { isQuizTimestamp } from 'share-lib';
+import { isQuizTimestamp, JobTypeEnum } from 'share-lib';
 import { StudentLessonQuizTab, type StudentQuizState } from './student-lesson-quiz-tab';
 import { useLessonAnalysisJob } from '../../../hooks/use-analysis-jobs';
 import { AnalysisJobStatusBanner } from '../analysis-job-status';
@@ -57,13 +57,17 @@ export function LessonQuizTab({
     isProcessing: isQuizJobProcessing,
     retryJob: handleRetryQuizJob,
     isRetrying: isQuizJobRetrying,
-  } = useLessonAnalysisJob(lessonId, 'quiz');
+  } = useLessonAnalysisJob(lessonId, 'quiz', isInstructor);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<ILessonQuiz | undefined>();
   const [quizToDelete, setQuizToDelete] = useState<ILessonQuiz | null>(null);
   const showTimingErrors = useQuizTimingValidation(courseId);
   const focused = useRef(false);
   const missingCount = officialQuizzes.filter((quiz) => !isQuizTimestamp(quiz.timestamp, duration)).length;
+  const noGeneratedQuestions = quizJob?.status === 'completed' && (
+    quizJob.type === JobTypeEnum.QUIZ ? quizJob.resultRef?.count === 0
+      : quizJob.type === JobTypeEnum.ANALYSIS_BUNDLE && quizJob.resultRef?.quizCount === 0
+  );
 
   useEffect(() => {
     if (!isInstructor || !reviewQuizId || focused.current || isLoading) return;
@@ -132,6 +136,11 @@ export function LessonQuizTab({
         />
       </div>
 
+      {noGeneratedQuestions && (
+        <p role="status" className="mx-auto w-full max-w-4xl rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+          AI không tạo được câu hỏi từ transcript. Những câu hỏi đã có không bị thay đổi.
+        </p>
+      )}
       {showTimingErrors && missingCount > 0 && (
         <p role="alert" className="mx-auto w-full max-w-4xl rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
           Cần điền thời điểm xuất hiện cho {missingCount} câu hỏi trước khi gửi duyệt khóa học.

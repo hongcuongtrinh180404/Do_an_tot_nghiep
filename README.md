@@ -104,13 +104,15 @@ Tại thư mục gốc, chạy:
 pnpm dev
 ```
 > ✨ Lệnh trên sẽ tự động kích hoạt **Turborepo Terminal UI (TUI)**:
-> * Chạy song song `share-lib#dev`, `backend#dev` (port `8000`) và `frontend#dev` (port `3000`).
+> * Build `share-lib` trước, sau đó chạy song song `share-lib#dev`, `backend#dev` (port `8000`), `frontend#dev` (port `3000`) và `backend#dev:worker`.
 > * Dùng phím mũi tên `↑ / ↓` để chuyển đổi và phím `Enter` để xem chi tiết log của từng service.
 
-*(Tùy chọn)* Nếu cần test xử lý video bất đồng bộ (FFmpeg tách audio, AssemblyAI transcript, Gemini/River AI sinh Mindmap & In-video Quiz), mở thêm một terminal khác và chạy **Standalone Worker**:
+**Standalone Worker** xử lý transcript video và các tác vụ AI qua RabbitMQ. Không cần chạy worker riêng nếu đã chạy `pnpm dev`. Khi chỉ muốn khởi động worker, dùng:
 ```bash
 pnpm --filter backend dev:worker
 ```
+
+ Sau khi video có transcript, worker tự xếp các tác vụ tạo tóm tắt, sơ đồ tư duy và quiz còn thiếu. Queue AI mặc định chạy tối đa 3 tác vụ đồng thời trên mỗi worker (`AI_PREFETCH=3`); nội dung giảng viên đã lưu không bị thay thế.
 
 #### Địa chỉ truy cập Local
 | Thành phần | URL / Connection | Tài khoản mặc định (Dev) |
@@ -174,8 +176,8 @@ pnpm dev
 | :--- | :--- |
 | `docker compose up -d` | Khởi chạy hạ tầng Docker (MongoDB `rs0`, MinIO, RabbitMQ) |
 | `docker compose down` | Dừng và gỡ các container hạ tầng (giữ nguyên Docker volumes) |
-| `pnpm dev` | Khởi chạy song song `share-lib`, `backend`, `frontend` với Turborepo TUI |
-| `pnpm --filter backend dev:worker` | Khởi chạy Standalone Worker xử lý video & AI pipeline |
+| `pnpm dev` | Khởi chạy frontend, API, Standalone Worker và `share-lib` với Turborepo TUI |
+| `pnpm --filter backend dev:worker` | Chỉ khởi chạy Standalone Worker xử lý video & AI pipeline |
 | `pnpm seed` | Khởi tạo dữ liệu mẫu (Users, Course Categories) |
 | `pnpm seed:refresh` | Chạy lại seeder ở chế độ ghi đè/cập nhật dữ liệu mẫu |
 | `pnpm build` | Biên dịch toàn bộ monorepo (`share-lib` -> `backend` -> `frontend`) |

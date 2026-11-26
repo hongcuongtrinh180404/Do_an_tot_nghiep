@@ -3,10 +3,11 @@ import {
   Logger,
   OnModuleInit,
   ConflictException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectConnection } from '@nestjs/mongoose';
-import type { Connection } from 'mongoose';
+import type { ClientSession, Connection } from 'mongoose';
 import { randomUUID } from 'crypto';
 import {
   JobTypeEnum,
@@ -14,6 +15,8 @@ import {
   RoleEnum,
   ILessonSummary,
   ILessonMindmap,
+  LessonTranscriptionStatusEnum,
+  type IJob,
 } from 'share-lib';
 import { RabbitMqService, RabbitMqMessage } from '../../messaging/rabbitmq.service.js';
 import { RABBITMQ_CONSTANTS } from '../../messaging/rabbitmq-topology.js';
@@ -32,6 +35,8 @@ import { GenerateSummaryDto } from '../dto/generate-summary.dto.js';
 import { GenerateQuizDto } from '../dto/generate-quiz.dto.js';
 import { GenerateMindmapDto } from '../dto/generate-mindmap.dto.js';
 import { JobMessagePayload } from '../../jobs/services/job-dispatcher.service.js';
+import { GeminiBaseException } from '../../gemini/gemini.errors.js';
+import { BundleAnalysisService } from '../services/bundle-analysis.service.js';
 
 @Injectable()
 export class AnalysisJobProcessor implements OnModuleInit {
@@ -52,6 +57,7 @@ export class AnalysisJobProcessor implements OnModuleInit {
     private readonly lessonMindmapRepo: LessonMindmapRepository,
     private readonly jobManagementPolicy: JobManagementPolicy,
     @InjectConnection() private readonly connection: Connection,
+    private readonly bundleAnalysisService: BundleAnalysisService,
   ) { }
 
   async onModuleInit(): Promise<void> {
@@ -66,7 +72,7 @@ export class AnalysisJobProcessor implements OnModuleInit {
       'RABBITMQ_AI_QUEUE',
       RABBITMQ_CONSTANTS.QUEUE_AI,
     );
-    const prefetch = this.configService.get<number>('AI_PREFETCH', 1);
+    const prefetch = this.configService.get<number>('AI_PREFETCH', 3);
 
     this.logger.log(
       `[AnalysisJobProcessor] Đăng ký consumer cho queue "${queueName}" (Prefetch: ${prefetch})...`,
@@ -100,12 +106,100 @@ export class AnalysisJobProcessor implements OnModuleInit {
       await this.processQuizJob(msg);
     } else if (payload.type === JobTypeEnum.MINDMAP) {
       await this.processMindmapJob(msg);
+    } else if (payload.type === JobTypeEnum.ANALYSIS_BUNDLE) {
+      await this.processBundleJob(msg);
     } else {
       this.logger.debug(
         `[AnalysisJobProcessor] Bỏ qua tác vụ chưa kích hoạt ở phase này: type="${payload.type}"`,
       );
       msg.ack();
     }
+  }
+
+  private async processBundleJob(msg: RabbitMqMessage<JobMessagePayload>): Promise<void> {
+    const { jobId, dispatchSequence } = msg.content;
+    const existing = await this.jobRepository.findById(jobId);
+    if (existing?.type !== JobTypeEnum.ANALYSIS_BUNDLE) {
+      msg.ack();
+      return;
+    }
+    const claim = await this.jobService.claimJob(
+      jobId, dispatchSequence, `worker-bundle-${process.pid}-${randomUUID()}`, 90000,
+    );
+    if (!claim) {
+      msg.ack();
+      return;
+    }
+    const { job, leaseToken } = claim;
+    const heartbeat = setInterval(() => {
+      void this.jobService.renewLease(jobId, leaseToken, 90000).catch((error: unknown) => {
+        this.logger.warn(`Không thể gia hạn lease cho tác vụ phân tích ${jobId}: ${String(error)}`);
+      });
+    }, 20000);
+    try {
+      const bundle = await this.bundleAnalysisService.generate(job);
+      await this.withBundleLease(jobId, leaseToken, async (session) => {
+        const result = await this.bundleAnalysisService.persist(job, bundle, session);
+        await this.jobService.completeJob(jobId, leaseToken, result, session);
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Phân tích tự động thất bại cho tác vụ ${jobId}: ${message}`);
+      await this.withBundleLease(jobId, leaseToken, async (session) => {
+        await this.jobService.failJob(jobId, leaseToken, {
+          errorCode: error instanceof ConflictException ? 'ANALYSIS_INPUT_CHANGED' : 'ANALYSIS_BUNDLE_FAILED',
+          errorMessage: message,
+          retryable: error instanceof UnprocessableEntityException ||
+            (error instanceof GeminiBaseException && error.retryable),
+        }, session);
+      });
+    } finally {
+      clearInterval(heartbeat);
+    }
+    msg.ack();
+  }
+
+  private async withBundleLease(
+    jobId: string,
+    leaseToken: string,
+    run: (session: ClientSession) => Promise<void>,
+  ): Promise<void> {
+    const session = await this.connection.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const current = await this.jobRepository.findById(jobId, session);
+        if (current?.status === JobStatusEnum.PROCESSING && current.leaseToken === leaseToken) {
+          await run(session);
+        }
+      });
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  private async verifyAutomaticInput(job: IJob, session?: ClientSession): Promise<void> {
+    const lesson = await this.jobManagementPolicy.verifyAutomaticAnalysis(job.lessonId, job.courseId, session);
+    if ((lesson.analysisInputRevision ?? 0) !== job.inputRevision ||
+      lesson.transcriptionStatus !== LessonTranscriptionStatusEnum.READY) {
+      throw new ConflictException('Transcript đã thay đổi hoặc không còn sẵn sàng.');
+    }
+  }
+
+  private async verifyJobAccess(job: IJob): Promise<void> {
+    if (job.parameters?.automatic === true) {
+      await this.verifyAutomaticInput(job);
+    } else {
+      await this.jobManagementPolicy.verifyLessonAccess(
+        job.lessonId,
+        { id: job.requestedById, role: RoleEnum.INSTRUCTOR },
+        { allowPendingApproval: false },
+      );
+    }
+  }
+
+  private async claimOutputRevision(job: IJob, output: 'summary' | 'mindmap' | 'quiz', session: ClientSession) {
+    if (job.parameters?.automatic === true) await this.verifyAutomaticInput(job, session);
+    return this.lessonRepo.incrementOutputRevision(job.lessonId, output, job.targetRevision, session);
   }
 
   /**
@@ -160,11 +254,7 @@ export class AnalysisJobProcessor implements OnModuleInit {
       // 4. Kiểm tra điều kiện tiên quyết (Pre-checks)
       // a. Kiểm tra trạng thái khóa học qua Policy (chặn nếu PENDING_APPROVAL)
       try {
-        await this.jobManagementPolicy.verifyLessonAccess(
-          job.lessonId,
-          { id: job.requestedById, role: RoleEnum.INSTRUCTOR },
-          { allowPendingApproval: false },
-        );
+        await this.verifyJobAccess(job);
       } catch (policyErr: any) {
         if (policyErr instanceof ConflictException) {
           this.logger.warn(
@@ -222,12 +312,7 @@ export class AnalysisJobProcessor implements OnModuleInit {
       try {
         await session.withTransaction(async () => {
           // a. Fencing & Revision Guard: Kiểm tra revision tóm tắt có bị thay đổi không
-          const bumped = await this.lessonRepo.incrementOutputRevision(
-            job.lessonId,
-            'summary',
-            job.targetRevision,
-            session,
-          );
+          const bumped = await this.claimOutputRevision(job, 'summary', session);
           if (!bumped) {
             throw new ConflictException('TARGET_CHANGED');
           }
@@ -361,11 +446,7 @@ export class AnalysisJobProcessor implements OnModuleInit {
       // 4. Kiểm tra điều kiện tiên quyết (Pre-checks)
       // a. Policy check: chặn nếu PENDING_APPROVAL
       try {
-        await this.jobManagementPolicy.verifyLessonAccess(
-          job.lessonId,
-          { id: job.requestedById, role: RoleEnum.INSTRUCTOR },
-          { allowPendingApproval: false },
-        );
+        await this.verifyJobAccess(job);
       } catch (policyErr: unknown) {
         if (policyErr instanceof ConflictException) {
           this.logger.warn(
@@ -442,12 +523,7 @@ export class AnalysisJobProcessor implements OnModuleInit {
       try {
         await session.withTransaction(async () => {
           // a. Fencing & Revision Guard: Kiểm tra revision quiz có bị thay đổi không
-          const bumped = await this.lessonRepo.incrementOutputRevision(
-            job.lessonId,
-            'quiz',
-            job.targetRevision,
-            session,
-          );
+          const bumped = await this.claimOutputRevision(job, 'quiz', session);
           if (!bumped) {
             throw new ConflictException('TARGET_CHANGED');
           }
@@ -596,11 +672,7 @@ export class AnalysisJobProcessor implements OnModuleInit {
       // 4. Pre-checks
       // a. Policy check: chặn nếu PENDING_APPROVAL
       try {
-        await this.jobManagementPolicy.verifyLessonAccess(
-          job.lessonId,
-          { id: job.requestedById, role: RoleEnum.INSTRUCTOR },
-          { allowPendingApproval: false },
-        );
+        await this.verifyJobAccess(job);
       } catch (policyErr: unknown) {
         if (policyErr instanceof ConflictException) {
           this.logger.warn(
@@ -657,12 +729,7 @@ export class AnalysisJobProcessor implements OnModuleInit {
       try {
         await session.withTransaction(async () => {
           // a. Fencing & Revision Guard
-          const bumped = await this.lessonRepo.incrementOutputRevision(
-            job.lessonId,
-            'mindmap',
-            job.targetRevision,
-            session,
-          );
+          const bumped = await this.claimOutputRevision(job, 'mindmap', session);
           if (!bumped) {
             throw new ConflictException('TARGET_CHANGED');
           }

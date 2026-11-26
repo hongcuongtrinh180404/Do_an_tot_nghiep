@@ -3,4 +3,5 @@ export enum JobTypeEnum {
   QUIZ = 'quiz',
   MINDMAP = 'mindmap',
   TRANSCRIPTION = 'transcription',
+  ANALYSIS_BUNDLE = 'analysis-bundle',
 }

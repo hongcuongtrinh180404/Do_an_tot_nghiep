@@ -110,7 +110,8 @@ export const envValidationSchema = Joi.object({
   RABBITMQ_PUBLISH_TIMEOUT_MS: Joi.number().default(10000),
 
   AI_WORKER_CONCURRENCY: Joi.number().default(1),
-  AI_PREFETCH: Joi.number().default(1),
+  AI_PREFETCH: Joi.number().integer().min(1).max(65535).default(3),
+  TRANSCRIPTION_PREFETCH: Joi.number().integer().min(0).max(65535).default(1),
   AI_ASYNC_TYPES: Joi.string().allow('').default(''),
 }).concat(chatbotEnvSchema);
 

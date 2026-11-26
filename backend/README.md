@@ -64,6 +64,8 @@ backend/
 ### 3.2. Khởi Chạy Ứng Dụng
 
 #### Chế độ Phát triển (Development):
+`pnpm dev` ở thư mục gốc chạy cả API và Standalone Worker. Nếu muốn chạy riêng từng tiến trình từ thư mục `backend`:
+
 ```bash
 # 1. Chạy API Server (Port 8000)
 pnpm start:dev
@@ -82,7 +84,7 @@ pnpm build:worker
 
 # Khởi chạy production
 node dist/main.js
-node dist/worker.js
+node dist-worker/src/worker.js
 ```
 
 ---

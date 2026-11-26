@@ -183,6 +183,7 @@ describe('AnalysisJobProcessor - Mindmap Job', () => {
       mockLessonMindmapRepo as unknown as LessonMindmapRepository,
       mockJobPolicy as unknown as JobManagementPolicy,
       mockConnection as unknown as Connection,
+      {} as never,
     );
   });
 

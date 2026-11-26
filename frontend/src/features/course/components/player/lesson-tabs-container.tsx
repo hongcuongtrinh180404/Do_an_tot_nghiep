@@ -102,9 +102,9 @@ export function LessonTabsContainer({
     useGenerateQuizMutation(lessonId);
   const { mutate: generateSummary, isPending: isSummaryGenerating } =
     useGenerateSummaryMutation(lessonId);
-  const { isProcessing: isSummaryJobProcessing } = useLessonAnalysisJob(lessonId, 'summary');
-  const { isProcessing: isQuizJobProcessing } = useLessonAnalysisJob(lessonId, 'quiz');
-  const { isProcessing: isMindmapJobProcessing } = useLessonAnalysisJob(lessonId, 'mindmap');
+  const { isProcessing: isSummaryJobProcessing } = useLessonAnalysisJob(lessonId, 'summary', isInstructor);
+  const { isProcessing: isQuizJobProcessing } = useLessonAnalysisJob(lessonId, 'quiz', isInstructor);
+  const { isProcessing: isMindmapJobProcessing } = useLessonAnalysisJob(lessonId, 'mindmap', isInstructor);
 
   const handleTriggerAiForActiveTab = (tabId: TabConfig['id']) => {
     if (!isInstructor) return;

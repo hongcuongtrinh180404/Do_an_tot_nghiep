@@ -11,6 +11,7 @@ import { LessonRepository } from '../../course/repositories/lesson.repository.js
 import { LessonSummaryRepository } from '../../course/repositories/lesson-summary.repository.js';
 import { SummaryGenerationService } from '../services/summary-generation.service.js';
 import { JobManagementPolicy } from '../policies/job-management.policy.js';
+import type { BundleAnalysisService } from '../services/bundle-analysis.service.js';
 import { JobMessagePayload } from '../../jobs/services/job-dispatcher.service.js';
 
 describe('AnalysisJobProcessor', () => {
@@ -51,6 +52,7 @@ describe('AnalysisJobProcessor', () => {
     withTransaction: ReturnType<typeof vi.fn>;
     endSession: ReturnType<typeof vi.fn>;
   };
+  const bundleService = { generate: vi.fn(), persist: vi.fn() };
 
   const sampleJob: IJob = {
     id: 'job-1',
@@ -85,6 +87,8 @@ describe('AnalysisJobProcessor', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
+    bundleService.generate.mockReset().mockResolvedValue({ revisions: {} });
+    bundleService.persist.mockReset().mockResolvedValue({ saved: ['summary', 'mindmap', 'quiz'] });
 
     mockRabbitMqService = {
       createConsumer: vi.fn(),
@@ -180,7 +184,54 @@ describe('AnalysisJobProcessor', () => {
       {} as any,
       mockJobPolicy as unknown as JobManagementPolicy,
       mockConnection as unknown as Connection,
+      bundleService as unknown as BundleAnalysisService,
     );
+  });
+
+  it.each([true, false])('persists a bundle only while it owns the lease (%s)', async (ownsLease) => {
+    const job = { ...sampleJob, type: JobTypeEnum.ANALYSIS_BUNDLE };
+    mockMsg.content = { ...sampleMsgPayload, type: job.type };
+    mockJobService.claimJob.mockResolvedValueOnce({ job, leaseToken: 'lease-1' });
+    mockJobRepo.findById.mockResolvedValueOnce(job).mockResolvedValueOnce({
+      ...job,
+      status: ownsLease ? JobStatusEnum.PROCESSING : JobStatusEnum.QUEUED,
+      leaseToken: ownsLease ? 'lease-1' : null,
+    });
+
+    await processor.handleMessage(mockMsg);
+
+    expect(bundleService.generate).toHaveBeenCalledExactlyOnceWith(job);
+    expect(bundleService.persist).toHaveBeenCalledTimes(ownsLease ? 1 : 0);
+    expect(mockJobService.completeJob).toHaveBeenCalledTimes(ownsLease ? 1 : 0);
+    expect(mockMsg.ack).toHaveBeenCalledOnce();
+  });
+
+  it('allows summary, mindmap and quiz deliveries to enter their handlers before any completes', async () => {
+    vi.stubEnv('IS_WORKER', 'true');
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const summary = vi.spyOn(processor, 'processSummaryJob').mockReturnValue(gate);
+    const mindmap = vi.spyOn(processor, 'processMindmapJob').mockReturnValue(gate);
+    const quiz = vi.spyOn(processor, 'processQuizJob').mockReturnValue(gate);
+    try {
+      await processor.onModuleInit();
+      expect(mockRabbitMqService.createConsumer).toHaveBeenCalledWith(
+        'mindly.ai.v1', expect.any(Function), { prefetch: 3 },
+      );
+      const deliver = mockRabbitMqService.createConsumer.mock.calls[0][1] as
+        (message: RabbitMqMessage<JobMessagePayload>) => Promise<void>;
+      const deliveries = [JobTypeEnum.SUMMARY, JobTypeEnum.MINDMAP, JobTypeEnum.QUIZ].map((type) =>
+        deliver({ ...mockMsg, content: { ...sampleMsgPayload, type, jobId: `job-${type}` } }),
+      );
+      expect(summary).toHaveBeenCalledOnce();
+      expect(mindmap).toHaveBeenCalledOnce();
+      expect(quiz).toHaveBeenCalledOnce();
+      release();
+      await Promise.all(deliveries);
+    } finally {
+      release();
+      vi.unstubAllEnvs();
+    }
   });
 
   afterEach(() => {

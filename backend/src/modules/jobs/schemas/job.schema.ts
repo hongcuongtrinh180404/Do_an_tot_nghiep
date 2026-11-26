@@ -27,7 +27,7 @@ export class Job extends BaseAbstractDocument implements Omit<IJob, 'id'> {
   @Prop({ type: String, required: true })
   correlationId: string;
 
-  @Prop({ type: String, default: null })
+  @Prop({ type: String })
   idempotencyKey?: string | null;
 
   @Prop({ type: String, default: null })

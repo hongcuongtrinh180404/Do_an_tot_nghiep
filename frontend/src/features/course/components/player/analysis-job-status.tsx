@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { JobTypeEnum } from 'share-lib';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import type { AnalysisJobResponse } from '../../api/analysis-jobs.api';
@@ -25,6 +26,9 @@ export function AnalysisJobStatusBanner({
   const isQueued = job.status === 'queued';
   const isProcessing = job.status === 'processing';
   const isFailed = job.status === 'failed';
+  const isBundle = job.type === JobTypeEnum.ANALYSIS_BUNDLE;
+  const output = job.type === JobTypeEnum.QUIZ ? 'câu hỏi trắc nghiệm'
+    : job.type === JobTypeEnum.MINDMAP ? 'sơ đồ tư duy' : 'bản tóm tắt bài học';
 
   return (
     <div
@@ -64,12 +68,14 @@ export function AnalysisJobStatusBanner({
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               {isQueued && 'Đang xếp hàng chờ xử lý...'}
               {isProcessing &&
-                (job.phase === 'calling_ai'
-                  ? 'AI đang phân tích transcript và tạo tóm tắt...'
+                (isBundle
+                  ? 'AI đang tạo tóm tắt, sơ đồ tư duy và câu hỏi...'
+                  : job.phase === 'calling_ai'
+                  ? `AI đang phân tích transcript và tạo ${job.type === JobTypeEnum.SUMMARY ? 'tóm tắt' : output}...`
                   : job.phase === 'saving_result'
-                    ? 'Đang lưu trữ bản tóm tắt vào hệ thống...'
-                    : 'AI đang xử lý tác vụ tóm tắt...')}
-              {isFailed && 'Không thể tạo bản tóm tắt bài học'}
+                    ? `Đang lưu ${output}...`
+                    : `AI đang tạo ${output}...`)}
+              {isFailed && (isBundle ? 'Không thể tạo học liệu tự động' : `Không thể tạo ${output}`)}
 
               {job.attempts > 1 && isProcessing && (
                 <span className="text-[11px] font-normal px-2 py-0.5 rounded-md bg-muted text-muted-foreground border">
@@ -79,7 +85,7 @@ export function AnalysisJobStatusBanner({
             </h4>
             <p className="text-xs text-muted-foreground leading-relaxed">
               {isFailed
-                ? job.errorMessage || 'Đã có lỗi xảy ra trong quá trình sinh tóm tắt bài học.'
+                ? job.errorMessage || 'Đã có lỗi xảy ra khi tạo học liệu.'
                 : 'Bạn có thể tự do chuyển sang bài học khác hoặc đóng trình duyệt, tác vụ AI vẫn tiếp tục chạy ngầm.'}
             </p>
           </div>

@@ -22,6 +22,7 @@ import { AudioExtractorService } from '../../course/services/audio-extractor.ser
 import { AssemblyAiService } from '../../assemblyai/assemblyai.service.js';
 import { StorageService } from '../../storage/storage.service.js';
 import { JobMessagePayload } from '../../jobs/services/job-dispatcher.service.js';
+import { AutomaticAnalysisService } from '../services/automatic-analysis.service.js';
 
 @Injectable()
 export class TranscriptionJobProcessor implements OnModuleInit {
@@ -38,6 +39,7 @@ export class TranscriptionJobProcessor implements OnModuleInit {
     private readonly assemblyAiService: AssemblyAiService,
     private readonly storageService: StorageService,
     @InjectConnection() private readonly connection: Connection,
+    private readonly automaticAnalysis: AutomaticAnalysisService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -254,7 +256,18 @@ export class TranscriptionJobProcessor implements OnModuleInit {
           }
 
           await this.lessonRepo.update(job.lessonId, lessonUpdatePayload, session);
-          await this.lessonRepo.incrementInputRevision(job.lessonId, session);
+          const revision = await this.lessonRepo.incrementInputRevision(job.lessonId, session);
+
+          // Commit the three independent outbox jobs with the READY transcript.
+          if (revision != null &&
+            (result.rawTranscript.trim() || result.sentences.some((sentence) => sentence.text.trim()))) {
+            await this.automaticAnalysis.enqueueMissing({
+              lessonId: job.lessonId,
+              courseId: job.courseId,
+              requestedById: job.requestedById,
+              inputRevision: revision,
+            }, currentLesson?.analysisOutputRevisions, session);
+          }
 
           // c. Complete Job
           await this.jobService.completeJob(

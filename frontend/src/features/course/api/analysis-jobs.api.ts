@@ -23,6 +23,7 @@ export interface AnalysisJobResponse {
   phase: AnalysisJobPhase | JobPhaseEnum;
   attempts: number;
   maxAttempts: number;
+  resultRef?: { count?: number; quizCount?: number } | null;
   nextRunAt?: string | null;
   errorCode?: string | null;
   errorMessage?: string | null;

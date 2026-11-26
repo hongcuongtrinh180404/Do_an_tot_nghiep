@@ -188,6 +188,7 @@ describe('AnalysisJobProcessor - Quiz Job', () => {
       {} as never, // lessonMindmapRepo
       mockJobPolicy as unknown as JobManagementPolicy,
       mockConnection as unknown as Connection,
+      {} as never,
     );
   });
 

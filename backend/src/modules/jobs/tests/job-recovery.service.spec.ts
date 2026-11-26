@@ -38,7 +38,7 @@ describe('JobRecoveryService (Unit Test)', () => {
 
     mockJobRepo = {
       findExpiredLeases: vi.fn().mockResolvedValue([mockExpiredJob]),
-      update: vi.fn().mockResolvedValue({ ...mockExpiredJob, status: JobStatusEnum.QUEUED }),
+      updateWithLease: vi.fn().mockResolvedValue({ ...mockExpiredJob, status: JobStatusEnum.QUEUED }),
     };
 
     mockConfigService = {
@@ -82,7 +82,7 @@ describe('JobRecoveryService (Unit Test)', () => {
 
       // Assert
       expect(count).toBe(0);
-      expect(mockJobRepo.update).not.toHaveBeenCalled();
+      expect(mockJobRepo.updateWithLease).not.toHaveBeenCalled();
     });
 
     it('nên phục hồi job quá hạn về trạng thái QUEUED và tăng dispatchSequence', async () => {
@@ -91,8 +91,9 @@ describe('JobRecoveryService (Unit Test)', () => {
 
       // Assert
       expect(count).toBe(1);
-      expect(mockJobRepo.update).toHaveBeenCalledWith(
+      expect(mockJobRepo.updateWithLease).toHaveBeenCalledWith(
         mockExpiredJob.id,
+        mockExpiredJob.leaseToken,
         {
           status: JobStatusEnum.QUEUED,
           phase: JobPhaseEnum.WAITING_RETRY,
@@ -103,6 +104,8 @@ describe('JobRecoveryService (Unit Test)', () => {
           leaseExpiresAt: null,
           heartbeatAt: null,
         },
+        undefined,
+        expect.any(Date),
       );
     });
 
@@ -115,7 +118,7 @@ describe('JobRecoveryService (Unit Test)', () => {
       mockJobRepo.findExpiredLeases = vi.fn().mockResolvedValue([mockExpiredJob, mockJob2]);
 
       // Job 1 thất bại, Job 2 thành công
-      mockJobRepo.update = vi.fn()
+      mockJobRepo.updateWithLease = vi.fn()
         .mockRejectedValueOnce(new Error('Mongo network timeout'))
         .mockResolvedValueOnce({ ...mockJob2, status: JobStatusEnum.QUEUED });
 
@@ -124,7 +127,7 @@ describe('JobRecoveryService (Unit Test)', () => {
 
       // Assert
       expect(count).toBe(1); // 1 trong 2 được phục hồi thành công
-      expect(mockJobRepo.update).toHaveBeenCalledTimes(2);
+      expect(mockJobRepo.updateWithLease).toHaveBeenCalledTimes(2);
     });
 
     it('không nên quét chồng chéo khi lần quét trước chưa xong (isProcessing)', async () => {

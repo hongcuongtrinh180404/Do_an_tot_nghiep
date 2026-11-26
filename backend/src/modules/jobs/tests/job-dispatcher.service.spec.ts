@@ -131,6 +131,19 @@ describe('JobDispatcherService (Unit Test)', () => {
       expect(mockJobRepo.markDispatched).not.toHaveBeenCalled();
     });
 
+    it('routes the combined analysis job to the AI queue binding', async () => {
+      mockJobRepo.findPendingDispatches = vi.fn().mockResolvedValue([
+        { ...mockPendingJob, type: JobTypeEnum.ANALYSIS_BUNDLE },
+      ]);
+
+      await expect(dispatcher.dispatchPendingJobs()).resolves.toBe(1);
+      expect(mockRabbitMqService.publish).toHaveBeenCalledWith(
+        'ai.analysis-bundle',
+        expect.objectContaining({ type: JobTypeEnum.ANALYSIS_BUNDLE }),
+        expect.any(Object),
+      );
+    });
+
     it('nên xử lý lỗi khi publish bị ném exception mà không làm crash scanner', async () => {
       // Arrange
       mockRabbitMqService.publish = vi.fn().mockRejectedValue(new Error('Broker connection lost'));
